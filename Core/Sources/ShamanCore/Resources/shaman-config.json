@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "medas": {
+    "excludedItems": [8],
+    "windowDays": 7
+  },
+  "recognition": {
+    "model": "gpt-5.6-luna",
+    "imageDetail": "low",
+    "reasoningEffort": "low",
+    "autoConfirmConfidence": 0.85
+  },
+  "movements": [
+    {
+      "id": "squat",
+      "displayName": "Squat",
+      "mode": { "type": "reps" },
+      "metric": { "type": "joint_angle", "a": "leftHip", "vertex": "leftKnee", "b": "leftAnkle", "side": "both" },
+      "lowThreshold": 100,
+      "highThreshold": 160,
+      "minRepIntervalMillis": 700,
+      "requiredJoints": ["leftHip", "leftKnee", "leftAnkle", "rightHip", "rightKnee", "rightAnkle"],
+      "coachingCue": "Stand side-on to the phone, whole body in frame."
+    },
+    {
+      "id": "pushup",
+      "displayName": "Push-up",
+      "mode": { "type": "reps" },
+      "metric": { "type": "joint_angle", "a": "leftShoulder", "vertex": "leftElbow", "b": "leftWrist", "side": "both" },
+      "lowThreshold": 95,
+      "highThreshold": 155,
+      "minRepIntervalMillis": 700,
+      "requiredJoints": ["leftShoulder", "leftElbow", "leftWrist", "rightShoulder", "rightElbow", "rightWrist"],
+      "coachingCue": "Phone on the floor, side-on, about two metres away."
+    },
+    {
+      "id": "lunge",
+      "displayName": "Lunge",
+      "mode": { "type": "reps" },
+      "metric": { "type": "joint_angle", "a": "leftHip", "vertex": "leftKnee", "b": "leftAnkle", "side": "left" },
+      "lowThreshold": 105,
+      "highThreshold": 160,
+      "minRepIntervalMillis": 900,
+      "requiredJoints": ["leftHip", "leftKnee", "leftAnkle", "leftFootIndex"],
+      "coachingCue": "Side-on. Front foot flat and visible."
+    },
+    {
+      "id": "jumping_jack",
+      "displayName": "Jumping jack",
+      "mode": { "type": "reps" },
+      "metric": { "type": "normalized_distance", "a": "leftWrist", "b": "rightWrist", "side": "both" },
+      "lowThreshold": 0.4,
+      "highThreshold": 1.6,
+      "minRepIntervalMillis": 400,
+      "requiredJoints": ["leftWrist", "rightWrist", "leftShoulder", "rightShoulder"],
+      "coachingCue": "Face the phone, arms fully in frame overhead."
+    },
+    {
+      "id": "plank",
+      "displayName": "Plank",
+      "mode": { "type": "hold", "targetSeconds": 60 },
+      "metric": { "type": "joint_angle", "a": "leftShoulder", "vertex": "leftHip", "b": "leftAnkle", "side": "both" },
+      "lowThreshold": 160,
+      "highThreshold": 195,
+      "minRepIntervalMillis": 700,
+      "requiredJoints": ["leftShoulder", "leftHip", "leftAnkle"],
+      "coachingCue": "Side-on. Hold the hip angle straight — sagging stops the clock."
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+.DS_Store
+.build/
+.swiftpm/
+DerivedData/
+*.xcodeproj/
+*.xcworkspace/
+Pods/
+App/Resources/*.task
+# Dependencies are conditional (see Package.swift), so a pinned resolution here
+# would be stale half the time.
+Core/Package.resolved
+*.xcuserstate
+xcuserdata/
+.env
+secrets.json
+
+# SwiftPM build products
+Core/.build/
+Core/.swiftpm/
