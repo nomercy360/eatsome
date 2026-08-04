@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Shaman</string>
+	<string>eatsome</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -21,11 +21,9 @@
 	<key>CFBundleVersion</key>
 	<string>1</string>
 	<key>NSCameraUsageDescription</key>
-	<string>The camera counts your reps on-device. Video never leaves the phone and is never recorded.</string>
+	<string>Photograph meals so eatsome can identify their food groups.</string>
 	<key>NSHealthShareUsageDescription</key>
-	<string>Shaman does not read your health data; this key is required to write workouts.</string>
-	<key>NSHealthUpdateUsageDescription</key>
-	<string>Finished sets are written to Health so your rings and history stay in one place.</string>
+	<string>Import workouts, sleep, and weight to show your daily health overview.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Pick a photo of a meal to log it.</string>
 	<key>UILaunchScreen</key>

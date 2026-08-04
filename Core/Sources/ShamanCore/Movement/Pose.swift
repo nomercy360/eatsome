@@ -103,10 +103,9 @@ public struct PoseFrame: Sendable {
 
 /// Everything above this line is framework-free on purpose.
 ///
-/// `MediaPipePoseProvider` in the app target is the only file that imports
-/// MediaPipeTasksVision. Swapping the estimator — to Vision, to a newer
-/// MediaPipe task, to a recorded fixture for tests — is one file, and the rep
-/// counting logic never learns which one it is talking to.
+/// The shipping app currently imports movement from HealthKit. This protocol
+/// keeps the experimental rep counter independent of any future pose estimator
+/// and makes it testable with recorded fixtures.
 public protocol PoseProvider: AnyObject, Sendable {
     var frames: AsyncStream<PoseFrame> { get }
     func start() async throws

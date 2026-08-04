@@ -20,6 +20,8 @@ public actor EventLog {
         }
     }
 
+    /// The legacy default directory is retained across the product rename so
+    /// existing meal history remains visible after an in-place app update.
     public static func defaultURL(appName: String = "Shaman") throws -> URL {
         let base = try FileManager.default.url(
             for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true

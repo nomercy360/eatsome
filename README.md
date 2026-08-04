@@ -1,13 +1,18 @@
-# Shaman
+# eatsome
 
-A personal Mediterranean-diet and daily-movement tracker for iOS.
+A personal Mediterranean-diet and health overview for iOS.
 
-Two things, and only two:
+Canonical domain: [eatso.me](https://eatso.me)
+
+The original bundle, storage-directory, and Keychain service identifiers remain
+unchanged internally so the rename installs as an update without losing data.
+
+Two connected loops:
 
 1. **Photograph a meal** → `gpt-5.6-luna` classifies it into food groups and
    coarse portions → a rolling weekly **MEDAS** adherence score.
-2. **Point the phone at yourself** → MediaPipe Pose Landmarker counts reps
-   on-device → the set is logged and mirrored into HealthKit.
+2. **Connect Apple Health** → workouts, sleep stages, and weight recorded by
+   Apple Watch, smart scales, and the Health app appear in one daily overview.
 
 ## What this deliberately does not do
 
@@ -24,8 +29,8 @@ not a failure, and false failures are how habit apps get deleted in week three.
 **No backend.** One user, one device: the API key lives in the Keychain and
 there is nothing to authenticate against. See *Adding a backend later* below.
 
-**No movement classifier.** You pick the movement from a list. Classification is
-the unreliable part of camera-based fitness and it buys nothing here.
+**No custom health score.** Workouts, sleep, and weight are shown as recorded by
+HealthKit. eatsome does not turn them into a proprietary readiness number.
 
 ## Layout
 
@@ -34,31 +39,29 @@ Core/            SwiftPM package — all logic, no frameworks, fully tested
   Sources/ShamanCore/
     Model/       UUIDv7, epoch time, food groups, append-only events
     Nutrition/   MEDAS criteria and the rolling-window scorer
-    Movement/    BlazePose topology, geometry, 1€ filter, Schmitt rep counter
+    Movement/    Experimental pose geometry and rep counter (not shipped in app)
     AI/          Luna client, strict JSON schema, SHA-256 recognition cache
     Storage/     JSONL event log, Keychain
     Config/      Remote-or-bundled tunables
-App/             iOS app — SwiftUI, camera, MediaPipe, HealthKit
-  Pose/          The only files that import MediaPipeTasksVision
-scripts/         bootstrap.sh, fetch_model.sh
+App/             iOS app — SwiftUI, meal camera, OpenAI, HealthKit
+  DesignSystem/  Wellie-derived color, type, card, chip, and button tokens
+  Support/       Read-only HealthKit import and app configuration
+scripts/         bootstrap.sh
 ```
 
-`Core` has no dependency on UIKit, AVFoundation, or MediaPipe. That is what lets
-the rep counter be tested against synthetic skeletons in microseconds instead of
-against a camera.
+`Core` has no dependency on UIKit, AVFoundation, HealthKit, or other app
+frameworks. Logic remains testable without an iOS runtime.
 
 ## Setup
 
-Requires Xcode (the bare Command Line Tools are not enough — MediaPipe needs an
-iOS SDK, and both test frameworks ship inside Xcode).
+Requires Xcode and XcodeGen.
 
 ```bash
 ./scripts/bootstrap.sh
 ```
 
-That fetches the pose model, generates `Shaman.xcodeproj` from `project.yml`,
-runs `pod install`, and leaves you with `Shaman.xcworkspace`. **Open the
-workspace, not the project.**
+That generates `eatsome.xcodeproj` from `project.yml`. Open the project, select a
+development team, and run it on an iPhone; HealthKit is unavailable on macOS.
 
 Then add an OpenAI API key in Settings. It goes to the Keychain.
 
@@ -94,17 +97,20 @@ a fold over the file; at personal-tracker volumes that costs milliseconds.
 - Cost at `detail: low` is roughly $0.20/$1.20 per million tokens. Personal use
   is cents per month.
 
-### Rep counting is a Schmitt trigger, not a threshold
+### The UI has one visual language
 
-Joint angles come from MediaPipe's **world** landmarks, in metres, so a knee
-angle does not change when you move the phone. A 1€ filter removes residual
-jitter without lagging a fast descent. Two thresholds with a dead band between
-them mean wobbling at the bottom of a squat cannot produce phantom reps, and a
-debounce rejects anything faster than a human.
+The supplied Wellie Figma exports are translated into named SwiftUI tokens in
+`App/DesignSystem/WellieTheme.swift`: SF Rounded typography, deep navy text,
+blue actions, ice-blue health surfaces, neutral cards, and consistent radii.
+The reference screens include calorie and macro concepts that eatsome explicitly
+does not adopt; only their visual system and interaction hierarchy are reused.
 
-Thresholds live in `Core/Sources/ShamanCore/Resources/shaman-config.json` with
-joints written as names, because you will retune them a dozen times in the first
-week of camera testing.
+### HealthKit is the health-data source of truth
+
+eatsome requests read-only access to workouts, sleep analysis, and body mass.
+It refreshes a recent snapshot when the app becomes active and does not copy or
+modify those samples in its event log. Sleep intervals are merged before totals
+are calculated so overlapping sources are not double-counted.
 
 ### Adding a backend later costs a day, not a week
 
@@ -120,6 +126,7 @@ to a second person.
 
 ## Status
 
-`Core` is complete and tested (50 tests). The app layer is scaffolding — it
-compiles against the APIs described above but has not been run on a device yet,
-because the thresholds are guesses until a real camera disagrees with them.
+`Core` is complete and tested (50 tests). The app supports meal recognition,
+rolling MEDAS adherence, and read-only HealthKit imports for workouts, sleep,
+and weight. The signed app has been built, installed, and launched on a physical
+iPhone with its HealthKit entitlement.

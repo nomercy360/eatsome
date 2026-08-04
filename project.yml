@@ -1,7 +1,7 @@
-name: Shaman
+name: eatsome
 
 options:
-  bundleIdPrefix: app.shaman
+  bundleIdPrefix: me.eatso
   deploymentTarget:
     iOS: "17.0"
   createIntermediateGroups: true
@@ -12,7 +12,7 @@ packages:
     path: Core
 
 targets:
-  Shaman:
+  eatsome:
     type: application
     platform: iOS
     sources:
@@ -23,28 +23,24 @@ targets:
     info:
       path: App/Support/Info.plist
       properties:
-        CFBundleDisplayName: Shaman
+        CFBundleDisplayName: eatsome
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         NSCameraUsageDescription: >-
-          The camera counts your reps on-device. Video never leaves the phone
-          and is never recorded.
+          Photograph meals so eatsome can identify their food groups.
         NSPhotoLibraryUsageDescription: >-
           Pick a photo of a meal to log it.
-        NSHealthUpdateUsageDescription: >-
-          Finished sets are written to Health so your rings and history stay in
-          one place.
         NSHealthShareUsageDescription: >-
-          Shaman does not read your health data; this key is required to write
-          workouts.
+          Import workouts, sleep, and weight to show your daily health overview.
     entitlements:
-      path: App/Support/Shaman.entitlements
+      path: App/Support/eatsome.entitlements
       properties:
         com.apple.developer.healthkit: true
         com.apple.developer.healthkit.access: []
     settings:
       base:
+        # Retained so the renamed app updates in place and keeps its sandbox.
         PRODUCT_BUNDLE_IDENTIFIER: app.shaman.tracker
         MARKETING_VERSION: "0.1.0"
         CURRENT_PROJECT_VERSION: "1"
@@ -52,6 +48,4 @@ targets:
         SWIFT_STRICT_CONCURRENCY: complete
         TARGETED_DEVICE_FAMILY: "1"
         CODE_SIGN_STYLE: Automatic
-        # Set your Apple developer team here to run on a physical device.
-        # The simulator does not need it.
-        DEVELOPMENT_TEAM: ""
+        DEVELOPMENT_TEAM: Z4HYA2TN65

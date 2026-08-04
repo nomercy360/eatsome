@@ -17,10 +17,10 @@ SHAMAN_TESTING_PACKAGE=1 swift test --package-path Core
 The Xcode project is generated, not committed:
 
 ```bash
-./scripts/bootstrap.sh                  # xcodegen + pod install + model download
+./scripts/bootstrap.sh                  # generate eatsome.xcodeproj with XcodeGen
 ```
 
-Never hand-edit `Shaman.xcodeproj` — edit `project.yml` and regenerate.
+Never hand-edit `eatsome.xcodeproj` — edit `project.yml` and regenerate.
 
 ## Where things go
 
@@ -28,9 +28,8 @@ Never hand-edit `Shaman.xcodeproj` — edit `project.yml` and regenerate.
 HealthKit. That constraint is what makes the rep counter testable against
 synthetic skeletons, and it is worth defending.
 
-Anything that touches a framework goes in `App/`. `MediaPipeTasksVision` is
-imported by exactly one file, `App/Pose/MediaPipePoseProvider.swift`, behind the
-`PoseProvider` protocol.
+Anything that touches a framework goes in `App/`. HealthKit is isolated in
+`App/Support/HealthKitBridge.swift`; imported Health data remains read-only.
 
 ## Invariants
 
@@ -50,18 +49,9 @@ imported by exactly one file, `App/Pose/MediaPipePoseProvider.swift`, behind the
 images, `reasoning.effort: low`. The schema's group enum is generated from
 `FoodGroup.allCases` — add a case there and it propagates.
 
-## Pose
+## HealthKit
 
-BlazePose 33-landmark topology. Angles are computed from **world** landmarks
-(metres, hip-centred), never from normalized image coordinates — that is the
-whole reason for choosing MediaPipe over Vision's 19-point 2D output, and it is
-what makes thresholds independent of camera placement.
-
-The same topology backs ML Kit on Android, so thresholds calibrated here port.
-
-## Provenance
-
-`MediaPipePoseProvider` was written against Google's published Pose Landmarker
-iOS API. Do not copy or adapt pose-tracking, rep-counting, or verifier code from
-any other project into this repo — the counting logic here is derived from the
-geometry and belongs to this codebase.
+Workouts, sleep, and weight are queried from HealthKit and are never copied into
+the append-only event log. Read authorization is privacy-preserving: denial is
+indistinguishable from no samples, so the UI must not claim that access was
+granted merely because the authorization request completed.

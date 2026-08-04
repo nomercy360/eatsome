@@ -11,6 +11,7 @@ import Security
 public struct KeychainStore: Sendable {
     public let service: String
 
+    /// The legacy service name preserves an API key saved by earlier builds.
     public init(service: String = "app.shaman.credentials") {
         self.service = service
     }

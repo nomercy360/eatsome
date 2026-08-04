@@ -9,6 +9,11 @@ final class AppModel {
     private(set) var configSource: ConfigLoader.Source = .fallback
     private(set) var projection = Projection()
     private(set) var loadError: String?
+    private(set) var healthSnapshot = HealthSnapshot.empty
+    private(set) var healthError: String?
+    private(set) var isLoadingHealth = false
+    private(set) var healthLastRefreshedAt: Date?
+    private(set) var hasRequestedHealthAccess = UserDefaults.standard.bool(forKey: "hasRequestedHealthAccess")
     /// Surfaced in Settings. A silently skipped line is how you lose trust in
     /// your own data six months later.
     private(set) var skippedLogLines = 0
@@ -43,6 +48,7 @@ final class AppModel {
         }
 
         rebuildRecognizer()
+        await refreshHealth()
     }
 
     // MARK: - Writes
@@ -67,9 +73,8 @@ final class AppModel {
         await record(.mealRevised(revised), occurredAt: revised.eatenAt)
     }
 
-    func completeSet(_ record: SetRecord) async {
-        await self.record(.setCompleted(record), occurredAt: record.finishedAt)
-        await HealthKitBridge.shared.save(record, config: config)
+    func deleteMeal(_ meal: MealEntry) async {
+        await record(.mealDeleted(mealID: meal.id), occurredAt: meal.eatenAt)
     }
 
     func updateHabits(_ habits: DietHabits) async {
@@ -90,17 +95,24 @@ final class AppModel {
         )
     }
 
-    func setsToday(calendar: Calendar = .current) -> [SetRecord] {
-        let start = calendar.startOfDay(for: Date()).epochMillis
-        return projection.sets(from: start, to: start + 86_400_000)
+    func mealsToday(calendar: Calendar = .current) -> [MealEntry] {
+        guard let interval = calendar.dateInterval(of: .day, for: Date()) else { return [] }
+        return projection.meals.values
+            .filter { interval.contains(Date(epochMillis: $0.eatenAt)) }
+            .sorted { $0.eatenAt > $1.eatenAt }
     }
 
-    var movedToday: Bool { !setsToday().isEmpty }
+    func workoutsToday(calendar: Calendar = .current) -> [ImportedWorkout] {
+        guard let interval = calendar.dateInterval(of: .day, for: Date()) else { return [] }
+        return healthSnapshot.workouts.filter { interval.contains($0.startedAt) }
+    }
+
+    var movedToday: Bool { !workoutsToday().isEmpty }
 
     /// Consecutive days ending today with at least one set.
     func movementStreak(calendar: Calendar = .current) -> Int {
-        let days = Set(projection.sets.map {
-            calendar.startOfDay(for: Date(epochMillis: $0.finishedAt))
+        let days = Set(healthSnapshot.workouts.map {
+            calendar.startOfDay(for: $0.startedAt)
         })
         var streak = 0
         var day = calendar.startOfDay(for: Date())
@@ -111,6 +123,51 @@ final class AppModel {
             day = calendar.date(byAdding: .day, value: -1, to: day)!
         }
         return streak
+    }
+
+    var latestSleep: SleepSummary? { healthSnapshot.sleep.first }
+    var latestWeight: WeightMeasurement? { healthSnapshot.weights.first }
+
+    func weightChange(overDays days: Int, calendar: Calendar = .current) -> Double? {
+        guard let latestWeight else { return nil }
+        let target = calendar.date(byAdding: .day, value: -days, to: latestWeight.measuredAt)
+            ?? latestWeight.measuredAt.addingTimeInterval(-Double(days) * 86_400)
+        let tolerance = Double(max(2, days / 3)) * 86_400
+        guard let baseline = healthSnapshot.weights
+            .dropFirst()
+            .min(by: {
+                abs($0.measuredAt.timeIntervalSince(target)) < abs($1.measuredAt.timeIntervalSince(target))
+            }),
+            abs(baseline.measuredAt.timeIntervalSince(target)) <= tolerance
+        else { return nil }
+        return latestWeight.kilograms - baseline.kilograms
+    }
+
+    // MARK: - HealthKit
+
+    func connectHealth() async {
+        healthError = nil
+        do {
+            try await HealthKitBridge.shared.requestAuthorization()
+            hasRequestedHealthAccess = true
+            UserDefaults.standard.set(true, forKey: "hasRequestedHealthAccess")
+            await refreshHealth()
+        } catch {
+            healthError = error.localizedDescription
+        }
+    }
+
+    func refreshHealth() async {
+        guard !isLoadingHealth else { return }
+        isLoadingHealth = true
+        healthError = nil
+        defer { isLoadingHealth = false }
+        do {
+            healthSnapshot = try await HealthKitBridge.shared.loadSnapshot()
+            healthLastRefreshedAt = Date()
+        } catch {
+            healthError = error.localizedDescription
+        }
     }
 
     // MARK: - Recognition
