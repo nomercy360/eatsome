@@ -8,6 +8,10 @@ import { apiKeyFor, modelFor, resolveProvider } from "./recognize";
 const env = {
   OPENAI_API_KEY: "sk-test",
   GEMINI_API_KEY: "",
+  ANTHROPIC_API_KEY: "",
+  QWEN_API_KEY: "",
+  ANTHROPIC_RECOGNITION_MODEL: "claude-haiku-4-5-20251001",
+  QWEN_RECOGNITION_MODEL: "qwen3.7-flash",
   OPENAI_RECOGNITION_MODEL: "gpt-5.6-luna",
   GEMINI_RECOGNITION_MODEL: "gemini-3.6-flash",
   RECOGNITION_PROVIDER: "openai",
@@ -27,12 +31,14 @@ describe("provider selection", () => {
   });
 
   it("rejects a provider it does not have", () => {
-    expect(() => resolveProvider(env, "anthropic" as never)).toThrow(HttpError);
+    expect(() => resolveProvider(env, "mistral" as never)).toThrow(HttpError);
   });
 
   it("keeps each provider's model and key apart, which is what keeps the cache honest", () => {
     expect(modelFor(env, "openai")).toBe("gpt-5.6-luna");
     expect(modelFor(env, "gemini")).toBe("gemini-3.6-flash");
+    expect(modelFor(env, "anthropic")).toBe("claude-haiku-4-5-20251001");
+    expect(modelFor(env, "qwen")).toBe("qwen3.7-flash");
     expect(apiKeyFor(env, "openai")).toBe("sk-test");
     expect(apiKeyFor(env, "gemini")).toBe("");
   });
