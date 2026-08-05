@@ -18,6 +18,7 @@ public struct KeychainStore: Sendable {
 
     public enum Key: String, Sendable {
         case openAIAPIKey = "openai.api_key"
+        case geminiAPIKey = "gemini.api_key"
     }
 
     public func set(_ value: String?, for key: Key) throws {

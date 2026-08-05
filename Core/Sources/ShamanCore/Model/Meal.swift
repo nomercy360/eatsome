@@ -7,18 +7,108 @@ public struct MealItem: Codable, Sendable, Hashable, Identifiable {
     /// Free text from the model ("grilled sardines"). Never scored — it exists
     /// so the correction sheet can show you what the model thought it saw.
     public var label: String?
+    /// The other groups the model said this could have been. Nil for manual
+    /// items and for items whose group was later changed by a human — once you
+    /// have decided, the model's shortlist describes a different question.
+    /// Empty means the model was asked and had no rival in mind.
+    public var modelAlternatives: [FoodGroup]?
 
-    public init(id: UUID = UUIDv7.generate(), group: FoodGroup, portion: Portion, label: String? = nil) {
+    public init(
+        id: UUID = UUIDv7.generate(),
+        group: FoodGroup,
+        portion: Portion,
+        label: String? = nil,
+        modelAlternatives: [FoodGroup]? = nil
+    ) {
         self.id = id
         self.group = group
         self.portion = portion
         self.label = label
+        self.modelAlternatives = modelAlternatives
     }
 }
 
 public enum MealSource: String, Codable, Sendable {
     case photo
     case manual
+    /// Logged from a saved `Recipe`. Worth distinguishing from `manual`: a
+    /// recipe entry is a repeat of something you already checked, and it is the
+    /// only source that can carry ingredients no photograph could show.
+    case recipe
+}
+
+/// How much of what is in the photograph you actually ate.
+///
+/// A platter of fruit, a shared mezze, a week's batch cooking: the camera sees
+/// the dish, not the serving. Without this, every communal plate inflates the
+/// week, and it inflates it worst exactly where portion estimates are already
+/// biased — the larger the pile, the more the model overreads it.
+public enum MealShare: String, Codable, Sendable, CaseIterable {
+    case whole
+    case part
+
+    /// Deliberately coarse, like `Portion`. "Half of it" is a judgement a person
+    /// can make from memory; "38%" is not.
+    public var factor: Double {
+        switch self {
+        case .whole: 1.0
+        case .part: 0.5
+        }
+    }
+
+    public var displayName: String {
+        switch self {
+        case .whole: "Ate it all"
+        case .part: "Ate part of it"
+        }
+    }
+}
+
+/// A one-tap verdict on a recognition, kept separate from correcting it.
+///
+/// Correcting takes attention; a thumb takes none. Most bad readings will never
+/// be worth typing about, and those are exactly the ones that would otherwise
+/// leave no trace at all.
+public enum MealRating: String, Codable, Sendable {
+    case good
+    case bad
+}
+
+/// How a plate becomes a number.
+///
+/// Kept here rather than inside the scorer so the rule has one home and the UI
+/// can quote it.
+public enum MealScoring {
+    /// The most any single meal can contribute for one food group, in servings.
+    ///
+    /// Recognition splits a dish into as many rows as it sees — `cherry tomato`
+    /// and `side salad`, or four kinds of fruit on one platter — and that is the
+    /// right behaviour for the correction sheet: you can see what was actually
+    /// recognized. It is the wrong behaviour for the score, where four fruit
+    /// rows would clear a daily target from a single photograph. One meal is one
+    /// eating occasion, worth at most one large portion of any one group.
+    public static let perMealGroupCap = Portion.large.servings
+}
+
+/// Immutable model-side half of an automatically collected eval pair. The
+/// enclosing `MealEntry.items` is the final human-confirmed half.
+public struct MealRecognitionEvidence: Codable, Sendable, Hashable {
+    public let promptVersion: String
+    public let rawModelJSON: String
+    public let initialItems: [MealItem]
+    public let otherMealsVisible: Bool
+
+    public init(
+        promptVersion: String,
+        rawModelJSON: String,
+        initialItems: [MealItem],
+        otherMealsVisible: Bool
+    ) {
+        self.promptVersion = promptVersion
+        self.rawModelJSON = rawModelJSON
+        self.initialItems = initialItems
+        self.otherMealsVisible = otherMealsVisible
+    }
 }
 
 public struct MealEntry: Codable, Sendable, Hashable, Identifiable {
@@ -29,7 +119,22 @@ public struct MealEntry: Codable, Sendable, Hashable, Identifiable {
     /// SHA-256 of the original image bytes. Doubles as the recognition cache key,
     /// so re-submitting the same photo never costs a second API call.
     public var photoHash: String?
+    /// Legacy meal-wide confidence retained only so existing logs decode.
+    /// Recognition no longer reports certainty as a number; it names the groups
+    /// an item could have been instead. Always nil on new entries.
     public var modelConfidence: Double?
+    /// What you told the app that the photo could not show — "fried in butter,
+    /// two eggs in the batter". Sent to the model with the image and kept with
+    /// the meal, because it is half the input that produced these items.
+    public var note: String?
+    /// Raw model output and normalized pre-edit state for prompt evaluation.
+    public var recognitionEvidence: MealRecognitionEvidence?
+    /// Thumbs up or down on the recognition, if you gave one.
+    public var recognitionRating: MealRating?
+    /// Nil on entries written before the switch existed. Read through `eaten`,
+    /// which treats absence as `.whole` — the behaviour those entries were
+    /// scored with when they were logged.
+    public var share: MealShare?
     /// True once you have touched the result. Uncorrected model output and
     /// human-confirmed output are not the same evidence and should not be
     /// silently mixed when you later look at why a week scored badly.
@@ -42,6 +147,10 @@ public struct MealEntry: Codable, Sendable, Hashable, Identifiable {
         source: MealSource,
         photoHash: String? = nil,
         modelConfidence: Double? = nil,
+        note: String? = nil,
+        recognitionEvidence: MealRecognitionEvidence? = nil,
+        recognitionRating: MealRating? = nil,
+        share: MealShare? = nil,
         wasCorrected: Bool = false
     ) {
         self.id = id
@@ -50,10 +159,24 @@ public struct MealEntry: Codable, Sendable, Hashable, Identifiable {
         self.source = source
         self.photoHash = photoHash
         self.modelConfidence = modelConfidence
+        self.note = note
+        self.recognitionEvidence = recognitionEvidence
+        self.recognitionRating = recognitionRating
+        self.share = share
         self.wasCorrected = wasCorrected
     }
 
+    public var eaten: MealShare { share ?? .whole }
+
+    /// What this meal contributes to the week for one group: the plate, capped
+    /// at one large portion per group, then scaled by how much of it you ate.
     public func servings(of group: FoodGroup) -> Double {
+        min(rawServings(of: group), MealScoring.perMealGroupCap) * eaten.factor
+    }
+
+    /// What is on the plate, before either rule applies. This is the number to
+    /// show next to the food; `servings(of:)` is the number that scores.
+    public func rawServings(of group: FoodGroup) -> Double {
         items.filter { $0.group == group }.reduce(0) { $0 + $1.portion.servings }
     }
 }

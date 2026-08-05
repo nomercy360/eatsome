@@ -14,6 +14,12 @@ public enum FoodGroup: String, Codable, CaseIterable, Sendable, Hashable {
     case legumes
     case fish
     case nuts
+    /// Avocado, olives, seeds, tahini. Separate from fruit and vegetables
+    /// because they are a fat source, and scoring an avocado as fruit both
+    /// credits a fruit serving you did not eat and hides the fat you did.
+    /// MEDAS has no item for them, so they count nowhere — which is the honest
+    /// answer, and better than counting in the wrong place.
+    case healthyFats = "healthy_fats"
     case wholeGrains = "whole_grains"
     case refinedGrains = "refined_grains"
     case whiteMeat = "white_meat"
@@ -37,6 +43,7 @@ public enum FoodGroup: String, Codable, CaseIterable, Sendable, Hashable {
         case .legumes: "Legumes"
         case .fish: "Fish & seafood"
         case .nuts: "Nuts"
+        case .healthyFats: "Avocado, olives & seeds"
         case .wholeGrains: "Whole grains"
         case .refinedGrains: "Refined grains"
         case .whiteMeat: "White meat"
@@ -55,15 +62,16 @@ public enum FoodGroup: String, Codable, CaseIterable, Sendable, Hashable {
     }
 
     /// Groups the model confuses often enough that they belong next to each
-    /// other in the one-tap correction sheet. Fish read as white meat and
-    /// invisible olive oil are the two systematic failures.
+    /// other in the one-tap correction sheet. Fish read as white meat, invisible
+    /// olive oil, and avocado filed as produce are the systematic failures.
     public var commonlyConfusedWith: [FoodGroup] {
         switch self {
         case .fish, .whiteMeat: [.fish, .whiteMeat, .redMeat]
         case .redMeat, .processedMeat: [.redMeat, .processedMeat, .whiteMeat]
         case .wholeGrains, .refinedGrains: [.wholeGrains, .refinedGrains, .legumes]
         case .sweets, .pastry: [.sweets, .pastry]
-        case .oliveOil, .butter: [.oliveOil, .butter]
+        case .oliveOil, .butter: [.oliveOil, .butter, .healthyFats]
+        case .fruit, .vegetables, .healthyFats: [.fruit, .vegetables, .healthyFats]
         default: []
         }
     }

@@ -51,6 +51,82 @@ struct EventLogTests {
         #expect(projection.meals[meal.id]?.wasCorrected == true)
     }
 
+    @Test("A saved meal retains its complete recognition eval pair")
+    func recognitionEvidenceSurvives() async throws {
+        let url = temporaryURL()
+        let log = try EventLog(url: url)
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let photoHash = ImageDigest.sha256(Data("photo".utf8))
+        let initial = MealItem(
+            group: .whiteMeat,
+            portion: .medium,
+            label: "minced meat",
+            modelAlternatives: [.redMeat]
+        )
+        let meal = MealEntry(
+            eatenAt: MealEntry.referenceNow,
+            items: [MealItem(group: .redMeat, portion: .medium, label: "minced meat")],
+            source: .photo,
+            photoHash: photoHash,
+            recognitionEvidence: MealRecognitionEvidence(
+                promptVersion: "meal-v3-test",
+                rawModelJSON: #"{"items":[{"group":"white_meat","alternatives":["red_meat"]}]}"#,
+                initialItems: [initial],
+                otherMealsVisible: true
+            ),
+            wasCorrected: true
+        )
+
+        try await log.append(LoggedEvent(occurredAt: meal.eatenAt, payload: .mealLogged(meal)))
+        let saved = try #require(try await log.projection().meals[meal.id])
+
+        #expect(saved.photoHash == photoHash)
+        #expect(saved.recognitionEvidence?.promptVersion == "meal-v3-test")
+        #expect(saved.recognitionEvidence?.rawModelJSON.contains("white_meat") == true)
+        #expect(saved.recognitionEvidence?.initialItems.first?.group == .whiteMeat)
+        // The correction the model itself offered is the one you took: that is
+        // the eval row worth having.
+        #expect(saved.recognitionEvidence?.initialItems.first?.modelAlternatives == [.redMeat])
+        #expect(saved.items.first?.group == .redMeat)
+        #expect(saved.recognitionEvidence?.otherMealsVisible == true)
+    }
+
+    @Test("A recipe survives the log and logs a meal with fresh item ids")
+    func recipesRoundTrip() async throws {
+        let url = temporaryURL()
+        let log = try EventLog(url: url)
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let recipe = Recipe(
+            name: "French toast",
+            items: [
+                MealItem(group: .refinedGrains, portion: .large, label: "French toast"),
+                MealItem(group: .egg, portion: .medium, label: "eggs in the batter"),
+                MealItem(group: .butter, portion: .small, label: "butter for frying")
+            ],
+            note: "fried in butter, two eggs and milk in the batter",
+            updatedAt: MealEntry.referenceNow
+        )
+        try await log.append(LoggedEvent(occurredAt: recipe.updatedAt, payload: .recipeSaved(recipe)))
+
+        var projection = try await log.projection()
+        let saved = try #require(projection.recipes[recipe.id])
+        #expect(saved.items.count == 3)
+        #expect(saved.note?.contains("two eggs") == true)
+
+        // The invisible half comes back with it, and the meal is its own event.
+        let meal = saved.newMeal(eatenAt: MealEntry.referenceNow)
+        #expect(meal.source == .recipe)
+        #expect(meal.note == saved.note)
+        #expect(meal.servings(of: .egg) == 1.0)
+        #expect(Set(meal.items.map(\.id)).isDisjoint(with: Set(saved.items.map(\.id))))
+
+        try await log.append(LoggedEvent(occurredAt: recipe.updatedAt, payload: .recipeDeleted(recipeID: recipe.id)))
+        projection = try await log.projection()
+        #expect(projection.recipes.isEmpty)
+    }
+
     @Test("Deletion removes from the projection")
     func deletion() async throws {
         let url = temporaryURL()

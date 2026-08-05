@@ -6,6 +6,10 @@ struct SettingsView: View {
 
     @State private var apiKey = ""
     @State private var habits = DietHabits()
+    /// The key field is the only text input in the app, and a secure field on a
+    /// scroll view has no way out on its own: no return key dismisses it, and
+    /// tapping the background does nothing unless focus is dropped explicitly.
+    @FocusState private var isEditingKey: Bool
 
     var body: some View {
         NavigationStack {
@@ -28,9 +32,23 @@ struct SettingsView: View {
                 }
                 .padding(.horizontal, WellieTheme.screenInset)
                 .padding(.bottom, 32)
+                // A tap anywhere on the page puts the keyboard away. Simultaneous
+                // so the buttons underneath still receive their own taps.
+                .contentShape(Rectangle())
+                .simultaneousGesture(TapGesture().onEnded { isEditingKey = false })
             }
+            .scrollDismissesKeyboard(.interactively)
             .navigationTitle("EATSOME")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .keyboard) {
+                    HStack {
+                        Spacer()
+                        Button("Done") { isEditingKey = false }
+                            .font(WellieTheme.font(15, weight: .semibold))
+                    }
+                }
+            }
             .onAppear { habits = model.projection.habits }
         }
         .wellieScreen()
@@ -39,16 +57,36 @@ struct SettingsView: View {
     private var recognitionCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             WellieKicker(text: "Recognition")
+
+            Picker("Provider", selection: Binding(
+                get: { model.provider },
+                set: { newProvider in
+                    apiKey = ""
+                    isEditingKey = false
+                    model.setProvider(newProvider)
+                }
+            )) {
+                ForEach(RecognitionProvider.allCases, id: \.self) { provider in
+                    Text(provider.displayName).tag(provider)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            SettingValueRow(label: "Model", value: model.activeModel)
+
             HStack(spacing: 10) {
                 Image(systemName: "key.fill")
                     .foregroundStyle(WellieTheme.blue)
-                SecureField("OpenAI API key", text: $apiKey)
+                SecureField("\(model.provider.displayName) API key", text: $apiKey)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .font(WellieTheme.font(15, weight: .medium))
+                    .focused($isEditingKey)
+                    .submitLabel(.done)
+                    .onSubmit(saveKey)
             }
             .padding(14)
-            .background(.white, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .background(WellieTheme.elevated, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
 
             HStack {
                 Label(
@@ -64,18 +102,41 @@ struct SettingsView: View {
                 }
             }
 
-            Button("Save key") {
-                model.setAPIKey(apiKey)
-                apiKey = ""
-            }
-            .buttonStyle(WelliePrimaryButtonStyle())
-            .disabled(apiKey.isEmpty)
+            Button("Save key", action: saveKey)
+                .buttonStyle(WelliePrimaryButtonStyle())
+                .disabled(trimmedKey.isEmpty)
 
-            Text("Stored in Keychain and sent only to api.openai.com. Meal photos are uploaded for recognition.")
-                .font(WellieTheme.font(12, weight: .medium))
-                .foregroundStyle(WellieTheme.muted)
+            Text(
+                """
+                Each provider keeps its own key in Keychain. Meal photos are uploaded to \
+                \(model.provider.host) for recognition, and only there.
+                """
+            )
+            .font(WellieTheme.font(12, weight: .medium))
+            .foregroundStyle(WellieTheme.muted)
+
+            if !model.hasAPIKey, let other = RecognitionProvider.allCases.first(where: {
+                $0 != model.provider && model.hasKey(for: $0)
+            }) {
+                Text("A \(other.displayName) key is stored — switch back above to use it.")
+                    .font(WellieTheme.font(12, weight: .medium))
+                    .foregroundStyle(WellieTheme.warningText)
+            }
         }
         .wellieCard(color: WellieTheme.softBlue)
+    }
+
+    /// Keys are pasted, and a pasted key arrives with surrounding whitespace
+    /// more often than not. An untrimmed one authenticates as garbage.
+    private var trimmedKey: String {
+        apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func saveKey() {
+        isEditingKey = false
+        guard !trimmedKey.isEmpty else { return }
+        model.setAPIKey(trimmedKey)
+        apiKey = ""
     }
 
     private var healthCard: some View {
@@ -107,7 +168,9 @@ struct SettingsView: View {
                 .foregroundStyle(WellieTheme.muted)
 
             if let error = model.healthError {
-                Text(error).font(WellieTheme.font(12, weight: .medium)).foregroundStyle(.orange)
+                Text(error)
+                    .font(WellieTheme.font(12, weight: .medium))
+                    .foregroundStyle(WellieTheme.warningText)
             }
         }
         .wellieCard(color: WellieTheme.ice)
@@ -136,7 +199,8 @@ struct SettingsView: View {
     private var diagnosticsCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             WellieKicker(text: "Diagnostics")
-            SettingValueRow(label: "Model", value: model.config.recognition.model)
+            SettingValueRow(label: "Provider", value: model.provider.displayName)
+            SettingValueRow(label: "Model", value: model.activeModel)
             SettingValueRow(label: "Config", value: model.configSource.rawValue)
             SettingValueRow(label: "Meals", value: "\(model.projection.meals.count)")
             SettingValueRow(label: "Health workouts", value: "\(model.healthSnapshot.workouts.count)")
@@ -162,7 +226,7 @@ private struct SettingValueRow: View {
             Spacer()
             Text(value)
                 .font(WellieTheme.font(13, weight: .medium))
-                .foregroundStyle(warning ? .orange : WellieTheme.muted)
+                .foregroundStyle(warning ? WellieTheme.warningText : WellieTheme.muted)
                 .multilineTextAlignment(.trailing)
         }
         .padding(.vertical, 3)

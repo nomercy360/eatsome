@@ -38,14 +38,14 @@ struct TodayView: View {
 
                     if let error = model.loadError {
                         Label(error, systemImage: "exclamationmark.triangle")
-                            .foregroundStyle(.red)
+                            .foregroundStyle(WellieTheme.danger)
                             .wellieCard(color: WellieTheme.card)
                     }
                 }
                 .padding(.horizontal, WellieTheme.screenInset)
                 .padding(.bottom, 32)
             }
-            .background(Color(.systemBackground))
+            .background(WellieTheme.background)
             .navigationTitle("EATSOME")
             .navigationBarTitleDisplayMode(.inline)
             .refreshable { await model.refreshHealth() }
@@ -178,7 +178,7 @@ struct TodayView: View {
             if let error = model.healthError {
                 Text(error)
                     .font(WellieTheme.font(12, weight: .medium))
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(WellieTheme.warningText)
             }
         }
         .wellieCard(color: WellieTheme.ice)
@@ -254,7 +254,7 @@ private struct HealthMetric: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
-        .background(.white.opacity(0.72), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .background(WellieTheme.elevated.opacity(0.82), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 }
 
@@ -299,7 +299,10 @@ enum MealDisplay {
     }
 
     static func subtitle(_ meal: MealEntry) -> String {
-        uniqueGroups(meal).prefix(4).map(\.displayName).joined(separator: " · ")
+        let groups = uniqueGroups(meal).prefix(4).map(\.displayName).joined(separator: " · ")
+        // A half-counted meal looks identical to a whole one in the list
+        // otherwise, and the difference is the whole point of the switch.
+        return meal.eaten == .part ? "\(groups) · ate part" : groups
     }
 
     private static func uniqueGroups(_ meal: MealEntry) -> [FoodGroup] {

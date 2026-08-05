@@ -18,11 +18,24 @@ final class AppModel {
     /// your own data six months later.
     private(set) var skippedLogLines = 0
 
-    var hasAPIKey: Bool { (try? keychain.get(.openAIAPIKey))??.isEmpty == false }
+    /// Which vendor recognizes photos on this device. Stored here rather than in
+    /// the config file because it is a per-device experiment, not a policy: the
+    /// point is to run both against your own plates and keep the better one.
+    private(set) var provider: RecognitionProvider = .openAI
 
+    var hasAPIKey: Bool { hasKey(for: provider) }
+
+    func hasKey(for provider: RecognitionProvider) -> Bool {
+        (try? keychain.get(provider.keychainKey))??.isEmpty == false
+    }
+
+    var activeModel: String { config.model(for: provider) }
+
+    private static let providerDefaultsKey = "recognitionProvider"
     private let keychain = KeychainStore()
     private var log: EventLog?
     private var recognizer: (any MealRecognizer)?
+    private var refiner: (any MealRefiner)?
 
     /// Point this at a JSON file in a bucket to retune thresholds and the
     /// recognition prompt without a TestFlight round trip. nil until you have
@@ -46,6 +59,10 @@ final class AppModel {
         if let cache {
             (config, configSource) = await ConfigLoader(remoteURL: configURL, cacheURL: cache).load()
         }
+
+        provider = UserDefaults.standard.string(forKey: Self.providerDefaultsKey)
+            .flatMap(RecognitionProvider.init(rawValue:))
+            ?? config.defaultProvider
 
         rebuildRecognizer()
         await refreshHealth()
@@ -79,6 +96,27 @@ final class AppModel {
 
     func updateHabits(_ habits: DietHabits) async {
         await record(.habitsUpdated(habits))
+    }
+
+    // MARK: - Recipes
+
+    var recipes: [Recipe] { projection.recentRecipes }
+
+    func saveRecipe(_ recipe: Recipe) async {
+        var stamped = recipe
+        stamped.updatedAt = Date().epochMillis
+        await record(.recipeSaved(stamped))
+    }
+
+    func deleteRecipe(_ recipe: Recipe) async {
+        await record(.recipeDeleted(recipeID: recipe.id))
+    }
+
+    /// Logging a recipe also bumps it to the top of the list: what you cooked
+    /// today is what you are most likely to cook again.
+    func logRecipe(_ recipe: Recipe, at date: Date, share: MealShare) async {
+        await logMeal(recipe.newMeal(eatenAt: date.epochMillis, share: share))
+        await saveRecipe(recipe)
     }
 
     // MARK: - Reads
@@ -158,6 +196,11 @@ final class AppModel {
     }
 
     func refreshHealth() async {
+        guard hasRequestedHealthAccess else {
+            healthSnapshot = .empty
+            healthError = nil
+            return
+        }
         guard !isLoadingHealth else { return }
         isLoadingHealth = true
         healthError = nil
@@ -172,27 +215,65 @@ final class AppModel {
 
     // MARK: - Recognition
 
-    func recognize(imageData: Data) async throws -> MealRecognition {
+    func recognize(imageData: Data, note: String?) async throws -> RecognitionArtifact {
         guard let recognizer else { throw MealRecognizerError.missingAPIKey }
-        return try await recognizer.recognize(imageData: imageData, mimeType: "image/jpeg")
+        return try await recognizer.recognize(imageData: imageData, mimeType: "image/jpeg", note: note)
     }
 
-    func setAPIKey(_ key: String?) {
-        try? keychain.set(key, for: .openAIAPIKey)
+    /// Not cached: a correction is a one-off, and its answer depends on a list
+    /// that only exists in the sheet you are looking at.
+    func refine(imageData: Data?, current: [MealItem], note: String) async throws -> MealRevision {
+        guard let refiner else { throw MealRecognizerError.missingAPIKey }
+        return try await refiner.refine(
+            imageData: imageData,
+            mimeType: "image/jpeg",
+            current: current,
+            note: note
+        )
+    }
+
+    func setAPIKey(_ key: String?, for provider: RecognitionProvider? = nil) {
+        try? keychain.set(key, for: (provider ?? self.provider).keychainKey)
+        rebuildRecognizer()
+    }
+
+    func setProvider(_ provider: RecognitionProvider) {
+        guard provider != self.provider else { return }
+        self.provider = provider
+        UserDefaults.standard.set(provider.rawValue, forKey: Self.providerDefaultsKey)
         rebuildRecognizer()
     }
 
     private func rebuildRecognizer() {
         let keychain = self.keychain
-        let luna = LunaSession(configuration: config.lunaConfiguration) {
-            try keychain.get(.openAIAPIKey)
+        let key = provider.keychainKey
+        let upstream: any MealRecognizer
+        let promptVersion: String
+        switch provider {
+        case .openAI:
+            let configuration = config.lunaConfiguration
+            promptVersion = configuration.promptVersion
+            upstream = LunaSession(configuration: configuration) { try keychain.get(key) }
+        case .gemini:
+            let configuration = config.geminiConfiguration
+            promptVersion = configuration.promptVersion
+            upstream = GeminiSession(configuration: configuration) { try keychain.get(key) }
         }
+
+        refiner = upstream as? any MealRefiner
+
         guard let directory = (try? EventLog.defaultURL())?
             .deletingLastPathComponent()
             .appendingPathComponent("recognitions", isDirectory: true),
-            let caching = try? CachingRecognizer(upstream: luna, directory: directory)
+            // Namespaced by generator: the same plate re-read by the other
+            // provider must cost an API call, or the comparison is fiction.
+            let caching = try? CachingRecognizer(
+                upstream: upstream,
+                directory: directory,
+                namespace: promptVersion
+            )
         else {
-            recognizer = luna
+            recognizer = upstream
             return
         }
         recognizer = caching

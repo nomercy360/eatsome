@@ -60,7 +60,7 @@ struct AdherenceView: View {
             if result.isUnderreported {
                 Label("Only \(result.daysLogged) of \(result.windowDays) days logged", systemImage: "exclamationmark.triangle.fill")
                     .font(WellieTheme.font(12, weight: .semibold))
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(WellieTheme.warningText)
             }
         }
         .frame(maxWidth: .infinity)
@@ -107,7 +107,7 @@ private struct LimitRow: View {
     var body: some View {
         HStack {
             Image(systemName: item.passed ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
-                .foregroundStyle(item.passed ? WellieTheme.blue : .orange)
+                .foregroundStyle(item.passed ? WellieTheme.blue : WellieTheme.warningText)
             Text(item.title.components(separatedBy: " <").first ?? item.title)
                 .font(WellieTheme.font(15, weight: .semibold))
             Spacer()

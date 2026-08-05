@@ -7,15 +7,22 @@ struct MedasTests {
     private let now = MealEntry.referenceNow
 
     /// A week that satisfies every scored item.
+    ///
+    /// Fruit is spread across three meals rather than piled into one, because
+    /// that is now what three servings a day means: a meal contributes at most
+    /// one large portion of any group, so a platter cannot clear a daily target
+    /// on its own.
     private func goodWeek() -> [MealEntry] {
         var meals: [MealEntry] = []
         for day in 0..<7 {
             let at = Double(day) + 0.5
             meals.append(.fixture(daysAgo: at, [
                 (.vegetables, .medium), (.vegetables, .medium),
-                (.fruit, .medium), (.fruit, .medium), (.fruit, .medium),
+                (.fruit, .medium),
                 (.oliveOil, .medium), (.oliveOil, .medium)
             ]))
+            meals.append(.fixture(daysAgo: at + 0.1, [(.fruit, .medium)]))
+            meals.append(.fixture(daysAgo: at + 0.2, [(.fruit, .medium)]))
             if day < 3 { meals.append(.fixture(daysAgo: at, [(.fish, .medium)])) }
             if day < 3 { meals.append(.fixture(daysAgo: at, [(.legumes, .medium)])) }
             if day < 3 { meals.append(.fixture(daysAgo: at, [(.nuts, .medium)])) }
@@ -53,7 +60,7 @@ struct MedasTests {
 
         let result = MedasScorer().score(meals: meals, habits: DietHabits(), windowEnd: now)
         let redMeat = result.items.first { $0.id == 5 }!
-        #expect(redMeat.passed, "4 servings across 7 days averages 0.57/day, under the 1/day bound")
+        #expect(redMeat.passed, "one heavy meal caps at 2 servings, or 0.29/day over the week")
         #expect(result.score == 13)
     }
 
@@ -116,8 +123,67 @@ struct MedasTests {
 
     @Test("Large portions count double, small portions half")
     func portionWeights() {
-        let meal = MealEntry.fixture(daysAgo: 1, [(.vegetables, .large), (.vegetables, .small)])
-        #expect(meal.servings(of: .vegetables) == 2.5)
+        let meal = MealEntry.fixture(daysAgo: 1, [(.vegetables, .medium), (.vegetables, .small)])
+        #expect(meal.rawServings(of: .vegetables) == 1.5)
+        #expect(meal.servings(of: .vegetables) == 1.5)
         #expect(meal.servings(of: .fish) == 0)
+    }
+
+    @Test("One meal counts once per group, however many rows it was split into")
+    func duplicateRowsDoNotStack() {
+        // The fruit platter: four rows, one plate of fruit.
+        let platter = MealEntry.fixture(daysAgo: 1, [
+            (.fruit, .large), (.fruit, .large), (.fruit, .large), (.fruit, .medium)
+        ])
+        #expect(platter.rawServings(of: .fruit) == 7.0)
+        #expect(platter.servings(of: .fruit) == MealScoring.perMealGroupCap)
+
+        // Two vegetable rows on one tray are still one vegetable serving each.
+        let tray = MealEntry.fixture(daysAgo: 1, [(.vegetables, .small), (.vegetables, .small)])
+        #expect(tray.servings(of: .vegetables) == 1.0, "under the cap, the sum is untouched")
+
+        // A single row is scored exactly as it always was.
+        let single = MealEntry.fixture(daysAgo: 1, [(.fruit, .large)])
+        #expect(single.servings(of: .fruit) == 2.0)
+    }
+
+    @Test("A platter cannot clear a daily target on its own")
+    func plattersDoNotCarryTheWeek() {
+        let meals = (0..<7).map { day in
+            MealEntry.fixture(
+                daysAgo: Double(day) + 0.5,
+                Array(repeating: (FoodGroup.fruit, Portion.large), count: 4)
+            )
+        }
+        let fruit = MedasScorer().score(meals: meals, habits: DietHabits(), windowEnd: now)
+            .items.first { $0.id == 4 }!
+        #expect(!fruit.passed, "one photo a day is one fruit occasion, not three servings")
+        #expect(fruit.observed == 2.0)
+    }
+
+    @Test("Eating part of a shared plate halves what it contributes")
+    func partialMealsCountLess() {
+        var shared = MealEntry.fixture(daysAgo: 1, [(.vegetables, .medium), (.fruit, .large)])
+        shared.share = .part
+
+        #expect(shared.rawServings(of: .vegetables) == 1.0, "the plate is unchanged")
+        #expect(shared.servings(of: .vegetables) == 0.5)
+        #expect(shared.servings(of: .fruit) == 1.0)
+
+        // Entries written before the switch existed are scored as they were.
+        let legacy = MealEntry.fixture(daysAgo: 1, [(.vegetables, .medium)])
+        #expect(legacy.share == nil)
+        #expect(legacy.eaten == .whole)
+        #expect(legacy.servings(of: .vegetables) == 1.0)
+    }
+
+    @Test("Avocado counts as fat, not as produce")
+    func avocadoIsNotFruit() {
+        // No MEDAS item scores it, which is the point: filing it under fruit
+        // would credit a fruit serving that was never eaten.
+        #expect(Medas.footprint(of: .healthyFats).isUnscored)
+        #expect(Medas.choiceChangesScore(.healthyFats, .fruit))
+        #expect(Medas.choiceChangesScore(.healthyFats, .vegetables))
+        #expect(FoodGroup.healthyFats.commonlyConfusedWith.contains(.fruit))
     }
 }

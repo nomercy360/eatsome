@@ -1,0 +1,398 @@
+{
+  "version": "6",
+  "dialect": "sqlite",
+  "id": "dc68360c-6f12-4e16-9df5-4f8700d3839f",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "tables": {
+    "events": {
+      "name": "events",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "account_id": {
+          "name": "account_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "device_id": {
+          "name": "device_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "occurred_at": {
+          "name": "occurred_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "recorded_at": {
+          "name": "recorded_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "payload_json": {
+          "name": "payload_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "received_at": {
+          "name": "received_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "events_account_cursor_idx": {
+          "name": "events_account_cursor_idx",
+          "columns": [
+            "account_id",
+            "recorded_at",
+            "id"
+          ],
+          "isUnique": false
+        },
+        "events_account_kind_idx": {
+          "name": "events_account_kind_idx",
+          "columns": [
+            "account_id",
+            "kind",
+            "recorded_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "events_payload_json_check": {
+          "name": "events_payload_json_check",
+          "value": "json_valid(\"events\".\"payload_json\")"
+        }
+      }
+    },
+    "meal_evals": {
+      "name": "meal_evals",
+      "columns": {
+        "event_id": {
+          "name": "event_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "account_id": {
+          "name": "account_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "device_id": {
+          "name": "device_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "meal_id": {
+          "name": "meal_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "photo_hash": {
+          "name": "photo_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "prompt_version": {
+          "name": "prompt_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "raw_model_json": {
+          "name": "raw_model_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "initial_items_json": {
+          "name": "initial_items_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "final_items_json": {
+          "name": "final_items_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "other_meals_visible": {
+          "name": "other_meals_visible",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "was_corrected": {
+          "name": "was_corrected",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "recorded_at": {
+          "name": "recorded_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "meal_evals_account_created_idx": {
+          "name": "meal_evals_account_created_idx",
+          "columns": [
+            "account_id",
+            "created_at"
+          ],
+          "isUnique": false
+        },
+        "meal_evals_prompt_idx": {
+          "name": "meal_evals_prompt_idx",
+          "columns": [
+            "prompt_version",
+            "created_at"
+          ],
+          "isUnique": false
+        },
+        "meal_evals_meal_idx": {
+          "name": "meal_evals_meal_idx",
+          "columns": [
+            "meal_id",
+            "recorded_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "meal_evals_event_id_events_id_fk": {
+          "name": "meal_evals_event_id_events_id_fk",
+          "tableFrom": "meal_evals",
+          "tableTo": "events",
+          "columnsFrom": [
+            "event_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "meal_evals_initial_json_check": {
+          "name": "meal_evals_initial_json_check",
+          "value": "json_valid(\"meal_evals\".\"initial_items_json\")"
+        },
+        "meal_evals_final_json_check": {
+          "name": "meal_evals_final_json_check",
+          "value": "json_valid(\"meal_evals\".\"final_items_json\")"
+        },
+        "meal_evals_hash_check": {
+          "name": "meal_evals_hash_check",
+          "value": "length(\"meal_evals\".\"photo_hash\") = 64"
+        }
+      }
+    },
+    "recognitions": {
+      "name": "recognitions",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "account_id": {
+          "name": "account_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "photo_hash": {
+          "name": "photo_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "prompt_version": {
+          "name": "prompt_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "model": {
+          "name": "model",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "result_json": {
+          "name": "result_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "raw_model_json": {
+          "name": "raw_model_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "provider_request_id": {
+          "name": "provider_request_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "input_tokens": {
+          "name": "input_tokens",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "output_tokens": {
+          "name": "output_tokens",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "latency_ms": {
+          "name": "latency_ms",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "recognitions_cache_idx": {
+          "name": "recognitions_cache_idx",
+          "columns": [
+            "account_id",
+            "photo_hash",
+            "prompt_version",
+            "model"
+          ],
+          "isUnique": true
+        },
+        "recognitions_account_created_idx": {
+          "name": "recognitions_account_created_idx",
+          "columns": [
+            "account_id",
+            "created_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "recognitions_result_json_check": {
+          "name": "recognitions_result_json_check",
+          "value": "json_valid(\"recognitions\".\"result_json\")"
+        },
+        "recognitions_hash_check": {
+          "name": "recognitions_hash_check",
+          "value": "length(\"recognitions\".\"photo_hash\") = 64"
+        },
+        "recognitions_input_tokens_check": {
+          "name": "recognitions_input_tokens_check",
+          "value": "\"recognitions\".\"input_tokens\" >= 0"
+        },
+        "recognitions_output_tokens_check": {
+          "name": "recognitions_output_tokens_check",
+          "value": "\"recognitions\".\"output_tokens\" >= 0"
+        },
+        "recognitions_latency_check": {
+          "name": "recognitions_latency_check",
+          "value": "\"recognitions\".\"latency_ms\" >= 0"
+        }
+      }
+    }
+  },
+  "views": {},
+  "enums": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "indexes": {}
+  }
+}

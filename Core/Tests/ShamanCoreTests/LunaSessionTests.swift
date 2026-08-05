@@ -41,19 +41,42 @@ struct LunaSessionTests {
             ((properties["items"] as? [String: Any])?["items"]) as? [String: Any]
         )
         #expect(itemSchema["additionalProperties"] as? Bool == false)
-        #expect(Set(try #require(itemSchema["required"] as? [String])) == ["group", "portion", "label"])
+        #expect(Set(try #require(itemSchema["required"] as? [String])) == ["group", "portion", "label", "alternatives"])
 
         // The enum has to be the actual model, or the app silently drops groups.
-        let groups = try #require(
-            ((itemSchema["properties"] as? [String: Any])?["group"] as? [String: Any])?["enum"] as? [String]
-        )
+        let itemProperties = try #require(itemSchema["properties"] as? [String: Any])
+        let groups = try #require((itemProperties["group"] as? [String: Any])?["enum"] as? [String])
         #expect(Set(groups) == Set(FoodGroup.allCases.map(\.rawValue)))
+
+        // Uncertainty is a shortlist of rival groups, not a number.
+        let alternatives = try #require(itemProperties["alternatives"] as? [String: Any])
+        #expect(alternatives["type"] as? String == "array")
+        let alternativeGroups = try #require(
+            (alternatives["items"] as? [String: Any])?["enum"] as? [String]
+        )
+        #expect(Set(alternativeGroups) == Set(FoodGroup.allCases.map(\.rawValue)))
     }
 
     @Test("The prompt never asks for calories")
     func promptDoesNotRequestCalories() {
         let prompt = MealPrompt.system.lowercased()
         #expect(prompt.contains("never estimate calories"))
+        #expect(prompt.contains("closest to the camera"))
+        #expect(prompt.contains("other_meals_visible"))
+        #expect(prompt.contains("soups"))
+        #expect(prompt.contains("miso soup contains legumes"))
+        #expect(prompt.contains("`alternatives`"))
+        #expect(prompt.contains("an empty list is the"))
+        #expect(prompt.contains("never leave it to the user"))
+        #expect(!prompt.contains("confidence"))
+
+        // The failures that survived the first field test: skipped sauces,
+        // avocado filed as produce, and hedging smuggled into the label.
+        #expect(prompt.contains("mayonnaise"))
+        #expect(prompt.contains("dressings"))
+        #expect(prompt.contains("`healthy_fats`, never fruit or"))
+        #expect(prompt.contains("alcohol-free beer"))
+        #expect(prompt.contains("is not a label"))
         #expect(!MealPrompt.jsonSchema.description.lowercased().contains("calorie"))
     }
 
@@ -63,20 +86,68 @@ struct LunaSessionTests {
         {"status":"completed","output":[
           {"type":"reasoning","summary":[]},
           {"type":"message","content":[{"type":"output_text","text":
-            "{\\"items\\":[{\\"group\\":\\"fish\\",\\"portion\\":\\"large\\",\\"label\\":\\"grilled sardines\\"},{\\"group\\":\\"olive_oil\\",\\"portion\\":\\"small\\",\\"label\\":null}],\\"confidence\\":0.78,\\"notes\\":null}"
+            "{\\"items\\":[{\\"group\\":\\"fish\\",\\"portion\\":\\"large\\",\\"label\\":\\"grilled sardines\\",\\"alternatives\\":[\\"white_meat\\"]},{\\"group\\":\\"olive_oil\\",\\"portion\\":\\"small\\",\\"label\\":null,\\"alternatives\\":[]}],\\"other_meals_visible\\":true,\\"notes\\":null}"
           }]}
         ]}
         """
-        let recognition = try LunaSession.parse(Data(json.utf8))
+        let artifact = try LunaSession.parse(Data(json.utf8), promptVersion: "test-v3")
+        let recognition = artifact.recognition
         #expect(recognition.items.count == 2)
         #expect(recognition.items[0].group == .fish)
         #expect(recognition.items[0].portion == .large)
+        #expect(recognition.items[0].alternatives == [.whiteMeat])
         #expect(recognition.items[1].group == .oliveOil)
-        #expect(abs(recognition.confidence - 0.78) < 1e-9)
+        #expect(recognition.items[1].alternatives.isEmpty)
+        #expect(recognition.otherMealsVisible)
+        #expect(artifact.promptVersion == "test-v3")
+        #expect(artifact.rawModelJSON.contains("grilled sardines"))
 
         let mealItems = recognition.asMealItems()
         #expect(mealItems.count == 2)
         #expect(mealItems[0].label == "grilled sardines")
+        #expect(mealItems[0].modelAlternatives == [.whiteMeat])
+    }
+
+    @Test("Only alternatives that would move the score are worth confirming")
+    func scoreCriticalAlternatives() {
+        let meat = MealRecognition.Item(
+            group: .whiteMeat, portion: .medium, label: "minced meat topping",
+            alternatives: [.redMeat, .processedMeat]
+        )
+        // Red and processed meat both count against item 5; white meat counts
+        // against nothing. Both rivals change the week.
+        #expect(meat.scoreCriticalAlternatives() == [.redMeat, .processedMeat])
+
+        let rice = MealRecognition.Item(
+            group: .refinedGrains, portion: .medium, label: "white rice",
+            alternatives: [.wholeGrains]
+        )
+        // MEDAS scores no grain item at all, so this one is not worth a tap.
+        #expect(rice.scoreCriticalAlternatives().isEmpty)
+
+        #expect(Medas.choiceChangesScore(.fish, .whiteMeat))
+        #expect(Medas.choiceChangesScore(.oliveOil, .butter))
+        #expect(!Medas.choiceChangesScore(.redMeat, .processedMeat))
+        #expect(!Medas.choiceChangesScore(.sweets, .pastry))
+        #expect(!Medas.choiceChangesScore(.fish, .fish))
+    }
+
+    @Test("Legacy confidence caches become the rivals the model never named")
+    func parsesLegacyRecognitionCache() throws {
+        let legacy = Data(
+            #"{"items":[{"group":"white_meat","portion":"medium","label":"minced meat"}],"confidence":0.56,"notes":null}"#.utf8
+        )
+        let recognition = try JSONDecoder().decode(MealRecognition.self, from: legacy)
+
+        // 0.56 meant "unsure", so the groups white meat is habitually confused
+        // with stand in for a shortlist that build never asked for.
+        #expect(recognition.items.first?.alternatives == [.fish, .redMeat])
+        #expect(recognition.otherMealsVisible == false)
+
+        let confident = Data(
+            #"{"items":[{"group":"vegetables","portion":"small","label":"salad","confidence":0.93}],"notes":null}"#.utf8
+        )
+        #expect(try JSONDecoder().decode(MealRecognition.self, from: confident).items.first?.alternatives.isEmpty == true)
     }
 
     @Test("A refusal is surfaced, not decoded into an empty meal")
@@ -112,11 +183,22 @@ struct LunaSessionTests {
         }
         struct Stub: MealRecognizer {
             let counter: Counter
-            func recognize(imageData: Data, mimeType: String) async throws -> MealRecognition {
+            func recognize(imageData: Data, mimeType: String, note: String?) async throws -> RecognitionArtifact {
                 await counter.increment()
-                return MealRecognition(
-                    items: [.init(group: .vegetables, portion: .medium, label: "salad")],
-                    confidence: 0.9, notes: nil
+                let recognition = MealRecognition(
+                    items: [.init(
+                        group: .vegetables,
+                        portion: .medium,
+                        label: "salad",
+                        alternatives: []
+                    )],
+                    otherMealsVisible: false,
+                    notes: nil
+                )
+                return RecognitionArtifact(
+                    recognition: recognition,
+                    rawModelJSON: "{\"stub\":true}",
+                    promptVersion: "test"
                 )
             }
         }

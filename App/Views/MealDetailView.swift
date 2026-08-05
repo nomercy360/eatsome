@@ -44,11 +44,6 @@ struct MealDetailView: View {
                     HStack {
                         WellieKicker(text: "Meal breakdown")
                         Spacer()
-                        if let confidence = draft.modelConfidence {
-                            Text("\(Int(confidence * 100))% confidence")
-                                .font(WellieTheme.font(12, weight: .medium))
-                                .foregroundStyle(WellieTheme.muted)
-                        }
                     }
                     .padding(.bottom, 8)
 
@@ -79,6 +74,30 @@ struct MealDetailView: View {
                             .padding(.top, 12)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
+                }
+                .wellieCard(color: WellieTheme.card)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Picker(
+                        "How much did you eat?",
+                        selection: Binding(
+                            get: { draft.eaten },
+                            set: { draft.share = $0 }
+                        )
+                    ) {
+                        ForEach(MealShare.allCases, id: \.self) { option in
+                            Text(option.displayName).tag(option)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+
+                    Text(
+                        draft.eaten == .whole
+                            ? "The whole plate counts toward your week."
+                            : "Counted as half — for shared plates and platters."
+                    )
+                    .font(WellieTheme.font(12, weight: .medium))
+                    .foregroundStyle(WellieTheme.muted)
                 }
                 .wellieCard(color: WellieTheme.card)
 

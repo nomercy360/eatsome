@@ -1,17 +1,25 @@
 import SwiftUI
+import UIKit
 
 /// Visual tokens sampled from the supplied Wellie Figma exports. Keeping the
 /// palette and SF Rounded typography here makes every screen speak the same
 /// language without coupling layout code to one-off hex values.
 enum WellieTheme {
-    static let ink = Color(red: 5 / 255, green: 31 / 255, blue: 68 / 255)
-    static let blue = Color(red: 63 / 255, green: 138 / 255, blue: 247 / 255)
-    static let ice = Color(red: 238 / 255, green: 249 / 255, blue: 255 / 255)
-    static let softBlue = Color(red: 242 / 255, green: 247 / 255, blue: 254 / 255)
-    static let muted = Color(red: 131 / 255, green: 152 / 255, blue: 176 / 255)
-    static let card = Color(red: 248 / 255, green: 249 / 255, blue: 250 / 255)
-    static let lime = Color(red: 196 / 255, green: 244 / 255, blue: 52 / 255)
-    static let warning = Color(red: 255 / 255, green: 239 / 255, blue: 194 / 255)
+    static let background = Color(uiColor: .systemBackground)
+    static let elevated = adaptive(light: rgb(255, 255, 255), dark: rgb(31, 36, 43))
+    static let separator = Color(uiColor: .separator)
+
+    static let ink = adaptive(light: rgb(5, 31, 68), dark: rgb(231, 242, 255))
+    static let blue = adaptive(light: rgb(63, 138, 247), dark: rgb(102, 164, 255))
+    static let ice = adaptive(light: rgb(238, 249, 255), dark: rgb(10, 34, 53))
+    static let softBlue = adaptive(light: rgb(242, 247, 254), dark: rgb(19, 39, 61))
+    static let muted = adaptive(light: rgb(131, 152, 176), dark: rgb(145, 167, 190))
+    static let card = adaptive(light: rgb(248, 249, 250), dark: rgb(23, 26, 31))
+    static let lime = adaptive(light: rgb(196, 244, 52), dark: rgb(178, 225, 47))
+    static let warning = adaptive(light: rgb(255, 239, 194), dark: rgb(58, 44, 16))
+    static let warningText = Color(uiColor: .systemOrange)
+    static let danger = Color(uiColor: .systemRed)
+    static let onAccent = Color.white
 
     static let screenInset: CGFloat = 20
     static let cardRadius: CGFloat = 24
@@ -19,6 +27,16 @@ enum WellieTheme {
 
     static func font(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
         .system(size: size, weight: weight, design: .rounded)
+    }
+
+    private static func adaptive(light: UIColor, dark: UIColor) -> Color {
+        Color(uiColor: UIColor { traits in
+            traits.userInterfaceStyle == .dark ? dark : light
+        })
+    }
+
+    private static func rgb(_ red: CGFloat, _ green: CGFloat, _ blue: CGFloat) -> UIColor {
+        UIColor(red: red / 255, green: green / 255, blue: blue / 255, alpha: 1)
     }
 }
 
@@ -42,6 +60,7 @@ extension View {
         fontDesign(.rounded)
             .foregroundStyle(WellieTheme.ink)
             .tint(WellieTheme.blue)
+            .background(WellieTheme.background.ignoresSafeArea())
     }
 }
 
@@ -51,7 +70,7 @@ struct WelliePrimaryButtonStyle: ButtonStyle {
             .font(WellieTheme.font(17, weight: .semibold))
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
-            .foregroundStyle(.white)
+            .foregroundStyle(WellieTheme.onAccent)
             .background(
                 configuration.isPressed ? WellieTheme.blue.opacity(0.78) : WellieTheme.blue,
                 in: RoundedRectangle(cornerRadius: WellieTheme.controlRadius, style: .continuous)

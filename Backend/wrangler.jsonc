@@ -1,0 +1,23 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "eatsome-api",
+  "main": "./worker/index.ts",
+  "compatibility_date": "2026-08-04",
+  "compatibility_flags": ["nodejs_compat"],
+  "secrets": {
+    "required": ["OPENAI_API_KEY", "EATSOME_API_TOKEN"]
+  },
+  "vars": {
+    "ACCOUNT_ID": "owner",
+    "OPENAI_RECOGNITION_MODEL": "gpt-5.6-luna",
+    "MEAL_PROMPT_VERSION": "meal-v2-2026-08-04"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "eatsome",
+      "database_id": "local-development-replace-before-deploy",
+      "migrations_dir": "migrations"
+    }
+  ]
+}

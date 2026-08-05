@@ -10,7 +10,7 @@ import Foundation
 /// Everything OpenAI-shaped is confined to this file. The app talks to
 /// `MealRecognizer`, so moving to a proxy — or to a different provider — is a
 /// new conformance, not a refactor.
-public struct LunaSession: MealRecognizer {
+public struct LunaSession: MealRecognizer, MealRefiner {
     public struct Configuration: Sendable {
         public var model: String
         public var endpoint: URL
@@ -21,19 +21,25 @@ public struct LunaSession: MealRecognizer {
         /// `high` only if you find portion calls degrading.
         public var imageDetail: String
         public var timeout: TimeInterval
+        public var systemPrompt: String
+        public var promptVersion: String
 
         public init(
             model: String = "gpt-5.6-luna",
             endpoint: URL = URL(string: "https://api.openai.com/v1/responses")!,
             reasoningEffort: String? = "low",
             imageDetail: String = "low",
-            timeout: TimeInterval = 45
+            timeout: TimeInterval = 45,
+            systemPrompt: String = MealPrompt.system,
+            promptVersion: String = MealPrompt.version
         ) {
             self.model = model
             self.endpoint = endpoint
             self.reasoningEffort = reasoningEffort
             self.imageDetail = imageDetail
             self.timeout = timeout
+            self.systemPrompt = systemPrompt
+            self.promptVersion = promptVersion
         }
     }
 
@@ -53,7 +59,28 @@ public struct LunaSession: MealRecognizer {
         self.apiKey = apiKey
     }
 
-    public func recognize(imageData: Data, mimeType: String) async throws -> MealRecognition {
+    public func recognize(
+        imageData: Data,
+        mimeType: String,
+        note: String? = nil
+    ) async throws -> RecognitionArtifact {
+        let data = try await post(requestBody(imageData: imageData, mimeType: mimeType, note: note))
+        return try Self.parse(data, promptVersion: configuration.promptVersion)
+    }
+
+    public func refine(
+        imageData: Data?,
+        mimeType: String,
+        current: [MealItem],
+        note: String
+    ) async throws -> MealRevision {
+        let data = try await post(
+            revisionRequestBody(imageData: imageData, mimeType: mimeType, current: current, note: note)
+        )
+        return try Self.parseRevision(data)
+    }
+
+    private func post(_ body: [String: Any]) async throws -> Data {
         guard let key = try apiKey(), !key.isEmpty else { throw MealRecognizerError.missingAPIKey }
 
         var request = URLRequest(url: configuration.endpoint)
@@ -61,21 +88,17 @@ public struct LunaSession: MealRecognizer {
         request.timeoutInterval = configuration.timeout
         request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try JSONSerialization.data(
-            withJSONObject: requestBody(imageData: imageData, mimeType: mimeType)
-        )
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
         let (data, response) = try await session.data(for: request)
-
         guard let http = response as? HTTPURLResponse else { throw MealRecognizerError.emptyResponse }
         guard (200..<300).contains(http.statusCode) else {
             throw MealRecognizerError.http(status: http.statusCode, message: Self.errorMessage(from: data))
         }
-
-        return try Self.parse(data)
+        return data
     }
 
-    func requestBody(imageData: Data, mimeType: String) -> [String: Any] {
+    func requestBody(imageData: Data, mimeType: String, note: String? = nil) -> [String: Any] {
         let dataURL = "data:\(mimeType);base64,\(imageData.base64EncodedString())"
 
         var body: [String: Any] = [
@@ -83,12 +106,12 @@ public struct LunaSession: MealRecognizer {
             "input": [
                 [
                     "role": "system",
-                    "content": [["type": "input_text", "text": MealPrompt.system]]
+                    "content": [["type": "input_text", "text": configuration.systemPrompt]]
                 ],
                 [
                     "role": "user",
                     "content": [
-                        ["type": "input_text", "text": MealPrompt.user],
+                        ["type": "input_text", "text": MealPrompt.userMessage(note: note)],
                         ["type": "input_image", "image_url": dataURL, "detail": configuration.imageDetail]
                     ]
                 ]
@@ -99,6 +122,48 @@ public struct LunaSession: MealRecognizer {
                     "name": "meal_recognition",
                     "strict": true,
                     "schema": MealPrompt.jsonSchema
+                ]
+            ]
+        ]
+        if let effort = configuration.reasoningEffort {
+            body["reasoning"] = ["effort": effort]
+        }
+        return body
+    }
+
+    // MARK: - Refinement
+
+    func revisionRequestBody(
+        imageData: Data?,
+        mimeType: String,
+        current: [MealItem],
+        note: String
+    ) -> [String: Any] {
+        var userContent: [[String: Any]] = [
+            ["type": "input_text", "text": MealRevisionPrompt.message(current: current, note: note)]
+        ]
+        // The photo goes back too when there is one: "the bread is bigger than
+        // that" is a claim about the picture.
+        if let imageData {
+            userContent.append([
+                "type": "input_image",
+                "image_url": "data:\(mimeType);base64,\(imageData.base64EncodedString())",
+                "detail": configuration.imageDetail
+            ])
+        }
+
+        var body: [String: Any] = [
+            "model": configuration.model,
+            "input": [
+                ["role": "system", "content": [["type": "input_text", "text": MealRevisionPrompt.system]]],
+                ["role": "user", "content": userContent]
+            ],
+            "text": [
+                "format": [
+                    "type": "json_schema",
+                    "name": "meal_revision",
+                    "strict": true,
+                    "schema": MealRevisionPrompt.jsonSchema
                 ]
             ]
         ]
@@ -126,7 +191,8 @@ public struct LunaSession: MealRecognizer {
         let incomplete_details: Incomplete?
     }
 
-    static func parse(_ data: Data) throws -> MealRecognition {
+    /// The JSON payload out of a Responses envelope, or the matching error.
+    static func outputText(_ data: Data) throws -> String {
         let envelope: Envelope
         do {
             envelope = try JSONDecoder().decode(Envelope.self, from: data)
@@ -148,9 +214,30 @@ public struct LunaSession: MealRecognizer {
             }
             throw MealRecognizerError.emptyResponse
         }
+        return json
+    }
 
+    static func parse(
+        _ data: Data,
+        promptVersion: String = MealPrompt.version
+    ) throws -> RecognitionArtifact {
+        let json = try outputText(data)
         do {
-            return try JSONDecoder().decode(MealRecognition.self, from: Data(json.utf8))
+            let recognition = try JSONDecoder().decode(MealRecognition.self, from: Data(json.utf8))
+            return RecognitionArtifact(
+                recognition: recognition,
+                rawModelJSON: json,
+                promptVersion: promptVersion
+            )
+        } catch {
+            throw MealRecognizerError.decoding(String(describing: error))
+        }
+    }
+
+    static func parseRevision(_ data: Data) throws -> MealRevision {
+        let json = try outputText(data)
+        do {
+            return try JSONDecoder().decode(MealRevision.self, from: Data(json.utf8))
         } catch {
             throw MealRecognizerError.decoding(String(describing: error))
         }

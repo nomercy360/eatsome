@@ -26,8 +26,9 @@ trial.
 **No daily perfection.** Scoring is a rolling 7-day window. No fish on Tuesday is
 not a failure, and false failures are how habit apps get deleted in week three.
 
-**No backend.** One user, one device: the API key lives in the Keychain and
-there is nothing to authenticate against. See *Adding a backend later* below.
+**No silent cloud dependency.** The app still works from its local append-only
+log. The new backend is an explicit sync and recognition boundary; it does not
+become the only copy of meal history.
 
 **No custom health score.** Workouts, sleep, and weight are shown as recorded by
 HealthKit. eatsome does not turn them into a proprietary readiness number.
@@ -46,6 +47,7 @@ Core/            SwiftPM package — all logic, no frameworks, fully tested
 App/             iOS app — SwiftUI, meal camera, OpenAI, HealthKit
   DesignSystem/  Wellie-derived color, type, card, chip, and button tokens
   Support/       Read-only HealthKit import and app configuration
+Backend/         Cloudflare Worker — Hono, D1/Drizzle, Zod, OpenAI proxy
 scripts/         bootstrap.sh
 ```
 
@@ -91,11 +93,69 @@ a fold over the file; at personal-tracker volumes that costs milliseconds.
 
 - Strict JSON Schema on the Responses API, with the enum generated from
   `FoodGroup` so the model cannot invent a group.
+- Two providers — `gpt-5.6-luna` and `gemini-3.6-flash` — behind one
+  `MealRecognizer`, switched in Settings, each with its own Keychain key. The
+  published food-photo benchmarks contradict each other about which tier wins,
+  so the app is built to answer that from your own plates instead: every eval row
+  is stamped `<prompt>/<model>`, and the cache is namespaced the same way so
+  re-reading a plate with the other provider is a real call, not a replay.
 - The photo's SHA-256 is the cache key, so the same plate is never billed twice.
 - Every item is one tap from a fix, with the model's likely confusions listed
   first — fish/white meat, and missing olive oil.
+- Uncertainty is reported as a per-item shortlist of rival groups, never as a
+  confidence number: self-scored certainty comes back round and uncalibrated
+  (the same 0.56 on the rice and on the unidentifiable meat), while "what else
+  could this be" is a question about the food and becomes the correction button.
+- A confirmation is required only when a rival would move the MEDAS score in a
+  different direction — chicken read as pork does, brown rice read as white does
+  not, because no MEDAS item scores grains. A warning on every row is wallpaper.
 - Cost at `detail: low` is roughly $0.20/$1.20 per million tokens. Personal use
   is cents per month.
+
+### The photograph has a ceiling, so there are two ways past it
+
+Home cooking hides its ingredients. French toast is two eggs, milk, sugar, and
+the butter it was fried in; the camera sees crust, banana, and shine. No vision
+model recovers what is not in the frame, so the app asks you instead — one free
+text field, no categories, with the example in the placeholder:
+
+- **before** — "anything the photo won't show?" — because a missing ingredient is
+  invisible by definition. You cannot notice the absent eggs in a list that never
+  had them, so a repair-after-the-fact flow alone would never catch them;
+- **after** — "missing or wrong?" — for when the model misread something you can
+  see.
+
+Same mechanism, same slot in the prompt, different moment. The correction asks
+the model for a **delta** (`MealRevision`), never a re-run: by the time you type
+"fried in butter" you may have fixed groups and portions by hand, and
+regenerating the list would throw that work away. Indices are bounds-checked, so
+a model that miscounts costs you a change that did not happen rather than a row
+edited by accident.
+
+The note is kept with the meal and carried into a **recipe**, which is the real
+payoff: home dishes repeat, so describing one once makes every later log of it
+start complete. It is also the best possible eval input — plain language saying
+exactly what recognition missed, which no JSON diff gives you.
+
+A thumbs up/down sits apart from all of this. Correcting takes attention; a thumb
+takes none, and most bad readings are never worth typing about.
+
+### A plate is not a serving count
+
+Recognition splits a dish into as many rows as it sees, and that is right for the
+correction sheet — you can check what was actually recognized. It is wrong for
+the score: a fruit platter read as four rows would clear a daily target from one
+photograph. So scoring aggregates per meal, per group, with two rules:
+
+- a meal contributes at most one large portion of any single group, because one
+  meal is one eating occasion;
+- the whole meal is scaled by how much of it you ate (`Ate it all` / `Ate part
+  of it`), because the camera sees the dish and not your share of it. Shared
+  mezze and batch cooking are otherwise the largest source of overstatement, and
+  they land exactly where portion estimates are already biased high.
+
+Both live in `MealEntry.servings(of:)`; `rawServings(of:)` is what is on the
+plate, for display.
 
 ### The UI has one visual language
 
@@ -112,21 +172,21 @@ It refreshes a recent snapshot when the app becomes active and does not copy or
 modify those samples in its event log. Sleep intervals are merged before totals
 are calculated so overlapping sources are not double-counted.
 
-### Adding a backend later costs a day, not a week
+### The backend preserves the append-only model
 
-The groundwork is already there, and none of it was expensive:
+The Cloudflare backend uses the same invariants as the device:
 
-- IDs are UUIDv7 — time-ordered, so merging logs is a sort.
-- Time is UTC epoch millis everywhere; local time is a render-time concern.
-- Storage is an append-only log, so sync is concatenate-and-dedupe.
-- Model calls sit behind `MealRecognizer`, so a proxy is a new conformance.
+- event IDs are idempotency keys, and uploads never mutate prior events;
+- cursor sync orders by recorded time and UUID;
+- recognition is cached by photo hash, prompt version, and model;
+- model output and the final human correction are retained as an eval pair;
+- photos are proxied to OpenAI but never stored in D1.
 
-The moment it becomes necessary is specific and recognisable: when a build goes
-to a second person.
+See [`Backend/README.md`](Backend/README.md) for local setup and deployment.
 
 ## Status
 
-`Core` is complete and tested (50 tests). The app supports meal recognition,
+`Core` is complete and tested (52 tests). The app supports meal recognition,
 rolling MEDAS adherence, and read-only HealthKit imports for workouts, sleep,
 and weight. The signed app has been built, installed, and launched on a physical
 iPhone with its HealthKit entitlement.

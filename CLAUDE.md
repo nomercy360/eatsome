@@ -37,17 +37,38 @@ Anything that touches a framework goes in `App/`. HealthKit is isolated in
   derived at render time.
 - **IDs are `UUIDv7.generate()`.** Never `UUID()` for anything persisted.
 - **Storage is append-only.** Corrections are `mealRevised` events, not
-  mutations. Nothing rewrites a line of `events.jsonl`.
+  mutations. Nothing rewrites a line of `events.jsonl`. New fields on stored
+  types must be optional, or every existing line fails to decode and the meal
+  silently disappears from the projection.
+- **A text correction is a delta, never a re-run.** `MealRefiner` returns a
+  `MealRevision` that touches only the rows the model names; hand edits survive.
 - **No calories, grams, or macros.** Anywhere — not in the schema, not in the
   prompt, not in the UI. This is the core product decision; see README.
+- **Items are what was seen; `MealEntry.servings(of:)` is what counts.** A meal
+  contributes at most one large portion of any single group
+  (`MealScoring.perMealGroupCap`), scaled by `MealShare`. Never sum
+  `item.portion.servings` directly into a score — four fruit rows on one platter
+  are one plate of fruit.
 - **Thresholds and prompts belong in `shaman-config.json`,** not in Swift
   literals, so they can change without a rebuild.
 
 ## Model
 
-`gpt-5.6-luna` on the OpenAI Responses API, strict JSON Schema, `detail: low`
-images, `reasoning.effort: low`. The schema's group enum is generated from
-`FoodGroup.allCases` — add a case there and it propagates.
+Two providers behind one `MealRecognizer`, switchable in Settings:
+
+- `gpt-5.6-luna` on the OpenAI Responses API, strict JSON Schema, `detail: low`
+  images, `reasoning.effort: low` (`LunaSession`).
+- `gemini-3.6-flash` on the Gemini API's `generateContent`, `responseSchema`,
+  `thinkingLevel: low` (`GeminiSession`).
+
+Both send the same `MealPrompt.system`. The schemas are separate because the
+subsets differ — Gemini rejects `additionalProperties` and spells nullable as a
+flag — but both group enums are generated from `FoodGroup.allCases`, so adding a
+case propagates to both.
+
+`promptVersion` is `<prompt>/<model>`, and the recognition cache is namespaced by
+it: the same photo re-read by the other provider costs a real call, which is the
+only way the comparison means anything.
 
 ## HealthKit
 

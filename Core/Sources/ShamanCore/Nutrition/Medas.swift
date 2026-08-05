@@ -49,6 +49,62 @@ public enum Medas {
     ]
 }
 
+/// Which MEDAS items a food group feeds, and in which direction.
+///
+/// Two groups with the same footprint are interchangeable as far as the score is
+/// concerned: nothing about your week changes if the model called brown rice
+/// white. This is what separates an ambiguity worth a tap from one that is only
+/// worth a mention.
+public struct MedasFootprint: Sendable, Hashable {
+    public struct Contribution: Sendable, Hashable {
+        public let itemID: Int
+        /// True for "less than" items, where servings count against you.
+        public let isUpperBound: Bool
+    }
+
+    public let contributions: Set<Contribution>
+
+    /// No scored item counts this group at all — `other`, and every grain.
+    public var isUnscored: Bool { contributions.isEmpty }
+}
+
+extension Medas {
+    public static func footprint(of group: FoodGroup, excludedItems: Set<Int> = []) -> MedasFootprint {
+        var contributions: Set<MedasFootprint.Contribution> = []
+        for item in items where !excludedItems.contains(item.id) {
+            switch item.rule {
+            case .dailyAtLeast(let groups, _), .weeklyAtLeast(let groups, _):
+                if groups.contains(group) {
+                    contributions.insert(.init(itemID: item.id, isUpperBound: false))
+                }
+            case .dailyBelow(let groups, _), .weeklyBelow(let groups, _):
+                if groups.contains(group) {
+                    contributions.insert(.init(itemID: item.id, isUpperBound: true))
+                }
+            case .habit:
+                // Items 1 and 13 are answered once in settings and are not
+                // derived from meals, so no photograph can move them.
+                continue
+            }
+        }
+        return MedasFootprint(contributions: contributions)
+    }
+
+    /// True when calling this food `a` instead of `b` changes what the week
+    /// scores — the test for whether a recognition ambiguity deserves a
+    /// confirmation. White meat against red meat passes it (red counts against
+    /// item 5, white counts nowhere); whole against refined grains does not.
+    public static func choiceChangesScore(
+        _ a: FoodGroup,
+        _ b: FoodGroup,
+        excludedItems: Set<Int> = []
+    ) -> Bool {
+        guard a != b else { return false }
+        return footprint(of: a, excludedItems: excludedItems)
+            != footprint(of: b, excludedItems: excludedItems)
+    }
+}
+
 public struct MedasConfiguration: Codable, Sendable, Hashable {
     /// Item ids removed from scoring; the denominator shrinks accordingly.
     ///
@@ -119,10 +175,12 @@ public struct MedasScorer: Sendable {
         let windowStart = windowEnd - EpochMillis(days) * 86_400_000
         let inWindow = meals.filter { $0.eatenAt >= windowStart && $0.eatenAt < windowEnd }
 
+        // Per meal, per group — not per item. `MealEntry.servings(of:)` is where
+        // four fruit rows on one platter become one plate of fruit.
         var totals: [FoodGroup: Double] = [:]
         for meal in inWindow {
-            for item in meal.items {
-                totals[item.group, default: 0] += item.portion.servings
+            for group in Set(meal.items.map(\.group)) {
+                totals[group, default: 0] += meal.servings(of: group)
             }
         }
 

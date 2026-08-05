@@ -14,15 +14,27 @@ public struct AppConfig: Codable, Sendable {
     public var recognition: Recognition
 
     public struct Recognition: Codable, Sendable {
+        /// The OpenAI model. Named `model` because it was here first and remote
+        /// config files in the wild still spell it that way.
         public var model: String
         public var imageDetail: String
         public var reasoningEffort: String?
         /// Overrides `MealPrompt.system` when present. This is the field that
         /// justifies the whole file.
         public var systemPrompt: String?
-        /// Below this, open the correction sheet instead of saving silently.
-        public var autoConfirmConfidence: Double
+        /// Required whenever `systemPrompt` is overridden so saved eval rows
+        /// can be traced to the exact instructions that produced them.
+        public var promptVersion: String?
+        /// Which provider a device uses until it is switched in Settings.
+        public var provider: RecognitionProvider?
+        /// The Gemini half of the comparison. Absent fields fall back to the
+        /// compiled defaults in `GeminiSession.Configuration`.
+        public var geminiModel: String?
+        public var geminiThinkingLevel: String?
+        public var geminiMediaResolution: String?
     }
+
+    public var defaultProvider: RecognitionProvider { recognition.provider ?? .openAI }
 
     public static let fallback = AppConfig(
         version: 1,
@@ -33,7 +45,11 @@ public struct AppConfig: Codable, Sendable {
             imageDetail: "low",
             reasoningEffort: "low",
             systemPrompt: nil,
-            autoConfirmConfidence: 0.85
+            promptVersion: nil,
+            provider: .openAI,
+            geminiModel: "gemini-3.6-flash",
+            geminiThinkingLevel: "low",
+            geminiMediaResolution: nil
         )
     )
 
@@ -41,10 +57,78 @@ public struct AppConfig: Codable, Sendable {
         movements.first { $0.id == id }
     }
 
+    /// Prompt identity, before the model is folded in.
+    private var promptBaseVersion: String {
+        recognition.promptVersion
+            ?? (recognition.systemPrompt == nil ? MealPrompt.version : "config-\(version)")
+    }
+
+    /// What every eval row is stamped with. The model belongs in it: two
+    /// providers answering the same prompt are two different generators, and a
+    /// comparison you cannot group by is not a comparison.
+    public func promptVersion(forModel model: String) -> String {
+        "\(promptBaseVersion)/\(model)"
+    }
+
     public var lunaConfiguration: LunaSession.Configuration {
-        .init(model: recognition.model,
-              reasoningEffort: recognition.reasoningEffort,
-              imageDetail: recognition.imageDetail)
+        .init(
+            model: recognition.model,
+            reasoningEffort: recognition.reasoningEffort,
+            imageDetail: recognition.imageDetail,
+            systemPrompt: recognition.systemPrompt ?? MealPrompt.system,
+            promptVersion: promptVersion(forModel: recognition.model)
+        )
+    }
+
+    public var geminiConfiguration: GeminiSession.Configuration {
+        let defaults = GeminiSession.Configuration()
+        let model = recognition.geminiModel ?? defaults.model
+        return .init(
+            model: model,
+            thinkingLevel: recognition.geminiThinkingLevel ?? defaults.thinkingLevel,
+            mediaResolution: recognition.geminiMediaResolution,
+            systemPrompt: recognition.systemPrompt ?? MealPrompt.system,
+            promptVersion: promptVersion(forModel: model)
+        )
+    }
+
+    /// The model actually in use, for Settings to display.
+    public func model(for provider: RecognitionProvider) -> String {
+        switch provider {
+        case .openAI: recognition.model
+        case .gemini: recognition.geminiModel ?? GeminiSession.Configuration().model
+        }
+    }
+}
+
+/// Which vendor recognizes a plate. Both answer the same `MealRecognizer`
+/// contract and the same prompt, so switching is a tap and the eval log stays
+/// comparable.
+public enum RecognitionProvider: String, Codable, Sendable, CaseIterable {
+    case openAI = "openai"
+    case gemini
+
+    public var displayName: String {
+        switch self {
+        case .openAI: "OpenAI"
+        case .gemini: "Gemini"
+        }
+    }
+
+    /// Shown in Settings next to the key field, so it is obvious where the
+    /// photograph is about to go.
+    public var host: String {
+        switch self {
+        case .openAI: "api.openai.com"
+        case .gemini: "generativelanguage.googleapis.com"
+        }
+    }
+
+    public var keychainKey: KeychainStore.Key {
+        switch self {
+        case .openAI: .openAIAPIKey
+        case .gemini: .geminiAPIKey
+        }
     }
 }
 

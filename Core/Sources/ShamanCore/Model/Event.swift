@@ -36,6 +36,10 @@ public enum EventPayload: Sendable, Hashable {
     case mealDeleted(mealID: UUID)
     case setCompleted(SetRecord)
     case habitsUpdated(DietHabits)
+    /// Also the edit: a recipe saved under an existing id supersedes it, the
+    /// same way `mealRevised` supersedes a meal.
+    case recipeSaved(Recipe)
+    case recipeDeleted(recipeID: UUID)
 }
 
 // Hand-written coding rather than the synthesized `{"mealLogged":{"_0":...}}`
@@ -50,9 +54,12 @@ extension EventPayload: Codable {
         case mealDeleted = "meal_deleted"
         case setCompleted = "set_completed"
         case habitsUpdated = "habits_updated"
+        case recipeSaved = "recipe_saved"
+        case recipeDeleted = "recipe_deleted"
     }
 
     private struct MealRef: Codable { let mealID: UUID }
+    private struct RecipeRef: Codable { let recipeID: UUID }
 
     public init(from decoder: any Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -62,6 +69,8 @@ extension EventPayload: Codable {
         case .mealDeleted: self = .mealDeleted(mealID: try c.decode(MealRef.self, forKey: .data).mealID)
         case .setCompleted: self = .setCompleted(try c.decode(SetRecord.self, forKey: .data))
         case .habitsUpdated: self = .habitsUpdated(try c.decode(DietHabits.self, forKey: .data))
+        case .recipeSaved: self = .recipeSaved(try c.decode(Recipe.self, forKey: .data))
+        case .recipeDeleted: self = .recipeDeleted(recipeID: try c.decode(RecipeRef.self, forKey: .data).recipeID)
         }
     }
 
@@ -78,6 +87,10 @@ extension EventPayload: Codable {
             try c.encode(Kind.setCompleted, forKey: .kind); try c.encode(s, forKey: .data)
         case .habitsUpdated(let h):
             try c.encode(Kind.habitsUpdated, forKey: .kind); try c.encode(h, forKey: .data)
+        case .recipeSaved(let r):
+            try c.encode(Kind.recipeSaved, forKey: .kind); try c.encode(r, forKey: .data)
+        case .recipeDeleted(let id):
+            try c.encode(Kind.recipeDeleted, forKey: .kind); try c.encode(RecipeRef(recipeID: id), forKey: .data)
         }
     }
 }
@@ -90,6 +103,7 @@ public struct Projection: Sendable {
     public private(set) var meals: [UUID: MealEntry] = [:]
     public private(set) var sets: [SetRecord] = []
     public private(set) var habits = DietHabits()
+    public private(set) var recipes: [UUID: Recipe] = [:]
 
     public init() {}
 
@@ -104,7 +118,15 @@ public struct Projection: Sendable {
         case .mealDeleted(let id): meals.removeValue(forKey: id)
         case .setCompleted(let s): sets.append(s)
         case .habitsUpdated(let h): habits = h
+        case .recipeSaved(let r): recipes[r.id] = r
+        case .recipeDeleted(let id): recipes.removeValue(forKey: id)
         }
+    }
+
+    /// Most recently saved or used first — the dish you cooked yesterday is the
+    /// one you are most likely cooking now.
+    public var recentRecipes: [Recipe] {
+        recipes.values.sorted { $0.updatedAt > $1.updatedAt }
     }
 
     public func meals(from start: EpochMillis, to end: EpochMillis) -> [MealEntry] {

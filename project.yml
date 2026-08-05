@@ -24,6 +24,8 @@ targets:
       path: App/Support/Info.plist
       properties:
         CFBundleDisplayName: eatsome
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
@@ -43,7 +45,7 @@ targets:
         # Retained so the renamed app updates in place and keeps its sandbox.
         PRODUCT_BUNDLE_IDENTIFIER: app.shaman.tracker
         MARKETING_VERSION: "0.1.0"
-        CURRENT_PROJECT_VERSION: "1"
+        CURRENT_PROJECT_VERSION: "2"
         SWIFT_VERSION: "6.0"
         SWIFT_STRICT_CONCURRENCY: complete
         TARGETED_DEVICE_FAMILY: "1"

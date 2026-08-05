@@ -1,0 +1,85 @@
+import { sql } from "drizzle-orm";
+import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import type { LoggedEventInput, MealRecognition } from "../../src/contracts";
+
+export const events = sqliteTable(
+  "events",
+  {
+    id: text().primaryKey(),
+    accountId: text("account_id").notNull(),
+    deviceId: text("device_id").notNull(),
+    occurredAt: integer("occurred_at").notNull(),
+    recordedAt: integer("recorded_at").notNull(),
+    kind: text().notNull(),
+    payload: text("payload_json", { mode: "json" }).$type<LoggedEventInput["payload"]>().notNull(),
+    receivedAt: text("received_at").notNull(),
+  },
+  (table) => [
+    index("events_account_cursor_idx").on(table.accountId, table.recordedAt, table.id),
+    index("events_account_kind_idx").on(table.accountId, table.kind, table.recordedAt),
+    check("events_payload_json_check", sql`json_valid(${table.payload})`),
+  ],
+);
+
+export const recognitions = sqliteTable(
+  "recognitions",
+  {
+    id: text().primaryKey(),
+    accountId: text("account_id").notNull(),
+    photoHash: text("photo_hash").notNull(),
+    promptVersion: text("prompt_version").notNull(),
+    model: text().notNull(),
+    result: text("result_json", { mode: "json" }).$type<MealRecognition>().notNull(),
+    rawModelJson: text("raw_model_json").notNull(),
+    providerRequestId: text("provider_request_id"),
+    inputTokens: integer("input_tokens").notNull().default(0),
+    outputTokens: integer("output_tokens").notNull().default(0),
+    latencyMs: integer("latency_ms").notNull().default(0),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("recognitions_cache_idx").on(
+      table.accountId,
+      table.photoHash,
+      table.promptVersion,
+      table.model,
+    ),
+    index("recognitions_account_created_idx").on(table.accountId, table.createdAt),
+    check("recognitions_result_json_check", sql`json_valid(${table.result})`),
+    check("recognitions_raw_json_check", sql`json_valid(${table.rawModelJson})`),
+    check("recognitions_hash_check", sql`length(${table.photoHash}) = 64`),
+    check("recognitions_input_tokens_check", sql`${table.inputTokens} >= 0`),
+    check("recognitions_output_tokens_check", sql`${table.outputTokens} >= 0`),
+    check("recognitions_latency_check", sql`${table.latencyMs} >= 0`),
+  ],
+);
+
+export const mealEvals = sqliteTable(
+  "meal_evals",
+  {
+    eventId: text("event_id")
+      .primaryKey()
+      .references(() => events.id, { onDelete: "cascade" }),
+    accountId: text("account_id").notNull(),
+    deviceId: text("device_id").notNull(),
+    mealId: text("meal_id").notNull(),
+    photoHash: text("photo_hash").notNull(),
+    promptVersion: text("prompt_version").notNull(),
+    rawModelJson: text("raw_model_json").notNull(),
+    initialItems: text("initial_items_json", { mode: "json" }).$type<unknown[]>().notNull(),
+    finalItems: text("final_items_json", { mode: "json" }).$type<unknown[]>().notNull(),
+    otherMealsVisible: integer("other_meals_visible", { mode: "boolean" }).notNull(),
+    wasCorrected: integer("was_corrected", { mode: "boolean" }).notNull(),
+    recordedAt: integer("recorded_at").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [
+    index("meal_evals_account_created_idx").on(table.accountId, table.createdAt),
+    index("meal_evals_prompt_idx").on(table.promptVersion, table.createdAt),
+    index("meal_evals_meal_idx").on(table.mealId, table.recordedAt),
+    check("meal_evals_initial_json_check", sql`json_valid(${table.initialItems})`),
+    check("meal_evals_final_json_check", sql`json_valid(${table.finalItems})`),
+    check("meal_evals_raw_json_check", sql`json_valid(${table.rawModelJson})`),
+    check("meal_evals_hash_check", sql`length(${table.photoHash}) = 64`),
+  ],
+);

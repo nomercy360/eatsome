@@ -14,8 +14,33 @@ struct ConfigTests {
 
         #expect(config.movements.map(\.id) == AppConfig.fallback.movements.map(\.id))
         #expect(config.recognition.model == "gpt-5.6-luna")
+        #expect(config.lunaConfiguration.systemPrompt == MealPrompt.system)
         #expect(config.medas.windowDays == 7)
         #expect(config.medas.excludedItems == [8])
+
+        // Prompt version carries the model, so eval rows from two providers
+        // answering the same prompt never pool into one bucket.
+        #expect(config.lunaConfiguration.promptVersion == "\(MealPrompt.version)/gpt-5.6-luna")
+        #expect(config.geminiConfiguration.promptVersion == "\(MealPrompt.version)/gemini-3.6-flash")
+        #expect(config.defaultProvider == .openAI)
+        #expect(config.model(for: .gemini) == "gemini-3.6-flash")
+        #expect(config.geminiConfiguration.systemPrompt == MealPrompt.system)
+    }
+
+    @Test("A config file written before the Gemini option still loads")
+    func decodesConfigWithoutProviderFields() throws {
+        let legacy = Data(
+            #"""
+            {"version":1,"medas":{"excludedItems":[8],"windowDays":7},
+             "recognition":{"model":"gpt-5.6-luna","imageDetail":"low","reasoningEffort":"low",
+                            "autoConfirmConfidence":0.85},
+             "movements":[]}
+            """#.utf8
+        )
+        let config = try JSONDecoder().decode(AppConfig.self, from: legacy)
+
+        #expect(config.defaultProvider == .openAI)
+        #expect(config.model(for: .gemini) == GeminiSession.Configuration().model)
     }
 
     @Test("Config survives a round trip")
