@@ -333,13 +333,25 @@ struct MealCaptureView: View {
 
     /// Pinned, so the one action the screen exists for is never a scroll away.
     private var saveBar: some View {
-        Button("Save meal") { Task { await save() } }
-            .buttonStyle(WelliePrimaryButtonStyle())
-            .disabled(!canSave)
-            .padding(.horizontal, WellieTheme.screenInset)
-            .padding(.top, 10)
-            .padding(.bottom, 8)
-            .background(.bar)
+        VStack(spacing: 6) {
+            // The reason lives with the control it blocks. Pinning the button to
+            // the bottom while the banner explaining it sits at the top of the
+            // scroll made a disabled button look like a broken one.
+            if let saveBlocker {
+                Label(saveBlocker, systemImage: "arrow.up")
+                    .font(WellieTheme.font(12, weight: .semibold))
+                    .foregroundStyle(WellieTheme.warningText)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            Button("Save meal") { Task { await save() } }
+                .buttonStyle(WelliePrimaryButtonStyle())
+                .disabled(saveBlocker != nil)
+        }
+        .padding(.horizontal, WellieTheme.screenInset)
+        .padding(.top, 10)
+        .padding(.bottom, 8)
+        .background(.bar)
     }
 
     /// The one text slot, and it lives after the result rather than before it.
@@ -487,11 +499,22 @@ struct MealCaptureView: View {
         items.count { $0.needsConfirmation }
     }
 
-    private var canSave: Bool {
-        !items.isEmpty
-            && !isRecognizing
-            && unconfirmedCount == 0
-            && (artifact?.recognition.otherMealsVisible != true || otherMealsBelongToUser != nil)
+    /// Why saving is not possible yet, or nil when it is.
+    ///
+    /// One source of truth rather than a boolean here and an explanation
+    /// somewhere else: the two drifted apart and the result was a button that
+    /// silently did nothing.
+    private var saveBlocker: String? {
+        if isRecognizing { return "Still reading the photo." }
+        if items.isEmpty { return "Add at least one food group." }
+        if unconfirmedCount == 1 { return "One item above needs a tap — it changes your score." }
+        if unconfirmedCount > 1 {
+            return "\(unconfirmedCount) items above need a tap — they change your score."
+        }
+        if artifact?.recognition.otherMealsVisible == true, otherMealsBelongToUser == nil {
+            return "Answer whether the other food in the frame is yours."
+        }
+        return nil
     }
 
     private func setPhoto(_ originalData: Data) {
