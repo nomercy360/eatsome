@@ -11,8 +11,13 @@
 #
 #   mkdir -p ~/.appstoreconnect/private_keys
 #   mv ~/Downloads/AuthKey_XXXXXXXX.p8 ~/.appstoreconnect/private_keys/
-#   export ASC_KEY_ID=XXXXXXXX
-#   export ASC_ISSUER_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+#   echo xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx > ~/.appstoreconnect/issuer_id
+#
+# The key id is read back from the AuthKey_*.p8 filename, so only the issuer id
+# has to be recorded. Both can still be overridden with ASC_KEY_ID and
+# ASC_ISSUER_ID. The issuer id is also what lets this script hand the finished
+# build to your internal testers — without it the upload succeeds and nobody
+# receives anything.
 #
 # The key is referenced by path, never pasted onto a command line. Apple lets
 # you download a .p8 exactly once.
@@ -34,6 +39,8 @@ UPLOAD=false
 # Store Connect rejects a build number it has already seen.
 BUILD_NUMBER="${BUILD_NUMBER:-$(git rev-list --count HEAD)}"
 
+# Also the id in ExportOptions-upload.plist and the App Store Connect record.
+BUNDLE_ID="${BUNDLE_ID:-app.shaman.tracker}"
 ARCHIVE="build/eatsome.xcarchive"
 EXPORT_DIR="build"
 IPA="$EXPORT_DIR/eatsome.ipa"
@@ -41,7 +48,29 @@ IPA="$EXPORT_DIR/eatsome.ipa"
 # Passed to xcodebuild so it can create the distribution certificate and profile
 # without an Apple ID in Xcode's Accounts pane. Empty is fine when you signed in
 # there instead.
-ASC_KEY_PATH="${ASC_KEY_PATH:-$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID:-none}.p8}"
+# Resolve the App Store Connect credentials before anything needs them.
+#
+# Both halves used to be required as environment variables and neither was
+# discoverable, so a clean shell silently fell back to Xcode's account plumbing
+# and the upload worked while the assignment step had no way to authenticate.
+# The key id is recoverable from the filename Apple ships; the issuer id is not
+# recoverable from anything on disk, so it is read from a file you write once.
+ASC_KEY_DIR="${ASC_KEY_DIR:-$HOME/.appstoreconnect/private_keys}"
+if [[ -z "${ASC_KEY_ID:-}" ]]; then
+  # Exactly one key is the normal case; with several, name the one you want.
+  found=("$ASC_KEY_DIR"/AuthKey_*.p8)
+  if [[ ${#found[@]} -eq 1 && -f "${found[0]}" ]]; then
+    ASC_KEY_ID="$(basename "${found[0]}" .p8)"
+    ASC_KEY_ID="${ASC_KEY_ID#AuthKey_}"
+  fi
+fi
+# `ant`-style config file so this survives a new shell: one line, the issuer
+# UUID from App Store Connect → Users and Access → Integrations.
+ASC_ISSUER_FILE="${ASC_ISSUER_FILE:-$HOME/.appstoreconnect/issuer_id}"
+if [[ -z "${ASC_ISSUER_ID:-}" && -f "$ASC_ISSUER_FILE" ]]; then
+  ASC_ISSUER_ID="$(tr -d '[:space:]' < "$ASC_ISSUER_FILE")"
+fi
+ASC_KEY_PATH="${ASC_KEY_PATH:-$ASC_KEY_DIR/AuthKey_${ASC_KEY_ID:-none}.p8}"
 # Empty by default, and `set -u` treats an empty array as unset before bash 4.4,
 # so it is seeded with a harmless flag rather than left bare.
 AUTH=(-allowProvisioningUpdates)
@@ -116,8 +145,33 @@ if [[ "$UPLOAD" == true ]]; then
   fi
 
   echo
-  echo "Uploaded build $BUILD_NUMBER. Processing takes a few minutes, then it"
-  echo "appears in TestFlight → iOS builds. Internal testers get it with no review."
+  echo "Uploaded build $BUILD_NUMBER."
+
+  # Uploading is not distributing. Unless the group has "Automatically
+  # distribute new builds" switched on, a processed build reaches nobody until
+  # it is attached to one — which is how build 35 sat VALID and unseen while
+  # this script reported success.
+  echo "==> Assign to internal testers"
+  if [[ -z "${ASC_ISSUER_ID:-}" || -z "${ASC_KEY_ID:-}" ]]; then
+    echo "    skipped: need ASC_KEY_ID and ASC_ISSUER_ID to reach the API."
+    echo "    Write the issuer UUID to $ASC_ISSUER_FILE, then re-run:"
+    echo "      ./scripts/testflight-assign.py $BUNDLE_ID $BUILD_NUMBER"
+  else
+    export ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_PATH
+    set +e
+    python3 scripts/testflight-assign.py "$BUNDLE_ID" "$BUILD_NUMBER"
+    assign_status=$?
+    set -e
+    if [[ $assign_status -eq 2 ]]; then
+      echo "    skipped: assignment needs PyJWT. The build uploaded fine; finish with"
+      echo "      pip3 install --user pyjwt cryptography"
+      echo "      ./scripts/testflight-assign.py $BUNDLE_ID $BUILD_NUMBER"
+    elif [[ $assign_status -ne 0 ]]; then
+      echo "    the build uploaded; only the assignment failed. Re-run:"
+      echo "      ./scripts/testflight-assign.py $BUNDLE_ID $BUILD_NUMBER"
+      exit 1
+    fi
+  fi
   exit 0
 fi
 
