@@ -29,10 +29,7 @@
     }
   ],
   "notes": "The sealed bottle and the glass hold DIFFERENT drinks - the bottle is water, the glass is dark - so merging them into one drink is wrong. Neither is in the golden: the schema has no group for water and the dark drink is not identifiable, so this half of the case is precision-side and cannot gate under the current scorer. Kept because the food rows are clean and the drink pair is worth watching in the report; if the drinks ever get a group, this case becomes gateable as written.",
-  "traps": [
-    "bottle_and_glass_differ",
-    "fruit_dedup"
-  ],
+  "traps": ["bottle_and_glass_differ", "fruit_dedup"],
   "_source": {
     "telegram_msg": "95838",
     "subcase": "bottle_plus_1_glass",

@@ -6,10 +6,7 @@
     {
       "name": "dry-cured duck breast",
       "group": "processed_meat",
-      "alternatives": [
-        "red_meat",
-        "white_meat"
-      ],
+      "alternatives": ["red_meat", "white_meat"],
       "measure": "package",
       "protein_g": 15
     }

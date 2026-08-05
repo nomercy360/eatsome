@@ -9,17 +9,11 @@
       "group": "sweets",
       "measure": "count",
       "count": 5,
-      "flags": [
-        "added_sugar"
-      ]
+      "flags": ["added_sugar"]
     }
   ],
   "notes": "Sugar shaped and coloured as fruit. There is NO fruit in this photo, and the failure mode is a model that reads the orange and the raspberry by their shape and logs a fruit serving. The existing fruit-in-dessert case tests real fruit sitting on a dessert; this tests the opposite, confectionery imitating fruit, and the two together pin down whether the rule keys on appearance or on substance. The two plain balls are the least certain items and are folded into the same count rather than named.",
-  "traps": [
-    "sweets_shaped_as_fruit",
-    "fruit_in_dessert_not_fruit",
-    "package_mode"
-  ],
+  "traps": ["sweets_shaped_as_fruit", "fruit_in_dessert_not_fruit", "package_mode"],
   "_source": {
     "telegram_msg": "95716",
     "subcase": "",

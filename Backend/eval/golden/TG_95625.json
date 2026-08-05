@@ -40,9 +40,7 @@
       "group": "sweets",
       "measure": "size",
       "size": "S",
-      "flags": [
-        "added_sugar"
-      ]
+      "flags": ["added_sugar"]
     }
   ],
   "notes": "The platter boundary: five separate foods arranged on one plate are five items, not one composed dish. Contrast with the existing bubble-waffle case where every component does collapse into one sweets serving — the difference is that these are served side by side and eaten separately. Dairy appears twice, grated over the egg and as slices, and merges to one serving; the grating on the egg is the half most likely to be missed. Butter and jam are their own groups, not part of the bread.",

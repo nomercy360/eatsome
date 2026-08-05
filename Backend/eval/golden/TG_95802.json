@@ -36,12 +36,7 @@
     }
   ],
   "notes": "The bottle is sealed and there is no glass, so nothing was poured and there is NO alcohol serving. Deliberately the negative of TG_95836: a rule that logs a drink whenever a bottle is in frame fails here, and one that only logs what was poured passes both. Under the current scorer a spurious wine row costs precision rather than recall, so this case is reported and not gated - it belongs in the set as evidence, not as a gate.",
-  "traps": [
-    "bottle_without_glass",
-    "alcohol_over_reported",
-    "sauce_missed",
-    "refined_grain_dedup"
-  ],
+  "traps": ["bottle_without_glass", "alcohol_over_reported", "sauce_missed", "refined_grain_dedup"],
   "_source": {
     "telegram_msg": "95802",
     "subcase": "",

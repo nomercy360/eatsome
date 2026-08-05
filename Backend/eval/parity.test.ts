@@ -52,8 +52,20 @@ describe("golden and schema speak the same language", () => {
         !(evalFoodGroups as readonly string[]).includes(word) &&
         !(evalFlags as readonly string[]).includes(word) &&
         !(mealStatuses as readonly string[]).includes(word) &&
-        !["count", "size", "package", "group", "alternatives", "notes", "name", "flags",
-          "meal_status", "other_meals_visible", "whole_grains", "refined_grains"].includes(word) &&
+        ![
+          "count",
+          "size",
+          "package",
+          "group",
+          "alternatives",
+          "notes",
+          "name",
+          "flags",
+          "meal_status",
+          "other_meals_visible",
+          "whole_grains",
+          "refined_grains",
+        ].includes(word) &&
         (evalFoodGroups as readonly string[]).some(
           (g) => g.startsWith(word) || g.endsWith(word) || word.startsWith(g),
         ),

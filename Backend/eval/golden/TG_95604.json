@@ -7,9 +7,7 @@
     {
       "name": "escargots",
       "group": "fish",
-      "alternatives": [
-        "other"
-      ],
+      "alternatives": ["other"],
       "measure": "count",
       "count": 7,
       "protein_g": 12
@@ -22,11 +20,7 @@
     }
   ],
   "notes": "Seven identical units served as ONE dish: the merge rule and the count have to hold at the same time — one fish serving, count seven, not seven servings and not one unit. Snails take the seafood group for the same reason the existing mixed-seafood case does. The butter pooled in the wells is a real item and is the thing most likely to be dropped. The bottle behind is water and the dark glass is not readable; this is NOT a bottle-and-glass case and nothing about drinks should be scored here.",
-  "traps": [
-    "unit_set_merge_and_count",
-    "seafood_dedup",
-    "butter_present"
-  ],
+  "traps": ["unit_set_merge_and_count", "seafood_dedup", "butter_present"],
   "_source": {
     "telegram_msg": "95604",
     "subcase": "unit_set_countable",

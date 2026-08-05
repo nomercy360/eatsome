@@ -24,9 +24,7 @@
     {
       "name": "prosciutto",
       "group": "processed_meat",
-      "alternatives": [
-        "red_meat"
-      ],
+      "alternatives": ["red_meat"],
       "measure": "size",
       "size": "S",
       "protein_g": 8
@@ -40,9 +38,7 @@
     {
       "name": "coconut water",
       "group": "juice",
-      "alternatives": [
-        "other"
-      ],
+      "alternatives": ["other"],
       "measure": "package"
     }
   ],

@@ -9,9 +9,7 @@
       "group": "refined_grain",
       "measure": "size",
       "size": "L",
-      "flags": [
-        "fried"
-      ]
+      "flags": ["fried"]
     },
     {
       "name": "fresh blueberries",
@@ -24,9 +22,7 @@
       "group": "sweets",
       "measure": "size",
       "size": "S",
-      "flags": [
-        "added_sugar"
-      ]
+      "flags": ["added_sugar"]
     },
     {
       "name": "sour cream",
@@ -36,12 +32,7 @@
     }
   ],
   "notes": "The same berry is on the table twice, in two bowls, and the two bowls are different groups: loose blueberries are fruit, blueberry jam is sweets. A merge rule keyed on 'same food appears twice' would wrongly collapse them, and a rule keyed on 'fruit-coloured therefore fruit' would wrongly promote the jam. Both halves have to survive as separate rows. The pancakes are fried and refined, not a dessert component. Sour cream is grouped `dairy` following IMG_3167, which groups cream cheese as dairy; an earlier draft used butter_margarine_cream, which is reserved in this dataset for plain butter (IMG_3140, IMG_3152, IMG_3173).",
-  "traps": [
-    "same_food_two_forms",
-    "jam_is_sweets_not_fruit",
-    "fruit_dedup",
-    "refined_grain_dedup"
-  ],
+  "traps": ["same_food_two_forms", "jam_is_sweets_not_fruit", "fruit_dedup", "refined_grain_dedup"],
   "_source": {
     "telegram_msg": "95709",
     "subcase": "same_food_two_vessels",

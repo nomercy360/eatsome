@@ -30,11 +30,7 @@
     }
   ],
   "notes": "The other side of the platter boundary from TG_95625: four fruit kinds laid out together on one tray. They are four items but ONE fruit serving — the merge is within the group, not across the plate. This is the case that decides whether 'served as one dish' is being read as 'one item' or as 'one serving of the group', and the two answers are different here. Nothing is cut into a dish; the tray is laid out, not eaten.",
-  "traps": [
-    "fruit_dedup",
-    "platter_one_dish_vs_separate",
-    "oversized_portion_default"
-  ],
+  "traps": ["fruit_dedup", "platter_one_dish_vs_separate", "oversized_portion_default"],
   "_source": {
     "telegram_msg": "95792",
     "subcase": "platter_board",

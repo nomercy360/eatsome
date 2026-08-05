@@ -34,9 +34,7 @@
       "group": "potatoes",
       "measure": "size",
       "size": "S",
-      "flags": [
-        "fried"
-      ]
+      "flags": ["fried"]
     },
     {
       "name": "cocktail",

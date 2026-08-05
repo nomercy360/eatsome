@@ -124,9 +124,7 @@ export function scoreCase(golden: GoldenCase, raw: string, told = false): CaseSc
    * pay it to hedge, which is exactly what the prompt tells it not to do.
    */
   const acceptedFor = (group: string) =>
-    visible
-      .filter((item) => item.group === group)
-      .flatMap((item) => item.alternatives ?? []);
+    visible.filter((item) => item.group === group).flatMap((item) => item.alternatives ?? []);
   const accepted = new Set<string>([
     ...expectedSet,
     ...visible.flatMap((item) => item.alternatives ?? []),

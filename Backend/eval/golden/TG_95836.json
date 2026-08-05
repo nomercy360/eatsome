@@ -12,11 +12,7 @@
     }
   ],
   "notes": "The bottle-and-glass rule with a can instead of a bottle, and the only version of that mechanic in this batch the scorer can actually gate: the can and the glass hold the SAME drink, so the answer is one alcohol serving, not two. Portion is what was poured; the can is the container. If the rule was written against the word 'bottle' it will not fire here.",
-  "traps": [
-    "bottle_vs_glass_portion",
-    "can_not_bottle",
-    "alcohol_recall"
-  ],
+  "traps": ["bottle_vs_glass_portion", "can_not_bottle", "alcohol_recall"],
   "_source": {
     "telegram_msg": "95836",
     "subcase": "bottle_plus_1_glass",
