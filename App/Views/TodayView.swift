@@ -1,4 +1,3 @@
-import Charts
 import ShamanCore
 import SwiftUI
 
@@ -17,22 +16,7 @@ struct TodayView: View {
             ScrollView {
                 LazyVStack(spacing: 18) {
                     adherenceHero
-
-                    if !foodGroups.isEmpty {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 8) {
-                                ForEach(foodGroups, id: \.self) { WellieChip(text: $0.displayName) }
-                            }
-                        }
-                    }
-
-                    Button {
-                        showingCapture = true
-                    } label: {
-                        Label("Add meal", systemImage: "camera.fill")
-                    }
-                    .buttonStyle(WelliePrimaryButtonStyle())
-
+                    todayCard
                     mealsCard
                     healthCard
 
@@ -43,65 +27,166 @@ struct TodayView: View {
                     }
                 }
                 .padding(.horizontal, WellieTheme.screenInset)
-                .padding(.bottom, 32)
+                .padding(.bottom, 24)
             }
             .background(WellieTheme.background)
             .navigationTitle("EATSOME")
             .navigationBarTitleDisplayMode(.inline)
+            // Health is fetched when the app becomes active; a pull covers the
+            // rest. A toolbar button only advertises that the sync is manual.
             .refreshable { await model.refreshHealth() }
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button { Task { await model.refreshHealth() } } label: {
-                        Image(systemName: "arrow.clockwise")
-                    }
-                    .accessibilityLabel("Refresh Health data")
+            .safeAreaInset(edge: .bottom) {
+                Button { showingCapture = true } label: {
+                    Label("Add meal", systemImage: "camera.fill")
                 }
+                .buttonStyle(WelliePrimaryButtonStyle())
+                .padding(.horizontal, WellieTheme.screenInset)
+                .padding(.top, 8)
+                .padding(.bottom, 6)
+                .background(.bar)
             }
             .sheet(isPresented: $showingCapture) { MealCaptureView() }
         }
         .wellieScreen()
     }
 
+    /// While there is too little logged to mean anything, the days counter leads
+    /// and the score is a footnote. Printing a huge number and then explaining
+    /// underneath that it cannot be trusted is the wrong way round.
     private var adherenceHero: some View {
         let result = model.adherence()
         return NavigationLink {
             AdherenceView()
         } label: {
-            VStack(spacing: 12) {
+            VStack(spacing: 10) {
                 Text(Date().formatted(.dateTime.weekday(.wide).month(.wide).day()))
                     .font(WellieTheme.font(14, weight: .medium))
                     .foregroundStyle(WellieTheme.muted)
 
-                WellieKicker(text: "Rolling adherence")
-
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text("\(result.score)")
-                        .font(WellieTheme.font(64, weight: .bold))
-                    Text("/ \(result.maxScore)")
-                        .font(WellieTheme.font(28, weight: .bold))
-                        .foregroundStyle(WellieTheme.muted)
-                }
-
-                Text(heroMessage(result))
-                    .font(WellieTheme.font(16, weight: .medium))
-                    .foregroundStyle(WellieTheme.muted)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: 330)
-
-                ProgressView(value: Double(result.score), total: Double(max(result.maxScore, 1)))
-                    .tint(WellieTheme.blue)
-
                 if result.isUnderreported {
-                    Text("Log meals on more days before treating this score as meaningful.")
-                        .font(WellieTheme.font(12, weight: .medium))
+                    WellieKicker(text: "Days logged")
+                    figure("\(result.daysLogged)", of: "/ \(result.windowDays)")
+                    Text("A few consistent days will reveal your Mediterranean pattern.")
+                        .font(WellieTheme.font(15, weight: .medium))
                         .foregroundStyle(WellieTheme.muted)
                         .multilineTextAlignment(.center)
+                        .frame(maxWidth: 330)
+                    Text("Adherence so far: \(result.score) of \(result.maxScore)")
+                        .font(WellieTheme.font(13, weight: .semibold))
+                        .foregroundStyle(WellieTheme.muted)
+                } else {
+                    WellieKicker(text: "Rolling adherence")
+                    figure("\(result.score)", of: "/ \(result.maxScore)")
+                    Text(heroMessage(result))
+                        .font(WellieTheme.font(15, weight: .medium))
+                        .foregroundStyle(WellieTheme.muted)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: 330)
+                    Text("From \(result.daysLogged) of \(result.windowDays) days")
+                        .font(WellieTheme.font(13, weight: .semibold))
+                        .foregroundStyle(WellieTheme.muted)
                 }
             }
             .frame(maxWidth: .infinity)
-            .wellieCard(color: WellieTheme.ice, padding: 24)
+            .wellieCard(color: WellieTheme.ice, padding: 22)
         }
         .buttonStyle(.plain)
+    }
+
+    private func figure(_ value: String, of total: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text(value)
+                .font(WellieTheme.font(60, weight: .bold))
+            Text(total)
+                .font(WellieTheme.font(26, weight: .bold))
+                .foregroundStyle(WellieTheme.muted)
+        }
+    }
+
+    /// What you have eaten today and, more usefully, what you have not. A lone
+    /// chip says what you collected; this says what is left, which is the only
+    /// reason to open the screen before a meal.
+    private var todayCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            WellieKicker(text: "Today")
+
+            if foodGroups.isEmpty {
+                Text("Nothing logged yet.")
+                    .font(WellieTheme.font(15, weight: .medium))
+                    .foregroundStyle(WellieTheme.muted)
+            } else {
+                FlowLayout(spacing: 6, lineSpacing: 6) {
+                    ForEach(foodGroups, id: \.self) { group in
+                        Label(group.displayName, systemImage: "checkmark")
+                            .font(WellieTheme.font(12, weight: .bold))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .foregroundStyle(WellieTheme.blue)
+                            .background(WellieTheme.softBlue, in: Capsule())
+                    }
+                }
+            }
+
+            if !dailyShortfalls.isEmpty {
+                shortfallLine(title: "Still today", entries: dailyShortfalls)
+            }
+            if !weeklyShortfalls.isEmpty {
+                shortfallLine(title: "This week", entries: weeklyShortfalls)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .wellieCard(color: WellieTheme.card)
+    }
+
+    private func shortfallLine(title: String, entries: [Shortfall]) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(WellieTheme.font(12, weight: .semibold))
+                .foregroundStyle(WellieTheme.muted)
+            Text(entries.map(\.description).joined(separator: " · "))
+                .font(WellieTheme.font(14, weight: .semibold))
+                .foregroundStyle(WellieTheme.ink)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private struct Shortfall: Identifiable {
+        let id: Int
+        let name: String
+        let observed: Double
+        let target: Double
+
+        var description: String {
+            let have = observed.formatted(.number.precision(.fractionLength(observed == observed.rounded() ? 0 : 1)))
+            return "\(name) \(have)/\(target.formatted(.number.precision(.fractionLength(0))))"
+        }
+    }
+
+    /// Daily lower-bound items measured against today alone, not the rolling
+    /// average — "still today" has to mean today.
+    private var dailyShortfalls: [Shortfall] {
+        let excluded = model.config.medas.excludedItems
+        return Medas.items.compactMap { item in
+            guard !excluded.contains(item.id), case .dailyAtLeast(let groups, let target) = item.rule else { return nil }
+            let observed = groups.reduce(0.0) { total, group in
+                total + meals.reduce(0) { $0 + $1.servings(of: group) }
+            }
+            guard observed < target else { return nil }
+            return Shortfall(id: item.id, name: groups.map(\.displayName).joined(separator: " / "),
+                             observed: observed, target: target)
+        }
+    }
+
+    /// Weekly ones come from the scorer, which already rescales to seven days.
+    private var weeklyShortfalls: [Shortfall] {
+        let weekly = Set(Medas.items.compactMap { item -> Int? in
+            if case .weeklyAtLeast = item.rule { return item.id }
+            return nil
+        })
+        return model.adherence().items
+            .filter { weekly.contains($0.id) && !$0.passed }
+            .map { Shortfall(id: $0.id, name: $0.title.components(separatedBy: " ≥").first ?? $0.title,
+                             observed: $0.observed, target: $0.target) }
     }
 
     private var mealsCard: some View {
@@ -155,23 +240,40 @@ struct TodayView: View {
                     HealthMetric(
                         icon: "moon.fill",
                         label: "Sleep",
-                        value: model.latestSleep.map { duration($0.asleep) } ?? "—"
+                        value: model.latestSleep.map { duration($0.asleep) } ?? "None",
+                        delta: model.sleepDeltaAgainstAverage.map {
+                            Delta(text: duration(abs($0)), isUp: $0 >= 0, caption: "vs your average")
+                        }
                     )
                     HealthMetric(
                         icon: "figure.run",
-                        label: "Workout",
-                        value: workoutValue
+                        label: "Workouts",
+                        value: "\(model.workoutCount(weeksAgo: 0))",
+                        delta: workoutDelta
                     )
                     HealthMetric(
                         icon: "scalemass.fill",
                         label: "Weight",
-                        value: model.latestWeight.map { WeightFormat.string($0.kilograms) } ?? "—"
+                        value: model.latestWeight.map { WeightFormat.string($0.kilograms) } ?? "None",
+                        // Kilograms, not per cent: a percentage of a body weight
+                        // is a number nobody has an instinct for.
+                        delta: model.weightDelta.map {
+                            Delta(
+                                text: "\(WeightFormat.value(abs($0)).formatted(.number.precision(.fractionLength(1)))) \(WeightFormat.unit)",
+                                isUp: $0 >= 0,
+                                caption: "since last"
+                            )
+                        }
                     )
                 }
 
-                if model.healthSnapshot.weights.count > 1 {
-                    WeightTrendChart(measurements: model.healthSnapshot.weights)
-                        .frame(height: 92)
+                if model.healthIsEmpty {
+                    // The invariant, surfaced: iOS makes a refused read look
+                    // exactly like an empty store, so the app must not claim it
+                    // knows which one this is.
+                    Text("No samples. Either nothing is recorded, or Health access was declined — iOS does not tell apps which.")
+                        .font(WellieTheme.font(12, weight: .medium))
+                        .foregroundStyle(WellieTheme.muted)
                 }
             }
 
@@ -184,9 +286,11 @@ struct TodayView: View {
         .wellieCard(color: WellieTheme.ice)
     }
 
-    private var workoutValue: String {
-        let seconds = model.workoutsToday().reduce(0) { $0 + $1.duration }
-        return seconds > 0 ? duration(seconds) : "—"
+    private var workoutDelta: Delta? {
+        let previous = model.workoutCount(weeksAgo: 1)
+        let change = model.workoutCount(weeksAgo: 0) - previous
+        guard previous > 0 || change != 0 else { return nil }
+        return Delta(text: "\(abs(change))", isUp: change >= 0, caption: "vs last week")
     }
 
     private func heroMessage(_ result: MedasResult) -> String {
@@ -211,11 +315,19 @@ private struct MealHistoryRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: meal.source == .photo ? "camera.fill" : "fork.knife")
-                .font(.system(size: 15, weight: .semibold, design: .rounded))
-                .foregroundStyle(WellieTheme.blue)
-                .frame(width: 38, height: 38)
-                .background(WellieTheme.softBlue, in: Circle())
+            if let photo = PhotoStore.shared.image(for: meal.photoHash) {
+                Image(uiImage: photo)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 44, height: 44)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            } else {
+                Image(systemName: meal.source == .photo ? "camera.fill" : "fork.knife")
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .foregroundStyle(WellieTheme.blue)
+                    .frame(width: 44, height: 44)
+                    .background(WellieTheme.softBlue, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            }
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(MealDisplay.title(meal))
@@ -235,10 +347,22 @@ private struct MealHistoryRow: View {
     }
 }
 
+/// A change with a direction and no opinion about it.
+///
+/// Deliberately not coloured green or red: down is not always good on weight and
+/// up is not always an achievement on sleep. The arrow says which way, the
+/// number says how far, and the judgement stays with the person.
+struct Delta {
+    let text: String
+    let isUp: Bool
+    let caption: String
+}
+
 private struct HealthMetric: View {
     let icon: String
     let label: String
     let value: String
+    var delta: Delta?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -251,6 +375,21 @@ private struct HealthMetric: View {
                 .font(WellieTheme.font(15, weight: .bold))
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
+
+            if let delta {
+                HStack(spacing: 2) {
+                    Image(systemName: delta.isUp ? "arrow.up" : "arrow.down")
+                        .font(.system(size: 9, weight: .bold))
+                    Text(delta.text)
+                        .font(WellieTheme.font(11, weight: .semibold))
+                }
+                .foregroundStyle(WellieTheme.muted)
+                Text(delta.caption)
+                    .font(WellieTheme.font(10, weight: .medium))
+                    .foregroundStyle(WellieTheme.muted)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
@@ -258,44 +397,15 @@ private struct HealthMetric: View {
     }
 }
 
-struct WeightTrendChart: View {
-    let measurements: [WeightMeasurement]
-
-    private var recent: [WeightMeasurement] {
-        let cutoff = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? .distantPast
-        return measurements.filter { $0.measuredAt >= cutoff }.sorted { $0.measuredAt < $1.measuredAt }
-    }
-
-    var body: some View {
-        Chart(recent) { measurement in
-            LineMark(
-                x: .value("Date", measurement.measuredAt),
-                y: .value("Weight", WeightFormat.value(measurement.kilograms))
-            )
-            .foregroundStyle(WellieTheme.blue)
-            .interpolationMethod(.catmullRom)
-            PointMark(
-                x: .value("Date", measurement.measuredAt),
-                y: .value("Weight", WeightFormat.value(measurement.kilograms))
-            )
-            .foregroundStyle(WellieTheme.blue)
-        }
-        .chartYAxis(.hidden)
-        .chartXAxis {
-            AxisMarks(values: .automatic(desiredCount: 3)) { _ in
-                AxisValueLabel(format: .dateTime.month().day())
-                    .foregroundStyle(WellieTheme.muted)
-            }
-        }
-    }
-}
-
 enum MealDisplay {
+    /// One name plus a count, rather than three labels glued together and then
+    /// cut off mid-word. "cherries +3" survives any row width.
     static func title(_ meal: MealEntry) -> String {
         let labels = meal.items.compactMap(\.label).filter { !$0.isEmpty }
-        if !labels.isEmpty { return labels.prefix(3).joined(separator: ", ") }
         let groups = uniqueGroups(meal)
-        return groups.isEmpty ? "Meal" : groups.prefix(3).map(\.displayName).joined(separator: ", ")
+        let lead = labels.first ?? groups.first?.displayName ?? "Meal"
+        let rest = meal.items.count - 1
+        return rest > 0 ? "\(lead) +\(rest)" : lead
     }
 
     static func subtitle(_ meal: MealEntry) -> String {

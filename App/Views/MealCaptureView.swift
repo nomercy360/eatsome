@@ -621,7 +621,9 @@ struct MealCaptureView: View {
             eatenAt: eatenAt.epochMillis,
             items: finalItems,
             source: source,
-            photoHash: imageData.map(ImageDigest.sha256),
+            // Writing the photo is what makes the hash worth carrying: the meal
+            // list can show the food instead of a camera glyph.
+            photoHash: imageData.flatMap { PhotoStore.shared.store($0) },
             note: trimmed(note),
             recognitionEvidence: recognitionEvidence,
             share: share,

@@ -90,7 +90,10 @@ final class AppModel {
         await record(.mealRevised(revised), occurredAt: revised.eatenAt)
     }
 
+    /// The event log keeps the deletion; the photograph does not get to outlive
+    /// the meal it belonged to.
     func deleteMeal(_ meal: MealEntry) async {
+        PhotoStore.shared.remove(meal.photoHash)
         await record(.mealDeleted(mealID: meal.id), occurredAt: meal.eatenAt)
     }
 
@@ -165,6 +168,44 @@ final class AppModel {
 
     var latestSleep: SleepSummary? { healthSnapshot.sleep.first }
     var latestWeight: WeightMeasurement? { healthSnapshot.weights.first }
+
+    /// True when Health returned nothing at all. Read denial is by design
+    /// indistinguishable from an empty store, so the UI must say both rather
+    /// than pick one and be wrong half the time.
+    var healthIsEmpty: Bool {
+        healthSnapshot.workouts.isEmpty
+            && healthSnapshot.sleep.isEmpty
+            && healthSnapshot.weights.isEmpty
+    }
+
+    // MARK: - How today compares
+    //
+    // Each metric gets its own baseline, because one formula across three of
+    // them would be wrong for at least two: a weight is a step from the last
+    // reading, a night's sleep only means something against your own average,
+    // and workouts are a weekly count.
+
+    /// Last measurement minus the one before it, in kilograms.
+    var weightDelta: Double? {
+        let sorted = healthSnapshot.weights.sorted { $0.measuredAt > $1.measuredAt }
+        guard sorted.count >= 2 else { return nil }
+        return sorted[0].kilograms - sorted[1].kilograms
+    }
+
+    /// Last night against the average of the nights before it.
+    var sleepDeltaAgainstAverage: TimeInterval? {
+        let nights = healthSnapshot.sleep.sorted { $0.startedAt > $1.startedAt }
+        guard let latest = nights.first else { return nil }
+        let baseline = nights.dropFirst().prefix(7)
+        guard !baseline.isEmpty else { return nil }
+        return latest.asleep - baseline.reduce(0) { $0 + $1.asleep } / Double(baseline.count)
+    }
+
+    func workoutCount(weeksAgo: Int, calendar: Calendar = .current) -> Int {
+        let end = calendar.date(byAdding: .day, value: -7 * weeksAgo, to: Date()) ?? Date()
+        let start = calendar.date(byAdding: .day, value: -7, to: end) ?? end
+        return healthSnapshot.workouts.count { $0.startedAt >= start && $0.startedAt < end }
+    }
 
     func weightChange(overDays days: Int, calendar: Calendar = .current) -> Double? {
         guard let latestWeight else { return nil }

@@ -18,11 +18,21 @@ struct MealDetailView: View {
         ScrollView {
             VStack(spacing: 18) {
                 VStack(spacing: 12) {
-                    Image(systemName: meal.source == .photo ? "camera.fill" : "fork.knife")
-                        .font(.system(size: 34, weight: .semibold, design: .rounded))
-                        .foregroundStyle(WellieTheme.blue)
-                        .frame(width: 76, height: 76)
-                        .background(WellieTheme.softBlue, in: Circle())
+                    if let photo = PhotoStore.shared.image(for: meal.photoHash) {
+                        Image(uiImage: photo)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 170)
+                            .clipped()
+                            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    } else {
+                        Image(systemName: meal.source == .photo ? "camera.fill" : "fork.knife")
+                            .font(.system(size: 34, weight: .semibold, design: .rounded))
+                            .foregroundStyle(WellieTheme.blue)
+                            .frame(width: 76, height: 76)
+                            .background(WellieTheme.softBlue, in: Circle())
+                    }
 
                     Text(MealDisplay.title(draft))
                         .font(WellieTheme.font(28, weight: .bold))
