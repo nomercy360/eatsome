@@ -45,5 +45,6 @@ class EatsomeProvider {
 export const qwen = new EatsomeProvider("qwen-3.7-flash");
 export const luna = new EatsomeProvider("gpt-5.6-luna");
 export const geminiFlash = new EatsomeProvider("gemini-3.6-flash");
+export const grok = new EatsomeProvider("grok-4.5");
 export const sonnet = new EatsomeProvider("claude-sonnet-5");
 export default luna;

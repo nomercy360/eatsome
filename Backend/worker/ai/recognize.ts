@@ -5,6 +5,7 @@ import { HttpError } from "../lib/http-error";
 import { requestAnthropicRecognition } from "./anthropic";
 import { requestGeminiRecognition } from "./gemini";
 import { requestOpenAIRecognition } from "./openai";
+import { requestOpenRouterRecognition } from "./openrouter";
 import { requestQwenRecognition } from "./qwen";
 import { productionSpec, type RecognitionSpec } from "./spec";
 import type { ProviderRecognition } from "./types";
@@ -31,6 +32,7 @@ const models: Record<RecognitionProvider, (env: Env) => string> = {
   gemini: (env) => env.GEMINI_RECOGNITION_MODEL,
   anthropic: (env) => env.ANTHROPIC_RECOGNITION_MODEL,
   qwen: (env) => env.QWEN_RECOGNITION_MODEL,
+  openrouter: (env) => env.OPENROUTER_RECOGNITION_MODEL,
 };
 
 const keys: Record<RecognitionProvider, (env: Env) => string | undefined> = {
@@ -38,6 +40,7 @@ const keys: Record<RecognitionProvider, (env: Env) => string | undefined> = {
   gemini: (env) => env.GEMINI_API_KEY,
   anthropic: (env) => env.ANTHROPIC_API_KEY,
   qwen: (env) => env.QWEN_API_KEY,
+  openrouter: (env) => env.OPENROUTER_API_KEY,
 };
 
 export const keyVariableFor: Record<RecognitionProvider, string> = {
@@ -45,6 +48,7 @@ export const keyVariableFor: Record<RecognitionProvider, string> = {
   gemini: "GEMINI_API_KEY",
   anthropic: "ANTHROPIC_API_KEY",
   qwen: "QWEN_API_KEY",
+  openrouter: "OPENROUTER_API_KEY",
 };
 
 export function modelFor(env: Env, provider: RecognitionProvider): string {
@@ -64,5 +68,6 @@ export function requestMealRecognition(
   if (provider === "gemini") return requestGeminiRecognition(env, input, spec);
   if (provider === "anthropic") return requestAnthropicRecognition(env, input, spec);
   if (provider === "qwen") return requestQwenRecognition(env, input, spec);
+  if (provider === "openrouter") return requestOpenRouterRecognition(env, input, spec);
   return requestOpenAIRecognition(env, input, spec);
 }

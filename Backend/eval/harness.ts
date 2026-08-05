@@ -140,6 +140,9 @@ export function envFor(provider: RecognitionProvider, model?: string): Env {
     QWEN_API_KEY: process.env.QWEN_API_KEY ?? "",
     QWEN_RECOGNITION_MODEL: process.env.QWEN_RECOGNITION_MODEL ?? "qwen3.7-flash",
     QWEN_BASE_URL: process.env.QWEN_BASE_URL ?? "",
+    OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY ?? "",
+    OPENROUTER_RECOGNITION_MODEL: process.env.OPENROUTER_RECOGNITION_MODEL ?? "",
+    OPENROUTER_BASE_URL: process.env.OPENROUTER_BASE_URL ?? "",
     OPENAI_REASONING_EFFORT: process.env.OPENAI_REASONING_EFFORT ?? "",
     GEMINI_THINKING_LEVEL: process.env.GEMINI_THINKING_LEVEL ?? "",
     ANTHROPIC_THINKING_BUDGET: process.env.ANTHROPIC_THINKING_BUDGET ?? "",
@@ -154,6 +157,7 @@ export function envFor(provider: RecognitionProvider, model?: string): Env {
       gemini: "GEMINI_RECOGNITION_MODEL",
       anthropic: "ANTHROPIC_RECOGNITION_MODEL",
       qwen: "QWEN_RECOGNITION_MODEL",
+      openrouter: "OPENROUTER_RECOGNITION_MODEL",
     }[provider];
     (env as unknown as Record<string, string>)[key] = model;
   }
@@ -165,6 +169,7 @@ const keyVariable: Record<RecognitionProvider, string> = {
   gemini: "GEMINI_API_KEY",
   anthropic: "ANTHROPIC_API_KEY",
   qwen: "QWEN_API_KEY",
+  openrouter: "OPENROUTER_API_KEY",
 };
 
 export function isConfigured(provider: RecognitionProvider): boolean {

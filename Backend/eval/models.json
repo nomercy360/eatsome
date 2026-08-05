@@ -26,6 +26,14 @@
       "usdPerMillionOutput": 7.5
     },
     {
+      "id": "grok-4.5",
+      "provider": "openrouter",
+      "model": "x-ai/grok-4.5",
+      "tier": "candidate",
+      "usdPerMillionInput": 2.0,
+      "usdPerMillionOutput": 6.0
+    },
+    {
       "id": "claude-sonnet-5",
       "provider": "anthropic",
       "model": "claude-sonnet-5",

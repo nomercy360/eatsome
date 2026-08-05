@@ -117,6 +117,8 @@ async function worker(queue: Job[]) {
           gemini: process.env.GEMINI_THINKING_LEVEL,
           anthropic: process.env.ANTHROPIC_THINKING_BUDGET,
           qwen: process.env.QWEN_ENABLE_THINKING,
+          // OpenRouter exposes no thinking control of its own; the model default stands.
+          openrouter: undefined,
         }[job.entry.provider] || "default",
       run: job.run,
       ok: false,
