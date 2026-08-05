@@ -43,6 +43,7 @@ function fingerprint(row: RunRecord): string {
   return [
     row.promptVersion,
     row.schemaVersion ?? "-",
+    row.inputVersion ?? "legacy-input",
     row.reasoning ?? "default",
     row.note ? "notes" : "plain",
   ].join("|");

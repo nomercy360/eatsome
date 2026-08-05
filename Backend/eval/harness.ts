@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync as read, readFileSync } from "node:fs";
 import { join } from "node:path";
+import sharp from "sharp";
 import type { RecognitionProvider } from "../src/contracts";
 import { recognitionProviders } from "../src/contracts";
 import { modelFor, requestMealRecognition } from "../worker/ai/recognize";
@@ -26,6 +27,8 @@ export type RunRecord = {
   model: string;
   promptVersion: string;
   schemaVersion: string;
+  inputVersion?: string;
+  imageHash?: string;
   /** What the reasoning budget was, because it is not comparable across
    *  vendors and a run without it recorded cannot be interpreted later. */
   reasoning?: string;
@@ -54,6 +57,7 @@ const evalRoot = import.meta.dirname;
  */
 export const EVAL_PROMPT_FILE = "meal-v6.md";
 export const EVAL_PROMPT_VERSION = "meal-v6-2026-08-05";
+export const MODEL_INPUT_VERSION = "jpeg-1024-q82-v1";
 
 export function evalSpec(): RecognitionSpec {
   return {
@@ -72,26 +76,28 @@ export function photoPath(photo: string): string {
 }
 
 /**
- * The bytes the app would send.
+ * The model-input contract the app uses.
  *
- * `MealCaptureView` re-encodes the picked image as JPEG at quality 0.82 and does
- * not resize; `detail: low` and Gemini's default media resolution do the
- * downsampling server-side. This harness sends the file as it is, so keep the
- * photos in `photos/` at the size the phone produced them. Evaluating
- * full-resolution originals against a pipeline that ships compressed ones
- * measures a different task.
+ * Production eval cases replay the exact R2 bytes. The historical photos in
+ * this repository predate R2, so they cross the same visible boundary here:
+ * orientation baked in, longest edge at most 1024px, opaque JPEG at quality 82.
+ * Sharp and UIKit are different encoders, so `inputVersion` and `imageHash` are
+ * recorded on every new run instead of pretending old artefacts saw these bytes.
  */
-export function readPhoto(photo: string): { base64: string; mimeType: string; hash: string } {
-  const bytes = readFileSync(photoPath(photo));
-  const mimeType = photo.toLowerCase().endsWith(".png")
-    ? "image/png"
-    : photo.toLowerCase().endsWith(".webp")
-      ? "image/webp"
-      : "image/jpeg";
+export async function readPhoto(
+  photo: string,
+): Promise<{ base64: string; mimeType: "image/jpeg"; hash: string; inputVersion: string }> {
+  const bytes = await sharp(readFileSync(photoPath(photo)))
+    .rotate()
+    .resize({ width: 1024, height: 1024, fit: "inside", withoutEnlargement: true })
+    .flatten({ background: "#ffffff" })
+    .jpeg({ quality: 82 })
+    .toBuffer();
   return {
     base64: bytes.toString("base64"),
-    mimeType,
+    mimeType: "image/jpeg",
     hash: createHash("sha256").update(bytes).digest("hex"),
+    inputVersion: MODEL_INPUT_VERSION,
   };
 }
 
@@ -179,9 +185,16 @@ export async function recognizeOnce(
   photo: string,
   model?: string,
   note?: string,
-): Promise<{ raw: string; latencyMs: number; inputTokens: number; outputTokens: number }> {
+): Promise<{
+  raw: string;
+  latencyMs: number;
+  inputTokens: number;
+  outputTokens: number;
+  inputVersion: string;
+  imageHash: string;
+}> {
   const env = envFor(provider, model);
-  const { base64, mimeType, hash } = readPhoto(photo);
+  const { base64, mimeType, hash, inputVersion } = await readPhoto(photo);
   const spec = evalSpec();
   const result = await requestMealRecognition(
     env,
@@ -194,6 +207,8 @@ export async function recognizeOnce(
     latencyMs: result.latencyMs,
     inputTokens: result.inputTokens,
     outputTokens: result.outputTokens,
+    inputVersion,
+    imageHash: hash,
   };
 }
 

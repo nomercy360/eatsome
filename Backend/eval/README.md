@@ -48,6 +48,11 @@ afternoon without answering a single photo differently — the ruler changed twi
 Numbers from two scorer versions are no more comparable than numbers from two
 prompts, and nothing else in a report would say which ruler produced it.
 
+The image boundary is versioned for the same reason. New runs render historical
+source photos as `jpeg-1024-q82-v1` and record both that version and the actual
+SHA-256. Future production cases should copy the exact private R2 model-input
+bytes; they must not be reconstructed from a Photos original.
+
 ## Metrics, and why no judge
 
 Group recall and precision, portion match, duplicate groups. All set comparisons
