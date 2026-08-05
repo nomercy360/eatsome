@@ -1,2 +1,3 @@
 OPENAI_API_KEY=replace-with-a-new-openai-api-key
+GEMINI_API_KEY=replace-with-a-gemini-api-key
 EATSOME_API_TOKEN=replace-with-a-long-random-token

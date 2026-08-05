@@ -6,6 +6,7 @@ import {
   ingestEventsRequestSchema,
   recognitionRequestSchema,
 } from "../src/contracts";
+import { apiKeyFor, modelFor, resolveProvider } from "./ai/recognize";
 import { ingestEvents, listEvents, listMealEvals } from "./data/events";
 import { recognizeMeal } from "./data/recognitions";
 import type { Env } from "./env";
@@ -28,22 +29,39 @@ app.use("*", async (c, next) => {
 
 app.get("/health", async (c) => {
   const database = await c.env.DB.prepare("SELECT 1 AS ok").first<{ ok: number }>();
+  const active = resolveProvider(c.env);
   return c.json({
     ok: database?.ok === 1,
     database: { configured: true },
     recognition: {
-      model: c.env.OPENAI_RECOGNITION_MODEL,
+      provider: active,
+      model: modelFor(c.env, active),
       promptVersion: c.env.MEAL_PROMPT_VERSION,
-      configured: Boolean(c.env.OPENAI_API_KEY),
+      configured: Boolean(apiKeyFor(c.env, active)),
+      // Both, so you can see which half of a comparison is missing a key
+      // before a request fails rather than after.
+      providers: {
+        openai: {
+          model: c.env.OPENAI_RECOGNITION_MODEL,
+          configured: Boolean(c.env.OPENAI_API_KEY),
+        },
+        gemini: {
+          model: c.env.GEMINI_RECOGNITION_MODEL,
+          configured: Boolean(c.env.GEMINI_API_KEY),
+        },
+      },
     },
   });
 });
 
 app.post("/v1/recognitions", zValidator("json", recognitionRequestSchema), async (c) => {
-  if (!c.env.OPENAI_API_KEY) {
-    throw new HttpError(503, "OpenAI is not configured. Add OPENAI_API_KEY to .dev.vars.");
+  const input = c.req.valid("json");
+  const provider = resolveProvider(c.env, input.provider);
+  if (!apiKeyFor(c.env, provider)) {
+    const variable = provider === "gemini" ? "GEMINI_API_KEY" : "OPENAI_API_KEY";
+    throw new HttpError(503, `${provider} is not configured. Add ${variable} to .dev.vars.`);
   }
-  const result = await recognizeMeal(c.env, c.get("accountId"), c.req.valid("json"));
+  const result = await recognizeMeal(c.env, c.get("accountId"), input);
   c.header("Cache-Control", "no-store");
   return c.json(result, result.cached ? 200 : 201);
 });

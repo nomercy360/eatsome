@@ -32,16 +32,22 @@ committed.
 `Authorization: Bearer <EATSOME_API_TOKEN>`.
 
 ```text
-POST /api/v1/recognitions  proxy one image to OpenAI; cache by account/photo/prompt/model
+POST /api/v1/recognitions  proxy one image to OpenAI or Gemini; cache by account/photo/prompt/model
 POST /api/v1/events/batch  idempotently append up to 500 device events
 GET  /api/v1/events        cursor-based event sync
 GET  /api/v1/evals         inspect model-output → human-correction pairs
 ```
 
-The recognition request contains `photoHash`, `mimeType`, and `imageBase64`. The worker recomputes
-the SHA-256 before using the cache. Photos pass through memory to OpenAI and are never written to
-D1. D1 retains only the hash, parsed result, raw model JSON, prompt/model provenance, and token and
-latency telemetry.
+The recognition request contains `photoHash`, `mimeType`, `imageBase64`, and an optional
+`provider` (`openai` or `gemini`) that overrides `RECOGNITION_PROVIDER` for that call, so a device
+can run its own comparison through the proxy. Both providers get the same prompt and are parsed
+into the same contract; the model id is part of the cache key, so asking the second provider about
+a photo the first has already seen costs a real call instead of replaying an answer that came from
+somewhere else. `GET /api/health` reports both, including which one is missing a key.
+
+The worker recomputes the SHA-256 before using the cache. Photos pass through memory to the
+provider and are never written to D1. D1 retains only the hash, parsed result, raw model JSON,
+prompt and model provenance, and token and latency telemetry.
 
 Event ingestion stores the original append-only event unchanged. A meal event containing
 `recognitionEvidence` is additionally projected into `meal_evals`, where initial and final items
@@ -66,6 +72,7 @@ Create a production D1 database in APAC, replace the placeholder `database_id` i
 ```bash
 pnpm wrangler d1 create eatsome --location=apac
 pnpm wrangler secret put OPENAI_API_KEY
+pnpm wrangler secret put GEMINI_API_KEY
 pnpm wrangler secret put EATSOME_API_TOKEN
 pnpm db:migrate:remote
 pnpm deploy

@@ -25,6 +25,12 @@ export const foodGroups = [
 ] as const;
 
 export const portions = ["small", "medium", "large"] as const;
+
+/// Both answer the same contract and the same prompt, so a device can switch
+/// and the eval rows stay comparable. Which one served a request is recorded on
+/// the recognition row, and the cache keys on the model.
+export const recognitionProviders = ["openai", "gemini"] as const;
+export type RecognitionProvider = (typeof recognitionProviders)[number];
 export const eventKinds = [
   "meal_logged",
   "meal_revised",
@@ -78,6 +84,8 @@ export function mealRecognitionJsonSchema(): Record<string, unknown> {
 }
 
 export const recognitionRequestSchema = z.strictObject({
+  // Absent means the server's default, so an older client keeps working.
+  provider: z.enum(recognitionProviders).optional(),
   photoHash: sha256Schema,
   mimeType: z.enum(["image/jpeg", "image/png", "image/webp"]),
   imageBase64: z

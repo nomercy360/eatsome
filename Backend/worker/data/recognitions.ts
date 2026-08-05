@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import type { MealRecognition, RecognitionRequest } from "../../src/contracts";
 import { decodeBase64Image, sha256Hex } from "../ai/image";
-import { requestMealRecognition } from "../ai/recognize";
+import { modelFor, requestMealRecognition, resolveProvider } from "../ai/recognize";
 import { createDb } from "../db/client";
 import { recognitions } from "../db/schema";
 import type { Env } from "../env";
@@ -38,29 +38,35 @@ export async function recognizeMeal(
     throw new HttpError(400, "photoHash does not match the uploaded image bytes.");
   }
 
+  const provider = resolveProvider(env, input.provider);
+  const model = modelFor(env, provider);
+
   const db = createDb(env.DB);
+  // The model is part of the key, so asking the other provider about a photo
+  // you have already sent costs a real call rather than replaying an answer
+  // that came from somewhere else.
   const where = and(
     eq(recognitions.accountId, accountId),
     eq(recognitions.photoHash, actualHash),
     eq(recognitions.promptVersion, env.MEAL_PROMPT_VERSION),
-    eq(recognitions.model, env.OPENAI_RECOGNITION_MODEL),
+    eq(recognitions.model, model),
   );
   const cached = await db.query.recognitions.findFirst({ where });
   if (cached) return response(cached, true);
 
-  const provider = await requestMealRecognition(env, input);
+  const result = await requestMealRecognition(env, input, provider);
   const row: typeof recognitions.$inferInsert = {
     id: crypto.randomUUID(),
     accountId,
     photoHash: actualHash,
     promptVersion: env.MEAL_PROMPT_VERSION,
-    model: env.OPENAI_RECOGNITION_MODEL,
-    result: provider.recognition,
-    rawModelJson: provider.rawModelJson,
-    providerRequestId: provider.requestId,
-    inputTokens: provider.inputTokens,
-    outputTokens: provider.outputTokens,
-    latencyMs: provider.latencyMs,
+    model,
+    result: result.recognition,
+    rawModelJson: result.rawModelJson,
+    providerRequestId: result.requestId,
+    inputTokens: result.inputTokens,
+    outputTokens: result.outputTokens,
+    latencyMs: result.latencyMs,
     createdAt: new Date().toISOString(),
   };
   await db.insert(recognitions).values(row).onConflictDoNothing();
