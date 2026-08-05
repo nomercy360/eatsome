@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <path
+    d="M500 333C549 447 550 588 493 707"
+    fill="none"
+    stroke="#753714"
+    stroke-linecap="round"
+    stroke-width="24"
+    transform="rotate(-18 512 512)"
+  />
+</svg>

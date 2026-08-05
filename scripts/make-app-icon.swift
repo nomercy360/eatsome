@@ -1,6 +1,7 @@
 #!/usr/bin/env swift
-// Draws the app icon from the Wellie palette, so the mark is a script rather
-// than a binary nobody can regenerate. Run after changing the colours:
+// Draws the opaque fallback/marketing icon that accompanies AppIcon.icon.
+// The Icon Composer bundle is the adaptive Liquid Glass source used by Xcode;
+// keep this fallback visually aligned with its SVG layers.
 //
 //   swift scripts/make-app-icon.swift
 //
@@ -18,10 +19,11 @@ func rgb(_ r: Int, _ g: Int, _ b: Int) -> CGColor {
     CGColor(red: CGFloat(r) / 255, green: CGFloat(g) / 255, blue: CGFloat(b) / 255, alpha: 1)
 }
 
-let ink = rgb(5, 31, 68)
+let navy = rgb(11, 53, 107)
 let blue = rgb(63, 138, 247)
-let lime = rgb(196, 244, 52)
-let plate = rgb(255, 255, 255)
+let plate = rgb(255, 244, 223)
+let almond = rgb(217, 135, 50)
+let crease = rgb(117, 55, 20)
 
 guard let context = CGContext(
     data: nil,
@@ -36,10 +38,10 @@ guard let context = CGContext(
 let canvas = CGRect(x: 0, y: 0, width: size, height: size)
 let side = CGFloat(size)
 
-// Background: brand blue deepening toward the navy the app uses for text.
+// Background fill matches the Icon Composer gradient.
 let gradient = CGGradient(
     colorsSpace: CGColorSpaceCreateDeviceRGB(),
-    colors: [blue, ink] as CFArray,
+    colors: [blue, navy] as CFArray,
     locations: [0, 1]
 )!
 context.drawLinearGradient(
@@ -50,7 +52,7 @@ context.drawLinearGradient(
 )
 
 // The plate.
-let plateRadius = side * 0.30
+let plateRadius = side * 0.322
 let centre = CGPoint(x: side / 2, y: side / 2)
 context.setFillColor(plate)
 context.fillEllipse(in: CGRect(
@@ -60,46 +62,57 @@ context.fillEllipse(in: CGRect(
     height: plateRadius * 2
 ))
 
-// A leaf on it: two arcs meeting at tip and stem, with a midrib. The app scores
-// a Mediterranean diet, and this is the one mark that reads at 40 points.
-let leafHeight = plateRadius * 1.32
-let leafWidth = plateRadius * 0.78
-let tip = CGPoint(x: centre.x, y: centre.y + leafHeight / 2)
-let stem = CGPoint(x: centre.x, y: centre.y - leafHeight / 2)
-
-// Tilted, and with the two sides curved differently: a symmetrical almond on a
-// straight axis reads as an eye, not a leaf.
+// A warm, slightly asymmetric kernel. Its broad shoulder, rounded base and
+// curved crease keep it legible as an almond instead of a generic leaf.
+// The SVG artwork uses a top-left origin; flip only the kernel drawing so the
+// fallback keeps the same orientation as Icon Composer.
+context.saveGState()
+context.translateBy(x: 0, y: side)
+context.scaleBy(x: 1, y: -1)
 var tilt = CGAffineTransform(translationX: centre.x, y: centre.y)
-    .rotated(by: -.pi / 9)
+    .rotated(by: -.pi / 10)
     .translatedBy(x: -centre.x, y: -centre.y)
 
-let leaf = CGMutablePath()
-leaf.move(to: tip)
-leaf.addQuadCurve(
-    to: stem,
-    control: CGPoint(x: centre.x + leafWidth, y: centre.y - leafHeight * 0.10)
+let kernel = CGMutablePath()
+kernel.move(to: CGPoint(x: 512, y: 266))
+kernel.addCurve(
+    to: CGPoint(x: 659, y: 587),
+    control1: CGPoint(x: 624, y: 337),
+    control2: CGPoint(x: 684, y: 464)
 )
-leaf.addQuadCurve(
-    to: tip,
-    control: CGPoint(x: centre.x - leafWidth * 0.82, y: centre.y + leafHeight * 0.02)
+kernel.addCurve(
+    to: CGPoint(x: 482, y: 767),
+    control1: CGPoint(x: 634, y: 708),
+    control2: CGPoint(x: 553, y: 782)
 )
-context.setFillColor(lime)
-context.addPath(leaf.copy(using: &tilt)!)
+kernel.addCurve(
+    to: CGPoint(x: 383, y: 531),
+    control1: CGPoint(x: 405, y: 751),
+    control2: CGPoint(x: 359, y: 652)
+)
+kernel.addCurve(
+    to: CGPoint(x: 512, y: 266),
+    control1: CGPoint(x: 407, y: 411),
+    control2: CGPoint(x: 466, y: 305)
+)
+kernel.closeSubpath()
+context.setFillColor(almond)
+context.addPath(kernel.copy(using: &tilt)!)
 context.fillPath()
 
-// Midrib, in the background navy so it reads as a fold rather than a line. It
-// follows the leaf's fuller side rather than splitting it down the middle.
-let midrib = CGMutablePath()
-midrib.move(to: CGPoint(x: stem.x, y: stem.y + leafHeight * 0.06))
-midrib.addQuadCurve(
-    to: CGPoint(x: tip.x, y: tip.y - leafHeight * 0.12),
-    control: CGPoint(x: centre.x + leafWidth * 0.22, y: centre.y)
+let kernelCrease = CGMutablePath()
+kernelCrease.move(to: CGPoint(x: 500, y: 333))
+kernelCrease.addCurve(
+    to: CGPoint(x: 493, y: 707),
+    control1: CGPoint(x: 549, y: 447),
+    control2: CGPoint(x: 550, y: 588)
 )
-context.setStrokeColor(ink)
-context.setLineWidth(side * 0.018)
+context.setStrokeColor(crease)
+context.setLineWidth(24)
 context.setLineCap(.round)
-context.addPath(midrib.copy(using: &tilt)!)
+context.addPath(kernelCrease.copy(using: &tilt)!)
 context.strokePath()
+context.restoreGState()
 
 guard let image = context.makeImage() else { fatalError("could not render") }
 let output = iconSet.appendingPathComponent("icon-1024.png")
