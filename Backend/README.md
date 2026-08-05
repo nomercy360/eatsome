@@ -66,17 +66,17 @@ pnpm verify
 
 ## Deploying
 
-Create a production D1 database in APAC, replace the placeholder `database_id` in
-`wrangler.jsonc`, configure secrets, migrate, and deploy:
+Authenticate once, then one script does the rest:
 
 ```bash
-pnpm wrangler d1 create eatsome --location=apac
-pnpm wrangler secret put OPENAI_API_KEY
-pnpm wrangler secret put GEMINI_API_KEY
-pnpm wrangler secret put EATSOME_API_TOKEN
-pnpm db:migrate:remote
-pnpm deploy
+export CLOUDFLARE_API_TOKEN=…   # Workers Scripts: Edit, D1: Edit, Account Settings: Read
+./scripts/bootstrap-remote.sh
 ```
+
+`wrangler login` works instead of the token if you would rather use the browser.
+The first run creates the D1 database and prints its id; paste that into
+`wrangler.jsonc` and run it again, and it will set the five secrets, migrate and
+deploy. It is safe to re-run — secrets already present are left alone.
 
 The bearer token is deliberately a single-owner bootstrap mechanism. Replace it with Sign in with
 Apple before inviting unrelated users; do not turn the shared token into a multi-user identity
