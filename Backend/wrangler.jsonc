@@ -44,7 +44,7 @@
     {
       "binding": "DB",
       "database_name": "eatsome",
-      "database_id": "local-development-replace-before-deploy",
+      "database_id": "4d917567-d6a1-4e35-ad87-28f408010e5f",
       "migrations_dir": "migrations"
     }
   ]
