@@ -19,7 +19,7 @@ export const foodGroups = [
   "pastry",
   "sugary_drinks",
   "butter",
-  "wine",
+  "alcohol",
   "sofrito",
   "other",
 ] as const;

@@ -31,7 +31,7 @@ public enum FoodGroup: String, Codable, CaseIterable, Sendable, Hashable {
     case pastry
     case sugaryDrinks = "sugary_drinks"
     case butter
-    case wine
+    case alcohol
     case sofrito
     case other
 
@@ -55,7 +55,7 @@ public enum FoodGroup: String, Codable, CaseIterable, Sendable, Hashable {
         case .pastry: "Commercial pastry"
         case .sugaryDrinks: "Sugary drinks"
         case .butter: "Butter / margarine / cream"
-        case .wine: "Wine"
+        case .alcohol: "Alcohol"
         case .sofrito: "Sofrito"
         case .other: "Other"
         }

@@ -44,7 +44,7 @@ public enum Protein {
         FoodGroup.butter.rawValue: 0.5,
         FoodGroup.oliveOil.rawValue: 0,
         FoodGroup.sugaryDrinks.rawValue: 0,
-        FoodGroup.wine.rawValue: 0,
+        FoodGroup.alcohol.rawValue: 0,
         FoodGroup.other.rawValue: 2
     ]
 

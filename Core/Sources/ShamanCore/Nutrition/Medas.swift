@@ -39,7 +39,6 @@ public enum Medas {
         .init(id: 5, title: "Red & processed meat < 1 serving/day", rule: .dailyBelow([.redMeat, .processedMeat], 1.0)),
         .init(id: 6, title: "Butter, margarine or cream < 1 serving/day", rule: .dailyBelow([.butter], 1.0)),
         .init(id: 7, title: "Sugary drinks < 1/day", rule: .dailyBelow([.sugaryDrinks], 1.0)),
-        .init(id: 8, title: "Wine ≥ 7 glasses/week", rule: .weeklyAtLeast([.wine], 7.0)),
         .init(id: 9, title: "Legumes ≥ 3 servings/week", rule: .weeklyAtLeast([.legumes], 3.0)),
         .init(id: 10, title: "Fish or seafood ≥ 3 servings/week", rule: .weeklyAtLeast([.fish], 3.0)),
         .init(id: 11, title: "Sweets & pastry < 3 servings/week", rule: .weeklyBelow([.sweets, .pastry], 3.0)),
@@ -108,16 +107,21 @@ extension Medas {
 public struct MedasConfiguration: Codable, Sendable, Hashable {
     /// Item ids removed from scoring; the denominator shrinks accordingly.
     ///
-    /// Item 8 is excluded by default. PREDIMED awards a point for a glass of
-    /// wine a day, and an app that nudges you toward drinking to raise a number
-    /// is not the app we are building. Delete the `[8]` to score it.
+    /// Empty by default, because the wine item is gone rather than excluded.
+    /// PREDIMED awards a point for a glass of wine a day, and an app that nudges
+    /// you toward drinking to raise a number is not the app we are building. It
+    /// sat here excluded-by-default until `alcohol` replaced `wine` as the
+    /// group; at that point re-enabling it would have credited beer and spirits
+    /// toward a wine-adherence point, which is a worse answer than the one it
+    /// replaced. Scoring it again means deciding what alcohol is worth, not
+    /// deleting a `[8]`.
     public var excludedItems: Set<Int>
     /// Length of the rolling window. Seven days, not one: daily perfection
     /// produces false failures — no fish on Tuesday is not a diet failure — and
     /// false failures are how habit-tracking apps get deleted in week three.
     public var windowDays: Int
 
-    public init(excludedItems: Set<Int> = [8], windowDays: Int = 7) {
+    public init(excludedItems: Set<Int> = [], windowDays: Int = 7) {
         self.excludedItems = excludedItems
         self.windowDays = windowDays
     }

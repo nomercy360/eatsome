@@ -50,7 +50,7 @@ struct ProteinTests {
             )
         }
         #expect(Protein.defaultGramsPerServing[FoodGroup.oliveOil.rawValue] == 0)
-        #expect(Protein.defaultGramsPerServing[FoodGroup.wine.rawValue] == 0)
+        #expect(Protein.defaultGramsPerServing[FoodGroup.alcohol.rawValue] == 0)
     }
 
     @Test("A configured table overrides the compiled one")

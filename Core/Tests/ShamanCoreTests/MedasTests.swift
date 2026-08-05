@@ -34,7 +34,7 @@ struct MedasTests {
     @Test("A compliant week scores full marks")
     func perfectWeek() {
         let result = MedasScorer().score(meals: goodWeek(), habits: DietHabits(), windowEnd: now)
-        #expect(result.maxScore == 13, "wine is excluded by default")
+        #expect(result.maxScore == 13, "13 items; the wine item was removed, not excluded")
         #expect(result.score == 13)
         #expect(result.meetsGoodAdherence)
         #expect(result.daysLogged == 7)
@@ -42,15 +42,6 @@ struct MedasTests {
 
         let failed = result.items.filter { !$0.passed }.map(\.title)
         #expect(failed.isEmpty, "failed: \(failed)")
-    }
-
-    @Test("Wine is excluded by default and includable by configuration")
-    func wineIsOptional() {
-        let scored = MedasScorer(configuration: .init(excludedItems: []))
-            .score(meals: goodWeek(), habits: DietHabits(), windowEnd: now)
-        #expect(scored.maxScore == 14)
-        #expect(scored.score == 13, "no wine logged, so the wine item fails")
-        #expect(scored.items.contains { $0.id == 8 })
     }
 
     @Test("One heavy meat day does not fail the week")
