@@ -96,10 +96,42 @@ public enum FoodGroup: String, Codable, CaseIterable, Sendable, Hashable {
         }
     }
 
-    /// The plain name lowercased for use mid-sentence, where a capital would
-    /// read as a proper noun: "Looks like chicken & turkey and olive oil."
+    /// One or two words, for a chip and for the middle of a sentence.
+    ///
+    /// `plainName` is written for a picker row, where a second line names the
+    /// group it counts as and there is room to be unambiguous. A chip has room
+    /// for neither: "Yoghurt, milk & cheese" wraps to two lines and pushes the
+    /// rest of the row off the card, where "Dairy" does not.
+    public var shortName: String {
+        switch self {
+        case .oliveOil: "Olive oil"
+        case .vegetables: "Vegetables"
+        case .fruit: "Fruit"
+        case .legumes: "Beans"
+        case .fish: "Fish"
+        case .nuts: "Nuts"
+        case .healthyFats: "Avocado & olives"
+        case .wholeGrains: "Whole grains"
+        case .refinedGrains: "Bread & pasta"
+        case .whiteMeat: "Chicken"
+        case .redMeat: "Red meat"
+        case .processedMeat: "Cured meat"
+        case .dairy: "Dairy"
+        case .egg: "Eggs"
+        case .sweets: "Sweets"
+        case .pastry: "Pastry"
+        case .sugaryDrinks: "Sweet drinks"
+        case .butter: "Butter"
+        case .alcohol: "Alcohol"
+        case .sofrito: "Tomato base"
+        case .other: "Something else"
+        }
+    }
+
+    /// Lowercased for mid-sentence use, where a capital would read as a proper
+    /// noun: "Looks like chicken and olive oil."
     public var sentenceName: String {
-        plainName.lowercased()
+        shortName.lowercased()
     }
 
     /// Groups the model confuses often enough that they belong next to each

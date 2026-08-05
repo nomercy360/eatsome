@@ -53,10 +53,14 @@ struct MealDetailView: View {
         .navigationTitle(DayFormat.title(Date(epochMillis: draft.eatenAt)))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Text(Date(epochMillis: draft.eatenAt).formatted(date: .omitted, time: .shortened))
-                    .font(WellieTheme.font(14, weight: .semibold))
-                    .foregroundStyle(WellieTheme.muted)
+            // A timestamp is a label, not a control. Without this iOS 26 wraps
+            // it in the same glass capsule it gives buttons, and it reads as
+            // something you can press.
+            if #available(iOS 26.0, *) {
+                ToolbarItem(placement: .topBarTrailing) { timeLabel }
+                    .sharedBackgroundVisibility(.hidden)
+            } else {
+                ToolbarItem(placement: .topBarTrailing) { timeLabel }
             }
         }
         // Only once something has actually moved. Comparing the whole entry
@@ -91,6 +95,12 @@ struct MealDetailView: View {
             Text("It comes off your week. The photo goes with it.")
         }
         .wellieScreen()
+    }
+
+    private var timeLabel: some View {
+        Text(Date(epochMillis: draft.eatenAt).formatted(date: .omitted, time: .shortened))
+            .font(WellieTheme.font(14, weight: .semibold))
+            .foregroundStyle(WellieTheme.muted)
     }
 
     private var sentenceCard: some View {

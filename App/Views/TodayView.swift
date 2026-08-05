@@ -147,8 +147,8 @@ struct TodayView: View {
         let names = model.adherence().items
             .filter { weekly.contains($0.id) && !$0.passed }
             .sorted { ($0.observed / max($0.target, 1)) < ($1.observed / max($1.target, 1)) }
+            .compactMap { MedasCopy.foodNoun($0.id) }
             .prefix(2)
-            .map { MedasCopy.plainTitle($0.id).lowercased() }
 
         switch names.count {
         case 0: return nil
@@ -183,7 +183,7 @@ struct TodayView: View {
                 WellieProse("Nothing yet today.")
             } else {
                 FlowLayout(spacing: 7, lineSpacing: 7) {
-                    ForEach(eatenGroups, id: \.self) { WellieChip(text: $0.plainName) }
+                    ForEach(eatenGroups, id: \.self) { WellieChip(text: $0.shortName) }
                     if let nudge = todayNudge {
                         WellieChip(text: nudge, style: .outline)
                     }

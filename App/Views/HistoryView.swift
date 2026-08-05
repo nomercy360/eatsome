@@ -100,9 +100,9 @@ private struct DayCard: View {
                     ForEach(0..<4, id: \.self) { index in
                         if index < meals.count {
                             NavigationLink { MealDetailView(meal: meals[index]) } label: {
-                                MealThumbnail(meal: meals[index], side: .infinity, radius: 16)
-                                    .frame(maxWidth: .infinity)
+                                MealThumbnail(meal: meals[index], side: nil, radius: 16)
                                     .aspectRatio(1, contentMode: .fit)
+                                    .frame(maxWidth: .infinity)
                             }
                             .buttonStyle(.plain)
                         } else {
@@ -116,7 +116,7 @@ private struct DayCard: View {
 
                 if !groups.isEmpty {
                     FlowLayout(spacing: 6, lineSpacing: 6) {
-                        ForEach(groups, id: \.self) { WellieChip(text: $0.plainName, size: 12.5) }
+                        ForEach(groups, id: \.self) { WellieChip(text: $0.shortName, size: 12.5) }
                     }
                 }
             }

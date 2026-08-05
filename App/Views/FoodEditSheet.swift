@@ -136,9 +136,11 @@ struct FoodGroupPicker: View {
                                     Text(group.plainName)
                                         .font(WellieTheme.font(16, weight: .semibold))
                                         .foregroundStyle(WellieTheme.ink)
-                                    Text(group.displayName)
-                                        .font(WellieTheme.font(12.5, weight: .medium))
-                                        .foregroundStyle(WellieTheme.muted)
+                                    if group.plainName != group.displayName {
+                                        Text(group.displayName)
+                                            .font(WellieTheme.font(12.5, weight: .medium))
+                                            .foregroundStyle(WellieTheme.muted)
+                                    }
                                 }
                                 Spacer()
                                 Image(systemName: "plus.circle.fill")

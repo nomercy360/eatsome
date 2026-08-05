@@ -1,143 +1,428 @@
 import ShamanCore
 import SwiftUI
 
+/// Screen `2i`. Settings, without the machinery.
+///
+/// The provider switch, the model name and the seven diagnostic rows are gone
+/// from the interface: recognition is something the app does, not something the
+/// user configures. What is left is Health, the two habit answers, the protein
+/// target, and the honest privacy statement.
+///
+/// Diagnostics — and the key the recognizer still needs until it talks to a
+/// server of ours — stay reachable by tapping the version row five times. That
+/// keeps them for the person who built this without handing them to anyone else.
 struct SettingsView: View {
     @Environment(AppModel.self) private var model
-    /// Settings is a sheet off Today rather than a tab — the third tab is the
-    /// week — so it has to carry its own way out.
     @Environment(\.dismiss) private var dismiss
 
-    @State private var apiKey = ""
     @State private var habits = DietHabits()
-    /// The key field is the only text input in the app, and a secure field on a
-    /// scroll view has no way out on its own: no return key dismisses it, and
-    /// tapping the background does nothing unless focus is dropped explicitly.
-    @FocusState private var isEditingKey: Bool
+    @State private var versionTaps = 0
+    @State private var showingWorkshop = false
+    @State private var showingMethod = false
+    @State private var showingPrivacy = false
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 18) {
-                    VStack(spacing: 6) {
-                        Text("Settings")
-                            .font(WellieTheme.font(32, weight: .bold))
-                        Text("Everything eatsome reads, generates, and stores.")
-                            .font(WellieTheme.font(15, weight: .medium))
-                            .foregroundStyle(WellieTheme.muted)
-                            .multilineTextAlignment(.center)
-                    }
-                    .padding(.vertical, 8)
-
-                    recognitionCard
+                VStack(spacing: WellieTheme.cardSpacing) {
                     healthCard
                     habitsCard
-                    diagnosticsCard
+                    proteinCard
+                    listCard
+                    version
                 }
-                .padding(.horizontal, WellieTheme.screenInset)
-                .padding(.bottom, 32)
-                // A tap anywhere on the page puts the keyboard away. Simultaneous
-                // so the buttons underneath still receive their own taps.
-                .contentShape(Rectangle())
-                .simultaneousGesture(TapGesture().onEnded { isEditingKey = false })
+                .wellieColumn()
             }
-            .scrollDismissesKeyboard(.interactively)
-            .navigationTitle("EATSOME")
+            .background(WellieTheme.background)
+            .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") { dismiss() }
                         .font(WellieTheme.font(15, weight: .semibold))
                 }
-                ToolbarItem(placement: .keyboard) {
-                    HStack {
-                        Spacer()
-                        Button("Done") { isEditingKey = false }
-                            .font(WellieTheme.font(15, weight: .semibold))
-                    }
-                }
             }
+            .navigationDestination(isPresented: $showingWorkshop) { WorkshopView() }
+            .sheet(isPresented: $showingMethod) { ScoreMethodView() }
+            .sheet(isPresented: $showingPrivacy) { PrivacyView() }
             .onAppear { habits = model.projection.habits }
         }
         .wellieScreen()
     }
 
-    private var recognitionCard: some View {
+    // MARK: - Health
+
+    private var healthCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            WellieKicker(text: "Recognition")
-
-            Picker("Provider", selection: Binding(
-                get: { model.provider },
-                set: { newProvider in
-                    apiKey = ""
-                    isEditingKey = false
-                    model.setProvider(newProvider)
-                }
-            )) {
-                ForEach(RecognitionProvider.allCases, id: \.self) { provider in
-                    Text(provider.displayName).tag(provider)
-                }
-            }
-            .pickerStyle(.segmented)
-
-            SettingValueRow(label: "Model", value: model.activeModel)
-
-            HStack(spacing: 10) {
-                Image(systemName: "key.fill")
-                    .foregroundStyle(WellieTheme.blue)
-                SecureField("\(model.provider.displayName) API key", text: $apiKey)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .font(WellieTheme.font(15, weight: .medium))
-                    .focused($isEditingKey)
-                    .submitLabel(.done)
-                    .onSubmit(saveKey)
-            }
-            .padding(14)
-            .background(WellieTheme.elevated, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-
             HStack {
-                Label(
-                    model.hasAPIKey ? "Key stored securely" : "No key stored",
-                    systemImage: model.hasAPIKey ? "checkmark.circle.fill" : "circle"
-                )
-                .font(WellieTheme.font(13, weight: .medium))
-                .foregroundStyle(model.hasAPIKey ? WellieTheme.blue : WellieTheme.muted)
+                Text("Apple Health")
+                    .font(WellieTheme.font(17, weight: .bold))
                 Spacer()
-                if model.hasAPIKey {
-                    Button("Remove", role: .destructive) { model.setAPIKey(nil) }
-                        .font(WellieTheme.font(13, weight: .semibold))
+                if model.hasRequestedHealthAccess {
+                    HStack(spacing: 6) {
+                        WellieMark(size: 17)
+                        Text(model.healthIsEmpty ? "No samples" : "Connected")
+                            .font(WellieTheme.font(13.5, weight: .semibold))
+                            .foregroundStyle(WellieTheme.blue)
+                    }
                 }
             }
 
-            Button("Save key", action: saveKey)
-                .buttonStyle(WelliePrimaryButtonStyle())
-                .disabled(trimmedKey.isEmpty)
+            WellieProse(healthLine, size: 14.5)
 
-            Text(
-                """
-                Each provider keeps its own key in Keychain. Meal photos are uploaded to \
-                \(model.provider.host) for recognition, and only there.
-                """
-            )
-            .font(WellieTheme.font(12, weight: .medium))
-            .foregroundStyle(WellieTheme.muted)
+            if model.hasRequestedHealthAccess {
+                HStack(spacing: 9) {
+                    inlineButton("Review access") { Task { await model.connectHealth() } }
+                    inlineButton("Refresh now") { Task { await model.refreshHealth() } }
+                }
+            } else {
+                Button("Connect Apple Health") { Task { await model.connectHealth() } }
+                    .buttonStyle(WellieSecondaryButtonStyle())
+            }
 
-            if !model.hasAPIKey, let other = RecognitionProvider.allCases.first(where: {
-                $0 != model.provider && model.hasKey(for: $0)
-            }) {
-                Text("A \(other.displayName) key is stored — switch back above to use it.")
-                    .font(WellieTheme.font(12, weight: .medium))
-                    .foregroundStyle(WellieTheme.warningText)
+            if let error = model.healthError {
+                Text(error)
+                    .font(WellieTheme.font(12.5, weight: .medium))
+                    .foregroundStyle(WellieTheme.attention)
             }
         }
-        .wellieCard(color: WellieTheme.softBlue)
+        .wellieCard(color: WellieTheme.ice)
     }
 
-    /// Keys are pasted, and a pasted key arrives with surrounding whitespace
-    /// more often than not. An untrimmed one authenticates as garbage.
-    private var trimmedKey: String {
-        apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+    private var healthLine: String {
+        guard model.hasRequestedHealthAccess else {
+            return "Sleep, workouts and weight can appear on Today. Read only — eatsome never changes Health data."
+        }
+        let checked = model.healthLastRefreshedAt
+            .map { "Last checked at \($0.formatted(date: .omitted, time: .shortened))." } ?? ""
+        // Refusal and an empty store look identical to an app; saying
+        // "connected" for both would be the app claiming to know which.
+        let caveat = model.healthIsEmpty
+            ? " Nothing has come back yet — either nothing is recorded, or access was declined."
+            : ""
+        return "Reading sleep, workouts and weight. \(checked) eatsome never changes Health data.\(caveat)"
     }
+
+    private func inlineButton(_ title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(WellieTheme.font(15, weight: .bold))
+                .foregroundStyle(WellieTheme.blue)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+                .background(WellieTheme.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - The two answers
+
+    private var habitsCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            WellieSectionTitle(text: "Your two answers", detail: "The parts a photo can't see")
+
+            Toggle("You cook with olive oil", isOn: $habits.oliveOilIsMainCulinaryFat)
+                .font(WellieTheme.font(15.5, weight: .semibold))
+            WellieRowDivider()
+            Toggle("You choose chicken and fish over red meat", isOn: $habits.prefersWhiteMeatOverRed)
+                .font(WellieTheme.font(15.5, weight: .semibold))
+        }
+        .wellieCard()
+        .onChange(of: habits) { old, new in
+            // The initial load assigns into this state too; writing an event
+            // for that would append an identical line on every launch.
+            guard old != new else { return }
+            Task { await model.updateHabits(new) }
+        }
+    }
+
+    // MARK: - Protein
+
+    private var proteinCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            WellieSectionTitle(text: "Protein", detail: proteinDetail)
+
+            VStack(spacing: 9) {
+                ForEach(Protein.Intent.allCases, id: \.self) { intent in
+                    intentRow(intent)
+                }
+            }
+
+            WellieCaption(
+                """
+                Estimated from what's on your plate, so read the trend rather than the digit. \
+                It's the only thing here measured in grams.
+                """
+            )
+        }
+        .wellieCard()
+    }
+
+    private var proteinDetail: String {
+        guard let target = model.proteinTarget else {
+            return "Health has no weight yet, so there is no daily number."
+        }
+        return "\(Int(target)) g a day, from your weight in Health"
+    }
+
+    private func intentRow(_ intent: Protein.Intent) -> some View {
+        let isOn = model.proteinIntent == intent
+        return Button { model.proteinIntent = intent } label: {
+            HStack(spacing: 12) {
+                if isOn {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(WellieTheme.onAccent)
+                }
+                Text(intentName(intent))
+                    .font(WellieTheme.font(15.5, weight: isOn ? .bold : .semibold))
+                    .foregroundStyle(isOn ? WellieTheme.onAccent : WellieTheme.body)
+                Spacer(minLength: 8)
+                Text("\(intent.gramsPerKilogram.formatted(.number.precision(.fractionLength(1)))) g/kg")
+                    .font(.system(size: 11.5, weight: .medium, design: .monospaced))
+                    .foregroundStyle(isOn ? WellieTheme.onAccent.opacity(0.7) : WellieTheme.faint)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 15)
+            .background(
+                isOn ? WellieTheme.blue : WellieTheme.well,
+                in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+            )
+            .overlay {
+                if !isOn {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .strokeBorder(WellieTheme.outline, lineWidth: 1.5)
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// The stored names are training vocabulary; these are what a person would
+    /// say they were doing.
+    private func intentName(_ intent: Protein.Intent) -> String {
+        switch intent {
+        case .maintain: "Staying as I am"
+        case .active: "Active"
+        case .building: "Building muscle"
+        }
+    }
+
+    // MARK: - The rest
+
+    private var listCard: some View {
+        VStack(spacing: 0) {
+            NavigationLink { RecipesView() } label: {
+                WellieChevronRow(title: "My dishes", value: "\(model.recipes.count)")
+            }
+            .buttonStyle(.plain)
+
+            WellieRowDivider()
+            WellieChevronRow(title: "Units", value: WeightFormat.unitName)
+                .foregroundStyle(WellieTheme.ink)
+
+            WellieRowDivider()
+            Button { showingMethod = true } label: {
+                WellieChevronRow(title: "How the score works")
+            }
+            .buttonStyle(.plain)
+
+            WellieRowDivider()
+            Button { showingPrivacy = true } label: {
+                WellieChevronRow(title: "Your photos and data")
+            }
+            .buttonStyle(.plain)
+        }
+        .wellieListCard()
+    }
+
+    private var version: some View {
+        VStack(spacing: 8) {
+            Button {
+                versionTaps += 1
+                if versionTaps >= 5 {
+                    versionTaps = 0
+                    showingWorkshop = true
+                }
+            } label: {
+                Text("eatsome \(appVersion)")
+                    .font(WellieTheme.font(13.5, weight: .medium))
+                    .foregroundStyle(WellieTheme.muted)
+            }
+            .buttonStyle(.plain)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 4)
+    }
+
+    private var appVersion: String {
+        let info = Bundle.main.infoDictionary
+        let short = info?["CFBundleShortVersionString"] as? String ?? "1.0"
+        let build = info?["CFBundleVersion"] as? String ?? "1"
+        return "\(short) (\(build))"
+    }
+}
+
+/// What the app does with a photograph, said plainly and in one place.
+struct PrivacyView: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: WellieTheme.cardSpacing) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Your photos stay on your phone.")
+                            .font(WellieTheme.font(22, weight: .bold))
+                        WellieProse(
+                            """
+                            A meal photo is sent once, to \(model.provider.host), to be read. It is not \
+                            stored there by us and it is not posted anywhere. The copy that stays is the \
+                            one on this device, and deleting a meal deletes its photograph with it.
+                            """,
+                            size: 15
+                        )
+                    }
+                    .wellieCard(color: WellieTheme.ice)
+
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Nothing is overwritten")
+                            .font(WellieTheme.font(17, weight: .bold))
+                        WellieProse(
+                            """
+                            Every meal, correction and answer is appended to a log on this device. A \
+                            correction is a new line, not an edit — which is why the app can tell you \
+                            later what it originally thought, and why nothing you have written can be \
+                            silently lost.
+                            """,
+                            size: 15
+                        )
+                    }
+                    .wellieCard()
+
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Health is read only")
+                            .font(WellieTheme.font(17, weight: .bold))
+                        WellieProse(
+                            """
+                            Sleep, workouts and weight are read when the app opens and are never copied \
+                            into the log or written back. iOS does not tell an app whether a refused read \
+                            and an empty store are the same thing, so eatsome says both rather than \
+                            guessing.
+                            """,
+                            size: 15
+                        )
+                    }
+                    .wellieCard()
+                }
+                .wellieColumn()
+            }
+            .background(WellieTheme.background)
+            .navigationTitle("Your photos and data")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") { dismiss() }
+                        .font(WellieTheme.font(15, weight: .semibold))
+                }
+            }
+        }
+        .wellieScreen()
+    }
+}
+
+/// Behind five taps on the version row: the provider switch, the key, and the
+/// counters. Everything the redesign took off the settings screen, kept for the
+/// one person who needs it and shown to nobody else.
+struct WorkshopView: View {
+    @Environment(AppModel.self) private var model
+
+    @State private var apiKey = ""
+    @FocusState private var isEditingKey: Bool
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: WellieTheme.cardSpacing) {
+                VStack(alignment: .leading, spacing: 14) {
+                    WellieSectionTitle(
+                        text: "Recognition",
+                        detail: "Per device, not per account — the point is to run both against your own plates."
+                    )
+
+                    Picker("Provider", selection: Binding(
+                        get: { model.provider },
+                        set: { newValue in
+                            apiKey = ""
+                            isEditingKey = false
+                            model.setProvider(newValue)
+                        }
+                    )) {
+                        ForEach(RecognitionProvider.allCases, id: \.self) {
+                            Text($0.displayName).tag($0)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+
+                    row("Model", model.activeModel)
+
+                    SecureField("\(model.provider.displayName) API key", text: $apiKey)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .font(WellieTheme.font(15, weight: .medium))
+                        .focused($isEditingKey)
+                        .submitLabel(.done)
+                        .onSubmit(saveKey)
+                        .padding(14)
+                        .background(WellieTheme.well, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+
+                    HStack {
+                        Label(
+                            model.hasAPIKey ? "Key stored in Keychain" : "No key stored",
+                            systemImage: model.hasAPIKey ? "checkmark.circle.fill" : "circle"
+                        )
+                        .font(WellieTheme.font(13, weight: .medium))
+                        .foregroundStyle(model.hasAPIKey ? WellieTheme.blue : WellieTheme.muted)
+                        Spacer()
+                        if model.hasAPIKey {
+                            Button("Remove", role: .destructive) { model.setAPIKey(nil) }
+                                .font(WellieTheme.font(13, weight: .semibold))
+                        }
+                    }
+
+                    Button("Save key", action: saveKey)
+                        .buttonStyle(WelliePrimaryButtonStyle(enabled: !trimmedKey.isEmpty))
+                        .disabled(trimmedKey.isEmpty)
+                }
+                .wellieCard()
+
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Counters")
+                        .font(WellieTheme.font(17, weight: .bold))
+                    row("Config", model.configSource.rawValue)
+                    row("Meals", "\(model.projection.meals.count)")
+                    row("Dishes", "\(model.recipes.count)")
+                    row("Health workouts", "\(model.healthSnapshot.workouts.count)")
+                    row("Sleep sessions", "\(model.healthSnapshot.sleep.count)")
+                    row("Weight readings", "\(model.healthSnapshot.weights.count)")
+                    if model.skippedLogLines > 0 {
+                        // A silently skipped line is how you lose trust in your
+                        // own data six months later.
+                        row("Unreadable log lines", "\(model.skippedLogLines)", warning: true)
+                    }
+                }
+                .wellieCard()
+            }
+            .wellieColumn()
+        }
+        .background(WellieTheme.background)
+        .navigationTitle("Workshop")
+        .navigationBarTitleDisplayMode(.inline)
+        .wellieScreen()
+    }
+
+    private var trimmedKey: String { apiKey.trimmingCharacters(in: .whitespacesAndNewlines) }
 
     private func saveKey() {
         isEditingKey = false
@@ -146,119 +431,14 @@ struct SettingsView: View {
         apiKey = ""
     }
 
-    private var healthCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                WellieKicker(text: "Apple Health")
-                Spacer()
-                Image(systemName: model.hasRequestedHealthAccess ? "checkmark.circle.fill" : "circle")
-                    .foregroundStyle(model.hasRequestedHealthAccess ? WellieTheme.blue : WellieTheme.muted)
-            }
-
-            SettingValueRow(label: "Access", value: "Workouts, sleep, weight")
-            SettingValueRow(
-                label: "Last refresh",
-                value: model.healthLastRefreshedAt?.formatted(date: .omitted, time: .shortened) ?? "Never"
-            )
-
-            Button(model.hasRequestedHealthAccess ? "Review Health access" : "Connect Apple Health") {
-                Task { await model.connectHealth() }
-            }
-            .buttonStyle(WellieSecondaryButtonStyle())
-
-            Button("Refresh now") { Task { await model.refreshHealth() } }
-                .font(WellieTheme.font(14, weight: .semibold))
-                .disabled(model.isLoadingHealth)
-
-            Text("Read only. eatsome never changes Health data.")
-                .font(WellieTheme.font(12, weight: .medium))
-                .foregroundStyle(WellieTheme.muted)
-
-            if let error = model.healthError {
-                Text(error)
-                    .font(WellieTheme.font(12, weight: .medium))
-                    .foregroundStyle(WellieTheme.warningText)
-            }
-        }
-        .wellieCard(color: WellieTheme.ice)
-    }
-
-    private var habitsCard: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            WellieKicker(text: "Mediterranean habits")
-                .padding(.bottom, 8)
-            Toggle("Olive oil is my main culinary fat", isOn: $habits.oliveOilIsMainCulinaryFat)
-                .font(WellieTheme.font(15, weight: .semibold))
-                .padding(.vertical, 8)
-            Divider()
-            Toggle("I prefer white meat to red", isOn: $habits.prefersWhiteMeatOverRed)
-                .font(WellieTheme.font(15, weight: .semibold))
-                .padding(.vertical, 8)
-            Text("These are the two MEDAS items a photograph cannot answer.")
-                .font(WellieTheme.font(12, weight: .medium))
-                .foregroundStyle(WellieTheme.muted)
-                .padding(.top, 4)
-
-            Divider().padding(.vertical, 6)
-
-            WellieKicker(text: "Protein target")
-            Picker("Protein target", selection: Binding(
-                get: { model.proteinIntent },
-                set: { model.proteinIntent = $0 }
-            )) {
-                ForEach(Protein.Intent.allCases, id: \.self) { intent in
-                    Text(intent.displayName).tag(intent)
-                }
-            }
-            .pickerStyle(.segmented)
-
-            Text(proteinTargetCaption)
-                .font(WellieTheme.font(12, weight: .medium))
-                .foregroundStyle(WellieTheme.muted)
-        }
-        .wellieCard(color: WellieTheme.card)
-        .onChange(of: habits) { _, new in Task { await model.updateHabits(new) } }
-    }
-
-    private var proteinTargetCaption: String {
-        let rate = model.proteinIntent.gramsPerKilogram.formatted(.number.precision(.fractionLength(1)))
-        guard let target = model.proteinTarget, let weight = model.latestWeight else {
-            return "\(rate) g per kg of body weight. Health has no weight yet, so there is no daily number."
-        }
-        return "\(rate) g per kg — \(Int(target)) g a day at \(WeightFormat.string(weight.kilograms))."
-    }
-
-    private var diagnosticsCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            WellieKicker(text: "Diagnostics")
-            SettingValueRow(label: "Provider", value: model.provider.displayName)
-            SettingValueRow(label: "Model", value: model.activeModel)
-            SettingValueRow(label: "Config", value: model.configSource.rawValue)
-            SettingValueRow(label: "Meals", value: "\(model.projection.meals.count)")
-            SettingValueRow(label: "Health workouts", value: "\(model.healthSnapshot.workouts.count)")
-            SettingValueRow(label: "Sleep sessions", value: "\(model.healthSnapshot.sleep.count)")
-            SettingValueRow(label: "Weight readings", value: "\(model.healthSnapshot.weights.count)")
-            if model.skippedLogLines > 0 {
-                SettingValueRow(label: "Unreadable log lines", value: "\(model.skippedLogLines)", warning: true)
-            }
-        }
-        .wellieCard(color: WellieTheme.card)
-    }
-}
-
-private struct SettingValueRow: View {
-    let label: String
-    let value: String
-    var warning = false
-
-    var body: some View {
+    private func row(_ label: String, _ value: String, warning: Bool = false) -> some View {
         HStack(alignment: .firstTextBaseline) {
             Text(label)
                 .font(WellieTheme.font(15, weight: .semibold))
             Spacer()
             Text(value)
                 .font(WellieTheme.font(13, weight: .medium))
-                .foregroundStyle(warning ? WellieTheme.warningText : WellieTheme.muted)
+                .foregroundStyle(warning ? WellieTheme.attention : WellieTheme.muted)
                 .multilineTextAlignment(.trailing)
         }
         .padding(.vertical, 3)

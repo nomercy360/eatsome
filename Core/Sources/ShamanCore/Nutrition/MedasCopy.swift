@@ -29,6 +29,24 @@ public enum MedasCopy {
         }
     }
 
+    /// The bare food, for use inside a sentence about the week.
+    ///
+    /// `plainTitle` carries its own qualifier — "Beans or lentils, 3 a week" —
+    /// which is right on a row with a progress bar and wrong in the middle of
+    /// "…and fish are what the week is missing."
+    public static func foodNoun(_ id: Int) -> String? {
+        switch id {
+        case 2: "olive oil"
+        case 3: "vegetables"
+        case 4: "fruit"
+        case 9: "beans"
+        case 10: "fish"
+        case 12: "nuts"
+        case 14: "a tomato base"
+        default: nil
+        }
+    }
+
     /// What would clear this item, in servings you could picture.
     ///
     /// Nil where the title already says everything, and nil for the two habits

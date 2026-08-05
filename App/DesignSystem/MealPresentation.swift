@@ -8,7 +8,7 @@ enum MealDisplay {
     static func title(_ meal: MealEntry) -> String {
         let labels = meal.items.compactMap(\.label).filter { !$0.isEmpty }
         if let first = labels.first { return first.capitalizedFirst }
-        return uniqueGroups(meal).first?.plainName ?? "Meal"
+        return uniqueGroups(meal).first?.shortName ?? "Meal"
     }
 
     /// Time of day, then what the plate held — the two things that tell you
@@ -58,7 +58,9 @@ struct EditingFood: Identifiable, Hashable {
 /// The photograph, or a stand-in that does not pretend to be one.
 struct MealThumbnail: View {
     let meal: MealEntry
-    var side: CGFloat = 56
+    /// Nil fills whatever space it is given — the four-up grid on a history
+    /// card sizes its slots by the card, not the other way round.
+    var side: CGFloat? = 56
     var radius: CGFloat = 18
 
     var body: some View {
@@ -70,7 +72,7 @@ struct MealThumbnail: View {
             } else {
                 WellieTheme.ice.overlay {
                     Image(systemName: meal.source == .recipe ? "text.book.closed.fill" : "fork.knife")
-                        .font(.system(size: side * 0.34, weight: .semibold, design: .rounded))
+                        .font(.system(size: (side ?? 56) * 0.34, weight: .semibold, design: .rounded))
                         .foregroundStyle(WellieTheme.blue)
                 }
             }
@@ -136,8 +138,11 @@ struct Delta {
 /// of the sentence is that it is not.
 enum Count {
     static func spell(_ value: Int, capitalized: Bool = true) -> String {
+        // Up to fourteen, because the score is out of fourteen items — thirteen
+        // once wine is off — and "Six of 13 habits held" is a sentence with a
+        // spreadsheet in the middle of it.
         let words = ["Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven",
-                     "Eight", "Nine", "Ten", "Eleven", "Twelve"]
+                     "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen"]
         guard value >= 0, value < words.count else { return "\(value)" }
         return capitalized ? words[value] : words[value].lowercased()
     }
@@ -153,7 +158,10 @@ enum DayFormat {
     static func title(_ day: Date, calendar: Calendar = .current) -> String {
         if calendar.isDateInToday(day) { return "Today" }
         if calendar.isDateInYesterday(day) { return "Yesterday" }
-        return day.formatted(.dateTime.weekday(.wide).day())
+        // Assembled rather than pattern-formatted: `.weekday(.wide).day()`
+        // orders by locale and lands on "3 Monday" in several of them.
+        let weekday = day.formatted(.dateTime.weekday(.wide))
+        return "\(weekday) \(calendar.component(.day, from: day))"
     }
 
     static func initials(_ day: Date, calendar: Calendar = .current) -> String {

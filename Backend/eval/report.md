@@ -11,7 +11,7 @@ Gates: group recall, and on a note run the hidden items the note named. Reported
 
 | model | tier | pass | recall | precision | measure | counts | meal_status | excess | errors | $ |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| claude-fable-5 | ceiling | 32/38 | 98% | 91% | 62% | 20/35 | 18% | 7 | 0 | $2.864 |
+| gpt-5.6-sol | candidate | 25/38 | 83% | 85% | 55% | 16/35 | 16% | 9 | 0 | $1.171 |
 
 ## Flips
 
@@ -25,24 +25,24 @@ None — every case agreed with itself across repeats.
 ## Why cases failed
 
 
-**claude-fable-5**: duplicated 5, missed 1
+**gpt-5.6-sol**: missed 13, duplicated 5
 
 ## Traps carried by failing cases
 
 A case carries several traps, so these count cases rather than trap violations. Read them as where to look, not as what broke.
 
 
-**claude-fable-5**
+**gpt-5.6-sol**
 
-- sauce_missed — 4
-- refined_grain_dedup — 3
-- foreign_meal_bleed — 1
-- zero_alcohol_beer — 1
-- white_vs_red_meat — 1
-- user_line_all_mine — 1
-- table_not_my_share — 1
-- schnitzel_primary_is_meat — 1
-- alcohol_recall — 1
-- transparent_window_readable — 1
-- package_mode — 1
-- korean_ocr — 1
+- refined_grain_dedup — 5
+- package_mode — 3
+- jam_is_sweets_not_fruit — 3
+- korean_ocr — 2
+- juice_not_fruit — 2
+- sauce_missed — 2
+- seafood_dedup — 2
+- butter_present — 2
+- fruit_dedup — 2
+- potato_taxonomy — 1
+- nuggets_primary_is_meat — 1
+- sauces_missed — 1

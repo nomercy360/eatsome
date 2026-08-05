@@ -17,7 +17,7 @@ final class AppModel {
     /// Set once the four intro screens have been seen or skipped. Not an event:
     /// it is a fact about this install, not about what was eaten, and the log is
     /// for the latter.
-    private(set) var hasOnboarded = UserDefaults.standard.bool(forKey: Self.onboardedKey)
+    private(set) var hasOnboarded = UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")
     /// Surfaced in Settings. A silently skipped line is how you lose trust in
     /// your own data six months later.
     private(set) var skippedLogLines = 0

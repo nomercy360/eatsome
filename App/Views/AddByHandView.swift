@@ -100,9 +100,14 @@ struct AddByHandView: View {
                             Text(group.plainName)
                                 .font(WellieTheme.font(16, weight: .semibold))
                                 .foregroundStyle(WellieTheme.ink)
-                            Text(group.displayName)
-                                .font(WellieTheme.font(12.5, weight: .medium))
-                                .foregroundStyle(WellieTheme.muted)
+                            // Only where the two differ. "Olive oil / Olive
+                            // oil" teaches nothing and makes the row look like
+                            // a rendering bug.
+                            if group.plainName != group.displayName {
+                                Text(group.displayName)
+                                    .font(WellieTheme.font(12.5, weight: .medium))
+                                    .foregroundStyle(WellieTheme.muted)
+                            }
                         }
                         Spacer()
                         Image(systemName: "plus.circle.fill")
@@ -127,11 +132,16 @@ struct AddByHandView: View {
         }
     }
 
+    /// What you actually type in, learned from the log. Until there is a log to
+    /// learn from, the four a camera systematically cannot see: oil poured
+    /// before the photo, a handful of nuts, fruit eaten standing up, and the
+    /// vegetables buried in the dish.
     private var frequent: [FoodGroup] {
         var tally: [FoodGroup: Int] = [:]
         for meal in model.projection.meals.values where meal.source != .photo {
             for group in Set(meal.items.map(\.group)) { tally[group, default: 0] += 1 }
         }
+        guard tally.count >= 4 else { return [.oliveOil, .nuts, .fruit, .vegetables] }
         return tally.sorted { $0.value > $1.value }.prefix(4).map(\.key)
     }
 
