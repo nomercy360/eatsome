@@ -40,6 +40,14 @@
       "tier": "ceiling",
       "usdPerMillionInput": 3.0,
       "usdPerMillionOutput": 15.0
+    },
+    {
+      "id": "claude-fable-5",
+      "provider": "anthropic",
+      "model": "claude-fable-5",
+      "tier": "ceiling",
+      "usdPerMillionInput": 10.0,
+      "usdPerMillionOutput": 50.0
     }
   ]
 }

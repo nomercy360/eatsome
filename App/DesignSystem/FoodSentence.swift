@@ -29,7 +29,12 @@ struct FoodSentence: View {
             if !lead.isEmpty { plain(lead) }
 
             ForEach(Array(words.enumerated()), id: \.element.id) { index, word in
-                token(word, joiner: joiner(after: index))
+                // A Group is flattened into separate subviews by the layout, so
+                // "and" wraps as its own word rather than gluing to the chip.
+                Group {
+                    if index > 0, index == words.count - 1 { plain("and") }
+                    token(word, joiner: joiner(after: index))
+                }
             }
         }
     }
@@ -78,14 +83,6 @@ struct FoodSentence: View {
         case 2: ""
         default: ","
         }
-    }
-}
-
-extension FoodSentence {
-    /// Between two foods there is either a comma (already hugging the previous
-    /// chip) or the word "and", which is a word of its own so it can wrap.
-    static func connector(after index: Int, of count: Int) -> String? {
-        count - index == 2 ? "and" : nil
     }
 }
 

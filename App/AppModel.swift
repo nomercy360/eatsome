@@ -14,6 +14,10 @@ final class AppModel {
     private(set) var isLoadingHealth = false
     private(set) var healthLastRefreshedAt: Date?
     private(set) var hasRequestedHealthAccess = UserDefaults.standard.bool(forKey: "hasRequestedHealthAccess")
+    /// Set once the four intro screens have been seen or skipped. Not an event:
+    /// it is a fact about this install, not about what was eaten, and the log is
+    /// for the latter.
+    private(set) var hasOnboarded = UserDefaults.standard.bool(forKey: Self.onboardedKey)
     /// Surfaced in Settings. A silently skipped line is how you lose trust in
     /// your own data six months later.
     private(set) var skippedLogLines = 0
@@ -32,6 +36,7 @@ final class AppModel {
     var activeModel: String { config.model(for: provider) }
 
     private static let providerDefaultsKey = "recognitionProvider"
+    private static let onboardedKey = "hasCompletedOnboarding"
     private let keychain = KeychainStore()
     private var log: EventLog?
     private var recognizer: (any MealRecognizer)?
@@ -104,9 +109,20 @@ final class AppModel {
         await record(.habitsUpdated(habits))
     }
 
+    func completeOnboarding() {
+        hasOnboarded = true
+        UserDefaults.standard.set(true, forKey: Self.onboardedKey)
+    }
+
     // MARK: - Recipes
 
     var recipes: [Recipe] { projection.recentRecipes }
+
+    /// Counted from the log rather than kept as a tally, so deleting a meal
+    /// takes its use with it.
+    func timesLogged(_ recipe: Recipe) -> Int {
+        projection.meals.values.count { $0.recipeID == recipe.id }
+    }
 
     func saveRecipe(_ recipe: Recipe) async {
         var stamped = recipe
@@ -140,10 +156,43 @@ final class AppModel {
     }
 
     func mealsToday(calendar: Calendar = .current) -> [MealEntry] {
-        guard let interval = calendar.dateInterval(of: .day, for: Date()) else { return [] }
+        meals(on: Date(), calendar: calendar)
+    }
+
+    /// Newest first, which is the order a day reads in when you are looking for
+    /// the meal you just logged.
+    func meals(on day: Date, calendar: Calendar = .current) -> [MealEntry] {
+        guard let interval = calendar.dateInterval(of: .day, for: day) else { return [] }
         return projection.meals.values
             .filter { interval.contains(Date(epochMillis: $0.eatenAt)) }
             .sorted { $0.eatenAt > $1.eatenAt }
+    }
+
+    /// The seven dots, over the same window and the same boundary the scorer
+    /// uses — the row and the score must never describe different weeks.
+    func weekDays(endingAt end: Date = Date(), calendar: Calendar = .current) -> [DayLog] {
+        let windowEnd = calendar.startOfDay(for: end).addingTimeInterval(86_400).epochMillis
+        let windowStart = windowEnd - EpochMillis(config.medas.windowDays) * 86_400_000
+        return WeekRhythm.days(
+            meals: projection.meals(from: windowStart, to: windowEnd),
+            endingAt: windowEnd,
+            days: config.medas.windowDays,
+            calendar: calendar
+        )
+    }
+
+    /// Consecutive days back from today, newest first — what the history screen
+    /// lists, gaps included.
+    func recentDays(_ count: Int, endingAt end: Date = Date(), calendar: Calendar = .current) -> [DayLog] {
+        let windowEnd = calendar.startOfDay(for: end).addingTimeInterval(86_400).epochMillis
+        let windowStart = windowEnd - EpochMillis(count) * 86_400_000
+        return WeekRhythm.days(
+            meals: projection.meals(from: windowStart, to: windowEnd),
+            endingAt: windowEnd,
+            days: count,
+            calendar: calendar
+        )
+        .reversed()
     }
 
     func workoutsToday(calendar: Calendar = .current) -> [ImportedWorkout] {

@@ -43,6 +43,18 @@ struct RootView: View {
     }
 
     var body: some View {
+        // Four screens, each asking for exactly one thing, and every ask
+        // skippable. They explain before iOS does, so a refusal is a decision
+        // rather than permanent confusion.
+        if model.hasOnboarded {
+            tabs
+        } else {
+            OnboardingView()
+                .transition(.opacity)
+        }
+    }
+
+    private var tabs: some View {
         TabView(selection: selection) {
             TodayView()
                 .tag(RootTab.today)
@@ -54,7 +66,7 @@ struct RootView: View {
                 .tag(RootTab.camera)
                 .tabItem { Label("Camera", systemImage: "camera.fill") }
 
-            NavigationStack { AdherenceView() }
+            NavigationStack { MyWeekView() }
                 .tag(RootTab.week)
                 // The mock draws six dots in a 3×2 grid; SF Symbols has no
                 // circle.grid.3x2, and an invalid name renders as nothing at all.

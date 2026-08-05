@@ -132,6 +132,16 @@ public enum Portion: String, Codable, CaseIterable, Sendable, Hashable {
         case .large: 2.0
         }
     }
+
+    /// How much, said the way you would say it out loud. "Medium" is a size
+    /// chart; "Normal" is the answer to "how much of it was there".
+    public var plainName: String {
+        switch self {
+        case .small: "A little"
+        case .medium: "Normal"
+        case .large: "A lot"
+        }
+    }
 }
 
 extension FoodGroup {

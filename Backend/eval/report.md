@@ -11,7 +11,7 @@ Gates: group recall, and on a note run the hidden items the note named. Reported
 
 | model | tier | pass | recall | precision | measure | counts | meal_status | excess | errors | $ |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| qwen3-vl-235b | candidate | 12/38 | 76% | 74% | 45% | 15/35 | 16% | 15 | 0 | $0.042 |
+| claude-fable-5 | ceiling | 32/38 | 98% | 91% | 62% | 20/35 | 18% | 7 | 0 | $2.864 |
 
 ## Flips
 
@@ -25,24 +25,24 @@ None — every case agreed with itself across repeats.
 ## Why cases failed
 
 
-**qwen3-vl-235b**: missed 19, duplicated 12
+**claude-fable-5**: duplicated 5, missed 1
 
 ## Traps carried by failing cases
 
 A case carries several traps, so these count cases rather than trap violations. Read them as where to look, not as what broke.
 
 
-**qwen3-vl-235b**
+**claude-fable-5**
 
-- refined_grain_dedup — 6
-- sauce_missed — 5
-- seafood_dedup — 4
-- butter_present — 3
-- missed_soup — 3
-- foreign_meal_bleed — 3
-- package_mode — 3
-- avocado_taxonomy_healthy_fats — 2
-- dairy_dedup — 2
-- foreign_tray_bleed — 2
-- white_vs_red_meat — 2
-- jam_is_sweets_not_fruit — 2
+- sauce_missed — 4
+- refined_grain_dedup — 3
+- foreign_meal_bleed — 1
+- zero_alcohol_beer — 1
+- white_vs_red_meat — 1
+- user_line_all_mine — 1
+- table_not_my_share — 1
+- schnitzel_primary_is_meat — 1
+- alcohol_recall — 1
+- transparent_window_readable — 1
+- package_mode — 1
+- korean_ocr — 1
