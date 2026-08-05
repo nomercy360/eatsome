@@ -62,10 +62,32 @@ Anything that touches a framework goes in `App/`. HealthKit is isolated in
   are one plate of fruit.
 - **Thresholds and prompts belong in `shaman-config.json`,** not in Swift
   literals, so they can change without a rebuild.
+- **Three names per food group, and they are not interchangeable.**
+  `displayName` is the screener's vocabulary and belongs next to a score or in
+  an eval; `plainName` is the picker row; `shortName` is a chip and the middle
+  of a sentence. Raw values are the on-disk format and never move. The same
+  split applies to the fourteen items: `MedasItem.title` states the rule,
+  `MedasCopy.plainTitle` says it out loud.
+- **Sentences, not forms.** The recognised meal is one tappable sentence
+  (`FoodSentence`), and at most one ambiguity is ever raised as a question.
+  Saving is never blocked on answering it — an ignored question is itself
+  recorded, because uncorrected model output is evidence.
+
+## Screens
+
+The UI implements the approved redesign in the `Eatsome mobile app redesign`
+Claude Design project, screen for screen: `2a` onboarding, `1b`/`2b` Today,
+`2c` My week, `3a`/`3c` the camera chooser, `2d` reading and failure, `1b Add
+meal` the result, `2e` meal detail, `2f` history, `2g` dishes, `2h` add by
+hand, `2i` settings. Screen ids appear in the doc comment of each view; if you
+change a screen, say which one.
 
 ## Model
 
-Two providers behind one `MealRecognizer`, switchable in Settings:
+Two providers behind one `MealRecognizer`, switchable in `WorkshopView` — the
+provider switch, the API key and the counters are off the settings screen and
+reachable only by tapping the version row five times. Recognition is something
+the app does, not something the user configures:
 
 - `gpt-5.6-luna` on the OpenAI Responses API, strict JSON Schema, `detail: low`
   images, `reasoning.effort: low` (`LunaSession`).

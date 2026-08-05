@@ -46,9 +46,7 @@ struct RootView: View {
         // Four screens, each asking for exactly one thing, and every ask
         // skippable. They explain before iOS does, so a refusal is a decision
         // rather than permanent confusion.
-        if let screen = ProcessInfo.processInfo.environment["SCREENSHOT"] {
-            ScreenshotRoute(name: screen).tint(WellieTheme.blue).fontDesign(.rounded)
-        } else if model.hasOnboarded {
+        if model.hasOnboarded {
             tabs
         } else {
             OnboardingView()

@@ -106,15 +106,17 @@ struct MyWeekView: View {
     // MARK: - Easiest wins
 
     private func winsCard(_ result: MedasResult, days: [DayLog]) -> some View {
-        VStack(alignment: .leading, spacing: 18) {
+        // Ranked by the bar the person can actually see, not by the underlying
+        // average — a daily item reads "4 of 7 days" and must sit where that
+        // fraction puts it.
+        let ranked = unmet(result)
+            .map { ($0, MedasCopy.measure(for: $0, daysMet: daysMet($0, in: days), windowDays: result.windowDays)) }
+            .sorted { $0.1.fraction > $1.1.fraction }
+
+        return VStack(alignment: .leading, spacing: 18) {
             WellieSectionTitle(text: "Easiest wins left", detail: daysLeftInWeek)
 
-            ForEach(unmet(result)) { item in
-                let measure = MedasCopy.measure(
-                    for: item,
-                    daysMet: daysMet(item, in: days),
-                    windowDays: result.windowDays
-                )
+            ForEach(ranked, id: \.0.id) { item, measure in
                 VStack(alignment: .leading, spacing: 9) {
                     HStack(alignment: .firstTextBaseline) {
                         Text(MedasCopy.plainTitle(item.id))
@@ -239,13 +241,11 @@ struct MyWeekView: View {
 
     // MARK: - Buckets
 
-    /// Reachable, unmet, and worth acting on: lower bounds only, hardest-first
-    /// removed — the ones closest to done come first, because those are the
-    /// wins.
+    /// Reachable and unmet: lower bounds only, and never the two habits, which
+    /// are a switch in Settings rather than something to eat. Ordering happens
+    /// at the call site, against the fraction actually drawn.
     private func unmet(_ result: MedasResult) -> [MedasResult.ItemResult] {
-        result.items
-            .filter { !$0.passed && !$0.isUpperBound && !isHabit($0) }
-            .sorted { ($0.observed / max($0.target, 1)) > ($1.observed / max($1.target, 1)) }
+        result.items.filter { !$0.passed && !$0.isUpperBound && !isHabit($0) }
     }
 
     private func held(_ result: MedasResult) -> [MedasResult.ItemResult] {
