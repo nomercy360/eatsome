@@ -27,7 +27,7 @@ export async function requestOpenAIRecognition(
         ],
       },
     ],
-    reasoning: { effort: "low" },
+    reasoning: { effort: (env.OPENAI_REASONING_EFFORT || "low") as "low" },
     text: {
       verbosity: "low",
       format: {

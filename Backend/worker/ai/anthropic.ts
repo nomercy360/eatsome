@@ -29,6 +29,7 @@ export async function requestAnthropicRecognition(
   spec: RecognitionSpec = productionSpec(),
 ): Promise<ProviderRecognition> {
   const startedAt = Date.now();
+  const budget = Number(env.ANTHROPIC_THINKING_BUDGET || 0);
   const response = await fetch(ENDPOINT, {
     method: "POST",
     headers: {
@@ -38,7 +39,8 @@ export async function requestAnthropicRecognition(
     },
     body: JSON.stringify({
       model: env.ANTHROPIC_RECOGNITION_MODEL,
-      max_tokens: 2048,
+      max_tokens: budget > 0 ? budget + 2048 : 2048,
+      ...(budget > 0 ? { thinking: { type: "enabled", budget_tokens: budget } } : {}),
       system: spec.systemPrompt,
       tools: [
         {
@@ -47,7 +49,11 @@ export async function requestAnthropicRecognition(
           input_schema: spec.jsonSchema,
         },
       ],
-      tool_choice: { type: "tool", name: TOOL_NAME },
+      // Anthropic refuses extended thinking alongside a forced tool call, so a
+      // thinking budget costs the guarantee that the tool is used at all. That
+      // is a real trade — schema compliance against deliberation — and the eval
+      // is where it gets decided rather than assumed.
+      tool_choice: budget > 0 ? { type: "auto" } : { type: "tool", name: TOOL_NAME },
       messages: [
         {
           role: "user",

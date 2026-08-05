@@ -126,7 +126,9 @@ const baseline = baselineFile ? summarise(read(baselineFile)) : null;
 
 const lines: string[] = [];
 lines.push(`# Eval report\n`);
-lines.push(`Run \`${[target].flat().join("`, `")}\`${baselineFile ? ` against \`${baselineFile}\`` : ""}.`);
+lines.push(
+  `Run \`${[target].flat().join("`, `")}\`${baselineFile ? ` against \`${baselineFile}\`` : ""}.`,
+);
 lines.push(`${cases.length} cases, ${models.length} models known.\n`);
 
 lines.push(`## Models\n`);

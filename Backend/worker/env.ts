@@ -16,5 +16,14 @@ export type Env = {
   QWEN_BASE_URL: string;
   // Used when a request does not name one.
   RECOGNITION_PROVIDER: RecognitionProvider;
+  // Reasoning budget per provider. Empty means the provider's own default,
+  // which is not the same thing across vendors — Anthropic ships with extended
+  // thinking off while Gemini and OpenAI take an explicit level.
+  OPENAI_REASONING_EFFORT: string;
+  GEMINI_THINKING_LEVEL: string;
+  /** Tokens; 0 or empty leaves extended thinking off. */
+  ANTHROPIC_THINKING_BUDGET: string;
+  /** "true" turns Qwen's thinking mode on. */
+  QWEN_ENABLE_THINKING: string;
   MEAL_PROMPT_VERSION: string;
 };

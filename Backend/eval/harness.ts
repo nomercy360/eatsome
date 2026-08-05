@@ -26,6 +26,9 @@ export type RunRecord = {
   model: string;
   promptVersion: string;
   schemaVersion: string;
+  /** What the reasoning budget was, because it is not comparable across
+   *  vendors and a run without it recorded cannot be interpreted later. */
+  reasoning?: string;
   /** The note sent with the photo, if this was a note-track run. */
   note?: string | null;
   run: number;
@@ -123,6 +126,10 @@ export function envFor(provider: RecognitionProvider, model?: string): Env {
     QWEN_API_KEY: process.env.QWEN_API_KEY ?? "",
     QWEN_RECOGNITION_MODEL: process.env.QWEN_RECOGNITION_MODEL ?? "qwen3.7-flash",
     QWEN_BASE_URL: process.env.QWEN_BASE_URL ?? "",
+    OPENAI_REASONING_EFFORT: process.env.OPENAI_REASONING_EFFORT ?? "",
+    GEMINI_THINKING_LEVEL: process.env.GEMINI_THINKING_LEVEL ?? "",
+    ANTHROPIC_THINKING_BUDGET: process.env.ANTHROPIC_THINKING_BUDGET ?? "",
+    QWEN_ENABLE_THINKING: process.env.QWEN_ENABLE_THINKING ?? "",
     RECOGNITION_PROVIDER: provider,
   } as unknown as Env;
   if (model) {

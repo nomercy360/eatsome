@@ -32,6 +32,8 @@ export async function requestQwenRecognition(
 
   const response = await client.chat.completions.create({
     model: env.QWEN_RECOGNITION_MODEL,
+    // DashScope takes this outside the OpenAI surface; harmless where ignored.
+    ...(env.QWEN_ENABLE_THINKING ? { enable_thinking: env.QWEN_ENABLE_THINKING === "true" } : {}),
     messages: [
       { role: "system", content: spec.systemPrompt },
       {

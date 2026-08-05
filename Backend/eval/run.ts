@@ -100,6 +100,13 @@ async function worker(queue: Job[]) {
       promptVersion: EVAL_PROMPT_VERSION,
       schemaVersion: SCHEMA_VERSION,
       note: job.note ?? null,
+      reasoning:
+        {
+          openai: process.env.OPENAI_REASONING_EFFORT,
+          gemini: process.env.GEMINI_THINKING_LEVEL,
+          anthropic: process.env.ANTHROPIC_THINKING_BUDGET,
+          qwen: process.env.QWEN_ENABLE_THINKING,
+        }[job.entry.provider] || "default",
       run: job.run,
       ok: false,
     };

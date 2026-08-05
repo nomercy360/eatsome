@@ -98,7 +98,7 @@ export async function requestGeminiRecognition(
       generationConfig: {
         responseMimeType: "application/json",
         responseSchema: spec.geminiSchema ?? geminiResponseSchema(),
-        thinkingConfig: { thinkingLevel: "low" },
+        thinkingConfig: { thinkingLevel: env.GEMINI_THINKING_LEVEL || "low" },
       },
     }),
   });
