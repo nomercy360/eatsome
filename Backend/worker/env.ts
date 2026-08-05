@@ -2,6 +2,8 @@ import type { RecognitionProvider } from "../src/contracts";
 
 export type Env = {
   DB: D1Database;
+  /** Private bucket. `media/` and `corpus/` have deliberately separate lifecycles. */
+  MEDIA: R2Bucket;
   OPENAI_API_KEY: string;
   GEMINI_API_KEY: string;
   ANTHROPIC_API_KEY: string;

@@ -2,8 +2,8 @@ import CryptoKit
 import Foundation
 
 public enum ImageDigest {
-    /// Content hash of the original bytes. Also stored on `MealEntry` so a meal
-    /// can be traced back to its photo without keeping the photo in the log.
+    /// Content hash of the normalized model-input bytes. Also stored on
+    /// `MealEntry`, so recognition, R2, and eval evidence name the same render.
     public static func sha256(_ data: Data) -> String {
         SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }

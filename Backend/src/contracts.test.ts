@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  corpusItemRequestSchema,
   ingestEventsRequestSchema,
   mealRecognitionJsonSchema,
   mealRecognitionSchema,
+  recognitionRequestSchema,
 } from "./contracts";
 
 describe("meal recognition contract", () => {
@@ -26,6 +28,35 @@ describe("meal recognition contract", () => {
     const jsonSchema = mealRecognitionJsonSchema();
     expect(jsonSchema).not.toHaveProperty("$schema");
     expect(JSON.stringify(jsonSchema)).toContain("other_meals_visible");
+  });
+});
+
+describe("stored recognition input", () => {
+  it("accepts the note that changes the cache fingerprint", () => {
+    const input = recognitionRequestSchema.parse({
+      photoHash: "a".repeat(64),
+      mimeType: "image/jpeg",
+      imageBase64: "a".repeat(16),
+      note: "fried in butter",
+    });
+    expect(input.note).toBe("fried in butter");
+  });
+
+  it("requires a separately hashed, privacy-filtered corpus crop", () => {
+    const item = corpusItemRequestSchema.parse({
+      mealId: "0198f222-aadb-7e00-8000-000000000002",
+      sourcePhotoHash: "a".repeat(64),
+      corpusHash: "b".repeat(64),
+      mimeType: "image/jpeg",
+      imageBase64: "a".repeat(16),
+      consent: { granted: true, policyVersion: "research-v1", capturedAt: 1_754_300_000_000 },
+      privacy: {
+        cropMethod: "vision-saliency-v1",
+        facesExcluded: true,
+        otherMealsExcluded: true,
+      },
+    });
+    expect(item.corpusHash).not.toBe(item.sourcePhotoHash);
   });
 });
 

@@ -5,7 +5,7 @@
 # something you can read here rather than something that happened once in a
 # terminal a month ago.
 #
-#   export CLOUDFLARE_API_TOKEN=…      # Workers Scripts: Edit, D1: Edit, Account: Read
+#   export CLOUDFLARE_API_TOKEN=…      # Workers Scripts, D1 and R2: Edit; Account: Read
 #   ./scripts/bootstrap-remote.sh
 #
 # Or `pnpm wrangler login` first and skip the token.
@@ -15,9 +15,16 @@ cd "$(dirname "$0")/.."
 
 if ! pnpm wrangler whoami >/dev/null 2>&1; then
   echo "error: wrangler has no credentials."
-  echo "  export CLOUDFLARE_API_TOKEN=… (Workers Scripts: Edit, D1: Edit, Account Settings: Read)"
+  echo "  export CLOUDFLARE_API_TOKEN=… (Workers Scripts, D1 and R2: Edit; Account Settings: Read)"
   echo "  or run: pnpm wrangler login"
   exit 1
+fi
+
+echo "==> R2"
+if pnpm wrangler r2 bucket list 2>/dev/null | grep -q '"name": "eatsome-media"'; then
+  echo "    eatsome-media already exists"
+else
+  pnpm wrangler r2 bucket create eatsome-media
 fi
 
 if grep -q "local-development-replace-before-deploy" wrangler.jsonc; then

@@ -8,10 +8,9 @@ import UIKit
 /// cache held only JSON, and the picture was gone the moment the sheet closed —
 /// which is why a logged meal showed a camera glyph instead of the food.
 ///
-/// They stay on the device. A meal photo is a picture of your kitchen table, and
-/// the log is already local; uploading it would add a bill, an outage, and a
-/// privacy question to solve a problem that a file solves. Remote storage
-/// becomes interesting when a second device needs the same history, not before.
+/// The local copy drives the meal UI. The same model-input render may also live
+/// in private R2 so failed inference and explicit re-runs do not ask the phone
+/// to upload it again; it is never a public image URL.
 struct PhotoStore {
     static let shared = PhotoStore()
 

@@ -2,7 +2,7 @@ import { and, count, eq, gte } from "drizzle-orm";
 import { createDb } from "../db/client";
 import { recognitions } from "../db/schema";
 import type { Env } from "../env";
-import { accountForDevice } from "./auth";
+import { accountForDevice, requireStableAccount } from "./auth";
 import { HttpError } from "./http-error";
 
 export { accountForDevice as callerFor } from "./auth";
@@ -51,30 +51,24 @@ export const d1Counters: Counters = {
  * lookup, because a cached answer costs nothing and refusing it once the day is
  * full would deny free work.
  */
-export async function enforceRecognitionLimits(
-  env: Env,
-  request: Request,
-  counters: Counters = d1Counters,
-): Promise<string> {
+export async function enforceRecognitionLimits(env: Env, request: Request): Promise<string> {
   const caller = accountForDevice(request);
+  requireStableAccount(caller);
   const { success } = await env.RECOGNITION_LIMIT.limit({ key: caller });
   if (!success) throw new HttpError(429, "Too many photos at once. Wait a minute and try again.");
+  return caller;
+}
 
+/** Cache hits are free, so the daily fairness quota is checked only on misses. */
+export async function enforcePaidRecognitionFairness(
+  env: Env,
+  accountId: string,
+  counters: Counters = d1Counters,
+): Promise<void> {
   const perCaller = Number(env.RECOGNITIONS_PER_DEVICE_PER_DAY || 0);
-  if (perCaller > 0 && (await counters.todayFor(env, caller)) >= perCaller) {
+  if (perCaller > 0 && (await counters.todayFor(env, accountId)) >= perCaller) {
     throw new HttpError(429, "That is a day's worth of photos from this device.");
   }
-
-  const ceiling = Number(env.RECOGNITIONS_PER_DAY || 0);
-  if (ceiling > 0 && (await counters.today(env)) >= ceiling) {
-    // Deliberately not "try again shortly": the window is a day, and a client
-    // that retries into it spends tomorrow's budget too.
-    throw new HttpError(
-      503,
-      "Recognition is closed for today. This is a spending cap, not an outage.",
-    );
-  }
-  return caller;
 }
 
 export async function enforceSyncLimits(env: Env, request: Request): Promise<void> {
@@ -83,9 +77,7 @@ export async function enforceSyncLimits(env: Env, request: Request): Promise<voi
   // when the phone changes network, and the events written under the old key
   // are then invisible to the same device forever — silent data loss that looks
   // like a sync bug months later.
-  if (caller.startsWith("ip:")) {
-    throw new HttpError(400, "X-Device-Id is required to write events.");
-  }
+  requireStableAccount(caller);
   const { success } = await env.SYNC_LIMIT.limit({ key: caller });
   if (!success) throw new HttpError(429, "Too many requests. Slow down.");
 }

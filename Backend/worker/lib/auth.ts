@@ -48,6 +48,13 @@ export function accountForDevice(request: Request): string {
   return `ip:${request.headers.get("CF-Connecting-IP") ?? "unknown"}`;
 }
 
+export function requireStableAccount(accountId: string): string {
+  if (accountId.startsWith("ip:")) {
+    throw new HttpError(400, "X-Device-Id is required for stored data.");
+  }
+  return accountId;
+}
+
 export async function requireAccount(
   authorizationHeader: string | undefined,
   env: Env,

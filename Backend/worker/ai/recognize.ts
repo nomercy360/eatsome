@@ -59,7 +59,7 @@ export function requestMealRecognition(
   env: Env,
   input: RecognitionRequest,
   provider: RecognitionProvider,
-  spec: RecognitionSpec = productionSpec(),
+  spec: RecognitionSpec = productionSpec(input.note),
 ): Promise<ProviderRecognition> {
   if (provider === "gemini") return requestGeminiRecognition(env, input, spec);
   if (provider === "anthropic") return requestAnthropicRecognition(env, input, spec);

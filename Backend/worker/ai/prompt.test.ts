@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { MEAL_PROMPT_VERSION, MEAL_RECOGNITION_SYSTEM_PROMPT } from "./prompt";
+import { productionSpec } from "./spec";
 
 const promptFile = join(import.meta.dirname, "../../../prompts/meal-v5.md");
 
@@ -25,5 +26,11 @@ describe("meal recognition prompt", () => {
   it("carries the rules the proxy was missing before the prompt became one file", () => {
     expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("what the photograph cannot show");
     expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("the rest is theirs too");
+  });
+
+  it("fences a person's note in the same user turn as the photo", () => {
+    const prompt = productionSpec("  fried in butter  ").userPrompt;
+    expect(prompt).toContain('"""\nfried in butter\n"""');
+    expect(productionSpec().userPrompt).not.toContain('"""');
   });
 });

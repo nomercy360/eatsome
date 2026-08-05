@@ -93,9 +93,24 @@ export const recognitionRequestSchema = z.strictObject({
     .min(16)
     .max(12_000_000)
     .regex(/^[A-Za-z0-9+/]*={0,2}$/),
+  // The note changes the question, so it is part of the recognition cache
+  // fingerprint. "Fried in butter" must not replay the answer produced before
+  // the person supplied that fact.
+  note: z.string().max(2_000).nullable().optional(),
 });
 
 export type RecognitionRequest = z.infer<typeof recognitionRequestSchema>;
+
+export const rerunRecognitionRequestSchema = z.strictObject({
+  provider: z.enum(recognitionProviders).optional(),
+  note: z.string().max(2_000).nullable().optional(),
+  // A menu action means "ask again", not "show me the cache again". The
+  // switch remains explicit so diagnostics can exercise the stored-input path
+  // without buying another inference.
+  refresh: z.boolean().default(true),
+});
+
+export type RerunRecognitionRequest = z.infer<typeof rerunRecognitionRequestSchema>;
 
 export const mealItemSchema = z.strictObject({
   id: z.string().uuid(),
@@ -160,3 +175,35 @@ export const eventListQuerySchema = z.strictObject({
 export const evalListQuerySchema = z.strictObject({
   limit: z.coerce.number().int().min(1).max(500).default(100),
 });
+
+/**
+ * A corpus image is deliberately not the media image again. It is a separate,
+ * privacy-filtered render produced at save time; because cropping changes the
+ * bytes, it has its own content hash while retaining the source photo hash for
+ * provenance and deletion.
+ */
+export const corpusItemRequestSchema = z.strictObject({
+  mealId: z.string().uuid(),
+  sourcePhotoHash: sha256Schema,
+  corpusHash: sha256Schema,
+  mimeType: z.literal("image/jpeg"),
+  imageBase64: z
+    .string()
+    .min(16)
+    .max(8_000_000)
+    .regex(/^[A-Za-z0-9+/]*={0,2}$/),
+  consent: z.strictObject({
+    granted: z.literal(true),
+    policyVersion: z.string().min(1).max(120),
+    capturedAt: z.number().int().nonnegative(),
+  }),
+  privacy: z.strictObject({
+    cropMethod: z.string().min(1).max(120),
+    facesExcluded: z.literal(true),
+    otherMealsExcluded: z.literal(true),
+  }),
+});
+
+export type CorpusItemRequest = z.infer<typeof corpusItemRequestSchema>;
+
+export const mealDeleteDataSchema = z.strictObject({ mealID: z.string().uuid() });

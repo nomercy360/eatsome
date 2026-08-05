@@ -1,5 +1,13 @@
 import { sql } from "drizzle-orm";
-import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import {
+  check,
+  index,
+  integer,
+  primaryKey,
+  sqliteTable,
+  text,
+  uniqueIndex,
+} from "drizzle-orm/sqlite-core";
 import type { LoggedEventInput, MealRecognition } from "../../src/contracts";
 
 export const events = sqliteTable(
@@ -27,6 +35,7 @@ export const recognitions = sqliteTable(
     id: text().primaryKey(),
     accountId: text("account_id").notNull(),
     photoHash: text("photo_hash").notNull(),
+    inputFingerprint: text("input_fingerprint").notNull(),
     promptVersion: text("prompt_version").notNull(),
     model: text().notNull(),
     result: text("result_json", { mode: "json" }).$type<MealRecognition>().notNull(),
@@ -40,7 +49,7 @@ export const recognitions = sqliteTable(
   (table) => [
     uniqueIndex("recognitions_cache_idx").on(
       table.accountId,
-      table.photoHash,
+      table.inputFingerprint,
       table.promptVersion,
       table.model,
     ),
@@ -53,6 +62,94 @@ export const recognitions = sqliteTable(
     check("recognitions_latency_check", sql`${table.latencyMs} >= 0`),
   ],
 );
+
+/** The exact model-input bytes retained from first recognition. */
+export const mediaObjects = sqliteTable(
+  "media_objects",
+  {
+    accountId: text("account_id").notNull(),
+    photoHash: text("photo_hash").notNull(),
+    objectKey: text("object_key").notNull(),
+    mimeType: text("mime_type").notNull(),
+    byteSize: integer("byte_size").notNull(),
+    createdAt: text("created_at").notNull(),
+    storedAt: text("stored_at"),
+  },
+  (table) => [
+    primaryKey({ columns: [table.accountId, table.photoHash] }),
+    uniqueIndex("media_objects_key_idx").on(table.objectKey),
+    index("media_objects_orphans_idx").on(table.createdAt, table.storedAt),
+    check("media_objects_hash_check", sql`length(${table.photoHash}) = 64`),
+    check("media_objects_size_check", sql`${table.byteSize} >= 0`),
+  ],
+);
+
+/**
+ * Latest photo state per meal. A null hash is a deletion tombstone, so replaying
+ * an older meal_logged event cannot resurrect a media reference.
+ */
+export const mealMedia = sqliteTable(
+  "meal_media",
+  {
+    accountId: text("account_id").notNull(),
+    mealId: text("meal_id").notNull(),
+    photoHash: text("photo_hash"),
+    eventId: text("event_id").notNull(),
+    recordedAt: integer("recorded_at").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.accountId, table.mealId] }),
+    index("meal_media_reference_idx").on(table.accountId, table.photoHash),
+  ],
+);
+
+/** Cropped corpus bytes are content-addressed independently from media bytes. */
+export const corpusObjects = sqliteTable(
+  "corpus_objects",
+  {
+    corpusHash: text("corpus_hash").primaryKey(),
+    objectKey: text("object_key").notNull(),
+    mimeType: text("mime_type").notNull(),
+    byteSize: integer("byte_size").notNull(),
+    createdAt: text("created_at").notNull(),
+    storedAt: text("stored_at"),
+  },
+  (table) => [
+    uniqueIndex("corpus_objects_key_idx").on(table.objectKey),
+    index("corpus_objects_orphans_idx").on(table.createdAt, table.storedAt),
+    check("corpus_objects_hash_check", sql`length(${table.corpusHash}) = 64`),
+    check("corpus_objects_size_check", sql`${table.byteSize} >= 0`),
+  ],
+);
+
+/** One provenance/consent reference per source user's confirmed meal. */
+export const corpusItems = sqliteTable(
+  "corpus_items",
+  {
+    accountId: text("source_user").notNull(),
+    mealId: text("meal_id").notNull(),
+    sourcePhotoHash: text("source_photo_hash").notNull(),
+    corpusHash: text("corpus_hash").notNull(),
+    consentPolicyVersion: text("consent_policy_version").notNull(),
+    consentCapturedAt: integer("consent_captured_at").notNull(),
+    cropMethod: text("crop_method").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.accountId, table.mealId] }),
+    index("corpus_items_user_idx").on(table.accountId),
+    index("corpus_items_object_idx").on(table.corpusHash),
+    check("corpus_items_source_hash_check", sql`length(${table.sourcePhotoHash}) = 64`),
+    check("corpus_items_corpus_hash_check", sql`length(${table.corpusHash}) = 64`),
+  ],
+);
+
+export const corpusConsents = sqliteTable("corpus_consents", {
+  accountId: text("account_id").primaryKey(),
+  enabled: integer({ mode: "boolean" }).notNull(),
+  policyVersion: text("policy_version").notNull(),
+  updatedAt: integer("updated_at").notNull(),
+});
 
 export const mealEvals = sqliteTable(
   "meal_evals",

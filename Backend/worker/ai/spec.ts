@@ -22,10 +22,14 @@ export type RecognitionSpec = {
   schemaName: string;
 };
 
-export function productionSpec(): RecognitionSpec {
+export function productionSpec(note?: string | null): RecognitionSpec {
+  const trimmed = note?.trim();
+  const userPrompt = trimmed
+    ? `${MEAL_RECOGNITION_USER_PROMPT}\n\nWhat the photo cannot show, from the person who ate it:\n"""\n${trimmed}\n"""`
+    : MEAL_RECOGNITION_USER_PROMPT;
   return {
     systemPrompt: MEAL_RECOGNITION_SYSTEM_PROMPT,
-    userPrompt: MEAL_RECOGNITION_USER_PROMPT,
+    userPrompt,
     jsonSchema: mealRecognitionJsonSchema(),
     schemaName: "meal_recognition",
   };

@@ -495,7 +495,10 @@ struct MealCaptureView: View {
     }
 
     private func setPhoto(_ originalData: Data) {
-        let normalized = UIImage(data: originalData)?.jpegData(compressionQuality: 0.82) ?? originalData
+        guard let normalized = ModelInputImage.render(originalData) else {
+            error = "That photo could not be read. Try another image."
+            return
+        }
         imageData = normalized
         otherMealsBelongToUser = nil
         didEditRecognition = false

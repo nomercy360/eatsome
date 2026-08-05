@@ -44,10 +44,10 @@ Core/            SwiftPM package — all logic, no frameworks, fully tested
     AI/          Luna client, strict JSON schema, SHA-256 recognition cache
     Storage/     JSONL event log, Keychain
     Config/      Remote-or-bundled tunables
-App/             iOS app — SwiftUI, meal camera, OpenAI, HealthKit
+App/             iOS app — SwiftUI, 1024px meal camera input, HealthKit
   DesignSystem/  Wellie-derived color, type, card, chip, and button tokens
   Support/       Read-only HealthKit import and app configuration
-Backend/         Cloudflare Worker — Hono, D1/Drizzle, Zod, OpenAI proxy
+Backend/         Cloudflare Worker — Hono, D1/Drizzle, private R2, model proxy
 scripts/         bootstrap.sh
 ```
 
@@ -216,9 +216,10 @@ The Cloudflare backend uses the same invariants as the device:
 
 - event IDs are idempotency keys, and uploads never mutate prior events;
 - cursor sync orders by recorded time and UUID;
-- recognition is cached by photo hash, prompt version, and model;
+- recognition is cached by image + note, prompt version, and model;
 - model output and the final human correction are retained as an eval pair;
-- photos are proxied to OpenAI but never stored in D1.
+- exact model-input bytes live privately in R2, never in D1;
+- consented corpus crops have separate keys, hashes, provenance, and deletion rules.
 
 See [`Backend/README.md`](Backend/README.md) for local setup and deployment.
 

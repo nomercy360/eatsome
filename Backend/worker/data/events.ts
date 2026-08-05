@@ -2,7 +2,9 @@ import { and, asc, eq, gt, or } from "drizzle-orm";
 import { type IngestEventsRequest, mealEventDataSchema } from "../../src/contracts";
 import { createDb } from "../db/client";
 import { events, mealEvals } from "../db/schema";
+import type { Env } from "../env";
 import { HttpError } from "../lib/http-error";
+import { projectMealMedia } from "./media";
 
 const MAX_BATCH_BYTES = 1_000_000;
 
@@ -24,10 +26,11 @@ function decodeCursor(value: string | undefined): Cursor | null {
 }
 
 export async function ingestEvents(
-  database: D1Database,
+  env: Env,
   accountId: string,
   input: IngestEventsRequest,
 ): Promise<{ accepted: number; inserted: number; replayed: number }> {
+  const database = env.DB;
   const bytes = new TextEncoder().encode(JSON.stringify(input)).byteLength;
   if (bytes > MAX_BATCH_BYTES) {
     throw new HttpError(413, "Event batch exceeds the 1 MB request limit.");
@@ -95,6 +98,10 @@ export async function ingestEvents(
   const inserted = eventStatementIndexes.reduce((count, index) => {
     return count + (results[index]?.meta.changes === 1 ? 1 : 0);
   }, 0);
+  // The event log remains canonical. This projection is idempotent and applies
+  // even on a replay, so a transient R2/D1 failure can be repaired by sending
+  // the same event again without inventing a mutable meal endpoint.
+  await projectMealMedia(env, accountId, input.events);
   return { accepted: input.events.length, inserted, replayed: input.events.length - inserted };
 }
 

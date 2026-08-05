@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Env } from "../env";
 import { accountForDevice } from "./auth";
 import { HttpError } from "./http-error";
-import { type Counters, enforceRecognitionLimits } from "./limits";
+import { type Counters, enforcePaidRecognitionFairness, enforceRecognitionLimits } from "./limits";
 
 const request = (headers: Record<string, string>) =>
   new Request("https://example.com", { headers });
@@ -40,32 +40,38 @@ describe("recognition limits", () => {
 
   it("stops a burst before it reaches a paid API", async () => {
     const burst = env({ RECOGNITION_LIMIT: { limit: async () => ({ success: false }) } });
-    await expect(enforceRecognitionLimits(burst, anyone, counters(0, 0))).rejects.toThrow(
-      HttpError,
-    );
+    await expect(enforceRecognitionLimits(burst, anyone)).rejects.toThrow(HttpError);
   });
 
-  it("stops one device spending everyone's day", async () => {
-    await expect(enforceRecognitionLimits(env(), anyone, counters(50, 40))).rejects.toThrow(
-      /day's worth/,
-    );
+  it("checks one device's daily fairness only after a cache miss", async () => {
+    await expect(
+      enforcePaidRecognitionFairness(
+        env(),
+        "device:0198F222AADB7E008000ABCDEF01",
+        counters(50, 40),
+      ),
+    ).rejects.toThrow(/day's worth/);
   });
 
-  it("stops the whole service at the spending cap, however it was spread", async () => {
-    // The rate limiter is per-colo, so this is the only layer that bounds money.
-    await expect(enforceRecognitionLimits(env(), anyone, counters(400, 1))).rejects.toThrow(
-      /spending cap/,
-    );
+  it("leaves the global money reservation to the post-cache budget ledger", async () => {
+    await expect(enforceRecognitionLimits(env(), anyone)).resolves.toBeDefined();
   });
 
   it("lets an ordinary request through", async () => {
-    await expect(enforceRecognitionLimits(env(), anyone, counters(12, 3))).resolves.toBe(
+    await expect(enforceRecognitionLimits(env(), anyone)).resolves.toBe(
       "device:0198F222AADB7E008000ABCDEF01",
     );
   });
 
   it("treats a ceiling of zero as no ceiling", async () => {
     const off = env({ RECOGNITIONS_PER_DAY: "0", RECOGNITIONS_PER_DEVICE_PER_DAY: "0" });
-    await expect(enforceRecognitionLimits(off, anyone, counters(9e9, 9e9))).resolves.toBeDefined();
+    await expect(
+      enforcePaidRecognitionFairness(off, "device:anyone", counters(9e9, 9e9)),
+    ).resolves.toBeUndefined();
+  });
+
+  it("requires a stable device id before recognition stores media", async () => {
+    const anonymous = request({ "CF-Connecting-IP": "1.2.3.4" });
+    await expect(enforceRecognitionLimits(env(), anonymous)).rejects.toThrow(/X-Device-Id/);
   });
 });
