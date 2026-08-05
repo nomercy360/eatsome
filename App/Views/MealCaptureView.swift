@@ -24,7 +24,10 @@ struct MealCaptureView: View {
     @State private var isRefining = false
     @State private var revisionSummary: String?
     @State private var fixError: String?
-    @State private var rating: MealRating?
+    /// Rows the last correction touched, highlighted briefly so a delta is
+    /// visible without rescanning the list.
+    @State private var recentlyChanged: Set<UUID> = []
+    @State private var showingDetails = false
     @State private var recipeName = ""
     @State private var savedRecipeID: UUID?
     @FocusState private var isTyping: Bool
@@ -45,6 +48,9 @@ struct MealCaptureView: View {
                 .simultaneousGesture(TapGesture().onEnded { isTyping = false })
             }
             .scrollDismissesKeyboard(.interactively)
+            .safeAreaInset(edge: .bottom) {
+                if !items.isEmpty { saveBar }
+            }
             .navigationTitle("EATSOME")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -114,35 +120,12 @@ struct MealCaptureView: View {
                     .font(WellieTheme.font(16, weight: .semibold))
             }
 
-            noteCard
-
             if !model.recipes.isEmpty { recipesCard }
 
             DatePicker("Eaten at", selection: $eatenAt)
                 .font(WellieTheme.font(15, weight: .medium))
                 .wellieCard(color: WellieTheme.card)
         }
-    }
-
-    /// The note goes here, before the photo is sent, because that is when you
-    /// know. A missing ingredient is invisible by definition — you cannot spot
-    /// the absent eggs in a list that never had them — so a repair-after-the-fact
-    /// flow alone would never catch home cooking.
-    private var noteCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            WellieKicker(text: "Anything the photo won't show?")
-            TextField("Fried in butter, two eggs in the batter", text: $note, axis: .vertical)
-                .font(WellieTheme.font(15, weight: .medium))
-                .focused($isTyping)
-                .lineLimit(1...3)
-                .padding(12)
-                .background(WellieTheme.elevated, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-
-            Text("Optional. Hidden fats, eggs and milk in a batter, sugar in a sauce.")
-                .font(WellieTheme.font(12, weight: .medium))
-                .foregroundStyle(WellieTheme.muted)
-        }
-        .wellieCard(color: WellieTheme.card)
     }
 
     /// Home cooking repeats, and it is the food a camera reads worst. Describe
@@ -183,36 +166,25 @@ struct MealCaptureView: View {
         .wellieCard(color: WellieTheme.card)
     }
 
+    /// Three zones, in the order the data actually flows: what went to the model,
+    /// what came back, and the settings you almost never touch.
+    ///
+    /// It used to be ten cards, each with its own background and padding, with
+    /// the correction field below the list it corrects — so typing raised a
+    /// keyboard over the very rows you were describing — and no visible save
+    /// button at all.
     private var review: some View {
-        VStack(spacing: 22) {
-            HStack(spacing: 8) {
-                Capsule().fill(WellieTheme.blue).frame(width: 34, height: 5)
-                Capsule().fill(WellieTheme.blue).frame(width: 34, height: 5)
-                Capsule().fill(WellieTheme.softBlue).frame(width: 34, height: 5)
-            }
-            .padding(.top, 8)
-
-            Text(isRecognizing ? "Reading your plate" : "Check if everything is right")
-                .font(WellieTheme.font(28, weight: .bold))
-                .multilineTextAlignment(.center)
-
-            if let imageData, let image = UIImage(data: imageData) {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 120)
-                    .background(WellieTheme.softBlue)
-                    .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-            }
+        VStack(spacing: 18) {
+            photoHeader
 
             if isRecognizing {
-                VStack(spacing: 12) {
+                HStack(spacing: 12) {
                     ProgressView()
                     Text("Finding Mediterranean food groups…")
                         .font(WellieTheme.font(15, weight: .medium))
                         .foregroundStyle(WellieTheme.muted)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .wellieCard(color: WellieTheme.ice)
             }
 
@@ -225,80 +197,17 @@ struct MealCaptureView: View {
             }
 
             if !items.isEmpty {
-                Text(recognitionSummary)
-                    .font(WellieTheme.font(21, weight: .semibold))
-                    .foregroundStyle(WellieTheme.muted)
-                    .multilineTextAlignment(.center)
+                if unconfirmedCount > 0 { confirmationBanner }
+                if artifact?.recognition.otherMealsVisible == true { otherMealsWarning }
 
-                if artifact?.recognition.otherMealsVisible == true {
-                    otherMealsWarning
-                }
+                // The input sits between the photo and the list because it edits
+                // both, and above the list because the keyboard must not cover
+                // the thing you are describing.
+                if artifact != nil { fixCard }
 
-                VStack(spacing: 0) {
-                    WellieKicker(text: "Food groups")
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.bottom, 8)
+                groupsCard
 
-                    ForEach($items) { $item in
-                        MealRecognitionEditorRow(
-                            item: $item,
-                            onEdit: { didEditRecognition = true },
-                            onDelete: {
-                                didEditRecognition = true
-                                items.removeAll { $0.id == item.id }
-                            }
-                        )
-                        if item.id != items.last?.id { Divider() }
-                    }
-
-                    Menu {
-                        ForEach(FoodGroup.allCases, id: \.self) { group in
-                            Button(group.displayName) {
-                                didEditRecognition = true
-                                items.append(MealReviewItem(manualGroup: group))
-                            }
-                        }
-                    } label: {
-                        Label("Add food group", systemImage: "plus")
-                            .font(WellieTheme.font(15, weight: .semibold))
-                            .padding(.top, 12)
-                    }
-                }
-                .wellieCard(color: WellieTheme.card)
-
-                shareCard
-
-                DatePicker("Eaten at", selection: $eatenAt)
-                    .font(WellieTheme.font(15, weight: .medium))
-                    .wellieCard(color: WellieTheme.card)
-
-                if let notes = artifact?.recognition.notes {
-                    Text(notes)
-                        .font(WellieTheme.font(13, weight: .medium))
-                        .foregroundStyle(WellieTheme.muted)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-
-                fixCard
-
-                if artifact != nil { ratingCard }
-
-                saveRecipeCard
-
-                if unconfirmedCount > 0 {
-                    Text(
-                        unconfirmedCount == 1
-                            ? "Confirm the highlighted item — it changes your weekly score."
-                            : "Confirm the \(unconfirmedCount) highlighted items — they change your weekly score."
-                    )
-                    .font(WellieTheme.font(13, weight: .medium))
-                    .foregroundStyle(WellieTheme.warningText)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-
-                Button("Save meal") { Task { await save() } }
-                    .buttonStyle(WelliePrimaryButtonStyle())
-                    .disabled(!canSave)
+                detailsSection
             } else if !isRecognizing {
                 Menu {
                     ForEach(FoodGroup.allCases, id: \.self) { group in
@@ -315,12 +224,135 @@ struct MealCaptureView: View {
         }
     }
 
-    /// The second entry point for the same mechanism: you have the result in
-    /// front of you and something in it is wrong.
+    /// The photo fills its frame rather than fitting inside it: a portrait shot
+    /// letterboxed into a landscape box spends two thirds of the width on empty
+    /// background. Same pixels, three times the picture.
     ///
-    /// It asks for a delta rather than a re-run. By this point you may have
-    /// fixed groups and portions by hand, and regenerating the list from scratch
-    /// would quietly throw that work away.
+    /// The heading is the dish, not an instruction. "Check if everything is
+    /// right" is read once in a lifetime and then costs three lines forever.
+    private var photoHeader: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if let imageData, let image = UIImage(data: imageData) {
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 150)
+                    .clipped()
+                    .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+            }
+
+            if !items.isEmpty {
+                Text(recognitionSummary)
+                    .font(WellieTheme.font(22, weight: .bold))
+                    .foregroundStyle(WellieTheme.ink)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else if isRecognizing {
+                Text("Reading your plate")
+                    .font(WellieTheme.font(22, weight: .bold))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+
+    private var confirmationBanner: some View {
+        Label(
+            unconfirmedCount == 1
+                ? "One item below needs a tap — it changes your weekly score."
+                : "\(unconfirmedCount) items below need a tap — they change your weekly score.",
+            systemImage: "exclamationmark.triangle.fill"
+        )
+        .font(WellieTheme.font(13, weight: .semibold))
+        .foregroundStyle(WellieTheme.warningText)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .wellieCard(color: WellieTheme.warning.opacity(0.18))
+    }
+
+    private var groupsCard: some View {
+        VStack(spacing: 0) {
+            WellieKicker(text: "Food groups")
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.bottom, 8)
+
+            ForEach($items) { $item in
+                MealRecognitionEditorRow(
+                    item: $item,
+                    isNew: recentlyChanged.contains(item.id),
+                    onEdit: { didEditRecognition = true },
+                    onDelete: {
+                        didEditRecognition = true
+                        items.removeAll { $0.id == item.id }
+                    }
+                )
+                if item.id != items.last?.id { Divider() }
+            }
+
+            Menu {
+                ForEach(FoodGroup.allCases, id: \.self) { group in
+                    Button(group.displayName) {
+                        didEditRecognition = true
+                        items.append(MealReviewItem(manualGroup: group))
+                    }
+                }
+            } label: {
+                Label("Add food group", systemImage: "plus")
+                    .font(WellieTheme.font(15, weight: .semibold))
+                    .padding(.top, 12)
+            }
+        }
+        .wellieCard(color: WellieTheme.card)
+    }
+
+    /// Everything you do not change on an ordinary log, folded away. Time is
+    /// already right, the plate is usually all yours, and most meals are not
+    /// worth saving as a recipe.
+    private var detailsSection: some View {
+        DisclosureGroup(isExpanded: $showingDetails) {
+            VStack(spacing: 16) {
+                shareCard
+                DatePicker("Eaten at", selection: $eatenAt)
+                    .font(WellieTheme.font(15, weight: .medium))
+                saveRecipeCard
+
+                if let notes = artifact?.recognition.notes {
+                    Text(notes)
+                        .font(WellieTheme.font(12, weight: .medium))
+                        .foregroundStyle(WellieTheme.muted)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .padding(.top, 12)
+        } label: {
+            Text("Details")
+                .font(WellieTheme.font(15, weight: .semibold))
+                .foregroundStyle(WellieTheme.ink)
+        }
+        .tint(WellieTheme.blue)
+        .wellieCard(color: WellieTheme.card)
+    }
+
+    /// Pinned, so the one action the screen exists for is never a scroll away.
+    private var saveBar: some View {
+        Button("Save meal") { Task { await save() } }
+            .buttonStyle(WelliePrimaryButtonStyle())
+            .disabled(!canSave)
+            .padding(.horizontal, WellieTheme.screenInset)
+            .padding(.top, 10)
+            .padding(.bottom, 8)
+            .background(.bar)
+    }
+
+    /// The one text slot, and it lives after the result rather than before it.
+    ///
+    /// A field before sending asks you to predict what the model will get wrong,
+    /// which you cannot do; the one case that seemed to need it — ingredients no
+    /// photograph can show — is just as visible once the list is in front of you,
+    /// because you cooked the thing. And a saved recipe removes even that on the
+    /// second telling.
+    ///
+    /// It asks for a delta rather than a re-run: by this point you may have fixed
+    /// groups and portions by hand, and regenerating the list would throw that
+    /// work away.
     private var fixCard: some View {
         VStack(alignment: .leading, spacing: 8) {
             WellieKicker(text: "Missing or wrong?")
@@ -360,36 +392,6 @@ struct MealCaptureView: View {
             Text("Your other edits are kept — only what you describe changes.")
                 .font(WellieTheme.font(12, weight: .medium))
                 .foregroundStyle(WellieTheme.muted)
-        }
-        .wellieCard(color: WellieTheme.card)
-    }
-
-    /// A thumb costs nothing and most bad readings are never worth typing about.
-    /// Kept away from the correction field on purpose: they are different acts.
-    private var ratingCard: some View {
-        HStack(spacing: 12) {
-            Text("How did it do?")
-                .font(WellieTheme.font(14, weight: .semibold))
-            Spacer()
-            Button {
-                rating = rating == .bad ? nil : .bad
-            } label: {
-                Image(systemName: rating == .bad ? "hand.thumbsdown.fill" : "hand.thumbsdown")
-                    .font(.title3)
-                    .foregroundStyle(rating == .bad ? WellieTheme.warningText : WellieTheme.muted)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Recognition was wrong")
-
-            Button {
-                rating = rating == .good ? nil : .good
-            } label: {
-                Image(systemName: rating == .good ? "hand.thumbsup.fill" : "hand.thumbsup")
-                    .font(.title3)
-                    .foregroundStyle(rating == .good ? WellieTheme.blue : WellieTheme.muted)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Recognition was right")
         }
         .wellieCard(color: WellieTheme.card)
     }
@@ -457,18 +459,18 @@ struct MealCaptureView: View {
                 Button("No") { otherMealsBelongToUser = false }
                     .buttonStyle(.bordered)
                     .tint(otherMealsBelongToUser == false ? WellieTheme.blue : WellieTheme.muted)
-                Button("Yes") { otherMealsBelongToUser = true }
+                // Yes re-reads the photograph with the restriction lifted. The
+                // picture already contains those plates; asking you to type out
+                // what is visibly in frame is work the model should be doing.
+                Button("Yes, all of it") { Task { await includeEverything() } }
                     .buttonStyle(.bordered)
                     .tint(otherMealsBelongToUser == true ? WellieTheme.blue : WellieTheme.muted)
             }
 
             if otherMealsBelongToUser == true {
-                Text("Add its food groups below, or retake a closer photo of everything you ate.")
+                Text("Read again with every plate included.")
                     .font(WellieTheme.font(13, weight: .medium))
-                    .foregroundStyle(WellieTheme.warningText)
-
-                Button("Retake photo", systemImage: "camera.rotate") { resetCapture() }
-                    .font(WellieTheme.font(14, weight: .semibold))
+                    .foregroundStyle(WellieTheme.muted)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -498,6 +500,17 @@ struct MealCaptureView: View {
         otherMealsBelongToUser = nil
         didEditRecognition = false
         Task { await recognize(normalized) }
+    }
+
+    /// Re-reads the same photo with the closest-tray rule lifted, through the
+    /// same note slot everything else uses.
+    private func includeEverything() async {
+        guard let imageData else { return }
+        otherMealsBelongToUser = true
+        note = [trimmed(note), MealPrompt.everythingIsMine]
+            .compactMap { $0 }
+            .joined(separator: " ")
+        await recognize(imageData)
     }
 
     private func recognize(_ data: Data) async {
@@ -533,17 +546,29 @@ struct MealCaptureView: View {
         defer { isRefining = false }
 
         do {
-            let revision = try await model.refine(
-                imageData: imageData,
-                current: items.map(\.mealItem),
-                note: text
-            )
-            let excluded = model.config.medas.excludedItems
-            items = revision.applied(to: items.map(\.mealItem)).map {
-                MealReviewItem(corrected: $0, excludedMedasItems: excluded)
+            let before = items.map(\.mealItem)
+            let revision = try await model.refine(imageData: imageData, current: before, note: text)
+            let after = revision.applied(to: before)
+
+            // What actually moved, by identity: added rows are ids the previous
+            // list never had, changed rows kept theirs. Pressing the button and
+            // then hunting for the difference is not feedback.
+            let previous = Dictionary(uniqueKeysWithValues: before.map { ($0.id, $0) })
+            let touched = after.filter { item in
+                guard let old = previous[item.id] else { return true }
+                return old.group != item.group || old.portion != item.portion
             }
+
+            let excluded = model.config.medas.excludedItems
+            items = after.map { MealReviewItem(corrected: $0, excludedMedasItems: excluded) }
+            recentlyChanged = Set(touched.map(\.id))
             revisionSummary = revision.summary
             didEditRecognition = true
+
+            Task {
+                try? await Task.sleep(for: .seconds(4))
+                withAnimation { recentlyChanged = [] }
+            }
             // The note is the durable half: it travels with the meal and into
             // the recipe, so the next log of this dish starts complete.
             note = [trimmed(note), text].compactMap { $0 }.joined(separator: ". ")
@@ -599,7 +624,6 @@ struct MealCaptureView: View {
             photoHash: imageData.map(ImageDigest.sha256),
             note: trimmed(note),
             recognitionEvidence: recognitionEvidence,
-            recognitionRating: rating,
             share: share,
             wasCorrected: artifact != nil && didEditRecognition
         )
@@ -665,7 +689,9 @@ private struct MealReviewItem: Identifiable {
     /// applied. Its alternatives are still worth showing, but nothing here is
     /// awaiting a first confirmation.
     init(corrected item: MealItem, excludedMedasItems: Set<Int>) {
-        id = UUID()
+        // Keeps the stored item's identity so a correction can be shown as a
+        // difference from the list that preceded it.
+        id = item.id
         label = item.label
         suggestedGroup = item.group
         alternatives = item.modelAlternatives ?? []
@@ -702,6 +728,7 @@ private struct MealReviewItem: Identifiable {
 
 private struct MealRecognitionEditorRow: View {
     @Binding var item: MealReviewItem
+    var isNew = false
     let onEdit: () -> Void
     let onDelete: () -> Void
 
@@ -779,11 +806,15 @@ private struct MealRecognitionEditorRow: View {
             .pickerStyle(.segmented)
         }
         .padding(.vertical, 10)
-        .padding(.horizontal, item.needsConfirmation ? 10 : 0)
-        .background(
-            item.needsConfirmation ? WellieTheme.warning.opacity(0.12) : Color.clear,
-            in: RoundedRectangle(cornerRadius: 14, style: .continuous)
-        )
+        .padding(.horizontal, item.needsConfirmation || isNew ? 10 : 0)
+        .background(rowTint, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .animation(.easeOut(duration: 0.25), value: isNew)
+    }
+
+    private var rowTint: Color {
+        if isNew { return WellieTheme.blue.opacity(0.14) }
+        if item.needsConfirmation { return WellieTheme.warning.opacity(0.12) }
+        return .clear
     }
 
     private var confirmationPrompt: String {

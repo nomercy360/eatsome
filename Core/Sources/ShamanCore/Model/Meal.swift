@@ -64,16 +64,6 @@ public enum MealShare: String, Codable, Sendable, CaseIterable {
     }
 }
 
-/// A one-tap verdict on a recognition, kept separate from correcting it.
-///
-/// Correcting takes attention; a thumb takes none. Most bad readings will never
-/// be worth typing about, and those are exactly the ones that would otherwise
-/// leave no trace at all.
-public enum MealRating: String, Codable, Sendable {
-    case good
-    case bad
-}
-
 /// How a plate becomes a number.
 ///
 /// Kept here rather than inside the scorer so the rule has one home and the UI
@@ -129,8 +119,6 @@ public struct MealEntry: Codable, Sendable, Hashable, Identifiable {
     public var note: String?
     /// Raw model output and normalized pre-edit state for prompt evaluation.
     public var recognitionEvidence: MealRecognitionEvidence?
-    /// Thumbs up or down on the recognition, if you gave one.
-    public var recognitionRating: MealRating?
     /// Nil on entries written before the switch existed. Read through `eaten`,
     /// which treats absence as `.whole` — the behaviour those entries were
     /// scored with when they were logged.
@@ -149,7 +137,6 @@ public struct MealEntry: Codable, Sendable, Hashable, Identifiable {
         modelConfidence: Double? = nil,
         note: String? = nil,
         recognitionEvidence: MealRecognitionEvidence? = nil,
-        recognitionRating: MealRating? = nil,
         share: MealShare? = nil,
         wasCorrected: Bool = false
     ) {
@@ -161,7 +148,6 @@ public struct MealEntry: Codable, Sendable, Hashable, Identifiable {
         self.modelConfidence = modelConfidence
         self.note = note
         self.recognitionEvidence = recognitionEvidence
-        self.recognitionRating = recognitionRating
         self.share = share
         self.wasCorrected = wasCorrected
     }

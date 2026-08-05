@@ -189,7 +189,10 @@ public enum MealPrompt {
       greens is whole_grains plus legumes plus vegetables, not one entry.
     - If multiple trays or place settings are visible, report ONLY the one \
       closest to the camera. Ignore food on every other tray or place setting \
-      and set `other_meals_visible` to true whenever you skip any of it.
+      and set `other_meals_visible` to true whenever you skip any of it. The \
+      exception is when the person tells you the rest is theirs too: then \
+      include every tray and plate in the frame and set `other_meals_visible` \
+      to false.
     - Inspect every bowl, cup, and small side dish on the closest place setting. \
       Soups, broths, stews, sauces, and other liquid foods are separate items, \
       not background. Decompose their visible or strongly implied ingredients; \
@@ -220,6 +223,12 @@ public enum MealPrompt {
     """
 
     public static let user = "Classify this meal."
+
+    /// What to send when the person says the food on the other trays is theirs
+    /// as well. Answering "yes" should re-read the photograph, not hand you a
+    /// blank row to fill in by hand — the picture has the answer.
+    public static let everythingIsMine =
+        "All the food in this photograph is mine, on every tray and plate. Include all of it."
 
     /// The user's note, fenced and labelled so it reads as evidence about the
     /// food rather than as further instructions.
