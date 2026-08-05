@@ -12,6 +12,7 @@ import { recognizeMeal } from "./data/recognitions";
 import type { Env } from "./env";
 import { requireAccount } from "./lib/auth";
 import { HttpError } from "./lib/http-error";
+import { enforceRecognitionLimits, enforceSyncLimits } from "./lib/limits";
 
 type AppContext = {
   Bindings: Env;
@@ -22,7 +23,7 @@ const app = new Hono<AppContext>().basePath("/api");
 
 app.use("*", async (c, next) => {
   if (c.req.path === "/api/health") return next();
-  const accountId = await requireAccount(c.req.header("Authorization"), c.env);
+  const accountId = await requireAccount(c.req.header("Authorization"), c.env, c.req.raw);
   c.set("accountId", accountId);
   return next();
 });
@@ -63,6 +64,7 @@ app.get("/health", async (c) => {
 });
 
 app.post("/v1/recognitions", zValidator("json", recognitionRequestSchema), async (c) => {
+  await enforceRecognitionLimits(c.env, c.req.raw);
   const input = c.req.valid("json");
   const provider = resolveProvider(c.env, input.provider);
   if (!apiKeyFor(c.env, provider)) {
@@ -77,6 +79,7 @@ app.post("/v1/recognitions", zValidator("json", recognitionRequestSchema), async
 });
 
 app.post("/v1/events/batch", zValidator("json", ingestEventsRequestSchema), async (c) => {
+  await enforceSyncLimits(c.env, c.req.raw);
   const result = await ingestEvents(c.env.DB, c.get("accountId"), c.req.valid("json"));
   return c.json(result, result.inserted === 0 ? 200 : 201);
 });

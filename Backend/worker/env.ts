@@ -26,4 +26,12 @@ export type Env = {
   /** "true" turns Qwen's thinking mode on. */
   QWEN_ENABLE_THINKING: string;
   MEAL_PROMPT_VERSION: string;
+  /** Global ceiling across every caller, because the rate limiter is per-colo
+   *  and a proxy in front of paid model APIs needs a bound in money, not in
+   *  requests per location. */
+  RECOGNITIONS_PER_DAY: string;
+  /** Per device, for fairness between honest callers. */
+  RECOGNITIONS_PER_DEVICE_PER_DAY: string;
+  RECOGNITION_LIMIT: RateLimit;
+  SYNC_LIMIT: RateLimit;
 };

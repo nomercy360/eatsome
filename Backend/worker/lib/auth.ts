@@ -25,13 +25,38 @@ export async function tokensMatch(provided: string, expected: string): Promise<b
   return difference === 0;
 }
 
+/**
+ * Who this request belongs to, when nobody logs in.
+ *
+ * With no accounts, the device is the account: it generates an id once, keeps it
+ * in the Keychain, and sends it on every call. Everything already partitions by
+ * `accountId` — events, evals, recognitions — so anonymous multi-user is that
+ * one substitution rather than a new column anywhere.
+ *
+ * This is a partition, not a proof. A header can say anything, so it separates
+ * honest callers from each other and does nothing against someone who wants in;
+ * the shared token below is what keeps a scanner out, and App Attest is what
+ * would make the id itself trustworthy. Ordering matters: quota keyed on
+ * something forgeable is a fairness mechanism, and the global ceiling is the
+ * only thing that bounds the bill.
+ */
+export function accountForDevice(request: Request): string {
+  const device = request.headers.get("X-Device-Id")?.trim();
+  if (device && /^[A-Za-z0-9-]{16,64}$/.test(device)) return `device:${device}`;
+  // No id means sharing one bucket with every other anonymous caller, which is
+  // the incentive we want.
+  return `ip:${request.headers.get("CF-Connecting-IP") ?? "unknown"}`;
+}
+
 export async function requireAccount(
   authorizationHeader: string | undefined,
   env: Env,
+  request?: Request,
 ): Promise<string> {
   const token = bearerToken(authorizationHeader);
   if (!token || !(await tokensMatch(token, env.EATSOME_API_TOKEN))) {
     throw new HttpError(401, "A valid bearer token is required.");
   }
-  return env.ACCOUNT_ID;
+  // The token says "this is the app". The device id says which copy of it.
+  return env.ACCOUNT_ID === "anonymous" && request ? accountForDevice(request) : env.ACCOUNT_ID;
 }

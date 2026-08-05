@@ -14,15 +14,32 @@
     ]
   },
   "vars": {
-    "ACCOUNT_ID": "owner",
+    "ACCOUNT_ID": "anonymous",
     "RECOGNITION_PROVIDER": "openai",
     "OPENAI_RECOGNITION_MODEL": "gpt-5.6-luna",
     "GEMINI_RECOGNITION_MODEL": "gemini-3.6-flash",
     "ANTHROPIC_RECOGNITION_MODEL": "claude-haiku-4-5-20251001",
     "QWEN_RECOGNITION_MODEL": "qwen3.7-flash",
     "QWEN_BASE_URL": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
-    "MEAL_PROMPT_VERSION": "meal-v5-2026-08-05"
+    "MEAL_PROMPT_VERSION": "meal-v5-2026-08-05",
+    "RECOGNITIONS_PER_DAY": "400",
+    "RECOGNITIONS_PER_DEVICE_PER_DAY": "40"
   },
+  // Per-colo, so this is a burst dampener rather than a spend ceiling — the
+  // daily budget in the worker is what actually bounds the bill.
+  "ratelimits": [
+    {
+      "name": "RECOGNITION_LIMIT",
+      "namespace_id": "1001",
+      "simple": { "limit": 12, "period": 60 }
+    },
+    {
+      "name": "SYNC_LIMIT",
+      "namespace_id": "1002",
+      "simple": { "limit": 60, "period": 60 }
+    }
+  ],
+  "vars_note": "RECOGNITIONS_PER_DAY bounds the worst case in money, not requests",
   "d1_databases": [
     {
       "binding": "DB",
