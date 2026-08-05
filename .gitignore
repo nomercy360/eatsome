@@ -17,3 +17,4 @@ secrets.json
 # SwiftPM build products
 Core/.build/
 Core/.swiftpm/
+build/

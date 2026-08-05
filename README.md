@@ -65,7 +65,21 @@ Requires Xcode and XcodeGen.
 That generates `eatsome.xcodeproj` from `project.yml`. Open the project, select a
 development team, and run it on an iPhone; HealthKit is unavailable on macOS.
 
-Then add an OpenAI API key in Settings. It goes to the Keychain.
+Then add an OpenAI or Gemini API key in Settings. It goes to the Keychain.
+
+### Installing on a phone that is not here
+
+A cable or the same Wi-Fi covers `devicectl`; anything further away means
+TestFlight:
+
+```bash
+./scripts/release-testflight.sh --upload
+```
+
+Tests, archives Release, exports a signed `.ipa`, uploads it. The build number is
+the commit count, so a build in TestFlight maps back to a commit. Internal
+testers get it without review, minutes after processing. Without an App Store
+Connect API key, drop `--upload` and send `build/eatsome.ipa` with Transporter.
 
 ### Core tests
 

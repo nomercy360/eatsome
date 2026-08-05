@@ -35,6 +35,9 @@ targets:
           Pick a photo of a meal to log it.
         NSHealthShareUsageDescription: >-
           Import workouts, sleep, and weight to show your daily health overview.
+        # HTTPS only, which is exempt. Without this, App Store Connect asks the
+        # export-compliance question on every single TestFlight build.
+        ITSAppUsesNonExemptEncryption: false
     entitlements:
       path: App/Support/eatsome.entitlements
       properties:
