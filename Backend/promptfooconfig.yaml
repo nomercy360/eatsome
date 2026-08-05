@@ -15,8 +15,6 @@ providers:
     label: qwen-3.7-flash
   - id: file://eval/promptfoo-provider.ts:luna
     label: gpt-5.6-luna
-  - id: file://eval/promptfoo-provider.ts:haiku
-    label: claude-haiku-4.5
   - id: file://eval/promptfoo-provider.ts:geminiFlash
     label: gemini-3.6-flash
 

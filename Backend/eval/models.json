@@ -18,14 +18,6 @@
       "usdPerMillionOutput": 1.2
     },
     {
-      "id": "claude-haiku-4.5",
-      "provider": "anthropic",
-      "model": "claude-haiku-4-5-20251001",
-      "tier": "candidate",
-      "usdPerMillionInput": 1.0,
-      "usdPerMillionOutput": 5.0
-    },
-    {
       "id": "gemini-3.6-flash",
       "provider": "gemini",
       "model": "gemini-3.6-flash",
