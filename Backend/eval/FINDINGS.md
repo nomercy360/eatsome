@@ -54,21 +54,30 @@ and discarded. The claim may still be true; it has not been measured.
 
 What the current scorer does support, on the same artefacts:
 
-| model | pass | recall | precision | measure | counts | meal_status |
-| --- | --- | --- | --- | --- | --- | --- |
-| qwen-3.7-flash | 9/28 | 76% | 74% | 41% | 55/96 | 12% |
-| gpt-5.6-luna | 8/28 | 73% | 76% | 61% | 39/96 | 13% |
-| **gemini-3.6-flash** | **11/28** | **87%** | **88%** | **73%** | **71/96** | 10% |
-| claude-haiku-4.5 | 7/28 | 72% | 71% | 51% | 29/96 | 8% |
+| model | pass | recall | precision | measure | counts | meal_status | excess rows |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| qwen-3.7-flash | 11/28 | 76% | 74% | 41% | 55/96 | 12% | 37 |
+| gpt-5.6-luna | 9/28 | 73% | 76% | 61% | 39/96 | 13% | 19 |
+| **gemini-3.6-flash** | **17/28** | **87%** | **88%** | **73%** | **71/96** | 10% | **6** |
+| claude-haiku-4.5 | 9/28 | 72% | 71% | 51% | 29/96 | 8% | 24 |
 
-Pass is stricter than before because duplicate groups now fail a case and a
-counted item must have the right number. The ordering is unchanged and Gemini
-leads every column.
+Measure is stricter than the first report: a counted item must now have the right
+number, where before any count was accepted. The ordering is unchanged and
+Gemini leads every column.
 
-`meal_status` agreement is 8–13% across all four models, which is a finding
-about the labels rather than the models: the golden calls a full canteen tray
-`eaten` and every model calls it `not_yet_eaten`, and no photograph settles it.
-It is reported, never gated.
+Two things are deliberately reported rather than gated, and both were briefly
+gated by mistake.
+
+`meal_status` agreement is 8–13% for every model. When four independent vendors
+agree and the golden disagrees, the label is the thing to suspect: the golden
+calls a full canteen tray `eaten` and all four call it `not_yet_eaten`, and no
+photograph settles it.
+
+A repeated group is not a defect. Seven of the 28 golden cases repeat one —
+four fruits on a platter really are four items, cheese and yoghurt really are
+two — and the app caps per group when scoring rather than asking the model to
+merge. Only rows beyond what the golden expects are counted, as `excess rows`,
+and Gemini has six against Qwen's thirty-seven.
 
 ## Three cases nothing passes
 

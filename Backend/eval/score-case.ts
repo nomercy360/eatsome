@@ -119,9 +119,17 @@ export function scoreCase(golden: GoldenCase, raw: string, note?: string | null)
     ),
   ).length;
 
-  const counts = new Map<string, number>();
-  for (const item of actual.items) counts.set(item.group, (counts.get(item.group) ?? 0) + 1);
-  const duplicateGroups = [...counts].filter(([, n]) => n > 1).map(([group]) => group);
+  // A repeated group is not a defect by itself: seven of the golden cases repeat
+  // one, because four fruits on a platter really are four items and the app caps
+  // them at scoring time rather than asking the model to merge them. Only rows
+  // beyond what the golden expects are excess.
+  const emitted = new Map<string, number>();
+  for (const item of actual.items) emitted.set(item.group, (emitted.get(item.group) ?? 0) + 1);
+  const wanted = new Map<string, number>();
+  for (const item of visible) wanted.set(item.group, (wanted.get(item.group) ?? 0) + 1);
+  const duplicateGroups = [...emitted]
+    .filter(([group, n]) => n > Math.max(1, wanted.get(group) ?? 1))
+    .map(([group]) => group);
 
   const missedGroups = [...expectedSet].filter((group) => !actualSet.has(group));
   const hiddenMissed = told

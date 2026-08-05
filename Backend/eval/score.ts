@@ -74,6 +74,8 @@ type Summary = {
   countTotal: number;
   statusOk: number;
   statusKnown: number;
+  /** Rows beyond what the golden expects for that group. */
+  excessRows: number;
   counts: string;
   usd: number;
   /** Cases that did not agree with themselves across repeats. Nondeterminism at
@@ -103,6 +105,7 @@ function summarise(records: RunRecord[]): Map<string, Summary> {
       countTotal: 0,
       statusOk: 0,
       statusKnown: 0,
+      excessRows: 0,
       counts: "",
       usd: 0,
       unstable: [],
@@ -132,6 +135,7 @@ function summarise(records: RunRecord[]): Map<string, Summary> {
     summary.portionMatch += score.portionMatch;
     summary.countMatch += score.countMatch;
     summary.countTotal += score.countTotal;
+    summary.excessRows += score.duplicateGroups.length;
     if (score.mealStatusOk !== null) {
       summary.statusKnown += 1;
       if (score.mealStatusOk) summary.statusOk += 1;
@@ -190,12 +194,12 @@ if (configurations.length > 1) {
 
 lines.push(`## Models\n`);
 lines.push(
-  `Gates are recall, duplicate groups, and — on a note run — the hidden items the note named. Precision, counts and meal_status are reported, not gated: a spurious item is one tap from deletion, and \`meal_status\` disagreement is as likely to be the label as the model.\n`,
+  `Gates: group recall, and on a note run the hidden items the note named. Reported but not gated: precision, counts, meal_status and excess rows — a spurious item is one tap from deletion, scoring caps repeated groups anyway, and 8-13% meal_status agreement across four independent models says the label is unsettled rather than the models.\n`,
 );
 lines.push(
-  `| model | tier | pass | recall | precision | measure | counts | meal_status | errors | $ |`,
+  `| model | tier | pass | recall | precision | measure | counts | meal_status | excess | errors | $ |`,
 );
-lines.push(`| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |`);
+lines.push(`| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |`);
 for (const summary of [...current.values()].sort((a, b) => a.usd - b.usd)) {
   const scored = summary.runs - summary.errors || 1;
   const passed = [...summary.perCase.values()].filter(Boolean).length;
@@ -206,6 +210,7 @@ for (const summary of [...current.values()].sort((a, b) => a.usd - b.usd)) {
       `${((summary.portionMatch / scored) * 100).toFixed(0)}% | ` +
       `${summary.countTotal ? `${summary.countMatch}/${summary.countTotal}` : "—"} | ` +
       `${summary.statusKnown ? `${((summary.statusOk / summary.statusKnown) * 100).toFixed(0)}%` : "—"} | ` +
+      `${summary.excessRows} | ` +
       `${summary.errors} | $${summary.usd.toFixed(3)} |`,
   );
 }
