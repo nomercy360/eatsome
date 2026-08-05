@@ -1,0 +1,61 @@
+{
+  "photo": "photos/TG_95625.jpeg",
+  "scene": "pink plate: sesame pretzel, a boiled egg in a glass cup topped with grated cheese, emmental slices, a bowl of whipped butter, a small jar of red jam",
+  "meal_status": "eaten",
+  "dedup_note": "grated cheese + emmental slices -> 1 dairy serving",
+  "golden": [
+    {
+      "name": "sesame pretzel",
+      "group": "refined_grain",
+      "measure": "size",
+      "size": "M"
+    },
+    {
+      "name": "boiled egg",
+      "group": "egg",
+      "measure": "count",
+      "count": 1,
+      "protein_g": 6
+    },
+    {
+      "name": "grated cheese on the egg",
+      "group": "dairy",
+      "measure": "size",
+      "size": "S"
+    },
+    {
+      "name": "emmental slices",
+      "group": "dairy",
+      "measure": "size",
+      "size": "M"
+    },
+    {
+      "name": "whipped butter",
+      "group": "butter_margarine_cream",
+      "measure": "size",
+      "size": "S"
+    },
+    {
+      "name": "red jam",
+      "group": "sweets",
+      "measure": "size",
+      "size": "S",
+      "flags": [
+        "added_sugar"
+      ]
+    }
+  ],
+  "notes": "The platter boundary: five separate foods arranged on one plate are five items, not one composed dish. Contrast with the existing bubble-waffle case where every component does collapse into one sweets serving — the difference is that these are served side by side and eaten separately. Dairy appears twice, grated over the egg and as slices, and merges to one serving; the grating on the egg is the half most likely to be missed. Butter and jam are their own groups, not part of the bread.",
+  "traps": [
+    "platter_one_dish_vs_separate",
+    "dairy_dedup",
+    "cheese_on_eggs_missed",
+    "jam_is_sweets_not_fruit",
+    "butter_present"
+  ],
+  "_source": {
+    "telegram_msg": "95625",
+    "subcase": "platter_board",
+    "faces": false
+  }
+}

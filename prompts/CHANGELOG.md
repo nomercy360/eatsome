@@ -4,6 +4,88 @@ Newest first. Every entry names the failure the change is meant to fix, so a
 version that does not fix anything is visibly a version that does not fix
 anything.
 
+## meal-v8-2026-08-05
+
+Three changes, two of them fixing rules that could not be obeyed. Still not the
+app's prompt: v5 ships, and `scripts/sync-prompt.mjs` is pinned to it.
+
+- **Butter was routed to a group the schema does not have.** v7 said to report
+  "butter or cream cheese on bread" as `sauce` and to put `` `butter` `` in
+  `alternatives`. `butter` is the *app's* spelling; the eval enum only has
+  `butter_margarine_cream`, and `alternatives` is a strict enum — so a model
+  obeying that line literally could not emit the value. Meanwhile the golden set
+  has always grouped plain butter as `butter_margarine_cream` (IMG_3140,
+  IMG_3152, IMG_3173) and cream cheese as `dairy` (IMG_3167), so every butter
+  row cost recall and precision at once. v8 keeps `sauce` for compound sauces
+  and says plainly that a single named fat or dairy served plain is that food.
+  A new assertion in `parity.test.ts` fails on any group the prompt names and
+  the schema lacks — it flags `butter` in v7 and is clean on v8.
+- **The bottle-and-glass rule covered one state of three.** v7's prose — "one
+  item, measure what is being drunk" — describes the result instead of
+  enumerating the cases, which leaves a model that can see two vessels with no
+  permission to return zero rows for one of them. `TG_95836` duplicated
+  `alcohol` in 3/12 runs on exactly that shape, and `TG_95802` (sealed bottle,
+  nothing poured) drew a phantom `alcohol` row from all four models, 12/12. v8
+  replaces the sentence with a six-row state table and says outright that zero
+  rows is a correct answer. The table is scoped to drinks on purpose: a general
+  "sealed means do not log" would collide with the ssamjang sachet in IMG_3171,
+  whose `sauce` row is already missed 9/12.
+- **No packaging change, deliberately.** `TG_95624` looked like a missing rule
+  for see-through packs, but the flag data says otherwise: `opaque_packaging`
+  fired in 1 of 12 runs, the other 11 named and decomposed the pack and simply
+  read the filling wrong, and gemini got `white_meat` 3/3. That is perception,
+  not instruction-following, and a rule would have moved it a couple of points
+  while risking the opaque branch that IMG_3177 currently passes 9/12.
+
+Known limit of this version's evidence: the three zero-row states in the table
+cannot be gated by `scorer-v3`. A single spurious row never trips the duplicate
+gate (`n > max(1, wanted)` is false at n=1) and recall cannot see it, so those
+rows are reported-only. `TG_95680` was added as the one drink state that does
+gate in all three directions.
+
+## meal-v7-2026-08-05
+
+The first version written from eval evidence rather than from reading photos.
+Every rule below names the cases that failed under `meal-v6`, scored by
+`scorer-v3-2026-08-05`. Not yet the app's prompt: v5 still ships.
+
+- **Same-group rows within one dish.** gemini-3.6-flash lost four cases at 100%
+  recall — it saw everything and emitted the parts twice: `alcohol` for a
+  champagne bottle and the glass poured from it (IMG_3174), `fish` for prawns,
+  squid and mussels off one seafood plate (IMG_3181), `sweets` for a waffle and
+  its toppings (IMG_3180), `vegetables` for rocket and pickled peppers on one
+  pizza (IMG_3182). Added a merge rule that is strictly within a group, so the
+  cross-group decomposition above it still stands. It cannot break the seven
+  goldens that legitimately repeat a group — every one of those repeats across
+  distinct dishes, and merging rows can only lower a row count, which the excess
+  check measures against the golden's own repeats.
+- **A baked sweet reported as its parts.** IMG_3165, two homemade cherry tarts:
+  one run answered `refined_grain` crust plus `fruit` filling and no `sweets` at
+  all, 0% recall. Narrowed deliberately to baked sweets — fruit *added to* a dish
+  that is not a dessert keeps its row, or IMG_3152, IMG_3170 and IMG_3173 would
+  all start losing their banana and their honey.
+- **Labelled packages read as opaque ones.** IMG_3171, a kimbap package held up
+  in a convenience store: the wrapper carries a product photograph of the
+  cross-section and states the enclosed ssamjang, and two of three runs answered
+  a single `other` item anyway. v6 only ever described the opaque branch. The
+  packaged food keeps `package` as its measure and the components read off the
+  label take their own, which is how the golden is labelled.
+- **Wrapped items dropped entirely.** IMG_3177, wraps in opaque paper: two of
+  three runs fell back to `other` rather than reporting the bread they could
+  plainly see. `filling_unknown` existed in the schema and in v6's flag list, but
+  nothing said the wrapper is still evidence of a flatbread.
+- **Solids submerged in sauce.** IMG_3178, sea bream in tomato sauce: the baby
+  potatoes sitting in the sauce were missed in all three runs. The olives were
+  not — that half of the diagnosis was wrong, and the rule says potatoes and
+  beans rather than restating the olives.
+
+Two things this version deliberately does not change. The nearest-place-setting
+rule stays exactly as it was: it is right for the common photograph and its rare
+error is the cheap direction, and the expensive branch is reached through the
+user line instead. And the tomato sauce in IMG_3178 is still a disagreement
+between the prompt, which routes cooked tomato-and-onion to `sofrito`, and the
+golden, which calls it `vegetables` — a labelling decision, not a prompt bug.
+
 ## meal-v5-2026-08-05
 
 No rule changes. v4's text lifted out of the Swift string literal into

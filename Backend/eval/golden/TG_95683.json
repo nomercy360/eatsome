@@ -1,0 +1,45 @@
+{
+  "photo": "photos/TG_95683.jpeg",
+  "scene": "outdoor table: a frying pan still holding shrimp spaghetti, the same spaghetti plated on two plates, and a shared bowl of rocket salad with melon chunks",
+  "meal_status": "shared_plate",
+  "dedup_note": "pan + 2 plates are one dish -> 1 spaghetti serving",
+  "golden": [
+    {
+      "name": "spaghetti",
+      "group": "refined_grain",
+      "measure": "size",
+      "size": "L"
+    },
+    {
+      "name": "prawns",
+      "group": "fish",
+      "measure": "size",
+      "size": "M",
+      "protein_g": 20
+    },
+    {
+      "name": "rocket salad",
+      "group": "vegetables",
+      "measure": "size",
+      "size": "M"
+    },
+    {
+      "name": "melon in the salad",
+      "group": "fruit",
+      "measure": "size",
+      "size": "S"
+    }
+  ],
+  "notes": "The pan and the two plates hold ONE dish, not three. This is the bottle-and-glass mechanic generalised past drinks: a serving vessel and the portions taken from it are the same food, and counting the pan again doubles the meal. The melon in the salad is fruit even though it arrives inside a vegetable dish — the same split the existing dessert-and-fruit cases test, in a savoury frame.",
+  "traps": [
+    "same_food_pan_and_plate",
+    "refined_grain_dedup",
+    "fruit_in_salad_not_vegetables",
+    "seafood_dedup"
+  ],
+  "_source": {
+    "telegram_msg": "95683",
+    "subcase": "same_food_two_vessels",
+    "faces": false
+  }
+}

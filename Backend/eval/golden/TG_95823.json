@@ -1,0 +1,46 @@
+{
+  "photo": "photos/TG_95823.jpeg",
+  "scene": "chana masala - chickpeas in a thick tomato curry - served against basmati rice in one bowl, with a herbed paratha on a plate alongside",
+  "meal_status": "eaten",
+  "dedup_note": "rice + paratha -> 1 refined_grain serving",
+  "golden": [
+    {
+      "name": "chickpeas",
+      "group": "legumes",
+      "measure": "size",
+      "size": "M",
+      "protein_g": 15
+    },
+    {
+      "name": "curry sauce",
+      "group": "sauce",
+      "measure": "size",
+      "size": "M"
+    },
+    {
+      "name": "basmati rice",
+      "group": "refined_grain",
+      "measure": "size",
+      "size": "L"
+    },
+    {
+      "name": "paratha",
+      "group": "refined_grain",
+      "measure": "size",
+      "size": "M"
+    }
+  ],
+  "notes": "Solids in liquid where the solids are countable and sauce-covered: the chickpeas are individually visible but sit in enough curry to be read as one undifferentiated mass. The legume is the recall target and the sauce is a separate item, not a property of the chickpeas. Rice and paratha are both refined grain and merge to one serving. The paratha is laminated with fat that is not visible — noted, not scored, since the recipe is not known.",
+  "traps": [
+    "solids_in_sauce_countable",
+    "legumes_recall",
+    "sauce_missed",
+    "refined_grain_dedup",
+    "paratha_hidden_fat"
+  ],
+  "_source": {
+    "telegram_msg": "95823",
+    "subcase": "curry",
+    "faces": false
+  }
+}

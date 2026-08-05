@@ -74,7 +74,7 @@ reason no prompt can fix. Read that report before believing any number here.
 
 The models are asked for `prompts/meal-v6.md` and `eval/schema.ts`, not the
 contract the app ships. The dataset was written from real meals and knows about
-potatoes, counted eggs, sauces as their own category and non-wine alcohol; the
+potatoes, counted eggs and sauces as their own category; the
 app does not yet. While it is being built, the dataset is the one to believe, and
 whatever survives these runs is what `FoodGroup` should become.
 

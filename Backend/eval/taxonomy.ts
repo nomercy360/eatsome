@@ -25,12 +25,6 @@ const table: Record<string, Mapping> = {
   whole_grain: { kind: "renamed", group: "whole_grains" },
   butter_margarine_cream: { kind: "renamed", group: "butter" },
 
-  alcohol: {
-    kind: "lossy",
-    group: "wine",
-    why: "MEDAS scores wine specifically; beer and spirits have no group, so they land on `wine` or nowhere. The dataset has a zero-alcohol beer case that this cannot express.",
-  },
-
   potatoes: {
     kind: "unmapped",
     why: "Not vegetables in MEDAS terms — counting them there would credit an item 3 serving for chips. Needs its own group or an explicit decision to score them nowhere.",

@@ -1,0 +1,27 @@
+{
+  "photo": "photos/TG_95680.jpeg",
+  "scene": "two opened Zagorka beer bottles on a round table, one at the near setting and one across where a hand is reaching; a white cup of an unreadable pale liquid, an ashtray, cigarettes and a phone. No drinking glass anywhere.",
+  "meal_status": "eaten",
+  "dedup_note": "one opened bottle at the near setting -> 1 alcohol row; the second bottle belongs to the other place setting",
+  "traps": [
+    "opened_container_no_glass",
+    "bottle_without_glass",
+    "foreign_meal_bleed",
+    "alcohol_recall"
+  ],
+  "golden": [
+    {
+      "name": "beer",
+      "group": "alcohol",
+      "measure": "count",
+      "count": 1
+    }
+  ],
+  "_source": {
+    "telegram_msg": "95680",
+    "subcase": "own_plate_plus_foreign_food",
+    "faces": false
+  },
+  "_todo": "fill golden[], meal_status, dedup_note; then move up to golden/",
+  "notes": "The opened-container-with-no-glass state: nothing was poured, but the bottle is open and being drunk from, so the bottle IS the portion and the answer is one row. Deliberately the middle of the three drink states - TG_95802 is a sealed bottle with no glass (zero rows) and TG_95836 is a container with a poured glass (one row, measured by the glass). It also crosses the nearest-setting rule: the far bottle is at another place setting and must be excluded, so `other_meals_visible` is true. This case gates in all three directions - omitting alcohol fails recall, one row passes, and counting both bottles trips the duplicate gate. The white cup is not identifiable and is deliberately absent from the golden."
+}

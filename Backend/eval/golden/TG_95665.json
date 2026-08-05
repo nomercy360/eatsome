@@ -1,0 +1,25 @@
+{
+  "photo": "photos/TG_95665.jpeg",
+  "scene": "a paper cone of mini waffles with chocolate on a cafe table, with a person-sized plush ice-cream-cone mascot standing directly behind it",
+  "meal_status": "eaten",
+  "golden": [
+    {
+      "name": "mini waffles with chocolate",
+      "group": "sweets",
+      "measure": "size",
+      "size": "M"
+    }
+  ],
+  "notes": "The only food is the paper cone on the table. The large object behind it is a plush mascot shaped as an ice-cream cone, and logging a dairy or sweets serving for it is the failure. Nothing in the current set contains a fake food object at this scale. Two caveats: the real food here is close to the existing bubble-waffle dessert, so this case is carried by the mascot rather than by the dessert, and a passer-by is visible in the background - keep it in the local eval set and out of corpus/R2.",
+  "traps": [
+    "fake_food_object_in_frame",
+    "dessert_components_not_separate"
+  ],
+  "local_only": true,
+  "local_only_reason": "identifiable passer-by in the background",
+  "_source": {
+    "telegram_msg": "95665",
+    "subcase": "",
+    "faces": false
+  }
+}

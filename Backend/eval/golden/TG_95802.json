@@ -1,0 +1,50 @@
+{
+  "photo": "photos/TG_95802.jpeg",
+  "scene": "a small sealed bottle of Chateau Tamagne red wine standing behind a caesar salad with chicken, croutons, tomato and parmesan; no glass anywhere in frame",
+  "meal_status": "eaten",
+  "golden": [
+    {
+      "name": "romaine and frisee",
+      "group": "vegetables",
+      "measure": "size",
+      "size": "M"
+    },
+    {
+      "name": "chicken",
+      "group": "white_meat",
+      "measure": "size",
+      "size": "S",
+      "protein_g": 20
+    },
+    {
+      "name": "croutons",
+      "group": "refined_grain",
+      "measure": "size",
+      "size": "S"
+    },
+    {
+      "name": "parmesan",
+      "group": "dairy",
+      "measure": "size",
+      "size": "S"
+    },
+    {
+      "name": "caesar dressing",
+      "group": "sauce",
+      "measure": "size",
+      "size": "S"
+    }
+  ],
+  "notes": "The bottle is sealed and there is no glass, so nothing was poured and there is NO alcohol serving. Deliberately the negative of TG_95836: a rule that logs a drink whenever a bottle is in frame fails here, and one that only logs what was poured passes both. Under the current scorer a spurious wine row costs precision rather than recall, so this case is reported and not gated - it belongs in the set as evidence, not as a gate.",
+  "traps": [
+    "bottle_without_glass",
+    "alcohol_over_reported",
+    "sauce_missed",
+    "refined_grain_dedup"
+  ],
+  "_source": {
+    "telegram_msg": "95802",
+    "subcase": "",
+    "faces": false
+  }
+}
