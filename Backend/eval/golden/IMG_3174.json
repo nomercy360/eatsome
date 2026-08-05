@@ -29,5 +29,7 @@
     "background_party_bleed",
     "small_nuts_plate_missed"
   ],
-  "photo": "photos/IMG_3174.JPG"
+  "photo": "photos/IMG_3174.JPG",
+  "holdout": true,
+  "holdout_reason": "olives as healthy_fats with a small nuts plate — the taxonomy class"
 }

@@ -1,6 +1,8 @@
 # Eval report
 
-Configuration `meal-v6-2026-08-05|eval-schema-v1-2026-08-05|default|plain`.
+Configuration `meal-v6-2026-08-05|eval-schema-v1-2026-08-05|default|plain`, scored by `scorer-v3-2026-08-05`.
+Numbers from a different scorer version are not comparable with these — the ruler is versioned for the same reason the prompt is.
+
 336 outputs over 28 cases.
 
 Excluded, because they were produced under a different configuration: `meal-v6-2026-08-05|eval-schema-v1-2026-08-05|3000|plain`, `meal-v6-2026-08-05|eval-schema-v1-2026-08-05|4000|plain`, `meal-v6-2026-08-05|eval-schema-v1-2026-08-05|high|plain`. Select one with `--config`.

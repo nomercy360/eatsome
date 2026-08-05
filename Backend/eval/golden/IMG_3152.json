@@ -49,5 +49,7 @@
     "commercial_pastry_forbidden_for_homemade",
     "milk_dedup_batter_vs_mug"
   ],
-  "photo": "photos/IMG_3152.jpeg"
+  "photo": "photos/IMG_3152.jpeg",
+  "holdout": true,
+  "holdout_reason": "hidden ingredients in home cooking — the note-slot class"
 }

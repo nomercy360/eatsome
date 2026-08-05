@@ -32,5 +32,7 @@
   ],
   "dedup_note": "cheese + milk-in-coffee -> 1 dairy serving",
   "traps": ["cheese_on_eggs_missed", "dairy_dedup", "rye_whole_vs_refined"],
-  "photo": "photos/IMG_3179.jpeg"
+  "photo": "photos/IMG_3179.jpeg",
+  "holdout": true,
+  "holdout_reason": "cheese on eggs and rye — the decomposition class v7 is about to touch"
 }

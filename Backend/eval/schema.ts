@@ -58,6 +58,10 @@ export const evalFlags = [
   "raw_ingredient",
   "added_sugar",
   "opaque_packaging",
+  // A wrap whose filling is not visible. Without it the model has no way to say
+  // "I can see bread and cannot see what is in it", and the only alternatives
+  // are inventing a filling or omitting the item.
+  "filling_unknown",
 ] as const;
 
 export const mealStatuses = [

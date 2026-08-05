@@ -38,6 +38,10 @@ const includeCeiling = args.includes("--ceiling");
 // typed. Scored separately — a hidden ingredient found without a note would be
 // a hallucination that happened to be right.
 const withNotes = args.includes("--notes");
+// Holdout cases are excluded from every ordinary run. They answer whether a
+// prompt generalises, and that answer is spent the moment you have iterated
+// against their failures.
+const includeHoldout = args.includes("--holdout");
 
 const cases = loadGoldenCases();
 const models = loadModels()
@@ -63,7 +67,9 @@ if (missing.length > 0) {
     `Missing photos, these cases will not run:\n  ${missing.map((c) => c.photo).join("\n  ")}`,
   );
 }
-const runnable = cases.filter((one) => existsSync(photoPath(one.photo)));
+const runnable = cases
+  .filter((one) => includeHoldout || !one.holdout)
+  .filter((one) => existsSync(photoPath(one.photo)));
 
 type Job = { caseId: string; photo: string; entry: EvalModel; run: number; note?: string };
 const jobs: Job[] = [];

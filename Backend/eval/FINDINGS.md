@@ -1,7 +1,22 @@
 # Findings
 
 What the runs decided, with the numbers that decided it. Prompt `meal-v6`,
-schema `eval-schema-v1`, 28 cases, artefacts in `runs/`.
+schema `eval-schema-v1`, scorer `scorer-v3`, 28 cases, artefacts in `runs/`.
+
+Six of those cases are now frozen as holdout and were part of these runs; the
+next report will cover the 22 that remain, which is the point at which numbers
+here and numbers there stop being comparable.
+
+## Excess rows is the column to watch
+
+Gemini 6, Luna 19, Haiku 24, Qwen 37. It is a hallucination metric, and it
+agrees with the token table: Qwen emitted 897 output tokens a call and 37 rows
+nobody asked for. Verbosity and invention are one behaviour.
+
+For a photo of a sealed package it matters more than recall. A model that omits
+something visible costs you a tap; a model that writes down what it cannot see
+puts food in your log that you never ate, and nothing in the app will ever
+question it.
 
 ## Gemini 3.6 Flash wins, and not narrowly
 

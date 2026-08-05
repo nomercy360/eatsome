@@ -19,5 +19,7 @@
     "fat_zero_marketing",
     "duplicate_meal_across_photos"
   ],
-  "photo": "photos/IMG_3185.jpeg"
+  "photo": "photos/IMG_3185.jpeg",
+  "holdout": true,
+  "holdout_reason": "Japanese nutrition panel — the OCR class"
 }

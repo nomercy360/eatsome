@@ -41,5 +41,7 @@
     "foreign_dish_bleed",
     "sauce_missed"
   ],
-  "photo": "photos/IMG_3182.jpeg"
+  "photo": "photos/IMG_3182.jpeg",
+  "holdout": true,
+  "holdout_reason": "foreign-plate bleed with a shared portion — the multi-tray class"
 }

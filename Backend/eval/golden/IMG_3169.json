@@ -10,5 +10,7 @@
     }
   ],
   "traps": [],
-  "photo": "photos/IMG_3169.JPG"
+  "photo": "photos/IMG_3169.JPG",
+  "holdout": true,
+  "holdout_reason": "an ordinary plate with no traps at all — the control"
 }

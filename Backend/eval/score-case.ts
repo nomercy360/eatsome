@@ -39,6 +39,23 @@ export type CaseScore = {
 const RECALL_FLOOR = 0.8;
 
 /**
+ * The measuring instrument is versioned like everything else it measures.
+ *
+ * Gemini went 21/28 to 17/28 to 21/28 across this session without answering a
+ * single photo differently — the ruler changed. Numbers from two scorer versions
+ * are no more comparable than numbers from two prompts, and in a month nothing
+ * in a report would say which ruler produced it. Bump this whenever a gate, a
+ * denominator or a definition moves.
+ *
+ * v1  recall only; duplicates, counts and meal_status computed and discarded
+ * v2  everything gated, which failed models for matching a golden that repeats
+ *     groups, and gated meal_status where the label itself is unsettled
+ * v3  gates are recall and, on a note run, the items the note named; excess is
+ *     measured against the golden's own repeats; counted items need the number
+ */
+export const SCORER_VERSION = "scorer-v3-2026-08-05";
+
+/**
  * `note` is the line the run sent with the photo. It changes what counts: told
  * about the butter, a model that omits it has failed, and a model that finds it
  * without being told was guessing.

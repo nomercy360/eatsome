@@ -25,9 +25,12 @@ generated into both languages, with tests either side that fail on drift.
 
 ## Four things this is built to avoid
 
-- **Fitting the prompt to the dataset.** Some cases are holdout: excluded from
-  every ordinary run, looked at only when a version is otherwise finished. Ten
-  iterations of staring at failures is enough to learn 28 photos.
+- **Fitting the prompt to the dataset.** Six cases are frozen — one per failure
+  class, chosen before the first prompt edit — and excluded from every ordinary
+  run. Ten iterations of staring at failures is enough to learn 22 photos, and
+  these are the only evidence left that a version generalises rather than having
+  been fitted. Run them with `--holdout` when a version is otherwise finished,
+  and if they disagree with the dev set, believe them.
 - **Contaminated few-shot examples.** If a prompt ever carries examples, they
   come from photos that are not in here. An example of a case you also score
   measures memory.
@@ -36,6 +39,14 @@ generated into both languages, with tests either side that fail on drift.
   re-running the matrix is not.
 - **Averages on 28 cases.** A three-point move in recall is one photo. The report
   that matters is which cases flipped between prompt versions.
+
+## The scorer is versioned too
+
+`SCORER_VERSION` moves whenever a gate, a denominator or a definition does, and
+every report names it. Gemini read 21/28, then 17/28, then 21/28 across one
+afternoon without answering a single photo differently — the ruler changed twice.
+Numbers from two scorer versions are no more comparable than numbers from two
+prompts, and nothing else in a report would say which ruler produced it.
 
 ## Metrics, and why no judge
 

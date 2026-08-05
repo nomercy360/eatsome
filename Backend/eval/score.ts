@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { loadGoldenCases } from "./golden";
 import type { RunRecord } from "./harness";
 import { loadModels } from "./harness";
-import { scoreCase } from "./score-case";
+import { SCORER_VERSION, scoreCase } from "./score-case";
 
 /**
  * Artefacts in, report out. No API calls.
@@ -180,7 +180,12 @@ const baseline = baselineFile
 const lines: string[] = [];
 lines.push(`# Eval report\n`);
 lines.push(
-  `Configuration \`${configuration}\`${baselineFile ? ` against \`${baselineFile}\`` : ""}.`,
+  `Configuration \`${configuration}\`, scored by \`${SCORER_VERSION}\`${
+    baselineFile ? ` against \`${baselineFile}\`` : ""
+  }.`,
+);
+lines.push(
+  `Numbers from a different scorer version are not comparable with these — the ruler is versioned for the same reason the prompt is.\n`,
 );
 lines.push(`${rows.length} outputs over ${cases.length} cases.\n`);
 if (configurations.length > 1) {
@@ -269,6 +274,8 @@ console.log(report);
 
 // The gate acts on candidates only: a ceiling model exists to say whether there
 // is headroom, not to decide whether a prompt ships.
+// A flip is only a flip under one ruler. Comparing a run scored by v3 against
+// one scored by v2 would report movement that never happened.
 const regressions = baseline
   ? [...current.values()].filter(
       (summary) =>
