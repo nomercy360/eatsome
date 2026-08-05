@@ -3,7 +3,7 @@ import SwiftUI
 
 struct TodayView: View {
     @Environment(AppModel.self) private var model
-    @State private var showingCapture = false
+    @State private var showingSettings = false
 
     private var meals: [MealEntry] { model.mealsToday() }
     private var foodGroups: [FoodGroup] {
@@ -35,17 +35,17 @@ struct TodayView: View {
             // Health is fetched when the app becomes active; a pull covers the
             // rest. A toolbar button only advertises that the sync is manual.
             .refreshable { await model.refreshHealth() }
-            .safeAreaInset(edge: .bottom) {
-                Button { showingCapture = true } label: {
-                    Label("Add meal", systemImage: "camera.fill")
+            // Capture lives on the Camera tab now. A pinned button here would
+            // sit directly on top of it and put an opaque bar under the glass.
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { showingSettings = true } label: {
+                        Image(systemName: "gearshape")
+                    }
+                    .accessibilityLabel("Settings")
                 }
-                .buttonStyle(WelliePrimaryButtonStyle())
-                .padding(.horizontal, WellieTheme.screenInset)
-                .padding(.top, 8)
-                .padding(.bottom, 6)
-                .background(.bar)
             }
-            .sheet(isPresented: $showingCapture) { MealCaptureView() }
+            .sheet(isPresented: $showingSettings) { SettingsView() }
         }
         .wellieScreen()
     }

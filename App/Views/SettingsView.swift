@@ -3,6 +3,9 @@ import SwiftUI
 
 struct SettingsView: View {
     @Environment(AppModel.self) private var model
+    /// Settings is a sheet off Today rather than a tab — the third tab is the
+    /// week — so it has to carry its own way out.
+    @Environment(\.dismiss) private var dismiss
 
     @State private var apiKey = ""
     @State private var habits = DietHabits()
@@ -41,6 +44,10 @@ struct SettingsView: View {
             .navigationTitle("EATSOME")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") { dismiss() }
+                        .font(WellieTheme.font(15, weight: .semibold))
+                }
                 ToolbarItem(placement: .keyboard) {
                     HStack {
                         Spacer()

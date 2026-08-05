@@ -61,6 +61,47 @@ public enum FoodGroup: String, Codable, CaseIterable, Sendable, Hashable {
         }
     }
 
+    /// What a person would call this at the table.
+    ///
+    /// `displayName` is the screener's vocabulary — "Legumes", "Refined grains",
+    /// "Commercial pastry" — and it is the right label next to a score, in
+    /// diagnostics, and in an eval. It is the wrong label on a chip you tap
+    /// while holding a plate. Both exist because the manual picker shows them
+    /// together: the plain name on the row, the group it counts as underneath.
+    ///
+    /// Display only. Raw values are the on-disk format and do not move.
+    public var plainName: String {
+        switch self {
+        case .oliveOil: "Olive oil"
+        case .vegetables: "Vegetables"
+        case .fruit: "Fruit"
+        case .legumes: "Beans & lentils"
+        case .fish: "Fish & seafood"
+        case .nuts: "Nuts"
+        case .healthyFats: "Avocado, olives & seeds"
+        case .wholeGrains: "Wholegrain bread & pasta"
+        case .refinedGrains: "Bread & pasta"
+        case .whiteMeat: "Chicken & turkey"
+        case .redMeat: "Beef, pork & lamb"
+        case .processedMeat: "Ham, bacon & sausage"
+        case .dairy: "Yoghurt, milk & cheese"
+        case .egg: "Eggs"
+        case .sweets: "Sweets & chocolate"
+        case .pastry: "Cakes & pastry"
+        case .sugaryDrinks: "Fizzy & sweet drinks"
+        case .butter: "Butter & cream"
+        case .alcohol: "Alcohol"
+        case .sofrito: "Tomato & onion base"
+        case .other: "Something else"
+        }
+    }
+
+    /// The plain name lowercased for use mid-sentence, where a capital would
+    /// read as a proper noun: "Looks like chicken & turkey and olive oil."
+    public var sentenceName: String {
+        plainName.lowercased()
+    }
+
     /// Groups the model confuses often enough that they belong next to each
     /// other in the one-tap correction sheet. Fish read as white meat, invisible
     /// olive oil, and avocado filed as produce are the systematic failures.

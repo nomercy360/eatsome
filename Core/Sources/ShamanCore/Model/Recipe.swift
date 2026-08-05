@@ -45,7 +45,8 @@ public struct Recipe: Codable, Sendable, Hashable, Identifiable {
             },
             source: .recipe,
             note: note,
-            share: share
+            share: share,
+            recipeID: id
         )
     }
 

@@ -38,7 +38,7 @@ struct AdherenceView: View {
             .padding(.horizontal, WellieTheme.screenInset)
             .padding(.bottom, 32)
         }
-        .navigationTitle("THIS WEEK")
+        .navigationTitle("My week")
         .navigationBarTitleDisplayMode(.inline)
         .wellieScreen()
     }

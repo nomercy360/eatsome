@@ -127,6 +127,13 @@ public struct MealEntry: Codable, Sendable, Hashable, Identifiable {
     /// human-confirmed output are not the same evidence and should not be
     /// silently mixed when you later look at why a week scored badly.
     public var wasCorrected: Bool
+    /// The saved dish this meal came from, when it came from one. Optional
+    /// because every line written before the recipe list existed has to keep
+    /// decoding, and nil on anything photographed or entered by hand.
+    ///
+    /// It is what lets the dish list say "logged 6 times" from the log rather
+    /// than from a counter that would drift the first time a meal was deleted.
+    public var recipeID: UUID?
 
     public init(
         id: UUID = UUIDv7.generate(),
@@ -138,7 +145,8 @@ public struct MealEntry: Codable, Sendable, Hashable, Identifiable {
         note: String? = nil,
         recognitionEvidence: MealRecognitionEvidence? = nil,
         share: MealShare? = nil,
-        wasCorrected: Bool = false
+        wasCorrected: Bool = false,
+        recipeID: UUID? = nil
     ) {
         self.id = id
         self.eatenAt = eatenAt
@@ -150,6 +158,7 @@ public struct MealEntry: Codable, Sendable, Hashable, Identifiable {
         self.recognitionEvidence = recognitionEvidence
         self.share = share
         self.wasCorrected = wasCorrected
+        self.recipeID = recipeID
     }
 
     public var eaten: MealShare { share ?? .whole }
