@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>method</key>
+	<string>app-store-connect</string>
+	<key>teamID</key>
+	<string>Z4HYA2TN65</string>
+	<key>signingStyle</key>
+	<string>automatic</string>
+	<key>uploadSymbols</key>
+	<true/>
+	<!-- Xcode's own upload pipeline — the one the Organizer button uses. altool
+	     is the obvious alternative and the one to avoid: the version shipped in
+	     Xcode 26 can pick the wrong app when bundle ids share a prefix, and
+	     reports the resulting failure as success. A silent non-upload is the
+	     worst possible outcome for a script you stop watching. -->
+	<key>destination</key>
+	<string>upload</string>
+	<key>manageAppVersionAndBuildNumber</key>
+	<false/>
+</dict>
+</plist>

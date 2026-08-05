@@ -14,11 +14,14 @@
 #   export ASC_KEY_ID=XXXXXXXX
 #   export ASC_ISSUER_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 #
-# Both tools find the file by key id in that directory, so the key itself never
-# appears on a command line. Apple lets you download a .p8 exactly once.
+# The key is referenced by path, never pasted onto a command line. Apple lets
+# you download a .p8 exactly once.
 #
 # Without a key, skip --upload and drag build/eatsome.ipa into Transporter.app,
 # which uses the Apple ID you are already signed into.
+#
+# Uploads must be built with Xcode 26 or later against the iOS 26 SDK as of
+# 28 April 2026, which is what this produces.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -39,7 +42,9 @@ IPA="$EXPORT_DIR/eatsome.ipa"
 # without an Apple ID in Xcode's Accounts pane. Empty is fine when you signed in
 # there instead.
 ASC_KEY_PATH="${ASC_KEY_PATH:-$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID:-none}.p8}"
-AUTH=()
+# Empty by default, and `set -u` treats an empty array as unset before bash 4.4,
+# so it is seeded with a harmless flag rather than left bare.
+AUTH=(-allowProvisioningUpdates)
 if [[ -n "${ASC_KEY_ID:-}" && -n "${ASC_ISSUER_ID:-}" && -f "$ASC_KEY_PATH" ]]; then
   AUTH=(-authenticationKeyPath "$ASC_KEY_PATH"
         -authenticationKeyID "$ASC_KEY_ID"
@@ -63,10 +68,46 @@ xcodebuild archive \
   -destination 'generic/platform=iOS' \
   -archivePath "$ARCHIVE" \
   CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
-  -allowProvisioningUpdates "${AUTH[@]}" \
+  "${AUTH[@]}" \
   | grep -E '^(\*\*|error:|warning: .*(deprecat|signing))' || true
 
 test -d "$ARCHIVE" || { echo "error: no archive produced"; exit 1; }
+
+signing_help() {
+  cat <<'HELP'
+
+  "No Accounts" / "No profiles for app.shaman.tracker" means signing found no
+  credentials with App Store Connect access. Note that these are two separate
+  systems: an Apple ID can hold Certificates, Identifiers & Profiles in the
+  developer portal and still have no App Store Connect access at all.
+
+    1. Open appstoreconnect.apple.com and sign in. If it shows a banner about
+       agreements, accept them — a pending Program License Agreement blocks
+       exactly this, and nothing in Xcode says so.
+    2. Then either re-add the account in Xcode → Settings → Apple Accounts, or
+       export ASC_KEY_ID and ASC_ISSUER_ID for an Admin API key.
+HELP
+}
+
+if [[ "$UPLOAD" == true ]]; then
+  # `destination: upload` runs Xcode's own upload pipeline — the Organizer
+  # button, essentially — instead of altool, whose Xcode 26 build can target the
+  # wrong app when bundle ids share a prefix and call the failure a success.
+  echo "==> Export and upload"
+  if ! xcodebuild -exportArchive \
+    -archivePath "$ARCHIVE" \
+    -exportPath "$EXPORT_DIR" \
+    -exportOptionsPlist scripts/ExportOptions-upload.plist \
+    "${AUTH[@]}"; then
+    signing_help
+    exit 1
+  fi
+
+  echo
+  echo "Uploaded build $BUILD_NUMBER. Processing takes a few minutes, then it"
+  echo "appears in TestFlight → iOS builds. Internal testers get it with no review."
+  exit 0
+fi
 
 echo "==> Export"
 rm -f "$IPA"
@@ -74,32 +115,15 @@ xcodebuild -exportArchive \
   -archivePath "$ARCHIVE" \
   -exportPath "$EXPORT_DIR" \
   -exportOptionsPlist scripts/ExportOptions.plist \
-  -allowProvisioningUpdates "${AUTH[@]}" \
+  "${AUTH[@]}" \
   | grep -E '^(\*\*|error:)' || true
 
 if [[ ! -f "$IPA" ]]; then
-  echo
   echo "error: no .ipa produced."
-  echo "  'No Accounts' / 'No profiles for app.shaman.tracker' means signing has"
-  echo "  no credentials: sign in at Xcode → Settings → Accounts, or export"
-  echo "  ASC_KEY_ID and ASC_ISSUER_ID for an Admin App Store Connect API key."
+  signing_help
   exit 1
 fi
+
 echo "    $IPA"
-
-if [[ "$UPLOAD" == false ]]; then
-  echo
-  echo "Not uploaded. Either re-run with --upload, or drag $IPA into Transporter.app."
-  exit 0
-fi
-
-: "${ASC_KEY_ID:?set ASC_KEY_ID and ASC_ISSUER_ID (see the header)}"
-: "${ASC_ISSUER_ID:?set ASC_ISSUER_ID}"
-
-echo "==> Upload"
-xcrun altool --upload-app -f "$IPA" -t ios \
-  --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
-
 echo
-echo "Uploaded build $BUILD_NUMBER. Processing takes a few minutes, then it"
-echo "appears in TestFlight → iOS builds. Internal testers get it with no review."
+echo "Not uploaded. Either re-run with --upload, or drag $IPA into Transporter.app."
