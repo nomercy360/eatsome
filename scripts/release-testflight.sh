@@ -76,16 +76,25 @@ test -d "$ARCHIVE" || { echo "error: no archive produced"; exit 1; }
 signing_help() {
   cat <<'HELP'
 
-  "No Accounts" / "No profiles for app.shaman.tracker" means signing found no
-  credentials with App Store Connect access. Note that these are two separate
-  systems: an Apple ID can hold Certificates, Identifiers & Profiles in the
-  developer portal and still have no App Store Connect access at all.
+  Two failures land here, and they mean opposite things.
 
-    1. Open appstoreconnect.apple.com and sign in. If it shows a banner about
-       agreements, accept them — a pending Program License Agreement blocks
-       exactly this, and nothing in Xcode says so.
-    2. Then either re-add the account in Xcode → Settings → Apple Accounts, or
-       export ASC_KEY_ID and ASC_ISSUER_ID for an Admin API key.
+  "Error Downloading App Information", logged as missingApp(bundleId:), means
+  authentication worked and there is simply no app record yet. Create one at
+  App Store Connect → Apps → +, picking the existing bundle id
+  app.shaman.tracker. The app name has to be unique across the whole App Store;
+  everything else can be changed later.
+
+  "No Accounts" / "No profiles for app.shaman.tracker" is the opposite: signing
+  found no credentials with App Store Connect access. Note these are separate
+  systems — an Apple ID can hold Certificates, Identifiers & Profiles in the
+  developer portal and still have no App Store Connect access at all, and a
+  membership that lapsed leaves Xcode holding a token that looks fine until you
+  try to distribute. Re-add the account in Xcode → Settings → Apple Accounts, or
+  export ASC_KEY_ID and ASC_ISSUER_ID for an Admin API key, which skips Xcode's
+  account plumbing entirely.
+
+  The full story is always in the last log under
+  /var/folders/**/T/eatsome_*.xcdistributionlogs/IDEDistribution.verbose.log
 HELP
 }
 
