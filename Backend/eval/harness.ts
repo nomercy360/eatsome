@@ -26,6 +26,8 @@ export type RunRecord = {
   model: string;
   promptVersion: string;
   schemaVersion: string;
+  /** The note sent with the photo, if this was a note-track run. */
+  note?: string | null;
   run: number;
   ok: boolean;
   error?: string;
@@ -152,18 +154,33 @@ export function configuredProviders(): RecognitionProvider[] {
   return recognitionProviders.filter(isConfigured);
 }
 
+/**
+ * The note the person would have typed.
+ *
+ * Built from the golden's `hidden` items, which is what a real user does: they
+ * type what the camera cannot see because they cooked it. Without this track
+ * nothing tests the rule that treats the note as ground truth, and the two
+ * hidden items in the dataset are unreachable by construction.
+ */
+export function noteFor(hidden: { name: string }[]): string | undefined {
+  if (hidden.length === 0) return undefined;
+  return `Also in this, not visible in the photo: ${hidden.map((one) => one.name).join(", ")}.`;
+}
+
 export async function recognizeOnce(
   provider: RecognitionProvider,
   photo: string,
   model?: string,
+  note?: string,
 ): Promise<{ raw: string; latencyMs: number; inputTokens: number; outputTokens: number }> {
   const env = envFor(provider, model);
   const { base64, mimeType, hash } = readPhoto(photo);
+  const spec = evalSpec();
   const result = await requestMealRecognition(
     env,
     { photoHash: hash, mimeType, imageBase64: base64 } as never,
     provider,
-    evalSpec(),
+    note ? { ...spec, userPrompt: `${spec.userPrompt}\n\n${note}` } : spec,
   );
   return {
     raw: result.rawModelJson,

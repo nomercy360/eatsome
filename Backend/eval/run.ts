@@ -7,6 +7,7 @@ import {
   type EvalModel,
   isConfigured,
   loadModels,
+  noteFor,
   photoPath,
   type RunRecord,
   recognizeOnce,
@@ -33,6 +34,10 @@ const runsPerCase = Number(flag("runs", "3"));
 const concurrency = Number(flag("concurrency", "4"));
 const only = args.indexOf("--model") === -1 ? null : flag("model", "");
 const includeCeiling = args.includes("--ceiling");
+// The note track: same photos, same models, plus the line the person would have
+// typed. Scored separately — a hidden ingredient found without a note would be
+// a hallucination that happened to be right.
+const withNotes = args.includes("--notes");
 
 const cases = loadGoldenCases();
 const models = loadModels()
@@ -60,12 +65,13 @@ if (missing.length > 0) {
 }
 const runnable = cases.filter((one) => existsSync(photoPath(one.photo)));
 
-type Job = { caseId: string; photo: string; entry: EvalModel; run: number };
+type Job = { caseId: string; photo: string; entry: EvalModel; run: number; note?: string };
 const jobs: Job[] = [];
 for (const entry of models) {
   for (const one of runnable) {
     for (let run = 1; run <= runsPerCase; run++) {
-      jobs.push({ caseId: one.id, photo: one.photo, entry, run });
+      const note = withNotes ? noteFor(one.golden.filter((item) => item.hidden)) : undefined;
+      jobs.push({ caseId: one.id, photo: one.photo, entry, run, note });
     }
   }
 }
@@ -93,11 +99,12 @@ async function worker(queue: Job[]) {
       model: job.entry.model,
       promptVersion: EVAL_PROMPT_VERSION,
       schemaVersion: SCHEMA_VERSION,
+      note: job.note ?? null,
       run: job.run,
       ok: false,
     };
     try {
-      const result = await recognizeOnce(job.entry.provider, job.photo, job.entry.model);
+      const result = await recognizeOnce(job.entry.provider, job.photo, job.entry.model, job.note);
       Object.assign(record, { ok: true, ...result });
     } catch (error) {
       record.error = error instanceof Error ? error.message : String(error);

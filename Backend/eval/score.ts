@@ -20,26 +20,32 @@ const runsDir = join(import.meta.dirname, "runs");
 const args = process.argv.slice(2);
 const flagIndex = args.indexOf("--against");
 const baselineFile = flagIndex === -1 ? null : args[flagIndex + 1];
-const target =
-  args.find((arg) => arg.endsWith(".jsonl")) ??
-  readdirSync(runsDir)
-    .filter((name) => name.endsWith(".jsonl"))
-    .sort()
-    .at(-1);
+const explicit = args.find((arg) => arg.endsWith(".jsonl"));
+const artefacts = readdirSync(runsDir)
+  .filter((name) => name.endsWith(".jsonl"))
+  .sort();
 
-if (!target) {
+if (artefacts.length === 0) {
   console.error("No run artefacts. Try: pnpm eval:run");
   process.exit(1);
 }
 
+// Models are often run in separate passes — one provider at a time as keys
+// arrive — so every artefact under the same prompt and schema is one run.
+const latest = explicit ?? artefacts.at(-1)!;
+const stamp = (file: string) => file.replace(/^[\d-]+_/, "");
+const target = explicit ? [explicit] : artefacts.filter((name) => stamp(name) === stamp(latest));
+
 const cases = loadGoldenCases();
 const models = loadModels();
 
-function read(file: string): RunRecord[] {
-  return readFileSync(join(runsDir, file), "utf8")
-    .split("\n")
-    .filter(Boolean)
-    .map((line) => JSON.parse(line) as RunRecord);
+function read(files: string | string[]): RunRecord[] {
+  return (Array.isArray(files) ? files : [files]).flatMap((file) =>
+    readFileSync(join(runsDir, file), "utf8")
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => JSON.parse(line) as RunRecord),
+  );
 }
 
 type Summary = {
@@ -120,7 +126,7 @@ const baseline = baselineFile ? summarise(read(baselineFile)) : null;
 
 const lines: string[] = [];
 lines.push(`# Eval report\n`);
-lines.push(`Run \`${target}\`${baselineFile ? ` against \`${baselineFile}\`` : ""}.`);
+lines.push(`Run \`${[target].flat().join("`, `")}\`${baselineFile ? ` against \`${baselineFile}\`` : ""}.`);
 lines.push(`${cases.length} cases, ${models.length} models known.\n`);
 
 lines.push(`## Models\n`);
