@@ -1,0 +1,37 @@
+{
+  "scene": "fruit platter for the table, not a single serving",
+  "meal_status": "shared_plate",
+  "golden": [
+    {
+      "name": "cherries",
+      "group": "fruit",
+      "measure": "size",
+      "size": "M"
+    },
+    {
+      "name": "apricots",
+      "group": "fruit",
+      "measure": "count",
+      "count": 3
+    },
+    {
+      "name": "mango",
+      "group": "fruit",
+      "measure": "size",
+      "size": "M"
+    },
+    {
+      "name": "melon",
+      "group": "fruit",
+      "measure": "size",
+      "size": "S"
+    }
+  ],
+  "dedup_note": "4 fruit items -> 1 fruit serving x volume, NOT 4 servings",
+  "traps": [
+    "plate_vs_meal",
+    "fruit_dedup",
+    "oversized_portion_default"
+  ],
+  "photo": "photos/IMG_3135.JPG"
+}

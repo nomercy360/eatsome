@@ -1,0 +1,48 @@
+{
+  "scene": "two bagels (salmon+cream cheese; tomato+zaatar+cream cheese), latte — likely two people",
+  "meal_status": "ate_part",
+  "golden": [
+    {
+      "name": "bagel",
+      "group": "whole_grain",
+      "alternatives": [
+        "refined_grain"
+      ],
+      "measure": "count",
+      "count": 1
+    },
+    {
+      "name": "smoked salmon",
+      "group": "fish",
+      "measure": "size",
+      "size": "S",
+      "protein_g": 10
+    },
+    {
+      "name": "tomato",
+      "group": "vegetables",
+      "measure": "size",
+      "size": "M"
+    },
+    {
+      "name": "cream cheese",
+      "group": "dairy",
+      "measure": "size",
+      "size": "S"
+    },
+    {
+      "name": "latte",
+      "group": "dairy",
+      "measure": "count",
+      "count": 1
+    }
+  ],
+  "dedup_note": "cream cheese + latte -> 1 dairy",
+  "traps": [
+    "two_person_meal",
+    "hidden_spread_under_toppings",
+    "latte_is_dairy",
+    "dairy_dedup"
+  ],
+  "photo": "photos/IMG_3167.JPG"
+}

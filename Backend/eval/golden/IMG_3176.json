@@ -1,0 +1,21 @@
+{
+  "scene": "raw beef steaks on cutting board, knife, stove — cooking prep, nothing eaten",
+  "meal_status": "not_a_meal",
+  "golden": [
+    {
+      "name": "raw beef steaks",
+      "group": "red_meat",
+      "flags": [
+        "raw_ingredient"
+      ],
+      "measure": "count",
+      "count": 3
+    }
+  ],
+  "notes": "MUST NOT log as an eaten meal; correct behavior = recognize raw state, offer 'save as recipe ingredient' or skip; counting this as red_meat serving eaten is a failure",
+  "traps": [
+    "raw_vs_cooked",
+    "prep_photo_not_meal"
+  ],
+  "photo": "photos/IMG_3176.jpeg"
+}

@@ -1,0 +1,47 @@
+{
+  "scene": "bread+cheese plate, bowl of yogurt+blueberries+chocolate cake",
+  "meal_status": "eaten",
+  "golden": [
+    {
+      "name": "bread slice",
+      "group": "whole_grain",
+      "alternatives": [
+        "refined_grain"
+      ],
+      "measure": "count",
+      "count": 1
+    },
+    {
+      "name": "cheese slice",
+      "group": "dairy",
+      "measure": "count",
+      "count": 1,
+      "protein_g": 7
+    },
+    {
+      "name": "yogurt",
+      "group": "dairy",
+      "measure": "size",
+      "size": "M",
+      "protein_g": 8
+    },
+    {
+      "name": "blueberries",
+      "group": "fruit",
+      "measure": "size",
+      "size": "S"
+    },
+    {
+      "name": "chocolate cake",
+      "group": "sweets",
+      "measure": "size",
+      "size": "S"
+    }
+  ],
+  "dedup_note": "cheese+yogurt -> 1 dairy serving + modifier",
+  "traps": [
+    "dairy_dedup",
+    "homemade_vs_commercial_pastry"
+  ],
+  "photo": "photos/IMG_3137.JPG"
+}

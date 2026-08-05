@@ -1,0 +1,53 @@
+{
+  "scene": "homemade french toast: batter has 2 eggs + milk + sugar; fried in butter; banana + honey on top; mug of milk",
+  "meal_status": "eaten",
+  "user_note": "fried in butter, 2 eggs and milk in batter, honey on top",
+  "golden": [
+    {
+      "name": "french toast bread",
+      "group": "refined_grain",
+      "measure": "count",
+      "count": 3
+    },
+    {
+      "name": "eggs (batter)",
+      "group": "egg",
+      "measure": "count",
+      "count": 2,
+      "protein_g": 12,
+      "hidden": true
+    },
+    {
+      "name": "butter (frying)",
+      "group": "butter_margarine_cream",
+      "measure": "size",
+      "size": "S",
+      "hidden": true
+    },
+    {
+      "name": "banana",
+      "group": "fruit",
+      "measure": "count",
+      "count": 1
+    },
+    {
+      "name": "honey",
+      "group": "sweets",
+      "measure": "size",
+      "size": "S"
+    },
+    {
+      "name": "mug of milk",
+      "group": "dairy",
+      "measure": "size",
+      "size": "M",
+      "protein_g": 8
+    }
+  ],
+  "traps": [
+    "hidden_ingredients_home_cooking",
+    "commercial_pastry_forbidden_for_homemade",
+    "milk_dedup_batter_vs_mug"
+  ],
+  "photo": "photos/IMG_3152.jpeg"
+}

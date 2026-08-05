@@ -1,0 +1,59 @@
+{
+  "scene": "dinner party table: schnitzels, pasta bowl, salad w/ feta, wine glasses — MY SHARE only",
+  "meal_status": "ate_part",
+  "golden": [
+    {
+      "name": "chicken schnitzel",
+      "group": "white_meat",
+      "alternatives": [
+        "red_meat"
+      ],
+      "flags": [
+        "fried",
+        "breaded"
+      ],
+      "measure": "count",
+      "count": 1,
+      "protein_g": 20
+    },
+    {
+      "name": "pasta",
+      "group": "refined_grain",
+      "measure": "size",
+      "size": "M"
+    },
+    {
+      "name": "salad with feta",
+      "group": "vegetables",
+      "measure": "size",
+      "size": "S"
+    },
+    {
+      "name": "feta",
+      "group": "dairy",
+      "measure": "size",
+      "size": "S"
+    },
+    {
+      "name": "wine",
+      "group": "alcohol",
+      "measure": "count",
+      "count": 1
+    },
+    {
+      "name": "dip sauce",
+      "group": "sauce",
+      "measure": "size",
+      "size": "S"
+    }
+  ],
+  "dedup_note": "breading + pasta -> 1 refined_grain",
+  "traps": [
+    "table_vs_my_share",
+    "schnitzel_primary_is_meat",
+    "alcohol_recall",
+    "sauce_missed",
+    "refined_grain_dedup"
+  ],
+  "photo": "photos/IMG_3168.JPG"
+}

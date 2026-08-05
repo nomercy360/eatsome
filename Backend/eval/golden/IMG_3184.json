@@ -1,0 +1,52 @@
+{
+  "scene": "canteen tray: karaage, shredded cabbage, rice, miso soup, sealed yogurt cup; second tray edge visible right",
+  "meal_status": "eaten",
+  "golden": [
+    {
+      "name": "karaage",
+      "group": "white_meat",
+      "flags": [
+        "fried",
+        "breaded"
+      ],
+      "measure": "count",
+      "count": 3,
+      "protein_g": 15
+    },
+    {
+      "name": "shredded cabbage",
+      "group": "vegetables",
+      "measure": "size",
+      "size": "S"
+    },
+    {
+      "name": "white rice",
+      "group": "refined_grain",
+      "measure": "size",
+      "size": "M"
+    },
+    {
+      "name": "miso soup",
+      "group": "legumes",
+      "measure": "size",
+      "size": "S",
+      "protein_g": 2
+    },
+    {
+      "name": "yogurt cup",
+      "group": "dairy",
+      "measure": "package",
+      "weight_g": 80,
+      "protein_g": 3.4
+    }
+  ],
+  "dedup_note": "karaage breading + rice -> 1 refined_grain; if IMG_3185 logged separately, yogurt must not double-count",
+  "traps": [
+    "missed_soup",
+    "breading_refined_dedup",
+    "sealed_package_eaten_or_not",
+    "foreign_tray_bleed",
+    "duplicate_meal_across_photos"
+  ],
+  "photo": "photos/IMG_3184.jpeg"
+}

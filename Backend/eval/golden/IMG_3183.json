@@ -1,0 +1,25 @@
+{
+  "scene": "two beer mugs + tin can with pickled cucumber; bar table, likely two people",
+  "meal_status": "ate_part",
+  "golden": [
+    {
+      "name": "beer",
+      "group": "alcohol",
+      "measure": "count",
+      "count": 1
+    },
+    {
+      "name": "pickled cucumber",
+      "group": "vegetables",
+      "measure": "size",
+      "size": "S"
+    }
+  ],
+  "notes": "my share = 1 mug of 2; beer color similar to iced tea — must not classify as sugary_drinks",
+  "traps": [
+    "two_glasses_whose",
+    "beer_vs_tea_visual",
+    "snack_in_tin_missed"
+  ],
+  "photo": "photos/IMG_3183.jpeg"
+}

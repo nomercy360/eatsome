@@ -1,0 +1,45 @@
+{
+  "scene": "restaurant pizza with prosciutto, arugula, parmesan; dip sauce; companion's salad behind; shared",
+  "meal_status": "ate_part",
+  "golden": [
+    {
+      "name": "pizza dough",
+      "group": "refined_grain",
+      "measure": "size",
+      "size": "M"
+    },
+    {
+      "name": "prosciutto",
+      "group": "processed_meat",
+      "measure": "size",
+      "size": "S",
+      "protein_g": 8
+    },
+    {
+      "name": "arugula",
+      "group": "vegetables",
+      "measure": "size",
+      "size": "S"
+    },
+    {
+      "name": "parmesan",
+      "group": "dairy",
+      "measure": "size",
+      "size": "S"
+    },
+    {
+      "name": "dip sauce",
+      "group": "sauce",
+      "measure": "size",
+      "size": "S"
+    }
+  ],
+  "notes": "prosciutto is cured -> processed_meat, NOT red_meat; salad behind is companion's",
+  "traps": [
+    "prosciutto_processed_not_red",
+    "table_vs_my_share",
+    "foreign_dish_bleed",
+    "sauce_missed"
+  ],
+  "photo": "photos/IMG_3182.jpeg"
+}

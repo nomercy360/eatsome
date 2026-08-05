@@ -80,6 +80,27 @@ struct LunaSessionTests {
         #expect(!MealPrompt.jsonSchema.description.lowercased().contains("calorie"))
     }
 
+
+    @Test("The generated prompt matches the file it came from")
+    func promptMatchesItsSource() throws {
+        // The app, the proxy and the eval harness all read prompts/meal-v5.md.
+        // Two copies of a prompt is how a pipeline ends up measuring one thing
+        // and shipping another, so a copy that falls behind fails here.
+        let file = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("prompts/meal-v5.md")
+        let source = try String(contentsOf: file, encoding: .utf8)
+
+        #expect(
+            MealPrompt.system == source.trimmingCharacters(in: .whitespacesAndNewlines),
+            "run: node scripts/sync-prompt.mjs"
+        )
+        #expect(MealPrompt.version == "meal-v5-2026-08-05")
+    }
+
     @Test("A well-formed response decodes")
     func parsesSuccess() throws {
         let json = """

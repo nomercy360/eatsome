@@ -1,0 +1,40 @@
+{
+  "scene": "home plate: shrimp, squid rings, mussels; cucumber slices; string cheese (chechil); glass of white wine + bottle",
+  "meal_status": "eaten",
+  "golden": [
+    {
+      "name": "seafood mix (shrimp, squid, mussels)",
+      "group": "fish",
+      "measure": "size",
+      "size": "M",
+      "protein_g": 25
+    },
+    {
+      "name": "cucumber",
+      "group": "vegetables",
+      "measure": "size",
+      "size": "S"
+    },
+    {
+      "name": "string cheese",
+      "group": "dairy",
+      "measure": "size",
+      "size": "S",
+      "protein_g": 8
+    },
+    {
+      "name": "white wine",
+      "group": "alcohol",
+      "measure": "count",
+      "count": 1
+    }
+  ],
+  "dedup_note": "3 seafood kinds -> 1 fish serving",
+  "notes": "string cheese visually resembles noodles — must be dairy, not refined_grain; portion = glass, bottle is display",
+  "traps": [
+    "chechil_looks_like_noodles",
+    "seafood_dedup",
+    "bottle_vs_glass_portion"
+  ],
+  "photo": "photos/IMG_3181.jpeg"
+}

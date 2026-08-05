@@ -1,0 +1,57 @@
+{
+  "scene": "breakfast: rye bread, avocado, herbs, boiled eggs, cheese, butter, coffee w/ milk",
+  "meal_status": "eaten",
+  "golden": [
+    {
+      "name": "dark rye bread",
+      "group": "whole_grain",
+      "measure": "count",
+      "count": 3
+    },
+    {
+      "name": "sliced avocado",
+      "group": "healthy_fats",
+      "measure": "size",
+      "size": "M"
+    },
+    {
+      "name": "parsley and herbs",
+      "group": "vegetables",
+      "measure": "size",
+      "size": "S"
+    },
+    {
+      "name": "hard-boiled eggs",
+      "group": "egg",
+      "measure": "count",
+      "count": 2,
+      "protein_g": 12
+    },
+    {
+      "name": "sliced cheese",
+      "group": "dairy",
+      "measure": "size",
+      "size": "M",
+      "protein_g": 10
+    },
+    {
+      "name": "butter",
+      "group": "butter_margarine_cream",
+      "measure": "size",
+      "size": "S"
+    },
+    {
+      "name": "coffee with milk",
+      "group": "dairy",
+      "measure": "size",
+      "size": "S"
+    }
+  ],
+  "dedup_note": "cheese + milk-in-coffee -> 1 dairy serving",
+  "traps": [
+    "avocado_taxonomy_healthy_fats",
+    "dairy_dedup",
+    "butter_present"
+  ],
+  "photo": "photos/IMG_3140.JPG"
+}

@@ -1,0 +1,45 @@
+{
+  "note": "The matrix is models, not vendors. `candidate` rows are ones that could ship and are what the gate acts on; `ceiling` rows exist only to answer whether there is headroom worth chasing, and never fail a build. Costs are per million tokens, for the report — a request is roughly 2k in and 400 out, so a month at four photos a day is about 120 requests.",
+  "models": [
+    {
+      "id": "qwen-3.7-flash",
+      "provider": "qwen",
+      "model": "qwen3.7-flash",
+      "tier": "candidate",
+      "usdPerMillionInput": 0.03,
+      "usdPerMillionOutput": 0.13
+    },
+    {
+      "id": "gpt-5.6-luna",
+      "provider": "openai",
+      "model": "gpt-5.6-luna",
+      "tier": "candidate",
+      "usdPerMillionInput": 0.2,
+      "usdPerMillionOutput": 1.2
+    },
+    {
+      "id": "claude-haiku-4.5",
+      "provider": "anthropic",
+      "model": "claude-haiku-4-5-20251001",
+      "tier": "candidate",
+      "usdPerMillionInput": 1.0,
+      "usdPerMillionOutput": 5.0
+    },
+    {
+      "id": "gemini-3.6-flash",
+      "provider": "gemini",
+      "model": "gemini-3.6-flash",
+      "tier": "candidate",
+      "usdPerMillionInput": 1.5,
+      "usdPerMillionOutput": 7.5
+    },
+    {
+      "id": "claude-sonnet-5",
+      "provider": "anthropic",
+      "model": "claude-sonnet-5",
+      "tier": "ceiling",
+      "usdPerMillionInput": 3.0,
+      "usdPerMillionOutput": 15.0
+    }
+  ]
+}

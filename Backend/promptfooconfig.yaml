@@ -1,0 +1,37 @@
+# Run: pnpm eval            (candidates, three runs each)
+#      pnpm eval:ceiling    (adds the expensive tier, which never gates)
+#      pnpm eval:holdout    (the cases held back from prompt iteration)
+#
+# Everything here is files and CLI. `promptfoo view` exists but nothing depends
+# on it.
+description: eatsome meal recognition
+
+# The providers call Backend/worker/ai/*, which is the code the proxy runs. If
+# this pointed at promptfoo's own OpenAI provider it would be measuring
+# promptfoo's request shaping instead of ours — and the three vendors differ
+# exactly where it matters: strict json_schema, responseSchema, forced tool_use.
+providers:
+  - id: file://eval/promptfoo-provider.ts:qwen
+    label: qwen-3.7-flash
+  - id: file://eval/promptfoo-provider.ts:luna
+    label: gpt-5.6-luna
+  - id: file://eval/promptfoo-provider.ts:haiku
+    label: claude-haiku-4.5
+  - id: file://eval/promptfoo-provider.ts:geminiFlash
+    label: gemini-3.6-flash
+
+# A placeholder on purpose. The real system prompt is prompts/meal-v5.md, read
+# by the provider through the same generated constant the proxy uses; putting a
+# second copy here is the drift this repo already lived through once.
+prompts:
+  - "{{caseId}}"
+
+tests: file://eval/promptfoo-tests.ts
+
+defaultTest:
+  assert:
+    # Group recall, precision, portions, duplicates and the behavioural rules,
+    # all deterministic. No model-graded assertion: the output is a closed enum,
+    # so there is an exact answer and nothing for a judge to have a view about.
+    - type: javascript
+      value: file://eval/promptfoo-assert.ts

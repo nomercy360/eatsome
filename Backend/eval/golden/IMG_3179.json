@@ -1,0 +1,42 @@
+{
+  "scene": "fried eggs topped with blue cheese and parmesan shavings, 2 rye bread slices, coffee with milk in steel cup",
+  "meal_status": "eaten",
+  "golden": [
+    {
+      "name": "fried eggs",
+      "group": "egg",
+      "measure": "count",
+      "count": 2,
+      "protein_g": 12
+    },
+    {
+      "name": "blue cheese and parmesan",
+      "group": "dairy",
+      "measure": "size",
+      "size": "S",
+      "protein_g": 6
+    },
+    {
+      "name": "rye bread",
+      "group": "whole_grain",
+      "alternatives": [
+        "refined_grain"
+      ],
+      "measure": "count",
+      "count": 2
+    },
+    {
+      "name": "coffee with milk",
+      "group": "dairy",
+      "measure": "size",
+      "size": "S"
+    }
+  ],
+  "dedup_note": "cheese + milk-in-coffee -> 1 dairy serving",
+  "traps": [
+    "cheese_on_eggs_missed",
+    "dairy_dedup",
+    "rye_whole_vs_refined"
+  ],
+  "photo": "photos/IMG_3179.jpeg"
+}

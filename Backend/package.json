@@ -19,7 +19,13 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate:local": "wrangler d1 migrations apply eatsome --local",
     "db:migrate:remote": "wrangler d1 migrations apply eatsome --remote",
-    "cf:typegen": "wrangler types"
+    "cf:typegen": "wrangler types",
+    "eval": "promptfoo eval -c promptfooconfig.yaml --repeat 3 --output eval/runs/latest.json",
+    "eval:coverage": "tsx eval/coverage.ts",
+    "eval:ceiling": "promptfoo eval -c promptfooconfig.ceiling.yaml --repeat 3",
+    "eval:holdout": "EVAL_INCLUDE_HOLDOUT=1 promptfoo eval -c promptfooconfig.yaml --repeat 3",
+    "eval:run": "tsx eval/run.ts",
+    "eval:score": "tsx eval/score.ts"
   },
   "dependencies": {
     "@hono/zod-validator": "0.9.0",
@@ -34,6 +40,8 @@
     "@types/node": "24.13.3",
     "@vitest/coverage-v8": "4.1.10",
     "drizzle-kit": "0.31.10",
+    "promptfoo": "^0.121.20",
+    "tsx": "^4.23.5",
     "typescript": "7.0.2",
     "vitest": "4.1.10",
     "wrangler": "4.118.0"

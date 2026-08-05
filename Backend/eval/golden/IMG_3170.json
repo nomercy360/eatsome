@@ -1,0 +1,45 @@
+{
+  "scene": "oatmeal/grain porridge with banana, almonds, milk, honey drizzle",
+  "meal_status": "eaten",
+  "golden": [
+    {
+      "name": "grain porridge",
+      "group": "whole_grain",
+      "measure": "size",
+      "size": "M"
+    },
+    {
+      "name": "banana",
+      "group": "fruit",
+      "measure": "count",
+      "count": 1
+    },
+    {
+      "name": "almonds",
+      "group": "nuts",
+      "measure": "size",
+      "size": "S",
+      "protein_g": 4
+    },
+    {
+      "name": "milk",
+      "group": "dairy",
+      "alternatives": [
+        "plant_milk"
+      ],
+      "measure": "size",
+      "size": "S"
+    },
+    {
+      "name": "honey",
+      "group": "sweets",
+      "measure": "size",
+      "size": "S"
+    }
+  ],
+  "traps": [
+    "honey_missed",
+    "milk_vs_plant_milk_ambiguous"
+  ],
+  "photo": "photos/IMG_3170.JPG"
+}

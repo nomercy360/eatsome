@@ -1,0 +1,25 @@
+{
+  "scene": "Japanese yogurt cup, 栄養成分表示 label close-up in canteen; same cup as on IMG_3184 tray",
+  "meal_status": "eaten",
+  "mode": "package",
+  "golden": [
+    {
+      "name": "yogurt cup",
+      "group": "dairy",
+      "measure": "package",
+      "weight_g": 80,
+      "protein_g": 3.4,
+      "flags": [
+        "added_sugar"
+      ]
+    }
+  ],
+  "notes": "label per 80g piece, NOT per 100g; 砂糖 in ingredients -> added_sugar despite 脂肪0 marketing; footnote: <0.5g/100g fat is labeled as zero",
+  "traps": [
+    "japanese_ocr_panel",
+    "per_unit_vs_per_100g",
+    "fat_zero_marketing",
+    "duplicate_meal_across_photos"
+  ],
+  "photo": "photos/IMG_3185.jpeg"
+}

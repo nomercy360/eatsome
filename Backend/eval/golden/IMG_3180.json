@@ -1,0 +1,18 @@
+{
+  "scene": "bubble waffle: ice cream, Oreo, chocolate buttons, M&Ms, crunch balls, syrup — street dessert",
+  "meal_status": "eaten",
+  "golden": [
+    {
+      "name": "bubble waffle dessert",
+      "group": "sweets",
+      "measure": "size",
+      "size": "L"
+    }
+  ],
+  "notes": "ALL components collapse into ONE sweets serving; waffle/oreo/chocolate/candy must NOT become separate refined_grain or dairy servings",
+  "traps": [
+    "dessert_components_not_separate",
+    "sweets_dedup"
+  ],
+  "photo": "photos/IMG_3180.jpeg"
+}

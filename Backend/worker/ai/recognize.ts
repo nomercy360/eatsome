@@ -2,8 +2,10 @@ import type { RecognitionProvider, RecognitionRequest } from "../../src/contract
 import { recognitionProviders } from "../../src/contracts";
 import type { Env } from "../env";
 import { HttpError } from "../lib/http-error";
+import { requestAnthropicRecognition } from "./anthropic";
 import { requestGeminiRecognition } from "./gemini";
 import { requestOpenAIRecognition } from "./openai";
+import { requestQwenRecognition } from "./qwen";
 import type { ProviderRecognition } from "./types";
 
 /**
@@ -23,12 +25,33 @@ export function resolveProvider(env: Env, requested?: RecognitionProvider): Reco
   return provider;
 }
 
+const models: Record<RecognitionProvider, (env: Env) => string> = {
+  openai: (env) => env.OPENAI_RECOGNITION_MODEL,
+  gemini: (env) => env.GEMINI_RECOGNITION_MODEL,
+  anthropic: (env) => env.ANTHROPIC_RECOGNITION_MODEL,
+  qwen: (env) => env.QWEN_RECOGNITION_MODEL,
+};
+
+const keys: Record<RecognitionProvider, (env: Env) => string | undefined> = {
+  openai: (env) => env.OPENAI_API_KEY,
+  gemini: (env) => env.GEMINI_API_KEY,
+  anthropic: (env) => env.ANTHROPIC_API_KEY,
+  qwen: (env) => env.QWEN_API_KEY,
+};
+
+export const keyVariableFor: Record<RecognitionProvider, string> = {
+  openai: "OPENAI_API_KEY",
+  gemini: "GEMINI_API_KEY",
+  anthropic: "ANTHROPIC_API_KEY",
+  qwen: "QWEN_API_KEY",
+};
+
 export function modelFor(env: Env, provider: RecognitionProvider): string {
-  return provider === "gemini" ? env.GEMINI_RECOGNITION_MODEL : env.OPENAI_RECOGNITION_MODEL;
+  return models[provider](env);
 }
 
 export function apiKeyFor(env: Env, provider: RecognitionProvider): string | undefined {
-  return provider === "gemini" ? env.GEMINI_API_KEY : env.OPENAI_API_KEY;
+  return keys[provider](env);
 }
 
 export function requestMealRecognition(
@@ -36,7 +59,8 @@ export function requestMealRecognition(
   input: RecognitionRequest,
   provider: RecognitionProvider,
 ): Promise<ProviderRecognition> {
-  return provider === "gemini"
-    ? requestGeminiRecognition(env, input)
-    : requestOpenAIRecognition(env, input);
+  if (provider === "gemini") return requestGeminiRecognition(env, input);
+  if (provider === "anthropic") return requestAnthropicRecognition(env, input);
+  if (provider === "qwen") return requestQwenRecognition(env, input);
+  return requestOpenAIRecognition(env, input);
 }

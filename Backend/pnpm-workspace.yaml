@@ -1,5 +1,10 @@
 allowBuilds:
+  '@playwright/browser-chromium': set this to true or false
+  '@swc/core': set this to true or false
   esbuild: true
+  onnxruntime-node: set this to true or false
+  protobufjs: set this to true or false
+  sharp: set this to true or false
   workerd: true
 minimumReleaseAgeExclude:
   - hono@4.12.34

@@ -1,0 +1,45 @@
+{
+  "scene": "restaurant: whole sea bream fillet in tomato sauce with olives and baby potatoes; bread in side bowl; more bread behind (shared)",
+  "meal_status": "eaten",
+  "golden": [
+    {
+      "name": "sea bream",
+      "group": "fish",
+      "measure": "size",
+      "size": "M",
+      "protein_g": 25
+    },
+    {
+      "name": "tomato sauce",
+      "group": "vegetables",
+      "measure": "size",
+      "size": "S"
+    },
+    {
+      "name": "olives",
+      "group": "healthy_fats",
+      "measure": "size",
+      "size": "S"
+    },
+    {
+      "name": "baby potatoes",
+      "group": "potatoes",
+      "measure": "size",
+      "size": "S"
+    },
+    {
+      "name": "bread",
+      "group": "refined_grain",
+      "measure": "count",
+      "count": 2
+    }
+  ],
+  "notes": "shared bread plate behind is not mine; olives small and dark in red sauce — easy miss",
+  "traps": [
+    "olives_in_sauce_missed",
+    "potatoes_in_sauce_missed",
+    "shared_bread_bleed",
+    "sauce_as_vegetables_judgment"
+  ],
+  "photo": "photos/IMG_3178.jpeg"
+}

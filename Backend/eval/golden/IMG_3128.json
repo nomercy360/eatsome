@@ -1,0 +1,56 @@
+{
+  "scene": "canteen tray, second tray behind (not mine)",
+  "meal_status": "eaten",
+  "golden": [
+    {
+      "name": "white rice",
+      "group": "refined_grain",
+      "measure": "size",
+      "size": "L"
+    },
+    {
+      "name": "minced meat topping",
+      "group": "white_meat",
+      "alternatives": [
+        "red_meat"
+      ],
+      "measure": "size",
+      "size": "M",
+      "protein_g": 18
+    },
+    {
+      "name": "fried egg",
+      "group": "egg",
+      "measure": "count",
+      "count": 1,
+      "protein_g": 6
+    },
+    {
+      "name": "cherry tomato",
+      "group": "vegetables",
+      "measure": "size",
+      "size": "S"
+    },
+    {
+      "name": "side salad",
+      "group": "vegetables",
+      "measure": "size",
+      "size": "S"
+    },
+    {
+      "name": "miso soup",
+      "group": "legumes",
+      "measure": "size",
+      "size": "S",
+      "protein_g": 2
+    }
+  ],
+  "dedup_note": "two vegetable items -> 1 serving + volume modifier",
+  "traps": [
+    "foreign_tray_bleed",
+    "missed_soup",
+    "white_vs_red_meat",
+    "vegetable_dedup"
+  ],
+  "photo": "photos/IMG_3128.jpeg"
+}

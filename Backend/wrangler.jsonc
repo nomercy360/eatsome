@@ -5,14 +5,17 @@
   "compatibility_date": "2026-08-04",
   "compatibility_flags": ["nodejs_compat"],
   "secrets": {
-    "required": ["OPENAI_API_KEY", "GEMINI_API_KEY", "EATSOME_API_TOKEN"]
+    "required": ["OPENAI_API_KEY", "GEMINI_API_KEY", "ANTHROPIC_API_KEY", "QWEN_API_KEY", "EATSOME_API_TOKEN"]
   },
   "vars": {
     "ACCOUNT_ID": "owner",
     "RECOGNITION_PROVIDER": "openai",
     "OPENAI_RECOGNITION_MODEL": "gpt-5.6-luna",
     "GEMINI_RECOGNITION_MODEL": "gemini-3.6-flash",
-    "MEAL_PROMPT_VERSION": "meal-v4-2026-08-05"
+    "ANTHROPIC_RECOGNITION_MODEL": "claude-haiku-4-5-20251001",
+    "QWEN_RECOGNITION_MODEL": "qwen3.7-flash",
+    "QWEN_BASE_URL": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+    "MEAL_PROMPT_VERSION": "meal-v5-2026-08-05"
   },
   "d1_databases": [
     {

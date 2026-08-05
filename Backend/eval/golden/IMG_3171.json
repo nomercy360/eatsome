@@ -1,0 +1,32 @@
+{
+  "scene": "kimbap package on convenience store shelf; label: 208 g / 211 kcal; ssamjang sachet included",
+  "meal_status": "not_yet_eaten",
+  "mode": "package",
+  "golden": [
+    {
+      "name": "cucumber kimbap",
+      "group": "refined_grain",
+      "measure": "package",
+      "weight_g": 208
+    },
+    {
+      "name": "cucumber filling",
+      "group": "vegetables",
+      "measure": "size",
+      "size": "S"
+    },
+    {
+      "name": "ssamjang sachet",
+      "group": "sauce",
+      "measure": "count",
+      "count": 1
+    }
+  ],
+  "traps": [
+    "shelf_photo_not_eaten",
+    "korean_ocr",
+    "package_mode",
+    "sauce_sachet"
+  ],
+  "photo": "photos/IMG_3171.JPG"
+}

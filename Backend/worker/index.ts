@@ -6,7 +6,7 @@ import {
   ingestEventsRequestSchema,
   recognitionRequestSchema,
 } from "../src/contracts";
-import { apiKeyFor, modelFor, resolveProvider } from "./ai/recognize";
+import { apiKeyFor, keyVariableFor, modelFor, resolveProvider } from "./ai/recognize";
 import { ingestEvents, listEvents, listMealEvals } from "./data/events";
 import { recognizeMeal } from "./data/recognitions";
 import type { Env } from "./env";
@@ -49,6 +49,14 @@ app.get("/health", async (c) => {
           model: c.env.GEMINI_RECOGNITION_MODEL,
           configured: Boolean(c.env.GEMINI_API_KEY),
         },
+        anthropic: {
+          model: c.env.ANTHROPIC_RECOGNITION_MODEL,
+          configured: Boolean(c.env.ANTHROPIC_API_KEY),
+        },
+        qwen: {
+          model: c.env.QWEN_RECOGNITION_MODEL,
+          configured: Boolean(c.env.QWEN_API_KEY),
+        },
       },
     },
   });
@@ -58,8 +66,10 @@ app.post("/v1/recognitions", zValidator("json", recognitionRequestSchema), async
   const input = c.req.valid("json");
   const provider = resolveProvider(c.env, input.provider);
   if (!apiKeyFor(c.env, provider)) {
-    const variable = provider === "gemini" ? "GEMINI_API_KEY" : "OPENAI_API_KEY";
-    throw new HttpError(503, `${provider} is not configured. Add ${variable} to .dev.vars.`);
+    throw new HttpError(
+      503,
+      `${provider} is not configured. Add ${keyVariableFor[provider]} to .dev.vars.`,
+    );
   }
   const result = await recognizeMeal(c.env, c.get("accountId"), input);
   c.header("Cache-Control", "no-store");
