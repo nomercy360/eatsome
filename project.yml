@@ -35,6 +35,12 @@ targets:
           Pick a photo of a meal to log it.
         NSHealthShareUsageDescription: >-
           Import workouts, sleep, and weight to show your daily health overview.
+        # Demanded by App Store validation whenever the HealthKit entitlement is
+        # present, even though nothing here writes. Says so plainly rather than
+        # inventing a use.
+        NSHealthUpdateUsageDescription: >-
+          eatsome never writes to Health. It only reads workouts, sleep, and
+          weight to show your daily overview.
         # HTTPS only, which is exempt. Without this, App Store Connect asks the
         # export-compliance question on every single TestFlight build.
         ITSAppUsesNonExemptEncryption: false
@@ -52,5 +58,8 @@ targets:
         SWIFT_VERSION: "6.0"
         SWIFT_STRICT_CONCURRENCY: complete
         TARGETED_DEVICE_FAMILY: "1"
+        # Without this there is no CFBundleIconName, and the upload is rejected
+        # even when the asset catalog is present.
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: Z4HYA2TN65

@@ -26,6 +26,8 @@
 	<string>Photograph meals so eatsome can identify their food groups.</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>Import workouts, sleep, and weight to show your daily health overview.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>eatsome never writes to Health. It only reads workouts, sleep, and weight to show your daily overview.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Pick a photo of a meal to log it.</string>
 	<key>UILaunchScreen</key>

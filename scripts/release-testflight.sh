@@ -46,9 +46,12 @@ ASC_KEY_PATH="${ASC_KEY_PATH:-$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_
 # so it is seeded with a harmless flag rather than left bare.
 AUTH=(-allowProvisioningUpdates)
 if [[ -n "${ASC_KEY_ID:-}" && -n "${ASC_ISSUER_ID:-}" && -f "$ASC_KEY_PATH" ]]; then
-  AUTH=(-authenticationKeyPath "$ASC_KEY_PATH"
-        -authenticationKeyID "$ASC_KEY_ID"
-        -authenticationKeyIssuerID "$ASC_ISSUER_ID")
+  # Appended, never replacing: the key says who you are, and
+  # -allowProvisioningUpdates is what lets xcodebuild act on it and create the
+  # distribution certificate and profile that do not exist yet.
+  AUTH+=(-authenticationKeyPath "$ASC_KEY_PATH"
+         -authenticationKeyID "$ASC_KEY_ID"
+         -authenticationKeyIssuerID "$ASC_ISSUER_ID")
 fi
 
 command -v xcodegen >/dev/null || { echo "error: brew install xcodegen"; exit 1; }
