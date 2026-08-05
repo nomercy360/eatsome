@@ -48,10 +48,6 @@
     }
   ],
   "dedup_note": "cheese + milk-in-coffee -> 1 dairy serving",
-  "traps": [
-    "avocado_taxonomy_healthy_fats",
-    "dairy_dedup",
-    "butter_present"
-  ],
+  "traps": ["avocado_taxonomy_healthy_fats", "dairy_dedup", "butter_present"],
   "photo": "photos/IMG_3140.JPG"
 }

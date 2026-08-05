@@ -21,9 +21,6 @@
       "size": "S"
     }
   ],
-  "traps": [
-    "butter_under_jam",
-    "jam_is_sweets_not_fruit"
-  ],
+  "traps": ["butter_under_jam", "jam_is_sweets_not_fruit"],
   "photo": "photos/IMG_3173.JPG"
 }

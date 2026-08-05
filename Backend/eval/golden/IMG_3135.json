@@ -28,10 +28,6 @@
     }
   ],
   "dedup_note": "4 fruit items -> 1 fruit serving x volume, NOT 4 servings",
-  "traps": [
-    "plate_vs_meal",
-    "fruit_dedup",
-    "oversized_portion_default"
-  ],
+  "traps": ["plate_vs_meal", "fruit_dedup", "oversized_portion_default"],
   "photo": "photos/IMG_3135.JPG"
 }

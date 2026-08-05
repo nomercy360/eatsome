@@ -22,11 +22,6 @@
       "count": 1
     }
   ],
-  "traps": [
-    "shelf_photo_not_eaten",
-    "korean_ocr",
-    "package_mode",
-    "sauce_sachet"
-  ],
+  "traps": ["shelf_photo_not_eaten", "korean_ocr", "package_mode", "sauce_sachet"],
   "photo": "photos/IMG_3171.JPG"
 }

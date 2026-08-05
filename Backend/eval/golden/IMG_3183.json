@@ -16,10 +16,6 @@
     }
   ],
   "notes": "my share = 1 mug of 2; beer color similar to iced tea — must not classify as sugary_drinks",
-  "traps": [
-    "two_glasses_whose",
-    "beer_vs_tea_visual",
-    "snack_in_tin_missed"
-  ],
+  "traps": ["two_glasses_whose", "beer_vs_tea_visual", "snack_in_tin_missed"],
   "photo": "photos/IMG_3183.jpeg"
 }

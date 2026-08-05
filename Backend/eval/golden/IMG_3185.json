@@ -9,9 +9,7 @@
       "measure": "package",
       "weight_g": 80,
       "protein_g": 3.4,
-      "flags": [
-        "added_sugar"
-      ]
+      "flags": ["added_sugar"]
     }
   ],
   "notes": "label per 80g piece, NOT per 100g; 砂糖 in ingredients -> added_sugar despite 脂肪0 marketing; footnote: <0.5g/100g fat is labeled as zero",

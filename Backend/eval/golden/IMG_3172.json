@@ -12,9 +12,7 @@
     {
       "name": "fried potatoes",
       "group": "potatoes",
-      "flags": [
-        "fried"
-      ],
+      "flags": ["fried"],
       "measure": "size",
       "size": "M"
     },
@@ -25,10 +23,6 @@
       "count": 1
     }
   ],
-  "traps": [
-    "processed_vs_red_vs_white",
-    "potato_taxonomy",
-    "hidden_cooking_fat"
-  ],
+  "traps": ["processed_vs_red_vs_white", "potato_taxonomy", "hidden_cooking_fat"],
   "photo": "photos/IMG_3172.JPG"
 }

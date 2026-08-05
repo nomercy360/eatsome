@@ -19,9 +19,7 @@
     {
       "name": "rye bread",
       "group": "whole_grain",
-      "alternatives": [
-        "refined_grain"
-      ],
+      "alternatives": ["refined_grain"],
       "measure": "count",
       "count": 2
     },
@@ -33,10 +31,6 @@
     }
   ],
   "dedup_note": "cheese + milk-in-coffee -> 1 dairy serving",
-  "traps": [
-    "cheese_on_eggs_missed",
-    "dairy_dedup",
-    "rye_whole_vs_refined"
-  ],
+  "traps": ["cheese_on_eggs_missed", "dairy_dedup", "rye_whole_vs_refined"],
   "photo": "photos/IMG_3179.jpeg"
 }

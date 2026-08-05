@@ -31,10 +31,6 @@
   ],
   "dedup_note": "3 seafood kinds -> 1 fish serving",
   "notes": "string cheese visually resembles noodles — must be dairy, not refined_grain; portion = glass, bottle is display",
-  "traps": [
-    "chechil_looks_like_noodles",
-    "seafood_dedup",
-    "bottle_vs_glass_portion"
-  ],
+  "traps": ["chechil_looks_like_noodles", "seafood_dedup", "bottle_vs_glass_portion"],
   "photo": "photos/IMG_3181.jpeg"
 }

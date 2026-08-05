@@ -1,15 +1,15 @@
 import { appendFileSync, existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { MEAL_PROMPT_VERSION } from "../worker/ai/prompt";
+import { loadGoldenCases } from "./golden";
 import {
   type EvalModel,
   isConfigured,
   loadModels,
   photoPath,
-  recognizeOnce,
   type RunRecord,
+  recognizeOnce,
 } from "./harness";
-import { loadGoldenCases } from "./golden";
 
 /**
  * Runs the matrix and writes raw answers. It scores nothing.
@@ -52,7 +52,9 @@ if (missing.length > 0) {
   // Named, never skipped silently: a case with no photo is a case that is not
   // being measured, and a report that hides that reads as coverage it does not
   // have.
-  console.warn(`Missing photos, these cases will not run:\n  ${missing.map((c) => c.photo).join("\n  ")}`);
+  console.warn(
+    `Missing photos, these cases will not run:\n  ${missing.map((c) => c.photo).join("\n  ")}`,
+  );
 }
 const runnable = cases.filter((one) => existsSync(photoPath(one.photo)));
 
@@ -99,7 +101,9 @@ async function worker(queue: Job[]) {
     }
     appendFileSync(output, `${JSON.stringify(record)}\n`);
     done += 1;
-    process.stdout.write(`\r${done}/${jobs.length}${record.ok ? "" : `  last failed: ${record.error}`}`);
+    process.stdout.write(
+      `\r${done}/${jobs.length}${record.ok ? "" : `  last failed: ${record.error}`}`,
+    );
   }
 }
 

@@ -11,9 +11,7 @@
     {
       "name": "beef patty",
       "group": "red_meat",
-      "alternatives": [
-        "processed_meat"
-      ],
+      "alternatives": ["processed_meat"],
       "measure": "count",
       "count": 1,
       "protein_g": 17
@@ -21,22 +19,15 @@
     {
       "name": "french fries",
       "group": "potatoes",
-      "flags": [
-        "fried"
-      ],
+      "flags": ["fried"],
       "measure": "size",
       "size": "M"
     },
     {
       "name": "nuggets",
       "group": "white_meat",
-      "alternatives": [
-        "processed_meat"
-      ],
-      "flags": [
-        "fried",
-        "breaded"
-      ],
+      "alternatives": ["processed_meat"],
+      "flags": ["fried", "breaded"],
       "measure": "count",
       "count": 4,
       "protein_g": 10

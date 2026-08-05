@@ -24,9 +24,7 @@
     {
       "name": "milk",
       "group": "dairy",
-      "alternatives": [
-        "plant_milk"
-      ],
+      "alternatives": ["plant_milk"],
       "measure": "size",
       "size": "S"
     },
@@ -37,9 +35,6 @@
       "size": "S"
     }
   ],
-  "traps": [
-    "honey_missed",
-    "milk_vs_plant_milk_ambiguous"
-  ],
+  "traps": ["honey_missed", "milk_vs_plant_milk_ambiguous"],
   "photo": "photos/IMG_3170.JPG"
 }

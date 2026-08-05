@@ -1,5 +1,5 @@
-import { mealRecognitionJsonSchema, mealRecognitionSchema } from "../../src/contracts";
 import type { RecognitionRequest } from "../../src/contracts";
+import { mealRecognitionJsonSchema, mealRecognitionSchema } from "../../src/contracts";
 import type { Env } from "../env";
 import { HttpError } from "../lib/http-error";
 import { MEAL_RECOGNITION_SYSTEM_PROMPT, MEAL_RECOGNITION_USER_PROMPT } from "./prompt";

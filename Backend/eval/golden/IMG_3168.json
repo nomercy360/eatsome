@@ -5,13 +5,8 @@
     {
       "name": "chicken schnitzel",
       "group": "white_meat",
-      "alternatives": [
-        "red_meat"
-      ],
-      "flags": [
-        "fried",
-        "breaded"
-      ],
+      "alternatives": ["red_meat"],
+      "flags": ["fried", "breaded"],
       "measure": "count",
       "count": 1,
       "protein_g": 20

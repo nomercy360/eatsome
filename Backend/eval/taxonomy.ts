@@ -70,11 +70,10 @@ const sizes: Record<string, string> = { S: "small", M: "medium", L: "large" };
  * items are scored on group only and reported separately rather than being
  * marked wrong for a distinction the schema cannot make.
  */
-export function mapPortion(item: {
-  measure?: string;
-  size?: string;
-  count?: number;
-}): { portion: string | null; why?: string } {
+export function mapPortion(item: { measure?: string; size?: string; count?: number }): {
+  portion: string | null;
+  why?: string;
+} {
   if (item.measure === "size" && item.size && sizes[item.size]) {
     return { portion: sizes[item.size] };
   }

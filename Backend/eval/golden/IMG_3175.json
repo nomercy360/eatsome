@@ -11,11 +11,6 @@
     }
   ],
   "notes": "juice is NOT a fruit serving even 100% cold-pressed no-added-sugar (MEDAS-2026 rev excludes juice from fruit); also NOT sugary_drinks since no added sugar — its own neutral group",
-  "traps": [
-    "juice_not_fruit",
-    "no_added_sugar_still_not_fruit",
-    "russian_ocr",
-    "package_mode"
-  ],
+  "traps": ["juice_not_fruit", "no_added_sugar_still_not_fruit", "russian_ocr", "package_mode"],
   "photo": "photos/IMG_3175.jpeg"
 }

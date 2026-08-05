@@ -5,9 +5,7 @@
     {
       "name": "bagel",
       "group": "whole_grain",
-      "alternatives": [
-        "refined_grain"
-      ],
+      "alternatives": ["refined_grain"],
       "measure": "count",
       "count": 1
     },
@@ -38,11 +36,6 @@
     }
   ],
   "dedup_note": "cream cheese + latte -> 1 dairy",
-  "traps": [
-    "two_person_meal",
-    "hidden_spread_under_toppings",
-    "latte_is_dairy",
-    "dairy_dedup"
-  ],
+  "traps": ["two_person_meal", "hidden_spread_under_toppings", "latte_is_dairy", "dairy_dedup"],
   "photo": "photos/IMG_3167.JPG"
 }

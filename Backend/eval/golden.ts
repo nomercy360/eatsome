@@ -41,7 +41,10 @@ export function loadGoldenCases(): GoldenCase[] {
     .filter((name) => name.endsWith(".json"))
     .map((name) => {
       const id = basename(name, ".json");
-      const raw = JSON.parse(readFileSync(join(dir, name), "utf8")) as Omit<GoldenCase, "id" | "photo">;
+      const raw = JSON.parse(readFileSync(join(dir, name), "utf8")) as Omit<
+        GoldenCase,
+        "id" | "photo"
+      >;
       const photo = photos.find((file) => basename(file, file.slice(file.lastIndexOf("."))) === id);
       return { id, photo: photo ?? `${id}.JPG`, traps: [], ...raw };
     })

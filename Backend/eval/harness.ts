@@ -1,10 +1,10 @@
-import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { recognitionProviders } from "../src/contracts";
 import type { RecognitionProvider } from "../src/contracts";
-import type { Env } from "../worker/env";
+import { recognitionProviders } from "../src/contracts";
 import { modelFor, requestMealRecognition } from "../worker/ai/recognize";
+import type { Env } from "../worker/env";
 
 /**
  * The eval calls the same functions the proxy calls.

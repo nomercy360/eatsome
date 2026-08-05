@@ -11,9 +11,7 @@
     {
       "name": "minced meat topping",
       "group": "white_meat",
-      "alternatives": [
-        "red_meat"
-      ],
+      "alternatives": ["red_meat"],
       "measure": "size",
       "size": "M",
       "protein_g": 18
@@ -46,11 +44,6 @@
     }
   ],
   "dedup_note": "two vegetable items -> 1 serving + volume modifier",
-  "traps": [
-    "foreign_tray_bleed",
-    "missed_soup",
-    "white_vs_red_meat",
-    "vegetable_dedup"
-  ],
+  "traps": ["foreign_tray_bleed", "missed_soup", "white_vs_red_meat", "vegetable_dedup"],
   "photo": "photos/IMG_3128.jpeg"
 }

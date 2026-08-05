@@ -32,7 +32,8 @@ export default function assertMealRecognition(
   ];
   if (score.missedGroups.length > 0) parts.push(`missed: ${score.missedGroups.join(",")}`);
   if (score.duplicateGroups.length > 0) parts.push(`dupes: ${score.duplicateGroups.join(",")}`);
-  if (score.unscorableItems > 0) parts.push(`${score.unscorableItems} items the schema cannot express`);
+  if (score.unscorableItems > 0)
+    parts.push(`${score.unscorableItems} items the schema cannot express`);
   if (one.traps.length > 0) parts.push(`traps: ${one.traps.join(",")}`);
 
   return { pass: score.pass, score: score.recall, reason: parts.join(" · ") };

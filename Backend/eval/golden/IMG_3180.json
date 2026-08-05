@@ -10,9 +10,6 @@
     }
   ],
   "notes": "ALL components collapse into ONE sweets serving; waffle/oreo/chocolate/candy must NOT become separate refined_grain or dairy servings",
-  "traps": [
-    "dessert_components_not_separate",
-    "sweets_dedup"
-  ],
+  "traps": ["dessert_components_not_separate", "sweets_dedup"],
   "photo": "photos/IMG_3180.jpeg"
 }

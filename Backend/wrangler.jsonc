@@ -5,7 +5,13 @@
   "compatibility_date": "2026-08-04",
   "compatibility_flags": ["nodejs_compat"],
   "secrets": {
-    "required": ["OPENAI_API_KEY", "GEMINI_API_KEY", "ANTHROPIC_API_KEY", "QWEN_API_KEY", "EATSOME_API_TOKEN"]
+    "required": [
+      "OPENAI_API_KEY",
+      "GEMINI_API_KEY",
+      "ANTHROPIC_API_KEY",
+      "QWEN_API_KEY",
+      "EATSOME_API_TOKEN"
+    ]
   },
   "vars": {
     "ACCOUNT_ID": "owner",

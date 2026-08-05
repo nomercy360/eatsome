@@ -5,10 +5,7 @@
     {
       "name": "karaage",
       "group": "white_meat",
-      "flags": [
-        "fried",
-        "breaded"
-      ],
+      "flags": ["fried", "breaded"],
       "measure": "count",
       "count": 3,
       "protein_g": 15
