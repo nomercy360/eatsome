@@ -45,8 +45,11 @@ export function loadGoldenCases(): GoldenCase[] {
         GoldenCase,
         "id" | "photo"
       >;
-      const photo = photos.find((file) => basename(file, file.slice(file.lastIndexOf("."))) === id);
-      return { id, photo: photo ?? `${id}.JPG`, traps: [], ...raw };
+      // The dataset stores `photos/IMG_1234.jpeg`; `photoPath` adds the
+      // directory itself, so the prefix is stripped rather than doubled.
+      const declared = (raw as { photo?: string }).photo?.replace(/^photos\//, "");
+      const found = photos.find((file) => file.slice(0, file.lastIndexOf(".")) === id);
+      return { traps: [], ...raw, id, photo: declared ?? found ?? `${id}.JPG` };
     })
     .sort((a, b) => a.id.localeCompare(b.id));
 }

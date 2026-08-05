@@ -3,12 +3,14 @@ import { join } from "node:path";
 
 import { loadGoldenCases } from "./golden";
 import {
+  EVAL_PROMPT_VERSION,
   type EvalModel,
   isConfigured,
   loadModels,
   photoPath,
   type RunRecord,
   recognizeOnce,
+  SCHEMA_VERSION,
 } from "./harness";
 
 /**
