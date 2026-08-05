@@ -24,7 +24,21 @@ if grep -q "local-development-replace-before-deploy" wrangler.jsonc; then
   echo "==> Creating the D1 database"
   # APAC because that is where the phone is; D1 reads are single-region and the
   # round trip is the whole latency budget for a sync.
-  pnpm wrangler d1 create eatsome --location=apac || true
+  # Only an existing database is a tolerable failure. Swallowing everything
+  # turned a permissions or network error into "now paste the id it printed",
+  # and it printed nothing.
+  if ! output=$(pnpm wrangler d1 create eatsome --location=apac 2>&1); then
+    if grep -qi "already exists" <<<"$output"; then
+      echo "    database already exists; run: pnpm wrangler d1 list"
+    else
+      echo "$output"
+      echo
+      echo "error: could not create the database. Nothing else has been changed."
+      exit 1
+    fi
+  else
+    echo "$output"
+  fi
   echo
   echo "Copy the printed database_id into wrangler.jsonc, then run this again."
   exit 0

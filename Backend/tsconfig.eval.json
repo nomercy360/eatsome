@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    // The harness runs under Node, not workerd, but it imports the worker's
+    // request builders on purpose — that is the whole point of the design — so
+    // it needs both sets of globals.
+    "types": ["node", "@cloudflare/workers-types"],
+    "lib": ["ES2023"]
+  },
+  "include": ["eval/**/*.ts", "worker/**/*.ts", "src/**/*.ts"]
+}

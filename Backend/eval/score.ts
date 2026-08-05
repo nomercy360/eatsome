@@ -30,11 +30,25 @@ if (artefacts.length === 0) {
   process.exit(1);
 }
 
-// Models are often run in separate passes — one provider at a time as keys
-// arrive — so every artefact under the same prompt and schema is one run.
-const latest = explicit ?? artefacts.at(-1)!;
-const stamp = (file: string) => file.replace(/^[\d-]+_/, "");
-const target = explicit ? [explicit] : artefacts.filter((name) => stamp(name) === stamp(latest));
+/**
+ * A row belongs to a run only if it was produced under the same configuration.
+ *
+ * Filenames are not enough. Models arrive one key at a time, so several files
+ * are one run — but reasoning experiments and note runs share those filenames
+ * too, and merging them silently rewrites history: the Haiku thinking
+ * experiment's errors dragged its committed 10/28 to 0/28 while a Gemini
+ * high-thinking pass inflated its cost, in a report that named neither.
+ */
+function fingerprint(row: RunRecord): string {
+  return [
+    row.promptVersion,
+    row.schemaVersion ?? "-",
+    row.reasoning ?? "default",
+    row.note ? "notes" : "plain",
+  ].join("|");
+}
+
+const wanted = args.indexOf("--config") === -1 ? null : args[args.indexOf("--config") + 1];
 
 const cases = loadGoldenCases();
 const models = loadModels();
@@ -56,6 +70,10 @@ type Summary = {
   recall: number;
   precision: number;
   portionMatch: number;
+  countMatch: number;
+  countTotal: number;
+  statusOk: number;
+  statusKnown: number;
   counts: string;
   usd: number;
   /** Cases that did not agree with themselves across repeats. Nondeterminism at
@@ -65,6 +83,8 @@ type Summary = {
   /** caseId → passed in every run */
   perCase: Map<string, boolean>;
   trapFailures: Map<string, number>;
+  /** Why cases failed, which is actionable where a trap name is only a label. */
+  reasons: Map<string, number>;
 };
 
 function summarise(records: RunRecord[]): Map<string, Summary> {
@@ -79,11 +99,16 @@ function summarise(records: RunRecord[]): Map<string, Summary> {
       recall: 0,
       precision: 0,
       portionMatch: 0,
+      countMatch: 0,
+      countTotal: 0,
+      statusOk: 0,
+      statusKnown: 0,
       counts: "",
       usd: 0,
       unstable: [],
       perCase: new Map<string, boolean>(),
       trapFailures: new Map<string, number>(),
+      reasons: new Map<string, number>(),
     };
     byModel.set(record.modelId, summary);
 
@@ -101,10 +126,16 @@ function summarise(records: RunRecord[]): Map<string, Summary> {
 
     const golden = cases.find((one) => one.id === record.caseId);
     if (!golden) continue;
-    const score = scoreCase(golden, record.raw);
+    const score = scoreCase(golden, record.raw, record.note);
     summary.recall += score.recall;
     summary.precision += score.precision;
     summary.portionMatch += score.portionMatch;
+    summary.countMatch += score.countMatch;
+    summary.countTotal += score.countTotal;
+    if (score.mealStatusOk !== null) {
+      summary.statusKnown += 1;
+      if (score.mealStatusOk) summary.statusOk += 1;
+    }
 
     const previous = summary.perCase.get(record.caseId);
     if (previous !== undefined && previous !== score.pass) {
@@ -112,7 +143,15 @@ function summarise(records: RunRecord[]): Map<string, Summary> {
     }
     summary.perCase.set(record.caseId, (previous ?? true) && score.pass);
 
+    // Only traps on a failing case, and the reason recorded alongside — a case
+    // carrying four traps that missed one group is not four trap failures.
     if (!score.pass) {
+      for (const reason of score.failures) {
+        summary.reasons.set(
+          reason.split(" ")[0] ?? reason,
+          (summary.reasons.get(reason.split(" ")[0] ?? reason) ?? 0) + 1,
+        );
+      }
       for (const trap of golden.traps) {
         summary.trapFailures.set(trap, (summary.trapFailures.get(trap) ?? 0) + 1);
       }
@@ -121,19 +160,42 @@ function summarise(records: RunRecord[]): Map<string, Summary> {
   return byModel;
 }
 
-const current = summarise(read(target));
-const baseline = baselineFile ? summarise(read(baselineFile)) : null;
+const all = explicit ? read(explicit) : artefacts.flatMap((file) => read(file));
+const configurations = [...new Set(all.map(fingerprint))].sort();
+// Default to the plain, default-reasoning configuration: the one a bare
+// `pnpm eval:run` produces and the one every claim in FINDINGS.md is about.
+const configuration =
+  wanted ?? configurations.find((one) => one.endsWith("default|plain")) ?? configurations[0];
+const rows = all.filter((row) => fingerprint(row) === configuration);
+
+const current = summarise(rows);
+const baseline = baselineFile
+  ? summarise(read(baselineFile).filter((row) => fingerprint(row) === configuration))
+  : null;
 
 const lines: string[] = [];
 lines.push(`# Eval report\n`);
 lines.push(
-  `Run \`${[target].flat().join("`, `")}\`${baselineFile ? ` against \`${baselineFile}\`` : ""}.`,
+  `Configuration \`${configuration}\`${baselineFile ? ` against \`${baselineFile}\`` : ""}.`,
 );
-lines.push(`${cases.length} cases, ${models.length} models known.\n`);
+lines.push(`${rows.length} outputs over ${cases.length} cases.\n`);
+if (configurations.length > 1) {
+  lines.push(
+    `Excluded, because they were produced under a different configuration: ${configurations
+      .filter((one) => one !== configuration)
+      .map((one) => `\`${one}\``)
+      .join(", ")}. Select one with \`--config\`.\n`,
+  );
+}
 
 lines.push(`## Models\n`);
-lines.push(`| model | tier | pass | recall | precision | measure | errors | $ |`);
-lines.push(`| --- | --- | --- | --- | --- | --- | --- | --- |`);
+lines.push(
+  `Gates are recall, duplicate groups, and — on a note run — the hidden items the note named. Precision, counts and meal_status are reported, not gated: a spurious item is one tap from deletion, and \`meal_status\` disagreement is as likely to be the label as the model.\n`,
+);
+lines.push(
+  `| model | tier | pass | recall | precision | measure | counts | meal_status | errors | $ |`,
+);
+lines.push(`| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |`);
 for (const summary of [...current.values()].sort((a, b) => a.usd - b.usd)) {
   const scored = summary.runs - summary.errors || 1;
   const passed = [...summary.perCase.values()].filter(Boolean).length;
@@ -142,6 +204,8 @@ for (const summary of [...current.values()].sort((a, b) => a.usd - b.usd)) {
       `${((summary.recall / scored) * 100).toFixed(0)}% | ` +
       `${((summary.precision / scored) * 100).toFixed(0)}% | ` +
       `${((summary.portionMatch / scored) * 100).toFixed(0)}% | ` +
+      `${summary.countTotal ? `${summary.countMatch}/${summary.countTotal}` : "—"} | ` +
+      `${summary.statusKnown ? `${((summary.statusOk / summary.statusKnown) * 100).toFixed(0)}%` : "—"} | ` +
       `${summary.errors} | $${summary.usd.toFixed(3)} |`,
   );
 }
@@ -176,7 +240,17 @@ if ([...current.values()].every((one) => one.unstable.length === 0)) {
   lines.push(`None — every case agreed with itself across repeats.`);
 }
 
-lines.push(`\n## Failures by trap\n`);
+lines.push(`\n## Why cases failed\n`);
+for (const summary of current.values()) {
+  const worst = [...summary.reasons].sort((a, b) => b[1] - a[1]);
+  if (worst.length === 0) continue;
+  lines.push(`\n**${summary.modelId}**: ${worst.map(([r, n]) => `${r} ${n}`).join(", ")}`);
+}
+
+lines.push(`\n## Traps carried by failing cases\n`);
+lines.push(
+  `A case carries several traps, so these count cases rather than trap violations. Read them as where to look, not as what broke.\n`,
+);
 for (const summary of current.values()) {
   const worst = [...summary.trapFailures].sort((a, b) => b[1] - a[1]).slice(0, 12);
   if (worst.length === 0) continue;

@@ -39,7 +39,6 @@
       "simple": { "limit": 60, "period": 60 }
     }
   ],
-  "vars_note": "RECOGNITIONS_PER_DAY bounds the worst case in money, not requests",
   "d1_databases": [
     {
       "binding": "DB",

@@ -49,7 +49,7 @@ export function loadGoldenCases(): GoldenCase[] {
       // directory itself, so the prefix is stripped rather than doubled.
       const declared = (raw as { photo?: string }).photo?.replace(/^photos\//, "");
       const found = photos.find((file) => file.slice(0, file.lastIndexOf(".")) === id);
-      return { traps: [], ...raw, id, photo: declared ?? found ?? `${id}.JPG` };
+      return { ...raw, traps: raw.traps ?? [], id, photo: declared ?? found ?? `${id}.JPG` };
     })
     .sort((a, b) => a.id.localeCompare(b.id));
 }

@@ -36,7 +36,7 @@ export const d1Counters: Counters = {
 };
 
 /**
- * Three layers, bounding three different things.
+ * Two layers here, and the third one is elsewhere on purpose.
  *
  * The rate limiting binding is per-Cloudflare-location — counters live on the
  * machine the Worker runs on, which is why it costs no latency and also why a
@@ -44,11 +44,12 @@ export const d1Counters: Counters = {
  * hammering one endpoint and guarantees nothing about the bill.
  *
  * The per-caller day quota is fairness: one phone cannot spend everyone's
- * budget by accident.
+ * budget by accident. It reads a count, so it races — which is tolerable for
+ * fairness and is not tolerable for money.
  *
- * The global day ceiling is the guarantee, denominated in the thing that costs
- * money. At 400 recognitions the worst case is a few dollars, whoever is
- * calling and however they spread it.
+ * The money guarantee is `reserveRecognition`, and it happens after the cache
+ * lookup, because a cached answer costs nothing and refusing it once the day is
+ * full would deny free work.
  */
 export async function enforceRecognitionLimits(
   env: Env,
@@ -77,6 +78,14 @@ export async function enforceRecognitionLimits(
 }
 
 export async function enforceSyncLimits(env: Env, request: Request): Promise<void> {
-  const { success } = await env.SYNC_LIMIT.limit({ key: accountForDevice(request) });
+  const caller = accountForDevice(request);
+  // Reads may fall back to the IP; writes may not. An IP-keyed account changes
+  // when the phone changes network, and the events written under the old key
+  // are then invisible to the same device forever — silent data loss that looks
+  // like a sync bug months later.
+  if (caller.startsWith("ip:")) {
+    throw new HttpError(400, "X-Device-Id is required to write events.");
+  }
+  const { success } = await env.SYNC_LIMIT.limit({ key: caller });
   if (!success) throw new HttpError(429, "Too many requests. Slow down.");
 }

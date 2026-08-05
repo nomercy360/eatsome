@@ -20,7 +20,7 @@ export default function assertMealRecognition(
   const one = cases.find((entry) => entry.id === caseId);
   if (!one) return { pass: false, score: 0, reason: `no golden case named ${caseId}` };
 
-  const score = scoreCase(one, output);
+  const score = scoreCase(one, output, context.vars?.note as string | undefined);
   if (!score.parsed) {
     return { pass: false, score: 0, reason: `did not parse: ${score.parseError}` };
   }
@@ -32,8 +32,10 @@ export default function assertMealRecognition(
   ];
   if (score.missedGroups.length > 0) parts.push(`missed: ${score.missedGroups.join(",")}`);
   if (score.duplicateGroups.length > 0) parts.push(`dupes: ${score.duplicateGroups.join(",")}`);
-  if (score.unscorableItems > 0)
-    parts.push(`${score.unscorableItems} items the schema cannot express`);
+  if (score.countTotal > 0) parts.push(`counts ${score.countMatch}/${score.countTotal}`);
+  // Reasons, not a verdict: a case that failed on duplicates and one that failed
+  // on recall need different fixes.
+  if (score.failures.length > 0) parts.push(`failed: ${score.failures.join("; ")}`);
   if (one.traps.length > 0) parts.push(`traps: ${one.traps.join(",")}`);
 
   return { pass: score.pass, score: score.recall, reason: parts.join(" · ") };

@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "pnpm verify && wrangler deploy",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.eval.json",
     "test": "vitest run",
     "test:watch": "vitest",
     "check": "biome check .",

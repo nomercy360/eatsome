@@ -5,6 +5,7 @@ import { modelFor, requestMealRecognition, resolveProvider } from "../ai/recogni
 import { createDb } from "../db/client";
 import { recognitions } from "../db/schema";
 import type { Env } from "../env";
+import { releaseRecognition, reserveRecognition } from "../lib/budget";
 import { HttpError } from "../lib/http-error";
 
 export type RecognitionResponse = {
@@ -54,7 +55,27 @@ export async function recognizeMeal(
   const cached = await db.query.recognitions.findFirst({ where });
   if (cached) return response(cached, true);
 
-  const result = await requestMealRecognition(env, input, provider);
+  // Only a miss costs anything, so only a miss is charged — and the charge is
+  // taken before the call, not counted after it, because a count taken after
+  // the fact cannot refuse anything.
+  const ceiling = Number(env.RECOGNITIONS_PER_DAY || 0);
+  if (!(await reserveRecognition(env, ceiling))) {
+    // Deliberately not "try again shortly": the window is a day, and a client
+    // that retries into it spends tomorrow's budget too.
+    throw new HttpError(
+      503,
+      "Recognition is closed for today. This is a spending cap, not an outage.",
+    );
+  }
+
+  let result: Awaited<ReturnType<typeof requestMealRecognition>>;
+  try {
+    result = await requestMealRecognition(env, input, provider);
+  } catch (error) {
+    // A failed call spent nothing, so it should not close the service.
+    await releaseRecognition(env, ceiling);
+    throw error;
+  }
   const row: typeof recognitions.$inferInsert = {
     id: crypto.randomUUID(),
     accountId,

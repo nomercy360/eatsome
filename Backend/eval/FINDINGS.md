@@ -43,12 +43,32 @@ Which fits what the task is. Naming what is on a plate is perception, not
 inference: there is little to reason about and the answer is either visible or
 it is not.
 
-## The prompt is the weak part, not the model
+## Withdrawn: the claim about dedup and pastry rules
 
-`dairy_dedup` fails 8–10 times for every model. `homemade_vs_commercial_pastry`
-fails exactly 6 times for all four. Four independent vendors failing the same
-rule at the same rate is an instruction defect, and fixing those two is worth
-more than any model swap — including for Gemini's remaining seven failures.
+An earlier version of this file said `dairy_dedup` fails 8–10 times for every
+model and concluded that the prompt was the weak part. The scorer did not
+support that. It attributed every trap on a failing case to the failure, so a
+case carrying four traps that missed one group counted as four trap failures,
+and `pass` was recall alone — duplicates, counts and `meal_status` were computed
+and discarded. The claim may still be true; it has not been measured.
+
+What the current scorer does support, on the same artefacts:
+
+| model | pass | recall | precision | measure | counts | meal_status |
+| --- | --- | --- | --- | --- | --- | --- |
+| qwen-3.7-flash | 9/28 | 76% | 74% | 41% | 55/96 | 12% |
+| gpt-5.6-luna | 8/28 | 73% | 76% | 61% | 39/96 | 13% |
+| **gemini-3.6-flash** | **11/28** | **87%** | **88%** | **73%** | **71/96** | 10% |
+| claude-haiku-4.5 | 7/28 | 72% | 71% | 51% | 29/96 | 8% |
+
+Pass is stricter than before because duplicate groups now fail a case and a
+counted item must have the right number. The ordering is unchanged and Gemini
+leads every column.
+
+`meal_status` agreement is 8–13% across all four models, which is a finding
+about the labels rather than the models: the golden calls a full canteen tray
+`eaten` and every model calls it `not_yet_eaten`, and no photograph settles it.
+It is reported, never gated.
 
 ## Three cases nothing passes
 
