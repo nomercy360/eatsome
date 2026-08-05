@@ -1,6 +1,7 @@
 {
-  "scene": "dinner party table: schnitzels, pasta bowl, salad w/ feta, wine glasses — MY SHARE only",
-  "meal_status": "ate_part",
+  "scene": "home dinner party table: platter of breaded schnitzels, glass bowl of tagliatelle, bowl of salad with feta, ramekin of dip, two glasses of rose",
+  "meal_status": "shared_plate",
+  "user_note": "Everything on this table is mine.",
   "golden": [
     {
       "name": "chicken schnitzel",
@@ -8,32 +9,32 @@
       "alternatives": ["red_meat"],
       "flags": ["fried", "breaded"],
       "measure": "count",
-      "count": 1,
-      "protein_g": 20
+      "count": 6,
+      "protein_g": 120
     },
     {
       "name": "pasta",
       "group": "refined_grain",
       "measure": "size",
-      "size": "M"
+      "size": "L"
     },
     {
-      "name": "salad with feta",
+      "name": "salad",
       "group": "vegetables",
       "measure": "size",
-      "size": "S"
+      "size": "L"
     },
     {
       "name": "feta",
       "group": "dairy",
       "measure": "size",
-      "size": "S"
+      "size": "M"
     },
     {
-      "name": "wine",
+      "name": "rose wine",
       "group": "alcohol",
       "measure": "count",
-      "count": 1
+      "count": 2
     },
     {
       "name": "dip sauce",
@@ -43,8 +44,10 @@
     }
   ],
   "dedup_note": "breading + pasta -> 1 refined_grain",
+  "notes": "The user-line branch of the nearest-setting rule. Without the line the prompt is explicitly right to report only the near plate, so this case has no defined answer without it; with the line the answer is the whole table. The measures are therefore what is ON the table — the full pasta bowl, the whole platter — and not the share the person ate, because the model is reading a photograph and cannot be asked to guess an appetite. In the app that gap closes on the other side: the person resizes the shared rows down in Meal Edit. Schnitzel count is the platter as visible and is approximate; counts are reported, not gated.",
   "traps": [
-    "table_vs_my_share",
+    "user_line_all_mine",
+    "table_not_my_share",
     "schnitzel_primary_is_meat",
     "alcohol_recall",
     "sauce_missed",

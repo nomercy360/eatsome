@@ -1,5 +1,5 @@
 {
-  "scene": "two bagels (salmon+cream cheese; tomato+zaatar+cream cheese), latte — likely two people",
+  "scene": "two bagel boxes on a cafe table: the near one held in hand is tomato+zaatar+cream cheese, the far one is salmon; one latte between them",
   "meal_status": "ate_part",
   "golden": [
     {
@@ -8,13 +8,6 @@
       "alternatives": ["refined_grain"],
       "measure": "count",
       "count": 1
-    },
-    {
-      "name": "smoked salmon",
-      "group": "fish",
-      "measure": "size",
-      "size": "S",
-      "protein_g": 10
     },
     {
       "name": "tomato",
@@ -36,6 +29,13 @@
     }
   ],
   "dedup_note": "cream cheese + latte -> 1 dairy",
-  "traps": ["two_person_meal", "hidden_spread_under_toppings", "latte_is_dairy", "dairy_dedup"],
+  "notes": "The clean nearest-place-setting case: no user line, someone else's food in frame, correct answer is the near box only plus other_meals_visible true. The smoked salmon is on the FAR bagel, in its own box at the top of the frame. It was in this golden until 2026-08-05, which merged two place settings while counting only one bagel — so every model that obeyed the nearest-setting rule lost recall for obeying it, and all three gemini runs said so in their notes. Open question left deliberately open: the near bagel is pale and every model answers refined_grain with whole_grain as the alternative, the reverse of this label. Settle it from the photograph, not from the models.",
+  "traps": [
+    "foreign_meal_bleed",
+    "nearest_setting_no_user_line",
+    "hidden_spread_under_toppings",
+    "latte_is_dairy",
+    "dairy_dedup"
+  ],
   "photo": "photos/IMG_3167.JPG"
 }

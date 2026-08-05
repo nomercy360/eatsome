@@ -76,7 +76,11 @@ const jobs: Job[] = [];
 for (const entry of models) {
   for (const one of runnable) {
     for (let run = 1; run <= runsPerCase; run++) {
-      const note = withNotes ? noteFor(one.golden.filter((item) => item.hidden)) : undefined;
+      // Two sources, one line. The case's own user note travels on every track,
+      // because without it the case has no defined answer; the hidden-item note
+      // is what `--notes` adds on top.
+      const hidden = withNotes ? noteFor(one.golden.filter((item) => item.hidden)) : undefined;
+      const note = [one.user_note, hidden].filter(Boolean).join(" ") || undefined;
       jobs.push({ caseId: one.id, photo: one.photo, entry, run, note });
     }
   }
@@ -106,6 +110,7 @@ async function worker(queue: Job[]) {
       promptVersion: EVAL_PROMPT_VERSION,
       schemaVersion: SCHEMA_VERSION,
       note: job.note ?? null,
+      track: withNotes ? "notes" : "plain",
       reasoning:
         {
           openai: process.env.OPENAI_REASONING_EFFORT,

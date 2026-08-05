@@ -20,7 +20,9 @@ export default function assertMealRecognition(
   const one = cases.find((entry) => entry.id === caseId);
   if (!one) return { pass: false, score: 0, reason: `no golden case named ${caseId}` };
 
-  const score = scoreCase(one, output, context.vars?.note as string | undefined);
+  // The promptfoo path has no hidden-item track: `note` here is the case's own
+  // user line, which is not being told about invisible ingredients.
+  const score = scoreCase(one, output, false);
   if (!score.parsed) {
     return { pass: false, score: 0, reason: `did not parse: ${score.parseError}` };
   }

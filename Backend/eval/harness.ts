@@ -8,6 +8,7 @@ import { modelFor, requestMealRecognition } from "../worker/ai/recognize";
 import type { RecognitionSpec } from "../worker/ai/spec";
 import type { Env } from "../worker/env";
 import { evalGeminiSchema, evalJsonSchema, SCHEMA_VERSION } from "./schema";
+import { EVAL_PROMPT_FILE, EVAL_PROMPT_VERSION, MODEL_INPUT_VERSION } from "./version";
 
 /**
  * The eval calls the same functions the proxy calls.
@@ -32,8 +33,16 @@ export type RunRecord = {
   /** What the reasoning budget was, because it is not comparable across
    *  vendors and a run without it recorded cannot be interpreted later. */
   reasoning?: string;
-  /** The note sent with the photo, if this was a note-track run. */
+  /** Everything sent with the photo as user text, whatever its source. */
   note?: string | null;
+  /**
+   * Which track produced the row, which is not the same question as whether
+   * `note` is set. A case can carry a permanent user line of its own — the
+   * dinner-party table says "all of this is mine" — and that line is part of the
+   * case, not a track. Fingerprinting on `note` alone would file those rows
+   * under `notes` and quietly drop them from the ordinary report.
+   */
+  track?: "plain" | "notes";
   run: number;
   ok: boolean;
   error?: string;
@@ -53,11 +62,10 @@ const evalRoot = import.meta.dirname;
  * while the app is being built, and whatever survives these runs is what the
  * app schema should become. The prompt version and the schema version both
  * travel on every row, because a run under one contract is not comparable with
- * a run under the other.
+ * a run under the other. The strings themselves live in `version.ts`, which
+ * imports nothing, so the parity test can read them without loading `sharp`.
  */
-export const EVAL_PROMPT_FILE = "meal-v6.md";
-export const EVAL_PROMPT_VERSION = "meal-v6-2026-08-05";
-export const MODEL_INPUT_VERSION = "jpeg-1024-q82-v1";
+export { EVAL_PROMPT_FILE, EVAL_PROMPT_VERSION, MODEL_INPUT_VERSION };
 
 export function evalSpec(): RecognitionSpec {
   return {

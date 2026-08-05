@@ -28,7 +28,8 @@ class EatsomeProvider {
     if (!photo) return { error: "test case has no `photo` var" };
     try {
       const entry = this.entry(this.modelId);
-      const result = await recognizeOnce(entry.provider, photo, entry.model);
+      const note = String(context?.vars?.note ?? "").trim() || undefined;
+      const result = await recognizeOnce(entry.provider, photo, entry.model, note);
       return {
         output: result.raw,
         tokenUsage: { prompt: result.inputTokens, completion: result.outputTokens },

@@ -18,7 +18,13 @@ import * as z from "zod";
  *   A different question was asked. That is what `promptVersion` and
  *   `schemaVersion` on every row are for.
  */
-export const SCHEMA_VERSION = "eval-schema-v1-2026-08-05";
+/**
+ * v1  the dataset's vocabulary, asked for by name
+ * v2  `alternatives` capped at three, which the prompt already said and the
+ *     schema did not enforce — an unbounded list is how "at most three" becomes
+ *     six on the one answer nobody reads closely
+ */
+export const SCHEMA_VERSION = "eval-schema-v2-2026-08-05";
 
 export const evalFoodGroups = [
   // Same idea as the app, dataset spelling.
@@ -80,7 +86,7 @@ export const mealStatuses = [
 export const evalItemSchema = z.strictObject({
   name: z.string().max(200),
   group: z.enum(evalFoodGroups),
-  alternatives: z.array(z.enum(evalFoodGroups)),
+  alternatives: z.array(z.enum(evalFoodGroups)).max(3),
   measure: z.enum(["count", "size", "package"]),
   count: z.number().int().min(0).max(99).nullable(),
   size: z.enum(["S", "M", "L"]).nullable(),
@@ -120,7 +126,7 @@ export function evalGeminiSchema(): Record<string, unknown> {
           properties: {
             name: { type: "STRING" },
             group,
-            alternatives: { type: "ARRAY", items: group },
+            alternatives: { type: "ARRAY", items: group, maxItems: 3 },
             measure: { type: "STRING", enum: ["count", "size", "package"] },
             count: { type: "INTEGER", nullable: true },
             size: { type: "STRING", enum: ["S", "M", "L"], nullable: true },

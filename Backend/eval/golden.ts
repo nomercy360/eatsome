@@ -28,6 +28,21 @@ export type GoldenCase = {
   dedup_note?: string;
   traps: string[];
   golden: GoldenItem[];
+  /**
+   * A line the person typed, sent on EVERY track, permanently part of the input.
+   *
+   * Never the hidden-item note: that one belongs to `--notes`, is generated from
+   * the `hidden` flags, and putting it here would hand a plain run the answer
+   * the case exists to withhold. IMG_3152 carried exactly that and was only
+   * harmless because nothing read this field. This is for cases whose correct
+   * answer is undefined without the line:
+   * a dinner-party table is either one share or six dishes depending on whether
+   * the person said the rest is theirs, and the prompt's nearest-setting rule
+   * makes the second reading reachable only through this line. The golden then
+   * encodes what is in the photograph under that line — the whole table, at the
+   * sizes it is actually served in — not the portion the person ate.
+   */
+  user_note?: string;
   /** Held back from prompt iteration; see eval/README.md. */
   holdout?: boolean;
 };

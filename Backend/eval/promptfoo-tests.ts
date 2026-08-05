@@ -16,6 +16,9 @@ export default function tests() {
     .filter((one) => includeHoldout || !one.holdout)
     .map((one) => ({
       description: `${one.id}${one.holdout ? " [holdout]" : ""} — ${one.traps.join(", ")}`,
-      vars: { caseId: one.id, photo: one.photo },
+      // `note` is the case's own user line, not the hidden-item track: a case
+      // that has one has no defined answer without it, so promptfoo has to send
+      // it too or the two runners are asking different questions.
+      vars: { caseId: one.id, photo: one.photo, note: one.user_note ?? "" },
     }));
 }

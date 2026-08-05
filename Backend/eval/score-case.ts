@@ -52,15 +52,24 @@ const RECALL_FLOOR = 0.8;
  *     groups, and gated meal_status where the label itself is unsettled
  * v3  gates are recall and, on a note run, the items the note named; excess is
  *     measured against the golden's own repeats; counted items need the number
+ * v4  the golden's own `alternatives` count as right answers. They were
+ *     declared on 16 items across 13 cases and read by nothing, so a case that
+ *     admitted an ambiguity still scored the admitted reading as an error. They
+ *     no longer count as spurious either, for the same reason.
  */
-export const SCORER_VERSION = "scorer-v3-2026-08-05";
+export const SCORER_VERSION = "scorer-v4-2026-08-05";
 
 /**
- * `note` is the line the run sent with the photo. It changes what counts: told
+ * `told` says the run sent the hidden-item note. It changes what counts: told
  * about the butter, a model that omits it has failed, and a model that finds it
  * without being told was guessing.
+ *
+ * It is deliberately not "the run sent any text". A case can carry a user line
+ * of its own — "everything on this table is mine" — which says nothing about
+ * invisible ingredients, and treating that as having been told would gate
+ * hidden items the model was never given.
  */
-export function scoreCase(golden: GoldenCase, raw: string, note?: string | null): CaseScore {
+export function scoreCase(golden: GoldenCase, raw: string, told = false): CaseScore {
   const empty: CaseScore = {
     parsed: false,
     recall: 0,
@@ -98,13 +107,33 @@ export function scoreCase(golden: GoldenCase, raw: string, note?: string | null)
   // not marked down for it — but a note run was told, so on that track they are
   // expected like anything else. Without this the note track scores nothing:
   // every hidden item could be missed and the case would still pass.
-  const told = Boolean(note?.trim());
   const hiddenItems = golden.golden.filter((item) => item.hidden);
   const visible = told ? golden.golden : golden.golden.filter((item) => !item.hidden);
 
   const expectedSet = new Set<string>(visible.map((item) => item.group));
   const actualSet = new Set<string>(actual.items.map((item) => item.group));
-  const hits = [...expectedSet].filter((group) => actualSet.has(group));
+
+  /**
+   * A golden item's `alternatives` are rivals the DATASET accepts for it, and
+   * answering one of them is a right answer.
+   *
+   * They were declared on 16 items across 13 cases and read by nothing, so a
+   * golden that said "chicken schnitzel, or red_meat" still failed a model that
+   * said `red_meat` — the case admitted the ambiguity and scored it as error
+   * anyway. Only the GOLDEN's alternatives count. Crediting the model's would
+   * pay it to hedge, which is exactly what the prompt tells it not to do.
+   */
+  const acceptedFor = (group: string) =>
+    visible
+      .filter((item) => item.group === group)
+      .flatMap((item) => item.alternatives ?? []);
+  const accepted = new Set<string>([
+    ...expectedSet,
+    ...visible.flatMap((item) => item.alternatives ?? []),
+  ]);
+  const hits = [...expectedSet].filter(
+    (group) => actualSet.has(group) || acceptedFor(group).some((alt) => actualSet.has(alt)),
+  );
 
   const recall = expectedSet.size === 0 ? 1 : hits.length / expectedSet.size;
   const precision = actualSet.size === 0 ? 0 : hits.length / actualSet.size;
@@ -148,7 +177,11 @@ export function scoreCase(golden: GoldenCase, raw: string, note?: string | null)
     .filter(([group, n]) => n > Math.max(1, wanted.get(group) ?? 1))
     .map(([group]) => group);
 
-  const missedGroups = [...expectedSet].filter((group) => !actualSet.has(group));
+  // Same predicate as `hits`, or a group credited through an alternative would
+  // still be printed as missed and the report would contradict the score.
+  const missedGroups = [...expectedSet].filter(
+    (group) => !actualSet.has(group) && !acceptedFor(group).some((alt) => actualSet.has(alt)),
+  );
   const hiddenMissed = told
     ? hiddenItems.filter((item) => !actualSet.has(item.group)).map((item) => item.name)
     : [];
@@ -175,7 +208,9 @@ export function scoreCase(golden: GoldenCase, raw: string, note?: string | null)
     countMatch,
     countTotal: counted.length,
     missedGroups,
-    spuriousGroups: [...actualSet].filter((group) => !expectedSet.has(group)),
+    // An accepted rival is not spurious either: the golden named it as a
+    // defensible reading, so reporting it is not an invented row.
+    spuriousGroups: [...actualSet].filter((group) => !accepted.has(group)),
     duplicateGroups,
     mealStatusOk,
     otherMealsOk: null,

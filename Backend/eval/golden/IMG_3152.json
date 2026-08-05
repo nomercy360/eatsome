@@ -1,7 +1,7 @@
 {
   "scene": "homemade french toast: batter has 2 eggs + milk + sugar; fried in butter; banana + honey on top; mug of milk",
   "meal_status": "eaten",
-  "user_note": "fried in butter, 2 eggs and milk in batter, honey on top",
+  "notes": "Carried a `user_note` of \"fried in butter, 2 eggs and milk in batter, honey on top\" that nothing ever read. That key now means a line sent on EVERY track, and this one must not be: it names the two hidden items, so sending it on a plain run would hand the model the answer this case exists to withhold. The note track builds its own line from the `hidden` flags below, which is where that sentence belongs.",
   "golden": [
     {
       "name": "french toast bread",

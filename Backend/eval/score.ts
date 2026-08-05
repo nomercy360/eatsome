@@ -39,13 +39,17 @@ if (artefacts.length === 0) {
  * experiment's errors dragged its committed 10/28 to 0/28 while a Gemini
  * high-thinking pass inflated its cost, in a report that named neither.
  */
+function trackOf(row: RunRecord): "plain" | "notes" {
+  return row.track ?? (row.note ? "notes" : "plain");
+}
+
 function fingerprint(row: RunRecord): string {
   return [
     row.promptVersion,
     row.schemaVersion ?? "-",
     row.inputVersion ?? "legacy-input",
     row.reasoning ?? "default",
-    row.note ? "notes" : "plain",
+    trackOf(row),
   ].join("|");
 }
 
@@ -130,7 +134,7 @@ function summarise(records: RunRecord[]): Map<string, Summary> {
 
     const golden = cases.find((one) => one.id === record.caseId);
     if (!golden) continue;
-    const score = scoreCase(golden, record.raw, record.note);
+    const score = scoreCase(golden, record.raw, trackOf(record) === "notes");
     summary.recall += score.recall;
     summary.precision += score.precision;
     summary.portionMatch += score.portionMatch;
@@ -174,15 +178,31 @@ const configuration =
 const rows = all.filter((row) => fingerprint(row) === configuration);
 
 const current = summarise(rows);
+
+/**
+ * The baseline is filtered to its OWN configuration, not this run's.
+ *
+ * It used to be filtered by `configuration` — the current run's fingerprint,
+ * which contains the prompt version. A v7 baseline therefore matched nothing
+ * against a v8 run, `baseline` came back empty, every flip was skipped by the
+ * `was === undefined` guard, and the report said "Nothing flipped" for the one
+ * comparison the flag exists to make. Comparing across prompt versions is the
+ * point of a baseline; both configurations are named in the header so the
+ * reader can see which two rulers produced the two columns.
+ */
+const baselineRows = baselineFile ? read(baselineFile) : [];
+const baselineConfigurations = [...new Set(baselineRows.map(fingerprint))].sort();
+const baselineConfiguration =
+  baselineConfigurations.find((one) => one.endsWith("default|plain")) ?? baselineConfigurations[0];
 const baseline = baselineFile
-  ? summarise(read(baselineFile).filter((row) => fingerprint(row) === configuration))
+  ? summarise(baselineRows.filter((row) => fingerprint(row) === baselineConfiguration))
   : null;
 
 const lines: string[] = [];
 lines.push(`# Eval report\n`);
 lines.push(
   `Configuration \`${configuration}\`, scored by \`${SCORER_VERSION}\`${
-    baselineFile ? ` against \`${baselineFile}\`` : ""
+    baselineFile ? ` against \`${baselineFile}\` (\`${baselineConfiguration}\`)` : ""
   }.`,
 );
 lines.push(
