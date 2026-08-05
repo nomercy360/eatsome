@@ -858,6 +858,10 @@ private struct MealRecognitionEditorRow: View {
 struct MealItemEditorRow: View {
     @Binding var item: MealItem
 
+    private var proteinGrams: Double {
+        (Protein.defaultGramsPerServing[item.group.rawValue] ?? 0) * item.portion.servings
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
@@ -883,6 +887,11 @@ struct MealItemEditorRow: View {
                             .foregroundStyle(WellieTheme.blue)
                         }
                         Spacer()
+                        if proteinGrams >= 1 {
+                            Text("≈\(Int(proteinGrams.rounded())) g protein")
+                                .font(WellieTheme.font(11, weight: .semibold))
+                                .foregroundStyle(WellieTheme.muted)
+                        }
                     }
                     .contentShape(Rectangle())
                 }

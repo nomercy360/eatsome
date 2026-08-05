@@ -42,8 +42,19 @@ Anything that touches a framework goes in `App/`. HealthKit is isolated in
   silently disappears from the projection.
 - **A text correction is a delta, never a re-run.** `MealRefiner` returns a
   `MealRevision` that touches only the rows the model names; hand edits survive.
-- **No calories, grams, or macros.** Anywhere — not in the schema, not in the
-  prompt, not in the UI. This is the core product decision; see README.
+- **No calories. Ever.** Not computed, not stored, not displayed, however easy
+  it would be from data already here. One visible kcal figure and this stops
+  being the product it set out to be.
+- **No grams or macros in recognition.** The schema and the prompt deal in food
+  groups and coarse portions only. Nothing asks a model for a weight.
+- **Protein in grams is the single exception**, and it is derived, never
+  entered: `Protein.grams(in:)` multiplies group servings by a table in
+  `shaman-config.json`. It earns the exception because it is the only macro with
+  an absolute daily threshold worth hitting, the only one whose sources are
+  discrete enough to estimate from a photograph, and the only one whose target
+  computes itself from data already present (body weight, from HealthKit).
+  Carbohydrate and fat get no gram targets — that road ends at a calorie
+  counter.
 - **Items are what was seen; `MealEntry.servings(of:)` is what counts.** A meal
   contributes at most one large portion of any single group
   (`MealScoring.perMealGroupCap`), scaled by `MealShare`. Never sum

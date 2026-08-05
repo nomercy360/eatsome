@@ -1,0 +1,95 @@
+import Foundation
+
+/// Protein in grams — the one macronutrient this app counts, and the one
+/// exception to the no-grams rule.
+///
+/// It earns the exception on three grounds. It is the only macro with a
+/// threshold worth hitting rather than a ratio worth watching: roughly 1.6–2.2 g
+/// per kilogram of body weight a day when you are building muscle, which is an
+/// absolute number and therefore has to be summed in grams. It is the only one a
+/// photograph can estimate tolerably, because its sources are discrete and
+/// countable — an egg, a fillet, a pot of yoghurt — where fat is smeared through
+/// a dish and invisible in the cooking. And its target is computable from data
+/// already here: body weight arrives from HealthKit.
+///
+/// Carbohydrate and fat deliberately get no daily gram target. That is the path
+/// that ends with a calorie counter, which is the thing this app exists not to
+/// be. Nothing anywhere converts any of this to kilocalories.
+public enum Protein {
+    /// Grams of protein in one serving of each group, where a serving is the
+    /// same adult portion `Portion.medium` means everywhere else.
+    ///
+    /// These are coarse by construction — one number for "fish" covers cod and
+    /// mackerel — and they are meant to be edited in `shaman-config.json` rather
+    /// than argued with in Swift. Per meal the error is large; summed over a day
+    /// of countable sources it lands close enough to see whether you are near a
+    /// target or nowhere near it.
+    public static let defaultGramsPerServing: [String: Double] = [
+        FoodGroup.fish.rawValue: 22,
+        FoodGroup.whiteMeat.rawValue: 26,
+        FoodGroup.redMeat.rawValue: 24,
+        FoodGroup.processedMeat.rawValue: 14,
+        FoodGroup.egg.rawValue: 6,
+        FoodGroup.dairy.rawValue: 8,
+        FoodGroup.legumes.rawValue: 8,
+        FoodGroup.nuts.rawValue: 5,
+        FoodGroup.wholeGrains.rawValue: 4,
+        FoodGroup.refinedGrains.rawValue: 3,
+        FoodGroup.vegetables.rawValue: 2,
+        FoodGroup.fruit.rawValue: 0.5,
+        FoodGroup.healthyFats.rawValue: 1.5,
+        FoodGroup.pastry.rawValue: 4,
+        FoodGroup.sweets.rawValue: 2,
+        FoodGroup.sofrito.rawValue: 1,
+        FoodGroup.butter.rawValue: 0.5,
+        FoodGroup.oliveOil.rawValue: 0,
+        FoodGroup.sugaryDrinks.rawValue: 0,
+        FoodGroup.wine.rawValue: 0,
+        FoodGroup.other.rawValue: 2
+    ]
+
+    /// What a day should reach, from body weight and how hard you are training.
+    public enum Intent: String, Codable, Sendable, CaseIterable {
+        case maintain
+        case active
+        case building
+
+        /// Grams per kilogram of body weight per day.
+        public var gramsPerKilogram: Double {
+            switch self {
+            case .maintain: 1.2
+            case .active: 1.6
+            case .building: 2.0
+            }
+        }
+
+        public var displayName: String {
+            switch self {
+            case .maintain: "Maintain"
+            case .active: "Active"
+            case .building: "Building"
+            }
+        }
+    }
+
+    public static func dailyTarget(weightKilograms: Double, intent: Intent) -> Double {
+        (weightKilograms * intent.gramsPerKilogram).rounded()
+    }
+
+    /// Grams in one meal.
+    ///
+    /// Uses what is on the plate rather than what the MEDAS scorer counts: the
+    /// per-group cap exists to stop a platter clearing a diet target, and has
+    /// nothing to say about protein you actually ate. The share you ate does
+    /// apply — half a shared dish is half the protein.
+    public static func grams(in meal: MealEntry, gramsPerServing: [String: Double] = defaultGramsPerServing) -> Double {
+        let onThePlate = meal.items.reduce(0.0) { total, item in
+            total + (gramsPerServing[item.group.rawValue] ?? 0) * item.portion.servings
+        }
+        return onThePlate * meal.eaten.factor
+    }
+
+    public static func grams(in meals: [MealEntry], gramsPerServing: [String: Double] = defaultGramsPerServing) -> Double {
+        meals.reduce(0) { $0 + grams(in: $1, gramsPerServing: gramsPerServing) }
+    }
+}

@@ -127,6 +127,8 @@ struct TodayView: View {
                 }
             }
 
+            proteinLine
+
             if !dailyShortfalls.isEmpty {
                 shortfallLine(title: "Still today", entries: dailyShortfalls)
             }
@@ -136,6 +138,43 @@ struct TodayView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .wellieCard(color: WellieTheme.card)
+    }
+
+    /// The one macronutrient in grams. The target comes from the body weight
+    /// Health already knows, so it moves when you do.
+    @ViewBuilder
+    private var proteinLine: some View {
+        let grams = model.proteinToday
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text("Protein")
+                    .font(WellieTheme.font(12, weight: .semibold))
+                    .foregroundStyle(WellieTheme.muted)
+                Spacer()
+                if let target = model.proteinTarget {
+                    Text("\(Int(grams.rounded())) / \(Int(target)) g")
+                        .font(WellieTheme.font(15, weight: .bold))
+                        .foregroundStyle(WellieTheme.ink)
+                } else {
+                    Text("\(Int(grams.rounded())) g")
+                        .font(WellieTheme.font(15, weight: .bold))
+                        .foregroundStyle(WellieTheme.ink)
+                }
+            }
+
+            if let target = model.proteinTarget {
+                ProgressView(value: min(grams, target), total: max(target, 1))
+                    .tint(WellieTheme.blue)
+            }
+
+            Text(
+                model.proteinTarget == nil
+                    ? "Target needs a body weight from Health."
+                    : "Estimated from food groups — read the trend, not the digit."
+            )
+            .font(WellieTheme.font(10, weight: .medium))
+            .foregroundStyle(WellieTheme.muted)
+        }
     }
 
     private func shortfallLine(title: String, entries: [Shortfall]) -> some View {

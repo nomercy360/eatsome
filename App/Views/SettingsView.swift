@@ -191,9 +191,34 @@ struct SettingsView: View {
                 .font(WellieTheme.font(12, weight: .medium))
                 .foregroundStyle(WellieTheme.muted)
                 .padding(.top, 4)
+
+            Divider().padding(.vertical, 6)
+
+            WellieKicker(text: "Protein target")
+            Picker("Protein target", selection: Binding(
+                get: { model.proteinIntent },
+                set: { model.proteinIntent = $0 }
+            )) {
+                ForEach(Protein.Intent.allCases, id: \.self) { intent in
+                    Text(intent.displayName).tag(intent)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            Text(proteinTargetCaption)
+                .font(WellieTheme.font(12, weight: .medium))
+                .foregroundStyle(WellieTheme.muted)
         }
         .wellieCard(color: WellieTheme.card)
         .onChange(of: habits) { _, new in Task { await model.updateHabits(new) } }
+    }
+
+    private var proteinTargetCaption: String {
+        let rate = model.proteinIntent.gramsPerKilogram.formatted(.number.precision(.fractionLength(1)))
+        guard let target = model.proteinTarget, let weight = model.latestWeight else {
+            return "\(rate) g per kg of body weight. Health has no weight yet, so there is no daily number."
+        }
+        return "\(rate) g per kg — \(Int(target)) g a day at \(WeightFormat.string(weight.kilograms))."
     }
 
     private var diagnosticsCard: some View {

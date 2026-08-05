@@ -154,6 +154,30 @@ exactly what recognition missed, which no JSON diff gives you.
 A thumbs up/down sits apart from all of this. Correcting takes attention; a thumb
 takes none, and most bad readings are never worth typing about.
 
+### Protein is the one number in grams
+
+Everything else here is food groups and coarse portions, on purpose. Protein is
+the exception, for three reasons that do not apply to the other macronutrients:
+
+- it has an absolute daily threshold with evidence behind it — roughly 1.6–2.2 g
+  per kilogram of body weight when building muscle — so it has to be summed in
+  grams rather than watched as a ratio;
+- its sources are discrete and countable, which is the only reason a photograph
+  can estimate it at all. Fat is smeared through the dish and invisible in the
+  cooking, and its grams would be fiction;
+- its target computes itself from data already here: body weight arrives from
+  HealthKit, so the number moves when you do.
+
+It is derived, never entered — group servings times a table in
+`shaman-config.json`, which is where you tune it against real meals. Carbohydrate
+and fat get no daily gram targets, and nothing anywhere converts any of it to
+calories, though it would be easy from the same data. That is the road that ends
+at a calorie counter.
+
+Per meal the estimate is loose, and large portions are read low by every model
+measured, so the sum leans conservative. Read the trend. If a month of days
+lands 15–20 g short, suspect the estimate before the diet.
+
 ### A plate is not a serving count
 
 Recognition splits a dish into as many rows as it sees, and that is right for the

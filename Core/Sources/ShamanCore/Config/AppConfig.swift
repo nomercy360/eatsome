@@ -12,6 +12,12 @@ public struct AppConfig: Codable, Sendable {
     public var movements: [MovementDefinition]
     public var medas: MedasConfiguration
     public var recognition: Recognition
+    /// Protein grams per serving, by food group. Absent means the compiled
+    /// defaults; this is the table you will want to tune from real meals, which
+    /// is exactly what the config file is for.
+    public var proteinPerServing: [String: Double]?
+
+    public var proteinTable: [String: Double] { proteinPerServing ?? Protein.defaultGramsPerServing }
 
     public struct Recognition: Codable, Sendable {
         /// The OpenAI model. Named `model` because it was here first and remote
@@ -50,7 +56,8 @@ public struct AppConfig: Codable, Sendable {
             geminiModel: "gemini-3.6-flash",
             geminiThinkingLevel: "low",
             geminiMediaResolution: nil
-        )
+        ),
+        proteinPerServing: nil
     )
 
     public func movement(id: String) -> MovementDefinition? {

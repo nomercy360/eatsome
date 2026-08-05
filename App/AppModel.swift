@@ -63,6 +63,9 @@ final class AppModel {
         provider = UserDefaults.standard.string(forKey: Self.providerDefaultsKey)
             .flatMap(RecognitionProvider.init(rawValue:))
             ?? config.defaultProvider
+        proteinIntent = UserDefaults.standard.string(forKey: Self.proteinIntentKey)
+            .flatMap(Protein.Intent.init(rawValue:))
+            ?? .active
 
         rebuildRecognizer()
         await refreshHealth()
@@ -199,6 +202,26 @@ final class AppModel {
         let baseline = nights.dropFirst().prefix(7)
         guard !baseline.isEmpty else { return nil }
         return latest.asleep - baseline.reduce(0) { $0 + $1.asleep } / Double(baseline.count)
+    }
+
+    // MARK: - Protein
+
+    /// Per device, like the recognition provider: this is a training decision,
+    /// not a property of the food.
+    var proteinIntent: Protein.Intent = .active {
+        didSet { UserDefaults.standard.set(proteinIntent.rawValue, forKey: Self.proteinIntentKey) }
+    }
+
+    private static let proteinIntentKey = "proteinIntent"
+
+    var proteinToday: Double {
+        Protein.grams(in: mealsToday(), gramsPerServing: config.proteinTable)
+    }
+
+    /// Nil until Health has a weight: a target invented from a guessed body
+    /// weight would be a number with no meaning behind it.
+    var proteinTarget: Double? {
+        latestWeight.map { Protein.dailyTarget(weightKilograms: $0.kilograms, intent: proteinIntent) }
     }
 
     func workoutCount(weeksAgo: Int, calendar: Calendar = .current) -> Int {
