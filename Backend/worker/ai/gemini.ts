@@ -2,7 +2,7 @@ import type { RecognitionRequest } from "../../src/contracts";
 import { foodGroups, mealRecognitionSchema, portions } from "../../src/contracts";
 import type { Env } from "../env";
 import { HttpError } from "../lib/http-error";
-import { MEAL_RECOGNITION_SYSTEM_PROMPT, MEAL_RECOGNITION_USER_PROMPT } from "./prompt";
+import { productionSpec, type RecognitionSpec } from "./spec";
 import type { ProviderRecognition } from "./types";
 
 const BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
@@ -73,6 +73,7 @@ type GeminiResponse = {
 export async function requestGeminiRecognition(
   env: Env,
   input: RecognitionRequest,
+  spec: RecognitionSpec = productionSpec(),
 ): Promise<ProviderRecognition> {
   const startedAt = Date.now();
   const model = env.GEMINI_RECOGNITION_MODEL;
@@ -84,19 +85,19 @@ export async function requestGeminiRecognition(
       "content-type": "application/json",
     },
     body: JSON.stringify({
-      systemInstruction: { parts: [{ text: MEAL_RECOGNITION_SYSTEM_PROMPT }] },
+      systemInstruction: { parts: [{ text: spec.systemPrompt }] },
       contents: [
         {
           role: "user",
           parts: [
-            { text: MEAL_RECOGNITION_USER_PROMPT },
+            { text: spec.userPrompt },
             { inlineData: { mimeType: input.mimeType, data: input.imageBase64 } },
           ],
         },
       ],
       generationConfig: {
         responseMimeType: "application/json",
-        responseSchema: geminiResponseSchema(),
+        responseSchema: spec.geminiSchema ?? geminiResponseSchema(),
         thinkingConfig: { thinkingLevel: "low" },
       },
     }),
@@ -128,7 +129,11 @@ export async function requestGeminiRecognition(
   if (!rawModelJson) throw new HttpError(502, "Gemini returned no meal recognition output.");
 
   return {
-    recognition: mealRecognitionSchema.parse(JSON.parse(rawModelJson) as unknown),
+    // Parsed against the production contract only when that is what was asked
+    // for; a candidate schema is validated by the caller that supplied it.
+    recognition: spec.geminiSchema
+      ? (JSON.parse(rawModelJson) as never)
+      : mealRecognitionSchema.parse(JSON.parse(rawModelJson) as unknown),
     rawModelJson,
     requestId: response.headers.get("x-request-id"),
     inputTokens: body.usageMetadata?.promptTokenCount ?? 0,

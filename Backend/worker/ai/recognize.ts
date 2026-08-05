@@ -6,6 +6,7 @@ import { requestAnthropicRecognition } from "./anthropic";
 import { requestGeminiRecognition } from "./gemini";
 import { requestOpenAIRecognition } from "./openai";
 import { requestQwenRecognition } from "./qwen";
+import { productionSpec, type RecognitionSpec } from "./spec";
 import type { ProviderRecognition } from "./types";
 
 /**
@@ -58,9 +59,10 @@ export function requestMealRecognition(
   env: Env,
   input: RecognitionRequest,
   provider: RecognitionProvider,
+  spec: RecognitionSpec = productionSpec(),
 ): Promise<ProviderRecognition> {
-  if (provider === "gemini") return requestGeminiRecognition(env, input);
-  if (provider === "anthropic") return requestAnthropicRecognition(env, input);
-  if (provider === "qwen") return requestQwenRecognition(env, input);
-  return requestOpenAIRecognition(env, input);
+  if (provider === "gemini") return requestGeminiRecognition(env, input, spec);
+  if (provider === "anthropic") return requestAnthropicRecognition(env, input, spec);
+  if (provider === "qwen") return requestQwenRecognition(env, input, spec);
+  return requestOpenAIRecognition(env, input, spec);
 }

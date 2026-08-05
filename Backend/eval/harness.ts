@@ -1,10 +1,12 @@
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readFileSync as read, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { RecognitionProvider } from "../src/contracts";
 import { recognitionProviders } from "../src/contracts";
 import { modelFor, requestMealRecognition } from "../worker/ai/recognize";
+import type { RecognitionSpec } from "../worker/ai/spec";
 import type { Env } from "../worker/env";
+import { evalGeminiSchema, evalJsonSchema, SCHEMA_VERSION } from "./schema";
 
 /**
  * The eval calls the same functions the proxy calls.
@@ -23,6 +25,7 @@ export type RunRecord = {
   provider: RecognitionProvider;
   model: string;
   promptVersion: string;
+  schemaVersion: string;
   run: number;
   ok: boolean;
   error?: string;
@@ -34,6 +37,30 @@ export type RunRecord = {
 };
 
 const evalRoot = import.meta.dirname;
+
+/**
+ * The candidate contract, asked for by name.
+ *
+ * The app still ships the narrower one; the dataset is ahead of it on purpose
+ * while the app is being built, and whatever survives these runs is what the
+ * app schema should become. The prompt version and the schema version both
+ * travel on every row, because a run under one contract is not comparable with
+ * a run under the other.
+ */
+export const EVAL_PROMPT_FILE = "meal-v6.md";
+export const EVAL_PROMPT_VERSION = "meal-v6-2026-08-05";
+
+export function evalSpec(): RecognitionSpec {
+  return {
+    systemPrompt: read(join(evalRoot, "..", "..", "prompts", EVAL_PROMPT_FILE), "utf8").trimEnd(),
+    userPrompt: "Classify this meal.",
+    jsonSchema: evalJsonSchema(),
+    geminiSchema: evalGeminiSchema(),
+    schemaName: "meal_recognition_eval",
+  };
+}
+
+export { SCHEMA_VERSION };
 
 export function photoPath(photo: string): string {
   return join(evalRoot, "photos", photo);
@@ -136,6 +163,7 @@ export async function recognizeOnce(
     env,
     { photoHash: hash, mimeType, imageBase64: base64 } as never,
     provider,
+    evalSpec(),
   );
   return {
     raw: result.rawModelJson,

@@ -21,7 +21,7 @@ providers:
   - id: file://eval/promptfoo-provider.ts:geminiFlash
     label: gemini-3.6-flash (reference)
 
-# A placeholder on purpose. The real system prompt is prompts/meal-v5.md, read
+# A placeholder on purpose. The real system prompt is prompts/meal-v6.md, read
 # by the provider through the same generated constant the proxy uses; putting a
 # second copy here is the drift this repo already lived through once.
 prompts:

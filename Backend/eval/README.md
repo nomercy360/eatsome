@@ -53,3 +53,22 @@ The golden set is richer than `FoodGroup`, and `pnpm eval:coverage` prints the
 difference. Items with no representable group are excluded from the denominator
 rather than counted as misses — otherwise every model "fails" a potato for a
 reason no prompt can fix. Read that report before believing any number here.
+
+## The eval runs ahead of the app
+
+The models are asked for `prompts/meal-v6.md` and `eval/schema.ts`, not the
+contract the app ships. The dataset was written from real meals and knows about
+potatoes, counted eggs, sauces as their own category and non-wine alcohol; the
+app does not yet. While it is being built, the dataset is the one to believe, and
+whatever survives these runs is what `FoodGroup` should become.
+
+Two consequences:
+
+- a miss here is a real model failure. Under the production contract, scoring a
+  potato as missing blamed the prompt for something no prompt could fix;
+- numbers from a v6 run and a v5 run are not comparable. Every row carries both
+  `promptVersion` and `schemaVersion` so that stays visible.
+
+`pnpm eval:coverage` now lists the app's debt rather than the dataset's: the
+groups and measures still missing from `FoodGroup`, which is the migration list
+for after the first results.

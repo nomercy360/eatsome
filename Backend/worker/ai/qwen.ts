@@ -1,9 +1,9 @@
 import OpenAI from "openai";
 import type { RecognitionRequest } from "../../src/contracts";
-import { mealRecognitionJsonSchema, mealRecognitionSchema } from "../../src/contracts";
+
 import type { Env } from "../env";
 import { HttpError } from "../lib/http-error";
-import { MEAL_RECOGNITION_SYSTEM_PROMPT, MEAL_RECOGNITION_USER_PROMPT } from "./prompt";
+import { parseFor, productionSpec, type RecognitionSpec } from "./spec";
 import type { ProviderRecognition } from "./types";
 
 /**
@@ -22,6 +22,7 @@ import type { ProviderRecognition } from "./types";
 export async function requestQwenRecognition(
   env: Env,
   input: RecognitionRequest,
+  spec: RecognitionSpec = productionSpec(),
 ): Promise<ProviderRecognition> {
   const startedAt = Date.now();
   const client = new OpenAI({
@@ -32,11 +33,11 @@ export async function requestQwenRecognition(
   const response = await client.chat.completions.create({
     model: env.QWEN_RECOGNITION_MODEL,
     messages: [
-      { role: "system", content: MEAL_RECOGNITION_SYSTEM_PROMPT },
+      { role: "system", content: spec.systemPrompt },
       {
         role: "user",
         content: [
-          { type: "text", text: MEAL_RECOGNITION_USER_PROMPT },
+          { type: "text", text: spec.userPrompt },
           {
             type: "image_url",
             image_url: { url: `data:${input.mimeType};base64,${input.imageBase64}` },
@@ -47,9 +48,9 @@ export async function requestQwenRecognition(
     response_format: {
       type: "json_schema",
       json_schema: {
-        name: "meal_recognition",
+        name: spec.schemaName,
         strict: true,
-        schema: mealRecognitionJsonSchema(),
+        schema: spec.jsonSchema,
       },
     },
   });
@@ -66,7 +67,7 @@ export async function requestQwenRecognition(
   if (!rawModelJson) throw new HttpError(502, "Qwen returned no meal recognition output.");
 
   return {
-    recognition: mealRecognitionSchema.parse(JSON.parse(rawModelJson) as unknown),
+    recognition: parseFor(spec)(JSON.parse(rawModelJson) as unknown),
     rawModelJson,
     requestId: response.id ?? null,
     inputTokens: response.usage?.prompt_tokens ?? 0,

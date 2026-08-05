@@ -2,12 +2,12 @@ import { loadGoldenCases } from "./golden";
 import { mapGroup, mapPortion } from "./taxonomy";
 
 /**
- * What the dataset asks for that the app cannot express.
+ * The app's debt to the dataset.
  *
- * Run this before the first eval, and after any taxonomy change. Its whole
- * purpose is to keep a schema gap from being read as a model failure: if
- * `potatoes` has no group, every model "fails" that case for a reason no prompt
- * can fix.
+ * The eval now asks the models for the dataset's vocabulary, so nothing here
+ * affects scoring any more. What it lists is the work the app has left: every
+ * group and measure the golden set uses that `FoodGroup` still cannot express,
+ * which is the migration list for after the first results are in.
  *
  *   pnpm eval:coverage
  */

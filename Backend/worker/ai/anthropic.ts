@@ -1,8 +1,8 @@
 import type { RecognitionRequest } from "../../src/contracts";
-import { mealRecognitionJsonSchema, mealRecognitionSchema } from "../../src/contracts";
+
 import type { Env } from "../env";
 import { HttpError } from "../lib/http-error";
-import { MEAL_RECOGNITION_SYSTEM_PROMPT, MEAL_RECOGNITION_USER_PROMPT } from "./prompt";
+import { parseFor, productionSpec, type RecognitionSpec } from "./spec";
 import type { ProviderRecognition } from "./types";
 
 const ENDPOINT = "https://api.anthropic.com/v1/messages";
@@ -26,6 +26,7 @@ type AnthropicResponse = {
 export async function requestAnthropicRecognition(
   env: Env,
   input: RecognitionRequest,
+  spec: RecognitionSpec = productionSpec(),
 ): Promise<ProviderRecognition> {
   const startedAt = Date.now();
   const response = await fetch(ENDPOINT, {
@@ -38,12 +39,12 @@ export async function requestAnthropicRecognition(
     body: JSON.stringify({
       model: env.ANTHROPIC_RECOGNITION_MODEL,
       max_tokens: 2048,
-      system: MEAL_RECOGNITION_SYSTEM_PROMPT,
+      system: spec.systemPrompt,
       tools: [
         {
           name: TOOL_NAME,
           description: "Record the food groups and portions visible in the photograph.",
-          input_schema: mealRecognitionJsonSchema(),
+          input_schema: spec.jsonSchema,
         },
       ],
       tool_choice: { type: "tool", name: TOOL_NAME },
@@ -55,7 +56,7 @@ export async function requestAnthropicRecognition(
               type: "image",
               source: { type: "base64", media_type: input.mimeType, data: input.imageBase64 },
             },
-            { type: "text", text: MEAL_RECOGNITION_USER_PROMPT },
+            { type: "text", text: spec.userPrompt },
           ],
         },
       ],
@@ -80,7 +81,7 @@ export async function requestAnthropicRecognition(
 
   const rawModelJson = JSON.stringify(call.input);
   return {
-    recognition: mealRecognitionSchema.parse(call.input),
+    recognition: parseFor(spec)(call.input),
     rawModelJson,
     requestId: response.headers.get("request-id"),
     inputTokens: body.usage?.input_tokens ?? 0,

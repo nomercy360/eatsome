@@ -1,6 +1,6 @@
 import { appendFileSync, existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { MEAL_PROMPT_VERSION } from "../worker/ai/prompt";
+
 import { loadGoldenCases } from "./golden";
 import {
   type EvalModel,
@@ -69,14 +69,14 @@ for (const entry of models) {
 }
 
 const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
-const output = join(import.meta.dirname, "runs", `${stamp}_${MEAL_PROMPT_VERSION}.jsonl`);
+const output = join(import.meta.dirname, "runs", `${stamp}_${EVAL_PROMPT_VERSION}.jsonl`);
 writeFileSync(output, "");
 
 console.log(
   `${jobs.length} calls: ${runnable.length} cases × ${models.length} models × ${runsPerCase} runs`,
 );
 console.log(`models: ${models.map((entry) => `${entry.id} (${entry.tier})`).join(", ")}`);
-console.log(`prompt ${MEAL_PROMPT_VERSION} → ${output}\n`);
+console.log(`prompt ${EVAL_PROMPT_VERSION} → ${output}\n`);
 
 let done = 0;
 async function worker(queue: Job[]) {
@@ -89,7 +89,8 @@ async function worker(queue: Job[]) {
       tier: job.entry.tier,
       provider: job.entry.provider,
       model: job.entry.model,
-      promptVersion: MEAL_PROMPT_VERSION,
+      promptVersion: EVAL_PROMPT_VERSION,
+      schemaVersion: SCHEMA_VERSION,
       run: job.run,
       ok: false,
     };
