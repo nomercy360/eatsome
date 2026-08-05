@@ -1,0 +1,63 @@
+{
+  "photo": "photos/TG_95782.jpeg",
+  "scene": "Chinese restaurant table for two: three communal dishes - battered sweet-and-sour chicken, a braised potato-and-pepper dish, smashed cucumber in soy with peanuts - plus an individual rice bowl at each of the two settings",
+  "meal_status": "shared_plate",
+  "user_note": "The three dishes in the middle are shared between the two of us.",
+  "dedup_note": "chicken batter + both rice bowls -> 1 refined_grain serving",
+  "golden": [
+    {
+      "name": "sweet and sour chicken",
+      "group": "white_meat",
+      "flags": ["fried", "breaded"],
+      "measure": "size",
+      "size": "M",
+      "protein_g": 30
+    },
+    {
+      "name": "rice",
+      "group": "refined_grain",
+      "measure": "size",
+      "size": "L"
+    },
+    {
+      "name": "braised potato with peppers",
+      "group": "potatoes",
+      "alternatives": ["red_meat"],
+      "measure": "size",
+      "size": "M"
+    },
+    {
+      "name": "smashed cucumber",
+      "group": "vegetables",
+      "measure": "size",
+      "size": "M"
+    },
+    {
+      "name": "peanuts on the cucumber",
+      "group": "nuts",
+      "measure": "size",
+      "size": "S"
+    },
+    {
+      "name": "sweet-and-sour and soy sauces",
+      "group": "sauce",
+      "measure": "size",
+      "size": "M"
+    }
+  ],
+  "notes": "The second case for the user-line branch, which until now lived entirely on IMG_3168. The line says the middle dishes are shared, so the answer is the whole table at the sizes it is served in rather than a guess at one person's share - the same convention IMG_3168 sets. Six distinct groups, and three of them are the ones models drop: the peanuts scattered over the cucumber, the sauce the chicken sits in, and the batter that merges into the rice as refined_grain. The middle dish is genuinely ambiguous between potato wedges and sliced pork in the same glaze; `potatoes` is the reading with `red_meat` as the credited rival, and it should be re-cut from the photograph rather than settled by what the models say.",
+  "traps": [
+    "user_line_all_mine",
+    "table_not_my_share",
+    "nuts_missed",
+    "sauce_missed",
+    "refined_grain_dedup",
+    "potato_taxonomy",
+    "breading_refined_dedup"
+  ],
+  "_source": {
+    "telegram_msg": "95782",
+    "subcase": "own_plate_plus_foreign_food",
+    "faces": false
+  }
+}
