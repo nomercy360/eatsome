@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { loadGoldenCases, goldenIngredients } from "./golden";
+import { goldenIngredients, loadGoldenCases } from "./golden";
 import { evalFlags, evalFoodGroups, mealStatuses } from "./schema";
 import { EVAL_PROMPT_FILE } from "./version";
 
@@ -46,15 +46,18 @@ const UNMODELLED: Record<string, string> = {
   ate_part: "same — MealShare.part is the answer, not a status",
 };
 
-
 describe("golden and schema speak the same language", () => {
   it("every group in the golden exists in the schema", () => {
-    const used = new Set(cases.flatMap((one) => goldenIngredients(one.dishes).map((item) => item.group)));
+    const used = new Set(
+      cases.flatMap((one) => goldenIngredients(one.dishes).map((item) => item.group)),
+    );
     expect([...used].filter((g) => !(evalFoodGroups as readonly string[]).includes(g))).toEqual([]);
   });
 
   it("every flag in the golden exists in the schema, and any the prompt drops is declared", () => {
-    const used = new Set(cases.flatMap((one) => goldenIngredients(one.dishes).flatMap((item) => item.flags ?? [])));
+    const used = new Set(
+      cases.flatMap((one) => goldenIngredients(one.dishes).flatMap((item) => item.flags ?? [])),
+    );
     expect([...used].filter((f) => !(evalFlags as readonly string[]).includes(f))).toEqual([]);
     // Silence is the failure mode, not absence: a flag the prompt stopped
     // asking for is fine, provided somebody wrote down that it did.
@@ -112,7 +115,9 @@ describe("golden and schema speak the same language", () => {
     // A declaration that has outlived its gap is worse than none: it is a
     // standing excuse for a signal the prompt may have started modelling again,
     // and it would hide the next regression in the same field.
-    const flags = new Set(cases.flatMap((one) => goldenIngredients(one.dishes).flatMap((i) => i.flags ?? [])));
+    const flags = new Set(
+      cases.flatMap((one) => goldenIngredients(one.dishes).flatMap((i) => i.flags ?? [])),
+    );
     const statuses = new Set(cases.map((one) => one.meal_status).filter(Boolean) as string[]);
     const stale = Object.keys(UNMODELLED).filter(
       (key) => (!flags.has(key) && !statuses.has(key)) || prompt.includes(key),

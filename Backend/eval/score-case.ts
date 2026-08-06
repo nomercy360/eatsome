@@ -425,17 +425,59 @@ function servingsOfGolden(item: {
  * a cached answer from before grams were asked for, which is judged the old way
  * rather than scored against a number it never produced.
  */
-function servingsOfFound(found: { grams?: number | null; group: string; servings?: number | null }): number | null {
+function servingsOfFound(found: {
+  grams?: number | null;
+  group: string;
+  servings?: number | null;
+}): number | null {
   if (found.grams != null) return found.grams / (SERVING_GRAMS[found.group] ?? 100);
   if (found.servings != null) return found.servings;
   return null;
 }
 
-/** Grams in one serving, mirroring `ServingWeight.defaultGrams` in Core. */
+/**
+ * Grams in one serving, mirroring `ServingWeight.defaultGrams` in Core.
+ *
+ * Spelled in the dataset's vocabulary as well as the app's — `refined_grain`
+ * and `refined_grains` are the same food, and a missing key here would fall
+ * back to 100 g and quietly halve a bowl of rice. `potatoes` and `sauce` have
+ * no home in the app at all and are dropped by the taxonomy before they reach
+ * this, but they are given weights so that a future mapping does not inherit
+ * a silent default.
+ */
 const SERVING_GRAMS: Record<string, number> = {
-  fish: 100, white_meat: 100, red_meat: 100, processed_meat: 50, egg: 50, dairy: 200,
-  legumes: 150, nuts: 30, whole_grains: 150, refined_grains: 150, vegetables: 100,
-  fruit: 120, healthy_fats: 30, pastry: 60, sweets: 30, sofrito: 50, butter: 15,
-  olive_oil: 10, sugary_drinks: 330, coffee: 200, tea: 200, juice: 200,
-  plant_milk: 200, smoothie: 250, alcohol: 330, other: 100,
+  fish: 100,
+  white_meat: 100,
+  red_meat: 100,
+  processed_meat: 50,
+  egg: 50,
+  dairy: 200,
+  legumes: 150,
+  nuts: 30,
+  vegetables: 100,
+  fruit: 120,
+  healthy_fats: 30,
+  pastry: 60,
+  sweets: 30,
+  sofrito: 50,
+  olive_oil: 10,
+  sugary_drinks: 330,
+  coffee: 200,
+  tea: 200,
+  juice: 200,
+  plant_milk: 200,
+  smoothie: 250,
+  alcohol: 330,
+  other: 100,
+  // App spelling.
+  whole_grains: 150,
+  refined_grains: 150,
+  butter: 15,
+  // Dataset spelling for the same three.
+  whole_grain: 150,
+  refined_grain: 150,
+  butter_margarine_cream: 15,
+  // Unmapped in `taxonomy.ts`, weighted anyway so a later mapping starts right.
+  potatoes: 150,
+  sauce: 30,
 };

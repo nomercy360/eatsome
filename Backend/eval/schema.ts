@@ -103,6 +103,17 @@ export const evalItemSchema = z.strictObject({
   alternatives: z.array(z.enum(evalFoodGroups)).max(3),
   /** This ingredient's share of ONE serving of the dish, never of the whole. */
   portion: z.enum(["S", "M", "L"]),
+  /**
+   * Edible weight on the plate, absolute — everything of this ingredient that
+   * is there, across every serving present.
+   *
+   * Nullable because a prompt is free not to ask for it, and the scorer falls
+   * back to `portion` when it is absent. That fallback is why this field has to
+   * exist at all: without it a weighing prompt returns nothing to weigh, the
+   * scorer silently grades the ladder instead, and the report says the new
+   * prompt was measured when the old quantity was.
+   */
+  grams: z.number().min(0).max(20_000).nullable(),
   flags: z.array(z.enum(evalFlags)),
 });
 
@@ -190,13 +201,14 @@ export function evalGeminiSchema(): Record<string, unknown> {
               type: "ARRAY",
               items: {
                 type: "OBJECT",
-                propertyOrdering: ["name", "group", "alternatives", "portion", "flags"],
-                required: ["name", "group", "alternatives", "portion", "flags"],
+                propertyOrdering: ["name", "group", "alternatives", "portion", "grams", "flags"],
+                required: ["name", "group", "alternatives", "portion", "grams", "flags"],
                 properties: {
                   name: { type: "STRING" },
                   group,
                   alternatives: { type: "ARRAY", items: group, maxItems: 3 },
                   portion: { type: "STRING", enum: ["S", "M", "L"] },
+                  grams: { type: "NUMBER", nullable: true },
                   flags: { type: "ARRAY", items: { type: "STRING", enum: [...evalFlags] } },
                 },
               },
