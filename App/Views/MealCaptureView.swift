@@ -111,6 +111,12 @@ struct MealCaptureView: View {
                         items = dishes.flatMap { $0.flattened() }
                         didEdit = true
                     },
+                    onSize: { size in
+                        guard let index = dishes.firstIndex(where: { $0.id == dish.id }) else { return }
+                        dishes[index].size = size
+                        items = dishes.flatMap { $0.flattened() }
+                        didEdit = true
+                    },
                     onRemove: {
                         let names = Set(dish.items.map(\.id))
                         items.removeAll { names.contains($0.id) }

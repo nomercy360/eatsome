@@ -100,6 +100,11 @@ struct MealDetailView: View {
                     dishes[index].count = count
                     draft.items = dishes.flatMap { $0.flattened() }
                 },
+                onSize: { size in
+                    guard let index = dishes.firstIndex(where: { $0.id == dish.id }) else { return }
+                    dishes[index].size = size
+                    draft.items = dishes.flatMap { $0.flattened() }
+                },
                 onRemove: {
                     let members = Set(dish.items.map(\.id))
                     draft.items.removeAll { members.contains($0.id) }
