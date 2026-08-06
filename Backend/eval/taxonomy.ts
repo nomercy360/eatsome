@@ -64,20 +64,21 @@ const sizes: Record<string, string> = { S: "small", M: "medium", L: "large" };
  * items are scored on group only and reported separately rather than being
  * marked wrong for a distinction the schema cannot make.
  */
-export function mapPortion(item: { measure?: string; size?: string; count?: number }): {
+/**
+ * Both gaps this used to report are closed.
+ *
+ * It existed to say what the app could not express: a counted item, because
+ * there was only small/medium/large, and a packaged one, because there was no
+ * label. The dish now carries `count` and a transcribed `panel`, so an
+ * ingredient has only its share of one serving left to map — and that always
+ * maps. What remains is the check that it was given at all.
+ */
+export function mapPortion(item: { portion?: string }): {
   portion: string | null;
   why?: string;
 } {
-  if (item.measure === "size" && item.size && sizes[item.size]) {
-    return { portion: sizes[item.size] };
-  }
-  if (item.measure === "count") {
-    return { portion: null, why: "counted item; the app has no count, only small/medium/large" };
-  }
-  if (item.measure === "package") {
-    return { portion: null, why: "package measure; the app has no packaged-item mode" };
-  }
-  return { portion: null, why: `unrecognised measure ${item.measure ?? "(none)"}` };
+  if (item.portion && sizes[item.portion]) return { portion: sizes[item.portion] };
+  return { portion: null, why: `no portion on the ingredient (${item.portion ?? "none"})` };
 }
 
 export const appPortions = portions;

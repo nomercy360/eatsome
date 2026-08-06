@@ -1,4 +1,4 @@
-import type { GoldenCase } from "./golden";
+import { type GoldenCase, goldenIngredients } from "./golden";
 import { evalRecognitionSchema } from "./schema";
 
 /**
@@ -18,11 +18,25 @@ export type CaseScore = {
   parseError?: string;
   recall: number;
   precision: number;
-  /** Of the groups found, how many also got the measure and value right. */
+  /** Of the groups found, how many also got the ingredient portion right. */
   portionMatch: number;
-  /** Counted items where the number was exactly right. */
+  /** Dishes whose count was exactly right, over dishes the golden counts above one. */
   countMatch: number;
   countTotal: number;
+  /** How many dishes were reported, against how many the golden names. */
+  dishCount: number;
+  dishExpected: number;
+  /**
+   * Golden dishes with a counterpart in the answer, matched on the set of food
+   * groups inside rather than on the name — "som tam" and "green papaya salad"
+   * are the same dish and no string comparison knows that.
+   */
+  structureMatch: number;
+  /** Figures printed on a label and transcribed wrongly, or invented. */
+  panelWrong: string[];
+  /** Milligrams the drinks imply, against what the golden expects. */
+  caffeineExpected: number | null;
+  caffeineActual: number | null;
   missedGroups: string[];
   spuriousGroups: string[];
   duplicateGroups: string[];
@@ -37,6 +51,13 @@ export type CaseScore = {
 };
 
 const RECALL_FLOOR = 0.8;
+/**
+ * Two thirds of the tray grouped the way it is served. Lower and a rice bowl
+ * split into four dishes would pass, which is the failure the rewrite exists to
+ * catch; higher and one debatable boundary — is the butter its own dish? —
+ * fails an answer that read the food correctly.
+ */
+const STRUCTURE_FLOOR = 0.67;
 
 /**
  * The measuring instrument is versioned like everything else it measures.
@@ -56,8 +77,37 @@ const RECALL_FLOOR = 0.8;
  *     declared on 16 items across 13 cases and read by nothing, so a case that
  *     admitted an ambiguity still scored the admitted reading as an error. They
  *     no longer count as spurious either, for the same reason.
+ * v5  dishes. Groups are still the core, but a tray of four things reported as
+ *     one dish is now a failure the old scorer could not see, and a rice bowl
+ *     reported as four dishes likewise. Structure is matched on the groups
+ *     inside a dish, never on its name. Counts move from the item to the dish.
+ *     Duplicate-group gating retires: the structure says whether two vegetable
+ *     rows are one bowl or two plates, which is what it was standing in for.
+ *     Adds the two checks a transcribed label needs — a wrong figure, and a
+ *     figure invented where the golden says nothing is legible.
  */
-export const SCORER_VERSION = "scorer-v4-2026-08-05";
+/**
+ * v6  dish matching uses overlap rather than Jaccard, and honours the golden's
+ *     alternatives. Two cases scored 0% structure with one dish expected and
+ *     one answered: a bubble waffle decomposed into three groups shared
+ *     everything the golden had, and escargot answered as its own declared
+ *     alternative counted as a different dish. Both were the ruler, not the
+ *     model.
+ */
+export const SCORER_VERSION = "scorer-v6-2026-08-06";
+
+/**
+ * Milligrams per serving, for deriving what a drink implies.
+ *
+ * Never asked of a model: caffeine is not visible, and a figure estimated from
+ * a photograph of a cup is a guess wearing a unit. The model says which drink
+ * and how many; this table says the rest, and the golden asserts the product.
+ */
+export const CAFFEINE_MG_PER_SERVING: Record<string, number> = {
+  coffee: 95,
+  tea: 45,
+  sugary_drinks: 0,
+};
 
 /**
  * `told` says the run sent the hidden-item note. It changes what counts: told
@@ -77,6 +127,12 @@ export function scoreCase(golden: GoldenCase, raw: string, told = false): CaseSc
     portionMatch: 0,
     countMatch: 0,
     countTotal: 0,
+    dishCount: 0,
+    dishExpected: 0,
+    structureMatch: 0,
+    panelWrong: [],
+    caffeineExpected: null,
+    caffeineActual: null,
     missedGroups: [],
     spuriousGroups: [],
     duplicateGroups: [],
@@ -107,21 +163,22 @@ export function scoreCase(golden: GoldenCase, raw: string, told = false): CaseSc
   // not marked down for it — but a note run was told, so on that track they are
   // expected like anything else. Without this the note track scores nothing:
   // every hidden item could be missed and the case would still pass.
-  const hiddenItems = golden.golden.filter((item) => item.hidden);
-  const visible = told ? golden.golden : golden.golden.filter((item) => !item.hidden);
+  const goldenItems = goldenIngredients(golden.dishes);
+  const hiddenItems = goldenItems.filter((item) => item.hidden);
+  const visible = told ? goldenItems : goldenItems.filter((item) => !item.hidden);
+  const actualItems = actual.dishes.flatMap((dish) =>
+    dish.ingredients.map((item) => ({ ...item, dish: dish.name })),
+  );
 
   const expectedSet = new Set<string>(visible.map((item) => item.group));
-  const actualSet = new Set<string>(actual.items.map((item) => item.group));
+  const actualSet = new Set<string>(actualItems.map((item) => item.group));
 
   /**
    * A golden item's `alternatives` are rivals the DATASET accepts for it, and
    * answering one of them is a right answer.
    *
-   * They were declared on 16 items across 13 cases and read by nothing, so a
-   * golden that said "chicken schnitzel, or red_meat" still failed a model that
-   * said `red_meat` — the case admitted the ambiguity and scored it as error
-   * anyway. Only the GOLDEN's alternatives count. Crediting the model's would
-   * pay it to hedge, which is exactly what the prompt tells it not to do.
+   * Only the GOLDEN's alternatives count. Crediting the model's would pay it to
+   * hedge, which is exactly what the prompt tells it not to do.
    */
   const acceptedFor = (group: string) =>
     visible.filter((item) => item.group === group).flatMap((item) => item.alternatives ?? []);
@@ -136,47 +193,139 @@ export function scoreCase(golden: GoldenCase, raw: string, told = false): CaseSc
   const recall = expectedSet.size === 0 ? 1 : hits.length / expectedSet.size;
   const precision = actualSet.size === 0 ? 0 : hits.length / actualSet.size;
 
-  // Measure first, value second: calling a countable thing a size is the error
-  // that matters, because it is the one that makes protein unestimable.
+  // An ingredient's portion is its share of one serving, so it is judged
+  // against the golden's ingredient, not against the dish.
   const judgeable = visible.filter((item) => actualSet.has(item.group));
-  // The value has to match too. Accepting any count for a counted item gave
-  // measure credit to answers that said "three eggs" about one egg.
-  const measureHits = judgeable.filter((item) =>
-    actual.items.some(
-      (found) =>
-        found.group === item.group &&
-        found.measure === item.measure &&
-        (item.measure === "size"
-          ? found.size === item.size
-          : item.measure === "count"
-            ? found.count === item.count
-            : true),
-    ),
+  const portionHits = judgeable.filter((item) =>
+    actualItems.some((found) => found.group === item.group && found.portion === item.portion),
   );
-  const portionMatch = judgeable.length === 0 ? 1 : measureHits.length / judgeable.length;
+  const portionMatch = judgeable.length === 0 ? 1 : portionHits.length / judgeable.length;
 
-  const counted = visible.filter((item) => item.measure === "count");
-  const countMatch = counted.filter((item) =>
-    actual.items.some(
+  /**
+   * Structure, matched on what is inside a dish rather than on what it is
+   * called. "som tam" and "green papaya salad" are the same dish and no string
+   * comparison knows it, while two dishes holding the same groups are the same
+   * dish whatever either is named.
+   */
+  const signature = (groups: string[]) => new Set(groups);
+  /**
+   * How much of the smaller dish the larger one accounts for.
+   *
+   * Not Jaccard, which punishes a small golden dish against a more decomposed
+   * answer: a bubble waffle is one `sweets` and an answer of waffle-plus-ice-
+   * cream-plus-sweets shares everything the golden has, yet scores 0.33 and is
+   * called a different dish. Union-based similarity answers "are these the same
+   * set", and the question here is "is this the same dish".
+   */
+  const overlap = (a: Set<string>, b: Set<string>) => {
+    const shared = [...a].filter((group) => b.has(group)).length;
+    const smaller = Math.min(a.size, b.size);
+    return smaller === 0 ? 1 : shared / smaller;
+  };
+  /** Jaccard survives as the tiebreak, so the closest candidate still wins. */
+  const sameness = (a: Set<string>, b: Set<string>) => {
+    const shared = [...a].filter((group) => b.has(group)).length;
+    const union = new Set([...a, ...b]).size;
+    return union === 0 ? 1 : shared / union;
+  };
+  const actualSignatures = actual.dishes.map((dish) =>
+    signature(dish.ingredients.map((item) => item.group)),
+  );
+  const takenDishes = new Set<number>();
+  let structureHits = 0;
+  const unmatchedDishes: string[] = [];
+  for (const dish of golden.dishes) {
+    const visibleIngredients = dish.ingredients.filter((item) => told || !item.hidden);
+    // The golden's own alternatives are right answers everywhere else in this
+    // file, and a dish matched on its groups must honour them too: escargot is
+    // declared as `fish` or `other`, and an answer of `other` is not a
+    // different dish.
+    const want = signature([
+      ...visibleIngredients.map((item) => item.group),
+      ...visibleIngredients.flatMap((item) => item.alternatives ?? []),
+    ]);
+    let best = -1;
+    let bestScore = 0;
+    let bestTie = 0;
+    actualSignatures.forEach((have, index) => {
+      if (takenDishes.has(index)) return;
+      const score = overlap(want, have);
+      const tie = sameness(want, have);
+      if (score > bestScore || (score === bestScore && tie > bestTie)) {
+        bestScore = score;
+        bestTie = tie;
+        best = index;
+      }
+    });
+    // Half the smaller dish shared is the loosest reading that still means "the
+    // same dish": below it, a rice bowl matched against a side salad would count.
+    if (best >= 0 && bestScore >= 0.5) {
+      takenDishes.add(best);
+      structureHits += 1;
+    } else {
+      unmatchedDishes.push(dish.name);
+    }
+  }
+  const structureMatch = golden.dishes.length === 0 ? 1 : structureHits / golden.dishes.length;
+
+  // Only dishes the golden counts above one are a real test of counting; every
+  // other dish is count 1 and answering 1 proves nothing.
+  const counted = golden.dishes.filter((dish) => dish.count > 1);
+  const countMatch = counted.filter((dish) => {
+    const want = signature(dish.ingredients.map((item) => item.group));
+    return actual.dishes.some(
       (found) =>
-        found.group === item.group && found.measure === "count" && found.count === item.count,
-    ),
-  ).length;
+        found.count === dish.count &&
+        overlap(want, signature(found.ingredients.map((item) => item.group))) >= 0.5,
+    );
+  }).length;
 
-  // A repeated group is not a defect by itself: seven of the golden cases repeat
-  // one, because four fruits on a platter really are four items and the app caps
-  // them at scoring time rather than asking the model to merge them. Only rows
-  // beyond what the golden expects are excess.
-  const emitted = new Map<string, number>();
-  for (const item of actual.items) emitted.set(item.group, (emitted.get(item.group) ?? 0) + 1);
-  const wanted = new Map<string, number>();
-  for (const item of visible) wanted.set(item.group, (wanted.get(item.group) ?? 0) + 1);
-  const duplicateGroups = [...emitted]
-    .filter(([group, n]) => n > Math.max(1, wanted.get(group) ?? 1))
-    .map(([group]) => group);
+  /**
+   * A transcribed figure is either right or absent. Being close is the failure
+   * mode that matters: a number near the truth is what recall of a familiar
+   * product produces, and it is indistinguishable from a reading unless it is
+   * checked against what the label actually says.
+   */
+  const panelWrong: string[] = [];
+  for (const dish of golden.dishes) {
+    const want = signature(dish.ingredients.map((item) => item.group));
+    const found = actual.dishes.find(
+      (candidate) => overlap(want, signature(candidate.ingredients.map((i) => i.group))) >= 0.5,
+    );
+    if (!found) continue;
+    if (dish.panel == null) {
+      // The golden says nothing is legible here. Any figure is invented.
+      const invented = Object.entries(found.panel ?? {}).filter(([, value]) => value != null);
+      for (const [field] of invented) panelWrong.push(`${dish.name}: invented ${field}`);
+      continue;
+    }
+    for (const [field, expected] of Object.entries(dish.panel)) {
+      if (expected == null) continue;
+      const got = (found.panel as Record<string, number | null> | null)?.[field];
+      if (got == null) panelWrong.push(`${dish.name}: missed ${field}`);
+      else if (Math.abs(got - expected) > 0.05) {
+        panelWrong.push(`${dish.name}: ${field} ${got} not ${expected}`);
+      }
+    }
+  }
 
-  // Same predicate as `hits`, or a group credited through an alternative would
-  // still be printed as missed and the report would contradict the score.
+  const caffeineOf = (dishes: Array<{ count: number; ingredients: Array<{ group: string }> }>) =>
+    dishes.reduce(
+      (total, dish) =>
+        total +
+        dish.count *
+          dish.ingredients.reduce(
+            (perServing, item) => perServing + (CAFFEINE_MG_PER_SERVING[item.group] ?? 0),
+            0,
+          ),
+      0,
+    );
+  const wantsCaffeine = golden.dishes.some((dish) => dish.caffeine_mg != null);
+  const caffeineExpected = wantsCaffeine
+    ? golden.dishes.reduce((total, dish) => total + (dish.caffeine_mg ?? 0), 0)
+    : null;
+  const caffeineActual = wantsCaffeine ? caffeineOf(actual.dishes) : null;
+
   const missedGroups = [...expectedSet].filter(
     (group) => !actualSet.has(group) && !acceptedFor(group).some((alt) => actualSet.has(alt)),
   );
@@ -185,16 +334,23 @@ export function scoreCase(golden: GoldenCase, raw: string, told = false): CaseSc
     : [];
   const mealStatusOk = golden.meal_status ? actual.meal_status === golden.meal_status : null;
 
-  // Everything that was already being computed and then thrown away. A pass
-  // that ignores duplicates, meal status and counts is a pass that cannot
-  // support a claim about dedup rules.
   // Gates are rules with an unambiguous right answer. `meal_status` is not one
   // of them: the golden calls a full canteen tray "eaten" and every model calls
-  // it "not_yet_eaten", and neither reading is wrong from a photograph. It is
-  // reported instead, because 55% disagreement is a finding about the labels.
+  // it "not_yet_eaten", and neither reading is wrong from a photograph.
   const failures: string[] = [];
   if (recall < RECALL_FLOOR) failures.push(`missed ${missedGroups.join(", ")}`);
-  if (duplicateGroups.length > 0) failures.push(`duplicated ${duplicateGroups.join(", ")}`);
+  if (structureMatch < STRUCTURE_FLOOR) {
+    // Name what went unmatched. "grouped 1 dishes where the tray has 1" was
+    // true and useless: the counts agreed and the grouping did not.
+    failures.push(
+      `no dish matched ${unmatchedDishes.join(", ")}` +
+        ` (${actual.dishes.length} reported, ${golden.dishes.length} expected)`,
+    );
+  }
+  // Inventing a figure is worse than missing one: the field's only value is
+  // that what it holds was read.
+  const invented = panelWrong.filter((entry) => entry.includes("invented"));
+  if (invented.length > 0) failures.push(invented.join("; "));
   if (told && hiddenMissed.length > 0)
     failures.push(`ignored the note: ${hiddenMissed.join(", ")}`);
 
@@ -205,11 +361,17 @@ export function scoreCase(golden: GoldenCase, raw: string, told = false): CaseSc
     portionMatch,
     countMatch,
     countTotal: counted.length,
+    dishCount: actual.dishes.length,
+    dishExpected: golden.dishes.length,
+    structureMatch,
+    panelWrong,
+    caffeineExpected,
+    caffeineActual,
     missedGroups,
     // An accepted rival is not spurious either: the golden named it as a
     // defensible reading, so reporting it is not an invented row.
     spuriousGroups: [...actualSet].filter((group) => !accepted.has(group)),
-    duplicateGroups,
+    duplicateGroups: [],
     mealStatusOk,
     otherMealsOk: null,
     hiddenMissed,

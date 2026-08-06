@@ -1,16 +1,22 @@
 {
   "scene": "half a dragon fruit in hand — control case, zero tolerance for errors",
   "meal_status": "eaten",
-  "golden": [
+  "dishes": [
     {
       "name": "dragon fruit",
-      "group": "fruit",
-      "measure": "count",
-      "count": 0.5
+      "count": 1,
+      "size": "S",
+      "ingredients": [
+        {
+          "name": "dragon fruit",
+          "group": "fruit",
+          "portion": "S"
+        }
+      ]
     }
   ],
-  "traps": [],
-  "photo": "photos/IMG_3169.JPG",
-  "holdout": true,
-  "holdout_reason": "an ordinary plate with no traps at all — the control"
+  "traps": [
+    "half_is_a_size_not_a_count"
+  ],
+  "photo": "photos/IMG_3169.JPG"
 }

@@ -1,40 +1,51 @@
 {
   "scene": "restaurant: whole sea bream fillet in tomato sauce with olives and baby potatoes; bread in side bowl; more bread behind (shared)",
   "meal_status": "eaten",
-  "golden": [
+  "dishes": [
     {
-      "name": "sea bream",
-      "group": "fish",
-      "measure": "size",
+      "name": "sea bream in tomato sauce",
+      "count": 1,
       "size": "M",
-      "protein_g": 25
-    },
-    {
-      "name": "tomato sauce",
-      "group": "vegetables",
-      "measure": "size",
-      "size": "S"
-    },
-    {
-      "name": "olives",
-      "group": "healthy_fats",
-      "measure": "size",
-      "size": "S"
-    },
-    {
-      "name": "baby potatoes",
-      "group": "potatoes",
-      "measure": "size",
-      "size": "S"
+      "ingredients": [
+        {
+          "name": "sea bream",
+          "group": "fish",
+          "portion": "M",
+          "protein_g": 24
+        },
+        {
+          "name": "tomato sauce",
+          "group": "vegetables",
+          "portion": "S",
+          "alternatives": [
+            "sofrito"
+          ]
+        },
+        {
+          "name": "olives",
+          "group": "healthy_fats",
+          "portion": "S"
+        },
+        {
+          "name": "baby potatoes",
+          "group": "potatoes",
+          "portion": "S"
+        }
+      ]
     },
     {
       "name": "bread",
-      "group": "refined_grain",
-      "measure": "count",
-      "count": 2
+      "count": 2,
+      "size": "S",
+      "ingredients": [
+        {
+          "name": "bread",
+          "group": "refined_grain",
+          "portion": "S"
+        }
+      ]
     }
   ],
-  "notes": "shared bread plate behind is not mine; olives small and dark in red sauce — easy miss",
   "traps": [
     "olives_in_sauce_missed",
     "potatoes_in_sauce_missed",

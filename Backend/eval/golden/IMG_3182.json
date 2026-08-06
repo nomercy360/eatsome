@@ -1,47 +1,55 @@
 {
   "scene": "restaurant pizza with prosciutto, arugula, parmesan; dip sauce; companion's salad behind; shared",
   "meal_status": "ate_part",
-  "golden": [
+  "dishes": [
     {
-      "name": "pizza dough",
-      "group": "refined_grain",
-      "measure": "size",
-      "size": "M"
-    },
-    {
-      "name": "prosciutto",
-      "group": "processed_meat",
-      "measure": "size",
-      "size": "S",
-      "protein_g": 8
-    },
-    {
-      "name": "arugula",
-      "group": "vegetables",
-      "measure": "size",
-      "size": "S"
-    },
-    {
-      "name": "parmesan",
-      "group": "dairy",
-      "measure": "size",
-      "size": "S"
+      "name": "prosciutto pizza",
+      "count": 1,
+      "size": "M",
+      "ingredients": [
+        {
+          "name": "pizza dough",
+          "group": "refined_grain",
+          "portion": "M"
+        },
+        {
+          "name": "prosciutto",
+          "group": "processed_meat",
+          "portion": "S",
+          "alternatives": [
+            "red_meat"
+          ]
+        },
+        {
+          "name": "arugula",
+          "group": "vegetables",
+          "portion": "S"
+        },
+        {
+          "name": "parmesan",
+          "group": "dairy",
+          "portion": "S"
+        }
+      ]
     },
     {
       "name": "dip sauce",
-      "group": "sauce",
-      "measure": "size",
-      "size": "S"
+      "count": 1,
+      "size": "S",
+      "ingredients": [
+        {
+          "name": "dip sauce",
+          "group": "sauce",
+          "portion": "S"
+        }
+      ]
     }
   ],
-  "notes": "prosciutto is cured -> processed_meat, NOT red_meat; salad behind is companion's",
   "traps": [
     "prosciutto_processed_not_red",
     "table_vs_my_share",
     "foreign_dish_bleed",
     "sauce_missed"
   ],
-  "photo": "photos/IMG_3182.jpeg",
-  "holdout": true,
-  "holdout_reason": "foreign-plate bleed with a shared portion — the multi-tray class"
+  "photo": "photos/IMG_3182.jpeg"
 }

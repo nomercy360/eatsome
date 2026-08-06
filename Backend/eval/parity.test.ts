@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { loadGoldenCases } from "./golden";
+import { loadGoldenCases, goldenIngredients } from "./golden";
 import { evalFlags, evalFoodGroups, mealStatuses } from "./schema";
 import { EVAL_PROMPT_FILE } from "./version";
 
@@ -22,12 +22,12 @@ const cases = loadGoldenCases();
 
 describe("golden and schema speak the same language", () => {
   it("every group in the golden exists in the schema", () => {
-    const used = new Set(cases.flatMap((one) => one.golden.map((item) => item.group)));
+    const used = new Set(cases.flatMap((one) => goldenIngredients(one.dishes).map((item) => item.group)));
     expect([...used].filter((g) => !(evalFoodGroups as readonly string[]).includes(g))).toEqual([]);
   });
 
   it("every flag in the golden exists in the schema and the prompt", () => {
-    const used = new Set(cases.flatMap((one) => one.golden.flatMap((item) => item.flags ?? [])));
+    const used = new Set(cases.flatMap((one) => goldenIngredients(one.dishes).flatMap((item) => item.flags ?? [])));
     expect([...used].filter((f) => !(evalFlags as readonly string[]).includes(f))).toEqual([]);
     expect([...used].filter((f) => !prompt.includes(f))).toEqual([]);
   });

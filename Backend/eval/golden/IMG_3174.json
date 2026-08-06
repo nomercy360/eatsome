@@ -1,27 +1,44 @@
 {
   "scene": "champagne bottle in hand + poured glass, olives bowl, small nuts plate; party background with other tables",
   "meal_status": "eaten",
-  "golden": [
+  "dishes": [
     {
       "name": "champagne",
-      "group": "alcohol",
-      "measure": "count",
-      "count": 1
+      "count": 1,
+      "size": "M",
+      "ingredients": [
+        {
+          "name": "champagne",
+          "group": "alcohol",
+          "portion": "M"
+        }
+      ]
     },
     {
       "name": "olives",
-      "group": "healthy_fats",
-      "measure": "size",
-      "size": "S"
+      "count": 1,
+      "size": "S",
+      "ingredients": [
+        {
+          "name": "olives",
+          "group": "healthy_fats",
+          "portion": "S"
+        }
+      ]
     },
     {
       "name": "nuts",
-      "group": "nuts",
-      "measure": "size",
-      "size": "S"
+      "count": 1,
+      "size": "S",
+      "ingredients": [
+        {
+          "name": "nuts",
+          "group": "nuts",
+          "portion": "S"
+        }
+      ]
     }
   ],
-  "notes": "portion = glass, not bottle; bottle in hand is display",
   "traps": [
     "bottle_vs_glass_portion",
     "olives_taxonomy_healthy_fats",
@@ -29,7 +46,5 @@
     "background_party_bleed",
     "small_nuts_plate_missed"
   ],
-  "photo": "photos/IMG_3174.JPG",
-  "holdout": true,
-  "holdout_reason": "olives as healthy_fats with a small nuts plate — the taxonomy class"
+  "photo": "photos/IMG_3174.JPG"
 }

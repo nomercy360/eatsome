@@ -1,38 +1,64 @@
 {
   "scene": "fried eggs topped with blue cheese and parmesan shavings, 2 rye bread slices, coffee with milk in steel cup",
   "meal_status": "eaten",
-  "golden": [
+  "dishes": [
     {
-      "name": "fried eggs",
-      "group": "egg",
-      "measure": "count",
-      "count": 2,
-      "protein_g": 12
-    },
-    {
-      "name": "blue cheese and parmesan",
-      "group": "dairy",
-      "measure": "size",
-      "size": "S",
-      "protein_g": 6
+      "name": "fried eggs with cheese",
+      "count": 1,
+      "size": "M",
+      "ingredients": [
+        {
+          "name": "fried eggs",
+          "group": "egg",
+          "portion": "L",
+          "protein_g": 12
+        },
+        {
+          "name": "blue cheese and parmesan",
+          "group": "dairy",
+          "portion": "S",
+          "protein_g": 5
+        }
+      ]
     },
     {
       "name": "rye bread",
-      "group": "whole_grain",
-      "alternatives": ["refined_grain"],
-      "measure": "count",
-      "count": 2
+      "count": 2,
+      "size": "M",
+      "ingredients": [
+        {
+          "name": "rye bread",
+          "group": "whole_grain",
+          "portion": "M",
+          "alternatives": [
+            "refined_grain"
+          ]
+        }
+      ]
     },
     {
       "name": "coffee with milk",
-      "group": "dairy",
-      "measure": "size",
-      "size": "S"
+      "count": 1,
+      "size": "M",
+      "caffeine_mg": 95,
+      "ingredients": [
+        {
+          "name": "brewed coffee",
+          "group": "coffee",
+          "portion": "M"
+        },
+        {
+          "name": "milk",
+          "group": "dairy",
+          "portion": "S"
+        }
+      ]
     }
   ],
-  "dedup_note": "cheese + milk-in-coffee -> 1 dairy serving",
-  "traps": ["cheese_on_eggs_missed", "dairy_dedup", "rye_whole_vs_refined"],
-  "photo": "photos/IMG_3179.jpeg",
-  "holdout": true,
-  "holdout_reason": "cheese on eggs and rye — the decomposition class v7 is about to touch"
+  "traps": [
+    "cheese_on_eggs_missed",
+    "rye_whole_vs_refined",
+    "caffeine_in_coffee"
+  ],
+  "photo": "photos/IMG_3179.jpeg"
 }

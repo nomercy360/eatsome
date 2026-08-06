@@ -1,49 +1,28 @@
 {
   "scene": "canteen tray, second tray behind (not mine)",
   "meal_status": "eaten",
-  "golden": [
+  "dishes": [
     {
-      "name": "white rice",
-      "group": "refined_grain",
-      "measure": "size",
-      "size": "L"
-    },
-    {
-      "name": "minced meat topping",
-      "group": "white_meat",
-      "alternatives": ["red_meat"],
-      "measure": "size",
-      "size": "M",
-      "protein_g": 18
-    },
-    {
-      "name": "fried egg",
-      "group": "egg",
-      "measure": "count",
+      "name": "minced meat rice bowl",
       "count": 1,
-      "protein_g": 6
+      "size": "M",
+      "ingredients": [
+        { "name": "white rice", "group": "refined_grain", "portion": "L" },
+        { "name": "minced meat topping", "group": "white_meat", "portion": "M",
+          "alternatives": ["red_meat"], "protein_g": 18 },
+        { "name": "fried egg", "group": "egg", "portion": "M", "protein_g": 6 },
+        { "name": "cherry tomato", "group": "vegetables", "portion": "S" }
+      ]
     },
-    {
-      "name": "cherry tomato",
-      "group": "vegetables",
-      "measure": "size",
-      "size": "S"
-    },
-    {
-      "name": "side salad",
-      "group": "vegetables",
-      "measure": "size",
-      "size": "S"
-    },
-    {
-      "name": "miso soup",
-      "group": "legumes",
-      "measure": "size",
-      "size": "S",
-      "protein_g": 2
-    }
+    { "name": "miso soup", "count": 1, "size": "S",
+      "ingredients": [{ "name": "miso broth", "group": "legumes", "portion": "S", "protein_g": 2 }] },
+    { "name": "side salad", "count": 1, "size": "S",
+      "ingredients": [{ "name": "shredded cabbage and lettuce", "group": "vegetables", "portion": "S" }] },
+    { "name": "iced tea", "count": 1, "size": "M",
+      "caffeine_mg": null,
+      "caffeine_note": "amber tea in a canteen tumbler: barley tea (0 mg) and oolong (~30 mg) look identical. Unknown is the correct answer.",
+      "ingredients": [{ "name": "unsweetened tea", "group": "tea", "portion": "M" }] }
   ],
-  "dedup_note": "two vegetable items -> 1 serving + volume modifier",
-  "traps": ["foreign_tray_bleed", "missed_soup", "white_vs_red_meat", "vegetable_dedup"],
+  "traps": ["foreign_tray_bleed", "missed_soup", "white_vs_red_meat", "missed_drink", "bowl_is_one_dish"],
   "photo": "photos/IMG_3128.jpeg"
 }

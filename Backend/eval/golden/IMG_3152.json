@@ -1,55 +1,60 @@
 {
   "scene": "homemade french toast: batter has 2 eggs + milk + sugar; fried in butter; banana + honey on top; mug of milk",
   "meal_status": "eaten",
-  "notes": "Carried a `user_note` of \"fried in butter, 2 eggs and milk in batter, honey on top\" that nothing ever read. That key now means a line sent on EVERY track, and this one must not be: it names the two hidden items, so sending it on a plain run would hand the model the answer this case exists to withhold. The note track builds its own line from the `hidden` flags below, which is where that sentence belongs.",
-  "golden": [
+  "dishes": [
     {
-      "name": "french toast bread",
-      "group": "refined_grain",
-      "measure": "count",
-      "count": 3
-    },
-    {
-      "name": "eggs (batter)",
-      "group": "egg",
-      "measure": "count",
-      "count": 2,
-      "protein_g": 12,
-      "hidden": true
-    },
-    {
-      "name": "butter (frying)",
-      "group": "butter_margarine_cream",
-      "measure": "size",
-      "size": "S",
-      "hidden": true
-    },
-    {
-      "name": "banana",
-      "group": "fruit",
-      "measure": "count",
-      "count": 1
-    },
-    {
-      "name": "honey",
-      "group": "sweets",
-      "measure": "size",
-      "size": "S"
+      "name": "french toast with banana and honey",
+      "count": 1,
+      "size": "L",
+      "ingredients": [
+        {
+          "name": "french toast bread",
+          "group": "refined_grain",
+          "portion": "L"
+        },
+        {
+          "name": "banana",
+          "group": "fruit",
+          "portion": "M"
+        },
+        {
+          "name": "honey",
+          "group": "sweets",
+          "portion": "S"
+        },
+        {
+          "name": "eggs in the batter",
+          "group": "egg",
+          "portion": "M",
+          "protein_g": 12,
+          "hidden": true
+        },
+        {
+          "name": "butter it was fried in",
+          "group": "butter_margarine_cream",
+          "portion": "S",
+          "hidden": true
+        }
+      ]
     },
     {
       "name": "mug of milk",
-      "group": "dairy",
-      "measure": "size",
+      "count": 1,
       "size": "M",
-      "protein_g": 8
+      "ingredients": [
+        {
+          "name": "milk",
+          "group": "dairy",
+          "portion": "M",
+          "protein_g": 8
+        }
+      ]
     }
   ],
   "traps": [
     "hidden_ingredients_home_cooking",
     "commercial_pastry_forbidden_for_homemade",
-    "milk_dedup_batter_vs_mug"
+    "shared_topping_is_one_plate"
   ],
-  "photo": "photos/IMG_3152.jpeg",
-  "holdout": true,
-  "holdout_reason": "hidden ingredients in home cooking — the note-slot class"
+  "photo": "photos/IMG_3152.jpeg"
 }

@@ -1,27 +1,30 @@
 {
-  "photo": "photos/TG_95647.jpeg",
   "scene": "phone screenshot of a delivery-app product page: sealed pack of dry-cured duck breast carpaccio, 70 g, marked down to 299 roubles, with a second photo below showing the product plated",
   "meal_status": "not_a_meal",
-  "golden": [
+  "dishes": [
     {
       "name": "dry-cured duck breast",
-      "group": "processed_meat",
-      "alternatives": ["red_meat", "white_meat"],
-      "measure": "package",
-      "protein_g": 15
+      "count": 1,
+      "size": "S",
+      "ingredients": [
+        {
+          "name": "dry-cured duck breast",
+          "group": "processed_meat",
+          "portion": "S",
+          "alternatives": [
+            "red_meat",
+            "white_meat"
+          ]
+        }
+      ]
     }
   ],
-  "notes": "A screenshot of a shop listing, not a photograph of a meal. Nothing was bought and nothing was eaten, so the item is recorded the way the existing raw-steaks case records food that exists but was not consumed, and meal_status carries the whole decision. The bait is the second image on the page, which shows the duck plated on a dish and reads exactly like a served meal. Dry-cured makes it processed_meat rather than red_meat.",
   "traps": [
     "screenshot_not_a_meal",
     "prep_photo_not_meal",
-    "package_mode",
     "russian_ocr",
-    "processed_vs_red"
+    "processed_vs_red",
+    "weight_is_not_a_panel"
   ],
-  "_source": {
-    "telegram_msg": "95647",
-    "subcase": "",
-    "faces": false
-  }
+  "photo": "photos/TG_95647.jpeg"
 }

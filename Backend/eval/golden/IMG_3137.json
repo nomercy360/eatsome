@@ -1,42 +1,62 @@
 {
   "scene": "bread+cheese plate, bowl of yogurt+blueberries+chocolate cake",
   "meal_status": "eaten",
-  "golden": [
+  "dishes": [
     {
-      "name": "bread slice",
-      "group": "whole_grain",
-      "alternatives": ["refined_grain"],
-      "measure": "count",
-      "count": 1
-    },
-    {
-      "name": "cheese slice",
-      "group": "dairy",
-      "measure": "count",
+      "name": "bread with cheese",
       "count": 1,
-      "protein_g": 7
-    },
-    {
-      "name": "yogurt",
-      "group": "dairy",
-      "measure": "size",
       "size": "M",
-      "protein_g": 8
+      "ingredients": [
+        {
+          "name": "bread slice",
+          "group": "whole_grain",
+          "portion": "M",
+          "alternatives": [
+            "refined_grain"
+          ]
+        },
+        {
+          "name": "cheese slice",
+          "group": "dairy",
+          "portion": "M",
+          "protein_g": 7
+        }
+      ]
     },
     {
-      "name": "blueberries",
-      "group": "fruit",
-      "measure": "size",
-      "size": "S"
+      "name": "yogurt with blueberries",
+      "count": 1,
+      "size": "M",
+      "ingredients": [
+        {
+          "name": "yogurt",
+          "group": "dairy",
+          "portion": "M",
+          "protein_g": 8
+        },
+        {
+          "name": "blueberries",
+          "group": "fruit",
+          "portion": "S"
+        }
+      ]
     },
     {
       "name": "chocolate cake",
-      "group": "sweets",
-      "measure": "size",
-      "size": "S"
+      "count": 1,
+      "size": "S",
+      "ingredients": [
+        {
+          "name": "chocolate cake",
+          "group": "sweets",
+          "portion": "S"
+        }
+      ]
     }
   ],
-  "dedup_note": "cheese+yogurt -> 1 dairy serving + modifier",
-  "traps": ["dairy_dedup", "homemade_vs_commercial_pastry"],
+  "traps": [
+    "homemade_vs_commercial_pastry",
+    "piece_in_a_shared_bowl_is_its_own_dish"
+  ],
   "photo": "photos/IMG_3137.JPG"
 }

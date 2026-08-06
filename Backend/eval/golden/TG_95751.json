@@ -1,58 +1,51 @@
 {
-  "photo": "photos/TG_95751.jpeg",
   "scene": "large untouched takeaway box of assorted sushi, roughly 35 pieces: salmon and tuna maki, nigiri with tobiko, tempura prawn rolls, eel-sauce rolls, cream cheese and avocado fillings, lettuce and microgreens",
   "meal_status": "not_yet_eaten",
-  "dedup_note": "~35 pieces of many kinds -> 1 fish + 1 refined_grain serving",
-  "golden": [
+  "dishes": [
     {
-      "name": "assorted sushi fish (salmon, tuna, prawn, eel)",
-      "group": "fish",
-      "measure": "size",
+      "name": "assorted sushi platter",
+      "count": 1,
       "size": "L",
-      "protein_g": 45
-    },
-    {
-      "name": "sushi rice",
-      "group": "refined_grain",
-      "measure": "size",
-      "size": "L"
-    },
-    {
-      "name": "avocado",
-      "group": "healthy_fats",
-      "measure": "size",
-      "size": "S"
-    },
-    {
-      "name": "cream cheese",
-      "group": "dairy",
-      "measure": "size",
-      "size": "S"
-    },
-    {
-      "name": "cucumber and leaves",
-      "group": "vegetables",
-      "measure": "size",
-      "size": "S"
-    },
-    {
-      "name": "eel and spicy mayo sauces",
-      "group": "sauce",
-      "measure": "size",
-      "size": "S"
+      "ingredients": [
+        {
+          "name": "salmon, tuna, prawn and eel",
+          "group": "fish",
+          "portion": "L",
+          "protein_g": 30
+        },
+        {
+          "name": "sushi rice",
+          "group": "refined_grain",
+          "portion": "L"
+        },
+        {
+          "name": "avocado",
+          "group": "healthy_fats",
+          "portion": "S"
+        },
+        {
+          "name": "cream cheese",
+          "group": "dairy",
+          "portion": "S"
+        },
+        {
+          "name": "cucumber and leaves",
+          "group": "vegetables",
+          "portion": "S"
+        },
+        {
+          "name": "eel and spicy mayo sauces",
+          "group": "sauce",
+          "portion": "S"
+        }
+      ]
     }
   ],
-  "notes": "The same merge-and-count mechanic as the escargots but at a scale nothing in the set reaches: about 35 pieces across a dozen kinds in one box. One fish serving and one refined_grain serving, not one per piece and not one per kind. Avocado is healthy_fats rather than vegetables, and the cream cheese inside the rolls is the item most likely to vanish into 'sushi'. Sizes are L because the box is a sharing set, not a single portion.",
   "traps": [
     "unit_set_merge_and_count",
-    "seafood_dedup",
-    "refined_grain_dedup",
     "avocado_taxonomy_healthy_fats",
-    "sauce_missed"
+    "sauce_missed",
+    "assortment_too_many_to_count"
   ],
-  "_source": {
-    "telegram_msg": "95751",
-    "subcase": "unit_set_countable",
-    "faces": false
-  }
+  "photo": "photos/TG_95751.jpeg"
 }

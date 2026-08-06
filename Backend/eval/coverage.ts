@@ -1,4 +1,4 @@
-import { loadGoldenCases } from "./golden";
+import { loadGoldenCases, goldenIngredients } from "./golden";
 import { mapGroup, mapPortion } from "./taxonomy";
 
 /**
@@ -21,7 +21,7 @@ let hidden = 0;
 let protein = 0;
 
 for (const one of cases) {
-  for (const item of one.golden) {
+  for (const item of goldenIngredients(one.dishes)) {
     items += 1;
     if (item.hidden) hidden += 1;
     if (typeof item.protein_g === "number") protein += 1;
@@ -45,8 +45,8 @@ for (const one of cases) {
     const portion = mapPortion(item);
     if (!portion.portion) {
       unscorablePortions.set(
-        item.measure ?? "none",
-        (unscorablePortions.get(item.measure ?? "none") ?? 0) + 1,
+        item.portion ?? "none",
+        (unscorablePortions.get(item.portion ?? "none") ?? 0) + 1,
       );
     }
   }

@@ -1,28 +1,52 @@
 {
   "scene": "2 sausages, pan-fried potatoes, pickled cucumber; cooking oil not visible",
   "meal_status": "eaten",
-  "golden": [
+  "dishes": [
     {
       "name": "sausages",
-      "group": "processed_meat",
-      "measure": "count",
       "count": 2,
-      "protein_g": 10
+      "size": "M",
+      "ingredients": [
+        {
+          "name": "sausage",
+          "group": "processed_meat",
+          "portion": "M",
+          "protein_g": 11
+        }
+      ]
     },
     {
       "name": "fried potatoes",
-      "group": "potatoes",
-      "flags": ["fried"],
-      "measure": "size",
-      "size": "M"
+      "count": 1,
+      "size": "M",
+      "ingredients": [
+        {
+          "name": "pan-fried potatoes",
+          "group": "potatoes",
+          "portion": "M",
+          "flags": [
+            "fried"
+          ]
+        }
+      ]
     },
     {
       "name": "pickled cucumber",
-      "group": "vegetables",
-      "measure": "count",
-      "count": 1
+      "count": 1,
+      "size": "S",
+      "ingredients": [
+        {
+          "name": "pickled cucumber",
+          "group": "vegetables",
+          "portion": "S"
+        }
+      ]
     }
   ],
-  "traps": ["processed_vs_red_vs_white", "potato_taxonomy", "hidden_cooking_fat"],
+  "traps": [
+    "processed_vs_red_vs_white",
+    "potato_taxonomy",
+    "hidden_cooking_fat"
+  ],
   "photo": "photos/IMG_3172.JPG"
 }

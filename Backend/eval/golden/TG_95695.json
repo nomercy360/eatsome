@@ -1,68 +1,62 @@
 {
-  "photo": "photos/TG_95695.jpeg",
   "scene": "burrito bowl on a tray directly in front of the camera - rice, beans, corn, shredded lettuce, grated cheese, guacamole and meat - while someone across the table holds their own foil-wrapped burrito over it",
   "meal_status": "eaten",
-  "dedup_note": "lettuce + corn -> 1 vegetables serving",
-  "golden": [
+  "dishes": [
     {
-      "name": "white rice",
-      "group": "refined_grain",
-      "measure": "size",
-      "size": "M"
-    },
-    {
-      "name": "beans",
-      "group": "legumes",
-      "measure": "size",
-      "size": "S",
-      "protein_g": 7
-    },
-    {
-      "name": "shredded lettuce",
-      "group": "vegetables",
-      "measure": "size",
-      "size": "M"
-    },
-    {
-      "name": "sweetcorn",
-      "group": "vegetables",
-      "measure": "size",
-      "size": "S"
-    },
-    {
-      "name": "grated cheese",
-      "group": "dairy",
-      "measure": "size",
-      "size": "S",
-      "protein_g": 7
-    },
-    {
-      "name": "guacamole",
-      "group": "healthy_fats",
-      "measure": "size",
-      "size": "S"
-    },
-    {
-      "name": "chicken",
-      "group": "white_meat",
-      "alternatives": ["red_meat"],
-      "measure": "size",
-      "size": "S",
-      "protein_g": 20
+      "name": "burrito bowl",
+      "count": 1,
+      "size": "L",
+      "ingredients": [
+        {
+          "name": "white rice",
+          "group": "refined_grain",
+          "portion": "M"
+        },
+        {
+          "name": "beans",
+          "group": "legumes",
+          "portion": "S",
+          "protein_g": 7
+        },
+        {
+          "name": "shredded lettuce",
+          "group": "vegetables",
+          "portion": "M"
+        },
+        {
+          "name": "sweetcorn",
+          "group": "vegetables",
+          "portion": "S"
+        },
+        {
+          "name": "grated cheese",
+          "group": "dairy",
+          "portion": "S"
+        },
+        {
+          "name": "guacamole",
+          "group": "healthy_fats",
+          "portion": "S"
+        },
+        {
+          "name": "chicken",
+          "group": "white_meat",
+          "portion": "S",
+          "alternatives": [
+            "red_meat"
+          ],
+          "protein_g": 12
+        }
+      ]
     }
   ],
-  "notes": "The clean second nearest-setting case, and the first that pairs it with an unreadable wrapper. The bowl is the near setting and is the whole answer; the foil-wrapped burrito is held by the person opposite and belongs to them, so it must be excluded and `other_meals_visible` set true. A model that decomposes the burrito has bled a foreign meal into the answer; one that reports it as bread with `filling_unknown` has at least read the wrapper correctly but still attributed someone else's food. Six distinct groups make this gate on recall rather than on a single call. The meat under the cheese is browned and shredded and could be chicken or carnitas - `alternatives` carries the rival, which scorer-v4 now credits.",
   "traps": [
     "nearest_setting_no_user_line",
     "foreign_meal_bleed",
     "filling_unknown_wrap",
     "avocado_taxonomy_healthy_fats",
     "legumes_recall",
-    "vegetable_dedup"
+    "mixed_bowl_is_one_dish"
   ],
-  "_source": {
-    "telegram_msg": "95695",
-    "subcase": "own_plate_plus_foreign_food",
-    "faces": false
-  }
+  "photo": "photos/TG_95695.jpeg"
 }

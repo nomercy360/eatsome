@@ -10,8 +10,8 @@
  */
 
 /** The candidate prompt. Versions are immutable; a fix is a new file. */
-export const EVAL_PROMPT_FILE = "meal-v8.md";
-export const EVAL_PROMPT_VERSION = "meal-v8-2026-08-05";
+export const EVAL_PROMPT_FILE = "meal-v11.md";
+export const EVAL_PROMPT_VERSION = "meal-v11-2026-08-06";
 
 /**
  * The visible boundary the models are shown: orientation baked in, longest edge

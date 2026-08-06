@@ -1,42 +1,52 @@
 {
   "scene": "kebab sandwich (mine, closest) + friend's kebab bowl behind, Tsingtao 0.0",
   "meal_status": "eaten",
-  "golden": [
+  "dishes": [
     {
-      "name": "pita bread",
-      "group": "refined_grain",
-      "measure": "size",
-      "size": "M"
-    },
-    {
-      "name": "kebab meat",
-      "group": "white_meat",
-      "alternatives": ["red_meat"],
-      "measure": "size",
+      "name": "kebab sandwich",
+      "count": 1,
       "size": "M",
-      "protein_g": 20
-    },
-    {
-      "name": "salad filling",
-      "group": "vegetables",
-      "measure": "size",
-      "size": "S"
-    },
-    {
-      "name": "garlic yoghurt sauce",
-      "group": "dairy",
-      "alternatives": ["butter_margarine_cream"],
-      "measure": "size",
-      "size": "S"
-    },
-    {
-      "name": "red sauce",
-      "group": "sauce",
-      "measure": "size",
-      "size": "S"
+      "ingredients": [
+        {
+          "name": "pita bread",
+          "group": "refined_grain",
+          "portion": "M"
+        },
+        {
+          "name": "kebab meat",
+          "group": "white_meat",
+          "portion": "M",
+          "alternatives": [
+            "red_meat"
+          ],
+          "protein_g": 25
+        },
+        {
+          "name": "salad filling",
+          "group": "vegetables",
+          "portion": "S"
+        },
+        {
+          "name": "garlic yoghurt sauce",
+          "group": "dairy",
+          "portion": "S",
+          "alternatives": [
+            "butter_margarine_cream"
+          ]
+        },
+        {
+          "name": "red sauce",
+          "group": "sauce",
+          "portion": "S"
+        }
+      ]
     }
   ],
-  "notes": "Tsingtao 0.0 is non-alcoholic -> NOT alcohol; verify model distinguishes deliberately",
-  "traps": ["foreign_meal_bleed", "sauce_missed", "zero_alcohol_beer", "white_vs_red_meat"],
+  "traps": [
+    "foreign_meal_bleed",
+    "sauce_missed",
+    "zero_alcohol_beer",
+    "white_vs_red_meat"
+  ],
   "photo": "photos/IMG_3141.JPG"
 }

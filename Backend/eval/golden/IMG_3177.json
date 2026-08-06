@@ -1,23 +1,44 @@
 {
   "scene": "two wraps in opaque branded paper + two smoothies (mango, berry); two people",
   "meal_status": "ate_part",
-  "golden": [
+  "dishes": [
     {
       "name": "wrap",
-      "group": "refined_grain",
-      "measure": "count",
       "count": 1,
-      "flags": ["opaque_packaging", "filling_unknown"]
+      "size": "M",
+      "ingredients": [
+        {
+          "name": "wrap bread",
+          "group": "refined_grain",
+          "portion": "M",
+          "flags": [
+            "opaque_packaging",
+            "filling_unknown"
+          ]
+        }
+      ]
     },
     {
       "name": "fruit smoothie",
-      "group": "smoothie",
-      "alternatives": ["fruit", "sugary_drinks"],
-      "measure": "count",
-      "count": 1
+      "count": 1,
+      "size": "M",
+      "ingredients": [
+        {
+          "name": "fruit smoothie",
+          "group": "smoothie",
+          "portion": "M",
+          "alternatives": [
+            "fruit",
+            "sugary_drinks"
+          ]
+        }
+      ]
     }
   ],
-  "notes": "my share = 1 wrap + 1 smoothie; filling not visible -> model must flag unknown, not invent contents; smoothie is not a fruit serving by default",
-  "traps": ["two_person_split", "opaque_packaging_no_hallucination", "smoothie_vs_fruit_vs_juice"],
+  "traps": [
+    "two_person_split",
+    "opaque_packaging_no_hallucination",
+    "smoothie_vs_fruit_vs_juice"
+  ],
   "photo": "photos/IMG_3177.jpeg"
 }

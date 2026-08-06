@@ -10,9 +10,8 @@ export type GoldenItem = {
   name: string;
   group: string;
   alternatives?: string[];
-  measure?: "count" | "size" | "package";
-  count?: number;
-  size?: "S" | "M" | "L";
+  /** This ingredient's share of ONE serving of its dish, never of the whole. */
+  portion?: "S" | "M" | "L";
   weight_g?: number;
   protein_g?: number;
   flags?: string[];
@@ -20,14 +19,55 @@ export type GoldenItem = {
   hidden?: boolean;
 };
 
+/** Figures a label prints, and what a correct answer transcribes. */
+export type GoldenPanel = {
+  protein?: number | null;
+  calories?: number | null;
+  fat?: number | null;
+  carbohydrate?: number | null;
+  sodium?: number | null;
+  caffeine?: number | null;
+};
+
+/**
+ * One named thing on the tray.
+ *
+ * The boundary is what is physically served together: butter in its own wrapper
+ * is a dish, butter spread on the bread is an ingredient of it. Mixed into one
+ * vessel collapses — a rice bowl is one dish, not rice plus topping plus egg —
+ * while discrete countable units of a kind stay separate even when they share a
+ * container, which is why a box of sushi is several dishes and a burrito bowl
+ * is one.
+ */
+export type GoldenDish = {
+  name: string;
+  /** Servings of this dish present. Three slices of bread is count 3. */
+  count: number;
+  size: "S" | "M" | "L";
+  panel?: GoldenPanel | null;
+  /**
+   * Expected milligrams, derived from the drink and its count — never asked of
+   * a model, which cannot see caffeine. Null where the photograph genuinely
+   * cannot settle it: barley tea and oolong are the same amber in a tumbler.
+   */
+  caffeine_mg?: number | null;
+  caffeine_note?: string;
+  ingredients: GoldenItem[];
+};
+
 export type GoldenCase = {
   id: string;
   photo: string;
   scene?: string;
   meal_status?: string;
+  /**
+   * Retired by dishes, kept so old files still load. It existed because a flat
+   * list could not tell two vegetable rows inside one bowl from two plates of
+   * vegetables; the structure now says which it is.
+   */
   dedup_note?: string;
   traps: string[];
-  golden: GoldenItem[];
+  dishes: GoldenDish[];
   /**
    * A line the person typed, sent on EVERY track, permanently part of the input.
    *
@@ -64,7 +104,27 @@ export function loadGoldenCases(): GoldenCase[] {
       // directory itself, so the prefix is stripped rather than doubled.
       const declared = (raw as { photo?: string }).photo?.replace(/^photos\//, "");
       const found = photos.find((file) => file.slice(0, file.lastIndexOf(".")) === id);
-      return { ...raw, traps: raw.traps ?? [], id, photo: declared ?? found ?? `${id}.JPG` };
+      return {
+        ...raw,
+        traps: raw.traps ?? [],
+        dishes: raw.dishes ?? [],
+        id,
+        photo: declared ?? found ?? `${id}.JPG`,
+      };
     })
     .sort((a, b) => a.id.localeCompare(b.id));
+}
+
+/** Every ingredient with the dish it came from, for group-level scoring. */
+export function goldenIngredients(
+  dishes: GoldenDish[],
+): Array<GoldenItem & { dish: string; dishCount: number; dishSize: "S" | "M" | "L" }> {
+  return dishes.flatMap((dish) =>
+    dish.ingredients.map((item) => ({
+      ...item,
+      dish: dish.name,
+      dishCount: dish.count,
+      dishSize: dish.size,
+    })),
+  );
 }

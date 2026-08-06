@@ -24,7 +24,16 @@ import * as z from "zod";
  *     schema did not enforce — an unbounded list is how "at most three" becomes
  *     six on the one answer nobody reads closely
  */
-export const SCHEMA_VERSION = "eval-schema-v2-2026-08-05";
+/**
+ * v3  dishes, not a flat list. A tray is dishes and a dish is ingredients, with
+ *     the quantity on the dish — `count` of servings and `size` of one — and
+ *     the ingredient saying only its share of a single serving. This replaces
+ *     `measure: count | size`: everything now has both, which is what the app
+ *     models. `dedup_note` largely retires with it, because two vegetable rows
+ *     inside one bowl are no longer indistinguishable from two plates of veg.
+ *     Adds `coffee` and `tea`, so caffeine has somewhere to come from.
+ */
+export const SCHEMA_VERSION = "eval-schema-v3-2026-08-06";
 
 export const evalFoodGroups = [
   // Same idea as the app, dataset spelling.
@@ -51,6 +60,11 @@ export const evalFoodGroups = [
   // list: what the eval decides, the app inherits.
   "potatoes",
   "sauce",
+  // Caffeine has no home without these: a latte is filed as dairy today, which
+  // captures the milk and loses the only part with a daily threshold, and a
+  // black coffee produces nothing at all.
+  "coffee",
+  "tea",
   "alcohol",
   "juice",
   "smoothie",
@@ -87,15 +101,39 @@ export const evalItemSchema = z.strictObject({
   name: z.string().max(200),
   group: z.enum(evalFoodGroups),
   alternatives: z.array(z.enum(evalFoodGroups)).max(3),
-  measure: z.enum(["count", "size", "package"]),
-  count: z.number().int().min(0).max(99).nullable(),
-  size: z.enum(["S", "M", "L"]).nullable(),
+  /** This ingredient's share of ONE serving of the dish, never of the whole. */
+  portion: z.enum(["S", "M", "L"]),
   flags: z.array(z.enum(evalFlags)),
+});
+
+/**
+ * Figures printed on packaging, transcribed. Null when nothing is printed,
+ * which is almost all food. Every field nullable on its own: reading protein
+ * and not sodium is a normal answer, and a figure that cannot be read must be
+ * able to come back absent rather than plausible.
+ */
+export const evalPanelSchema = z.strictObject({
+  protein: z.number().min(0).max(500).nullable(),
+  calories: z.number().min(0).max(5_000).nullable(),
+  fat: z.number().min(0).max(500).nullable(),
+  carbohydrate: z.number().min(0).max(1_000).nullable(),
+  sodium: z.number().min(0).max(100).nullable(),
+  caffeine: z.number().min(0).max(2_000).nullable(),
+});
+
+export const evalDishSchema = z.strictObject({
+  name: z.string().max(200),
+  /** Servings of this dish present. Three slices of bread is one dish, count 3. */
+  count: z.number().int().min(1).max(99),
+  /** How big ONE serving is, never how many. */
+  size: z.enum(["S", "M", "L"]),
+  panel: evalPanelSchema.nullable(),
+  ingredients: z.array(evalItemSchema).max(24),
 });
 
 export const evalRecognitionSchema = z.strictObject({
   meal_status: z.enum(mealStatuses),
-  items: z.array(evalItemSchema).max(64),
+  dishes: z.array(evalDishSchema).max(24),
   other_meals_visible: z.boolean(),
   notes: z.string().max(2_000).nullable(),
 });
@@ -113,24 +151,56 @@ export function evalGeminiSchema(): Record<string, unknown> {
   const group = { type: "STRING", enum: [...evalFoodGroups] };
   return {
     type: "OBJECT",
-    propertyOrdering: ["meal_status", "items", "other_meals_visible", "notes"],
-    required: ["meal_status", "items", "other_meals_visible", "notes"],
+    propertyOrdering: ["meal_status", "dishes", "other_meals_visible", "notes"],
+    required: ["meal_status", "dishes", "other_meals_visible", "notes"],
     properties: {
       meal_status: { type: "STRING", enum: [...mealStatuses] },
-      items: {
+      dishes: {
         type: "ARRAY",
         items: {
           type: "OBJECT",
-          propertyOrdering: ["name", "group", "alternatives", "measure", "count", "size", "flags"],
-          required: ["name", "group", "alternatives", "measure", "count", "size", "flags"],
+          propertyOrdering: ["name", "count", "size", "panel", "ingredients"],
+          required: ["name", "count", "size", "panel", "ingredients"],
           properties: {
             name: { type: "STRING" },
-            group,
-            alternatives: { type: "ARRAY", items: group, maxItems: 3 },
-            measure: { type: "STRING", enum: ["count", "size", "package"] },
-            count: { type: "INTEGER", nullable: true },
-            size: { type: "STRING", enum: ["S", "M", "L"], nullable: true },
-            flags: { type: "ARRAY", items: { type: "STRING", enum: [...evalFlags] } },
+            count: { type: "INTEGER" },
+            size: { type: "STRING", enum: ["S", "M", "L"] },
+            panel: {
+              type: "OBJECT",
+              nullable: true,
+              propertyOrdering: [
+                "protein",
+                "calories",
+                "fat",
+                "carbohydrate",
+                "sodium",
+                "caffeine",
+              ],
+              required: ["protein", "calories", "fat", "carbohydrate", "sodium", "caffeine"],
+              properties: {
+                protein: { type: "NUMBER", nullable: true },
+                calories: { type: "NUMBER", nullable: true },
+                fat: { type: "NUMBER", nullable: true },
+                carbohydrate: { type: "NUMBER", nullable: true },
+                sodium: { type: "NUMBER", nullable: true },
+                caffeine: { type: "NUMBER", nullable: true },
+              },
+            },
+            ingredients: {
+              type: "ARRAY",
+              items: {
+                type: "OBJECT",
+                propertyOrdering: ["name", "group", "alternatives", "portion", "flags"],
+                required: ["name", "group", "alternatives", "portion", "flags"],
+                properties: {
+                  name: { type: "STRING" },
+                  group,
+                  alternatives: { type: "ARRAY", items: group, maxItems: 3 },
+                  portion: { type: "STRING", enum: ["S", "M", "L"] },
+                  flags: { type: "ARRAY", items: { type: "STRING", enum: [...evalFlags] } },
+                },
+              },
+            },
           },
         },
       },

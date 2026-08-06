@@ -1,26 +1,34 @@
 {
   "scene": "white bread slice with butter (visible under jam) and berry jam",
   "meal_status": "eaten",
-  "golden": [
+  "dishes": [
     {
-      "name": "white bread",
-      "group": "refined_grain",
-      "measure": "count",
-      "count": 1
-    },
-    {
-      "name": "butter",
-      "group": "butter_margarine_cream",
-      "measure": "size",
-      "size": "S"
-    },
-    {
-      "name": "berry jam",
-      "group": "sweets",
-      "measure": "size",
-      "size": "S"
+      "name": "bread with butter and jam",
+      "count": 1,
+      "size": "M",
+      "ingredients": [
+        {
+          "name": "white bread",
+          "group": "refined_grain",
+          "portion": "M"
+        },
+        {
+          "name": "butter",
+          "group": "butter_margarine_cream",
+          "portion": "S"
+        },
+        {
+          "name": "berry jam",
+          "group": "sweets",
+          "portion": "S"
+        }
+      ]
     }
   ],
-  "traps": ["butter_under_jam", "jam_is_sweets_not_fruit"],
+  "traps": [
+    "butter_under_jam",
+    "jam_is_sweets_not_fruit",
+    "spread_on_is_one_dish"
+  ],
   "photo": "photos/IMG_3173.JPG"
 }

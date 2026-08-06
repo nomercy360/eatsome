@@ -1,7 +1,7 @@
 import { appendFileSync, existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { loadGoldenCases } from "./golden";
+import { loadGoldenCases, goldenIngredients } from "./golden";
 import {
   EVAL_PROMPT_VERSION,
   type EvalModel,
@@ -67,8 +67,21 @@ if (missing.length > 0) {
     `Missing photos, these cases will not run:\n  ${missing.map((c) => c.photo).join("\n  ")}`,
   );
 }
+// Mid-migration: a case still written as a flat item list has no dishes to
+// score against, and running it would measure the new prompt against a golden
+// that cannot answer. Named rather than dropped quietly — a case that is not
+// being measured must not read as coverage.
+const unconverted = cases.filter((one) => one.dishes.length === 0);
+if (unconverted.length > 0) {
+  console.warn(
+    `Not yet converted to dishes, skipping ${unconverted.length}:\n  ${unconverted
+      .map((one) => one.id)
+      .join(", ")}`,
+  );
+}
 const runnable = cases
   .filter((one) => includeHoldout || !one.holdout)
+  .filter((one) => one.dishes.length > 0)
   .filter((one) => existsSync(photoPath(one.photo)));
 
 type Job = { caseId: string; photo: string; entry: EvalModel; run: number; note?: string };
@@ -79,7 +92,7 @@ for (const entry of models) {
       // Two sources, one line. The case's own user note travels on every track,
       // because without it the case has no defined answer; the hidden-item note
       // is what `--notes` adds on top.
-      const hidden = withNotes ? noteFor(one.golden.filter((item) => item.hidden)) : undefined;
+      const hidden = withNotes ? noteFor(goldenIngredients(one.dishes).filter((item) => item.hidden)) : undefined;
       const note = [one.user_note, hidden].filter(Boolean).join(" ") || undefined;
       jobs.push({ caseId: one.id, photo: one.photo, entry, run, note });
     }

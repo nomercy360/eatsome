@@ -1,58 +1,100 @@
 {
   "scene": "Burger King in bed: burger, fries, nuggets, ketchup, second dip, sweetened iced tea",
   "meal_status": "eaten",
-  "golden": [
+  "dishes": [
     {
-      "name": "burger bun",
-      "group": "refined_grain",
-      "measure": "size",
-      "size": "M"
-    },
-    {
-      "name": "beef patty",
-      "group": "red_meat",
-      "alternatives": ["processed_meat"],
-      "measure": "count",
+      "name": "whopper",
       "count": 1,
-      "protein_g": 17
+      "size": "M",
+      "ingredients": [
+        {
+          "name": "burger bun",
+          "group": "refined_grain",
+          "portion": "M"
+        },
+        {
+          "name": "beef patty",
+          "group": "red_meat",
+          "portion": "M",
+          "alternatives": [
+            "processed_meat"
+          ],
+          "protein_g": 20
+        }
+      ]
     },
     {
       "name": "french fries",
-      "group": "potatoes",
-      "flags": ["fried"],
-      "measure": "size",
-      "size": "M"
+      "count": 1,
+      "size": "M",
+      "ingredients": [
+        {
+          "name": "french fries",
+          "group": "potatoes",
+          "portion": "M",
+          "flags": [
+            "fried"
+          ]
+        }
+      ]
     },
     {
-      "name": "nuggets",
-      "group": "white_meat",
-      "alternatives": ["processed_meat"],
-      "flags": ["fried", "breaded"],
-      "measure": "count",
+      "name": "chicken nuggets",
       "count": 4,
-      "protein_g": 10
+      "size": "S",
+      "ingredients": [
+        {
+          "name": "chicken nugget",
+          "group": "white_meat",
+          "portion": "S",
+          "alternatives": [
+            "processed_meat"
+          ],
+          "flags": [
+            "breaded",
+            "fried"
+          ],
+          "protein_g": 3
+        }
+      ]
     },
     {
       "name": "ketchup",
-      "group": "sauce",
-      "measure": "size",
-      "size": "S"
+      "count": 1,
+      "size": "S",
+      "ingredients": [
+        {
+          "name": "ketchup",
+          "group": "sauce",
+          "portion": "S"
+        }
+      ]
     },
     {
-      "name": "sweetened iced tea",
-      "group": "sugary_drinks",
-      "measure": "count",
-      "count": 1
+      "name": "iced tea",
+      "count": 1,
+      "size": "M",
+      "caffeine_mg": 25,
+      "caffeine_note": "bottled Lipton green iced tea, far weaker than a brewed cup; the flat per-group table would derive 45 and be wrong",
+      "ingredients": [
+        {
+          "name": "sweetened iced tea",
+          "group": "sugary_drinks",
+          "portion": "M",
+          "alternatives": [
+            "tea"
+          ]
+        }
+      ]
     }
   ],
-  "dedup_note": "bun + breading -> 1 refined_grain serving; ALL portion controls should be hidden (nothing portion_sensitive here)",
   "traps": [
     "potato_taxonomy",
     "nuggets_primary_is_meat",
-    "refined_grain_dedup",
-    "sauces_missed",
     "processed_vs_red",
-    "all_limits_no_targets"
+    "all_limits_no_targets",
+    "caffeine_in_bottled_tea",
+    "closed_box_shows_only_bun_and_patty"
   ],
   "photo": "photos/IMG_3133.jpeg"
 }

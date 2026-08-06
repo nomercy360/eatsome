@@ -1,21 +1,24 @@
 {
-  "photo": "photos/TG_95836.jpeg",
   "scene": "a Bia Saigon lager can beside a tumbler part-poured from it, on a bar counter",
   "meal_status": "eaten",
-  "dedup_note": "can + glass poured from it -> 1 alcohol serving",
-  "golden": [
+  "dishes": [
     {
       "name": "lager beer",
-      "group": "alcohol",
-      "measure": "count",
-      "count": 1
+      "count": 1,
+      "size": "M",
+      "ingredients": [
+        {
+          "name": "lager",
+          "group": "alcohol",
+          "portion": "M"
+        }
+      ]
     }
   ],
-  "notes": "The bottle-and-glass rule with a can instead of a bottle, and the only version of that mechanic in this batch the scorer can actually gate: the can and the glass hold the SAME drink, so the answer is one alcohol serving, not two. Portion is what was poured; the can is the container. If the rule was written against the word 'bottle' it will not fire here.",
-  "traps": ["bottle_vs_glass_portion", "can_not_bottle", "alcohol_recall"],
-  "_source": {
-    "telegram_msg": "95836",
-    "subcase": "bottle_plus_1_glass",
-    "faces": false
-  }
+  "traps": [
+    "bottle_vs_glass_portion",
+    "can_not_bottle",
+    "alcohol_recall"
+  ],
+  "photo": "photos/TG_95836.jpeg"
 }

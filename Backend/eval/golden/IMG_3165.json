@@ -1,15 +1,24 @@
 {
   "scene": "two homemade cherry tarts",
   "meal_status": "shared_plate",
-  "golden": [
+  "dishes": [
     {
       "name": "cherry tart",
-      "group": "sweets",
-      "measure": "size",
-      "size": "M"
+      "count": 2,
+      "size": "M",
+      "ingredients": [
+        {
+          "name": "cherry tart",
+          "group": "sweets",
+          "portion": "M"
+        }
+      ]
     }
   ],
-  "notes": "fruit inside a baked dessert does NOT earn a fruit serving; homemade -> commercial_pastry forbidden in alternatives",
-  "traps": ["fruit_in_dessert_not_fruit", "homemade_vs_commercial_pastry", "plate_vs_meal"],
+  "traps": [
+    "fruit_in_dessert_not_fruit",
+    "homemade_vs_commercial_pastry",
+    "plate_vs_meal"
+  ],
   "photo": "photos/IMG_3165.JPG"
 }

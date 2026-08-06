@@ -1,58 +1,76 @@
 {
-  "photo": "photos/TG_95624.jpeg",
   "scene": "canteen table: a sealed clear-lidded box of chicken-and-vegetable rolls with a Korean label, an open box of flatbread with rocket, prosciutto and parmesan, and a Chabaa 100% coconut water carton",
   "meal_status": "not_yet_eaten",
-  "golden": [
+  "dishes": [
     {
-      "name": "chicken rolls in the sealed box",
-      "group": "white_meat",
-      "measure": "package",
-      "protein_g": 15
+      "name": "chicken and vegetable rolls",
+      "count": 1,
+      "size": "M",
+      "ingredients": [
+        {
+          "name": "chicken roll",
+          "group": "white_meat",
+          "portion": "M",
+          "protein_g": 14
+        },
+        {
+          "name": "cabbage and carrot",
+          "group": "vegetables",
+          "portion": "S"
+        }
+      ]
     },
     {
-      "name": "cabbage and carrot in the rolls",
-      "group": "vegetables",
-      "measure": "size",
-      "size": "S"
-    },
-    {
-      "name": "flatbread",
-      "group": "refined_grain",
-      "measure": "size",
-      "size": "M"
-    },
-    {
-      "name": "prosciutto",
-      "group": "processed_meat",
-      "alternatives": ["red_meat"],
-      "measure": "size",
-      "size": "S",
-      "protein_g": 8
-    },
-    {
-      "name": "parmesan",
-      "group": "dairy",
-      "measure": "size",
-      "size": "S"
+      "name": "flatbread with prosciutto",
+      "count": 1,
+      "size": "M",
+      "ingredients": [
+        {
+          "name": "flatbread",
+          "group": "refined_grain",
+          "portion": "M"
+        },
+        {
+          "name": "prosciutto",
+          "group": "processed_meat",
+          "portion": "S",
+          "alternatives": [
+            "red_meat"
+          ]
+        },
+        {
+          "name": "rocket",
+          "group": "vegetables",
+          "portion": "S"
+        },
+        {
+          "name": "parmesan",
+          "group": "dairy",
+          "portion": "S"
+        }
+      ]
     },
     {
       "name": "coconut water",
-      "group": "juice",
-      "alternatives": ["other"],
-      "measure": "package"
+      "count": 1,
+      "size": "M",
+      "ingredients": [
+        {
+          "name": "coconut water",
+          "group": "juice",
+          "portion": "M",
+          "alternatives": [
+            "other"
+          ]
+        }
+      ]
     }
   ],
-  "notes": "The inverse of the existing opaque-packaging case: this package is sealed but its lid is clear, so the contents ARE readable and refusing to name them is the failure, not the safe answer. The Korean label is the second language on a transparent pack. Coconut water is the taxonomy edge — neither fruit nor obviously a sugary drink — and is recorded as juice with `other` as the alternative rather than being quietly dropped.",
   "traps": [
     "transparent_window_readable",
-    "package_mode",
     "korean_ocr",
     "prosciutto_processed_not_red",
     "juice_not_fruit"
   ],
-  "_source": {
-    "telegram_msg": "95624",
-    "subcase": "transparent_window",
-    "faces": false
-  }
+  "photo": "photos/TG_95624.jpeg"
 }

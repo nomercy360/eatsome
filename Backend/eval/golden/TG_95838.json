@@ -1,38 +1,58 @@
 {
-  "photo": "photos/TG_95838.jpeg",
   "scene": "a sealed green sparkling-water bottle standing beside a glass of an unreadable dark drink, with a tomato-and-cheese toast, salad and a bowl of raspberries",
   "meal_status": "eaten",
-  "golden": [
+  "dishes": [
     {
-      "name": "toast bread",
-      "group": "refined_grain",
-      "measure": "size",
-      "size": "M"
+      "name": "tomato and cheese toast",
+      "count": 1,
+      "size": "M",
+      "ingredients": [
+        {
+          "name": "toast bread",
+          "group": "refined_grain",
+          "portion": "M"
+        },
+        {
+          "name": "cheese",
+          "group": "dairy",
+          "portion": "S"
+        },
+        {
+          "name": "tomato",
+          "group": "vegetables",
+          "portion": "S"
+        }
+      ]
     },
     {
-      "name": "cheese on the toast",
-      "group": "dairy",
-      "measure": "size",
-      "size": "S"
-    },
-    {
-      "name": "tomato and salad leaves",
-      "group": "vegetables",
-      "measure": "size",
-      "size": "S"
+      "name": "salad",
+      "count": 1,
+      "size": "S",
+      "ingredients": [
+        {
+          "name": "salad leaves",
+          "group": "vegetables",
+          "portion": "S"
+        }
+      ]
     },
     {
       "name": "raspberries",
-      "group": "fruit",
-      "measure": "size",
-      "size": "S"
+      "count": 1,
+      "size": "S",
+      "ingredients": [
+        {
+          "name": "raspberries",
+          "group": "fruit",
+          "portion": "S"
+        }
+      ]
     }
   ],
-  "notes": "The sealed bottle and the glass hold DIFFERENT drinks - the bottle is water, the glass is dark - so merging them into one drink is wrong. Neither is in the golden: the schema has no group for water and the dark drink is not identifiable, so this half of the case is precision-side and cannot gate under the current scorer. Kept because the food rows are clean and the drink pair is worth watching in the report; if the drinks ever get a group, this case becomes gateable as written.",
-  "traps": ["bottle_and_glass_differ", "fruit_dedup"],
-  "_source": {
-    "telegram_msg": "95838",
-    "subcase": "bottle_plus_1_glass",
-    "faces": false
-  }
+  "traps": [
+    "bottle_and_glass_differ",
+    "fruit_dedup",
+    "unreadable_dark_drink"
+  ],
+  "photo": "photos/TG_95838.jpeg"
 }

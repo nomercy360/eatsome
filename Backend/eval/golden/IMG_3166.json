@@ -1,35 +1,58 @@
 {
   "scene": "chickpea curry with basmati rice + paratha",
   "meal_status": "eaten",
-  "golden": [
+  "dishes": [
     {
-      "name": "chickpea curry",
-      "group": "legumes",
-      "measure": "size",
+      "name": "chana masala",
+      "count": 1,
       "size": "M",
-      "protein_g": 12
+      "ingredients": [
+        {
+          "name": "chickpea curry",
+          "group": "legumes",
+          "portion": "M",
+          "protein_g": 9
+        },
+        {
+          "name": "tomato and onion base",
+          "group": "sofrito",
+          "portion": "S"
+        }
+      ]
     },
     {
-      "name": "white rice",
-      "group": "refined_grain",
-      "measure": "size",
-      "size": "M"
+      "name": "basmati rice",
+      "count": 1,
+      "size": "M",
+      "ingredients": [
+        {
+          "name": "white rice",
+          "group": "refined_grain",
+          "portion": "M"
+        }
+      ]
     },
     {
       "name": "paratha",
-      "group": "refined_grain",
-      "flags": ["fried"],
-      "measure": "count",
       "count": 1,
-      "hidden_fat": true
+      "size": "M",
+      "ingredients": [
+        {
+          "name": "paratha",
+          "group": "refined_grain",
+          "portion": "M",
+          "flags": [
+            "fried"
+          ]
+        }
+      ]
     }
   ],
-  "dedup_note": "rice + paratha -> 1 refined_grain serving + modifier",
   "traps": [
     "legumes_recall",
-    "refined_grain_dedup",
     "paratha_hidden_fat",
-    "paratha_not_whole_grain"
+    "paratha_not_whole_grain",
+    "one_bowl_two_dishes"
   ],
   "photo": "photos/IMG_3166.JPG"
 }

@@ -1,59 +1,83 @@
 {
-  "photo": "photos/TG_95674.jpeg",
   "scene": "dim izakaya table for two: a wooden rack of nori sheets with fillings for hand-rolling, a tray of crisps, a bowl of udon in dark broth, a second bowl of dark broth, three nigiri, a red cocktail, an unreadable cloudy drink and a water bottle",
   "meal_status": "shared_plate",
-  "dedup_note": "udon + sushi rice -> 1 refined_grain serving",
-  "golden": [
+  "dishes": [
     {
-      "name": "nori sheets and roll fillings",
-      "group": "vegetables",
-      "measure": "size",
-      "size": "S"
+      "name": "hand-roll set",
+      "count": 1,
+      "size": "M",
+      "ingredients": [
+        {
+          "name": "nori sheets and fillings",
+          "group": "vegetables",
+          "portion": "S"
+        }
+      ]
     },
     {
-      "name": "udon noodles",
-      "group": "refined_grain",
-      "measure": "size",
-      "size": "M"
+      "name": "udon in broth",
+      "count": 1,
+      "size": "M",
+      "ingredients": [
+        {
+          "name": "udon noodles",
+          "group": "refined_grain",
+          "portion": "M"
+        }
+      ]
     },
     {
       "name": "nigiri",
-      "group": "fish",
-      "measure": "count",
       "count": 3,
-      "protein_g": 12
-    },
-    {
-      "name": "sushi rice",
-      "group": "refined_grain",
-      "measure": "size",
-      "size": "S"
+      "size": "S",
+      "ingredients": [
+        {
+          "name": "fish topping",
+          "group": "fish",
+          "portion": "M",
+          "protein_g": 5
+        },
+        {
+          "name": "sushi rice",
+          "group": "refined_grain",
+          "portion": "S"
+        }
+      ]
     },
     {
       "name": "potato crisps",
-      "group": "potatoes",
-      "measure": "size",
+      "count": 1,
       "size": "S",
-      "flags": ["fried"]
+      "ingredients": [
+        {
+          "name": "potato crisps",
+          "group": "potatoes",
+          "portion": "S",
+          "flags": [
+            "fried"
+          ]
+        }
+      ]
     },
     {
       "name": "cocktail",
-      "group": "alcohol",
-      "measure": "count",
-      "count": 1
+      "count": 1,
+      "size": "M",
+      "ingredients": [
+        {
+          "name": "red cocktail",
+          "group": "alcohol",
+          "portion": "M"
+        }
+      ]
     }
   ],
-  "notes": "A build-your-own hand-roll set: the rack holds nori and fillings that are components, not a finished dish, so there is nothing to merge yet and nothing to count as servings of a composed meal. Two people are at the table and the dishes are shared. LOWEST-CONFIDENCE CASE IN THIS BATCH: the room is dark, the second bowl of dark broth and the cloudy drink are not identifiable and are deliberately absent from the golden, and only the cocktail is scored as alcohol. Drop this case rather than guess the missing rows if the numbers look noisy.",
   "traps": [
     "assembly_components_not_a_dish",
     "foreign_meal_bleed",
     "potato_taxonomy",
-    "refined_grain_dedup",
-    "missed_soup"
+    "missed_soup",
+    "unreadable_cloudy_drink"
   ],
-  "_source": {
-    "telegram_msg": "95674",
-    "subcase": "skewer_set",
-    "faces": false
-  }
+  "photo": "photos/TG_95674.jpeg"
 }
