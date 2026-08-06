@@ -14,6 +14,11 @@ struct MealDetailView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var draft: MealEntry
+    /// The names and counts the flat list cannot carry. Empty on every meal
+    /// logged before dishes, which is why the sentence falls back to reading
+    /// food by food rather than assuming.
+    @State private var dishes: [MealDish]
+    @State private var openDish: MealDish?
     @State private var editing: EditingFood?
     @State private var showingDelete = false
     @State private var showingRecipeName = false
@@ -29,6 +34,7 @@ struct MealDetailView: View {
     init(meal: MealEntry) {
         self.meal = meal
         _draft = State(initialValue: meal)
+        _dishes = State(initialValue: meal.storedDishes ?? [])
         _readNote = State(initialValue: meal.note ?? "")
     }
 
@@ -80,6 +86,26 @@ struct MealDetailView: View {
                 )
             }
         }
+        .onChange(of: draft.items) { _, updated in
+            guard !dishes.isEmpty else { return }
+            dishes = MealDish.regrouped(updated, keeping: dishes)
+        }
+        .sheet(item: $openDish) { dish in
+            DishSheet(
+                dish: dish,
+                protein: model.protein(in: dish.items),
+                onEditIngredient: { editing = EditingFood(id: $0) },
+                onCount: { count in
+                    guard let index = dishes.firstIndex(where: { $0.id == dish.id }) else { return }
+                    dishes[index].count = count
+                    draft.items = dishes.flatMap { $0.flattened() }
+                },
+                onRemove: {
+                    let members = Set(dish.items.map(\.id))
+                    draft.items.removeAll { members.contains($0.id) }
+                }
+            )
+        }
         .alert("Save as a dish", isPresented: $showingRecipeName) {
             TextField("Lentil soup", text: $recipeName)
             Button("Save") { saveAsRecipe() }
@@ -123,16 +149,31 @@ struct MealDetailView: View {
             }
 
             if !draft.items.isEmpty {
-                FoodSentence(
-                    lead: "You had",
-                    words: draft.items.map {
-                        .init(id: $0.id, text: FoodPhrase.word(for: $0.group, label: $0.label))
-                    },
-                    onTap: { editing = EditingFood(id: $0) }
-                )
+                FoodSentence(lead: "You had", words: sentenceWords, onTap: { tapWord($0) })
             }
         }
         .wellieCard()
+    }
+
+    /// A dish is one word and its ingredients are behind it. A meal saved
+    /// before dishes existed has none, and reads food by food as it always did.
+    private var sentenceWords: [FoodSentence.Word] {
+        guard !dishes.isEmpty else {
+            return draft.items.map {
+                .init(id: $0.id, text: FoodPhrase.word(for: $0.group, label: $0.label))
+            }
+        }
+        return dishes.map { dish in
+            .init(id: dish.id, text: dish.count > 1 ? "\(dish.count) × \(dish.name)" : dish.name)
+        }
+    }
+
+    private func tapWord(_ id: UUID) {
+        if let dish = dishes.first(where: { $0.id == id }) {
+            openDish = dish
+        } else {
+            editing = EditingFood(id: id)
+        }
     }
 
     /// The one control that exists because sharing genuinely changes the
@@ -263,7 +304,13 @@ struct MealDetailView: View {
     private var saveBar: some View {
         Button("Save changes") {
             Task {
-                await model.reviseMeal(draft)
+                var revised = draft
+                if !dishes.isEmpty {
+                    let regrouped = MealDish.regrouped(draft.items, keeping: dishes)
+                    revised.storedDishes = regrouped
+                    revised.items = regrouped.flatMap { $0.flattened() }
+                }
+                await model.reviseMeal(revised)
                 dismiss()
             }
         }
