@@ -65,7 +65,10 @@ Requires Xcode and XcodeGen.
 That generates `eatsome.xcodeproj` from `project.yml`. Open the project, select a
 development team, and run it on an iPhone; HealthKit is unavailable on macOS.
 
-Then add an OpenAI or Gemini API key in Settings. It goes to the Keychain.
+Recognition goes through the app-owned Worker. TestFlight builds contain no
+credential: each development friend receives a revocable token and pastes it
+once under Settings → Development access. It is retained in Keychain, and
+model-provider keys never ship in the app.
 
 ### Installing on a phone that is not here
 

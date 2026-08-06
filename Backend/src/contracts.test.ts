@@ -4,7 +4,9 @@ import {
   ingestEventsRequestSchema,
   mealRecognitionJsonSchema,
   mealRecognitionSchema,
+  mealRevisionSchema,
   recognitionRequestSchema,
+  refinementRequestSchema,
 } from "./contracts";
 
 describe("meal recognition contract", () => {
@@ -28,6 +30,24 @@ describe("meal recognition contract", () => {
     const jsonSchema = mealRecognitionJsonSchema();
     expect(jsonSchema).not.toHaveProperty("$schema");
     expect(JSON.stringify(jsonSchema)).toContain("other_meals_visible");
+  });
+});
+
+describe("meal refinement contract", () => {
+  it("accepts a minimal delta against a numbered current list", () => {
+    const request = refinementRequestSchema.parse({
+      current: [{ group: "white_meat", portion: "medium", label: "chicken" }],
+      note: "fried in butter",
+    });
+    expect(request.current).toHaveLength(1);
+    expect(
+      mealRevisionSchema.parse({
+        add: [{ group: "butter", portion: "small", label: "butter", alternatives: [] }],
+        revise: [],
+        remove: [],
+        notes: null,
+      }).add[0]?.group,
+    ).toBe("butter");
   });
 });
 

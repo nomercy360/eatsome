@@ -52,9 +52,8 @@ if grep -q "local-development-replace-before-deploy" wrangler.jsonc; then
 fi
 
 echo "==> Secrets"
-# Four providers plus the shared token. The token is not authentication — it is
-# extractable from the app binary — but it keeps scanners off an endpoint that
-# spends money on every call.
+# Four providers plus the migration-only owner token. Friend builds do not
+# embed this value; friend-token.sh provisions revocable per-account access.
 for secret in OPENAI_API_KEY GEMINI_API_KEY ANTHROPIC_API_KEY QWEN_API_KEY EATSOME_API_TOKEN; do
   if pnpm wrangler secret list 2>/dev/null | grep -q "\"$secret\""; then
     echo "    $secret already set"

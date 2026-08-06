@@ -29,12 +29,14 @@ committed.
 
 ## API
 
-`GET /api/health` is public. Every `/api/v1/*` route requires
-`Authorization: Bearer <EATSOME_API_TOKEN>`.
+`GET /api/health` is public. Every `/api/v1/*` route requires a revocable friend
+token in `Authorization: Bearer <token>`. Only a SHA-256 digest is stored; the
+token selects the account that owns all D1 and R2 data.
 
 ```text
 POST /api/v1/recognitions  proxy one image to OpenAI or Gemini; cache by account/photo/prompt/model
 POST /api/v1/recognitions/:sha/rerun  rerun from the model input already in R2
+POST /api/v1/recognitions/:sha/refine return a delta against the current list, using the R2 photo
 POST /api/v1/events/batch  idempotently append up to 500 device events
 GET  /api/v1/events        cursor-based event sync
 GET  /api/v1/evals         inspect model-output → human-correction pairs
@@ -64,7 +66,7 @@ are queryable side by side. Re-uploading the same event id is a successful no-op
 
 ```text
 recognition upload
-  └─ media/{device}/{yyyy-mm}/{source-sha}.jpg   exact 1024px JPEG model input
+  └─ media/{account}/{yyyy-mm}/{source-sha}.jpg  exact 1024px JPEG model input
 
 confirmed meal + explicit consent + safe client crop
   └─ corpus/{crop-sha}.jpg                      separate privacy-filtered bytes
@@ -78,7 +80,7 @@ already exist in the event projection.
 Deleting a meal tombstones its media reference and removes the source object only when no other
 meal uses the same hash. Opt-out removes every `corpus_items` row for `source_user` and deletes only
 crop objects that have no remaining provenance references. Account deletion lists the
-`media/{device}/` prefix, bulk-deletes it, applies the corpus cascade, then removes D1 rows.
+`media/{account}/` prefix, bulk-deletes it, applies the corpus cascade, then removes D1 rows.
 
 The scheduled Worker removes unreferenced media older than 24 hours every Sunday. R2 already
 defaults incomplete multipart uploads to a seven-day lifecycle; verify that rule in the bucket or
@@ -110,10 +112,19 @@ The first run creates the D1 database and private `eatsome-media` bucket, then p
 id. Paste that id into `wrangler.jsonc` and run it again; it sets the secrets, migrates, and
 deploys. It is safe to re-run—existing resources and secrets are left alone.
 
-The bearer token is deliberately a single-owner bootstrap mechanism. Replace it with Sign in with
-Apple before inviting unrelated users; do not turn the shared token into a multi-user identity
-system.
+For a small development group, create one token per friend and send it privately:
 
-Every stored-data route also requires `X-Device-Id` (16–64 letters, numbers, or hyphens). The
-header is a stable partition, not authentication. Add Sign in with Apple/App Attest before the API
-is opened to unrelated users.
+```bash
+./scripts/friend-token.sh issue "Ada's iPhone"
+./scripts/friend-token.sh list
+./scripts/friend-token.sh revoke friend:account-id-from-the-issue-command
+```
+
+The issue command prints the raw token exactly once. Passing an existing account id to a later
+`issue` command rotates access without moving that friend's data. Friend builds do not embed a
+shared credential. `X-Device-Id` remains event provenance only; ownership, deletion, and paid-use
+fairness derive from the token account.
+
+`EATSOME_API_TOKEN` remains a migration-only owner fallback. Remove that Worker secret after the
+owner has a friend token. Before a public release, replace development invites with App Attest and,
+if cross-device accounts are wanted, Sign in with Apple.

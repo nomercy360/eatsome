@@ -2,10 +2,7 @@ import { and, count, eq, gte } from "drizzle-orm";
 import { createDb } from "../db/client";
 import { recognitions } from "../db/schema";
 import type { Env } from "../env";
-import { accountForDevice, requireStableAccount } from "./auth";
 import { HttpError } from "./http-error";
-
-export { accountForDevice as callerFor } from "./auth";
 
 export type Counters = {
   /** Recognitions in the last 24h, everywhere. */
@@ -51,12 +48,9 @@ export const d1Counters: Counters = {
  * lookup, because a cached answer costs nothing and refusing it once the day is
  * full would deny free work.
  */
-export async function enforceRecognitionLimits(env: Env, request: Request): Promise<string> {
-  const caller = accountForDevice(request);
-  requireStableAccount(caller);
-  const { success } = await env.RECOGNITION_LIMIT.limit({ key: caller });
+export async function enforceRecognitionLimits(env: Env, accountId: string): Promise<void> {
+  const { success } = await env.RECOGNITION_LIMIT.limit({ key: accountId });
   if (!success) throw new HttpError(429, "Too many photos at once. Wait a minute and try again.");
-  return caller;
 }
 
 /** Cache hits are free, so the daily fairness quota is checked only on misses. */
@@ -67,17 +61,11 @@ export async function enforcePaidRecognitionFairness(
 ): Promise<void> {
   const perCaller = Number(env.RECOGNITIONS_PER_DEVICE_PER_DAY || 0);
   if (perCaller > 0 && (await counters.todayFor(env, accountId)) >= perCaller) {
-    throw new HttpError(429, "That is a day's worth of photos from this device.");
+    throw new HttpError(429, "That is a day's worth of photos from this test account.");
   }
 }
 
-export async function enforceSyncLimits(env: Env, request: Request): Promise<void> {
-  const caller = accountForDevice(request);
-  // Reads may fall back to the IP; writes may not. An IP-keyed account changes
-  // when the phone changes network, and the events written under the old key
-  // are then invisible to the same device forever — silent data loss that looks
-  // like a sync bug months later.
-  requireStableAccount(caller);
-  const { success } = await env.SYNC_LIMIT.limit({ key: caller });
+export async function enforceSyncLimits(env: Env, accountId: string): Promise<void> {
+  const { success } = await env.SYNC_LIMIT.limit({ key: accountId });
   if (!success) throw new HttpError(429, "Too many requests. Slow down.");
 }

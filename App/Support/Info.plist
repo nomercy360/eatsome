@@ -20,6 +20,10 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>EatsomeAPIBaseURL</key>
+	<string>https://eatsome-api.peatch.workers.dev/api/v1</string>
+	<key>EatsomeAPIToken</key>
+	<string>$(EATSOME_API_TOKEN)</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>NSCameraUsageDescription</key>

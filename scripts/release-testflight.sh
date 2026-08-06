@@ -83,6 +83,12 @@ if [[ -n "${ASC_KEY_ID:-}" && -n "${ASC_ISSUER_ID:-}" && -f "$ASC_KEY_PATH" ]]; 
          -authenticationKeyIssuerID "$ASC_ISSUER_ID")
 fi
 
+# Friend builds intentionally contain no credential. Each tester receives a
+# revocable token out of band and enters it once; Keychain retains it. Setting
+# EATSOME_API_TOKEN explicitly remains useful for a private owner-only build.
+APP_BACKEND_TOKEN="${EATSOME_API_TOKEN:-}"
+BACKEND_BUILD_SETTING=("EATSOME_API_TOKEN=$APP_BACKEND_TOKEN")
+
 command -v xcodegen >/dev/null || { echo "error: brew install xcodegen"; exit 1; }
 
 echo "==> Tests"
@@ -100,6 +106,7 @@ xcodebuild archive \
   -destination 'generic/platform=iOS' \
   -archivePath "$ARCHIVE" \
   CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+  "${BACKEND_BUILD_SETTING[@]}" \
   "${AUTH[@]}" \
   | grep -E '^(\*\*|error:|warning: .*(deprecat|signing))' || true
 

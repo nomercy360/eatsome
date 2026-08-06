@@ -2,6 +2,8 @@ import Foundation
 import Observation
 import ShamanCore
 
+private let photoProcessingConsentVersion = "photo-processing-2026-08-06-v1"
+
 @MainActor
 @Observable
 final class AppModel {
@@ -21,17 +23,17 @@ final class AppModel {
     /// Surfaced in Settings. A silently skipped line is how you lose trust in
     /// your own data six months later.
     private(set) var skippedLogLines = 0
+    private(set) var cloudError: String?
+    private(set) var isDeletingCloudData = false
+    private(set) var hasAcceptedPhotoProcessing =
+        UserDefaults.standard.string(forKey: "photoProcessingConsentVersion") == photoProcessingConsentVersion
 
     /// Which vendor recognizes photos on this device. Stored here rather than in
     /// the config file because it is a per-device experiment, not a policy: the
     /// point is to run both against your own plates and keep the better one.
     private(set) var provider: RecognitionProvider = .openAI
 
-    var hasAPIKey: Bool { hasKey(for: provider) }
-
-    func hasKey(for provider: RecognitionProvider) -> Bool {
-        (try? keychain.get(provider.keychainKey))??.isEmpty == false
-    }
+    var hasBackendAccess: Bool { backendToken != nil }
 
     var activeModel: String { config.model(for: provider) }
 
@@ -39,8 +41,10 @@ final class AppModel {
     private static let onboardedKey = "hasCompletedOnboarding"
     private let keychain = KeychainStore()
     private var log: EventLog?
+    private var loadedEvents: [LoggedEvent] = []
     private var recognizer: (any MealRecognizer)?
     private var refiner: (any MealRefiner)?
+    private var backend: BackendSession?
 
     /// Point this at a JSON file in a bucket to retune thresholds and the
     /// recognition prompt without a TestFlight round trip. nil until you have
@@ -52,6 +56,7 @@ final class AppModel {
             let log = try EventLog(url: try EventLog.defaultURL())
             self.log = log
             let (events, skipped) = try await log.load()
+            loadedEvents = events
             projection = Projection(replaying: events)
             skippedLogLines = skipped
         } catch {
@@ -73,6 +78,7 @@ final class AppModel {
             ?? .active
 
         rebuildRecognizer()
+        if hasAcceptedPhotoProcessing { syncMealEvents(loadedEvents) }
         await refreshHealth()
     }
 
@@ -86,6 +92,8 @@ final class AppModel {
         } catch {
             loadError = "Could not write to the log: \(error.localizedDescription)"
         }
+        loadedEvents.append(event)
+        syncMealEvents([event])
     }
 
     func logMeal(_ meal: MealEntry) async {
@@ -112,6 +120,29 @@ final class AppModel {
     func completeOnboarding() {
         hasOnboarded = true
         UserDefaults.standard.set(true, forKey: Self.onboardedKey)
+    }
+
+    func acceptPhotoProcessing() {
+        hasAcceptedPhotoProcessing = true
+        UserDefaults.standard.set(photoProcessingConsentVersion, forKey: "photoProcessingConsentVersion")
+        syncMealEvents(loadedEvents)
+    }
+
+    func revokePhotoProcessingAndDeleteCloudData() async {
+        guard !isDeletingCloudData else { return }
+        isDeletingCloudData = true
+        cloudError = nil
+        defer { isDeletingCloudData = false }
+        do {
+            guard let backend else {
+                throw BackendError.invalidRequest("Save your development invite before deleting its cloud data.")
+            }
+            try await backend.deleteAccountData()
+            hasAcceptedPhotoProcessing = false
+            UserDefaults.standard.removeObject(forKey: "photoProcessingConsentVersion")
+        } catch {
+            cloudError = error.localizedDescription
+        }
     }
 
     // MARK: - Recipes
@@ -329,6 +360,9 @@ final class AppModel {
     // MARK: - Recognition
 
     func recognize(imageData: Data, note: String?) async throws -> RecognitionArtifact {
+        guard hasAcceptedPhotoProcessing else {
+            throw BackendError.invalidRequest("Agree to photo processing before sending a meal photo.")
+        }
         guard let recognizer else { throw MealRecognizerError.missingAPIKey }
         return try await recognizer.recognize(imageData: imageData, mimeType: "image/jpeg", note: note)
     }
@@ -345,9 +379,10 @@ final class AppModel {
         )
     }
 
-    func setAPIKey(_ key: String?, for provider: RecognitionProvider? = nil) {
-        try? keychain.set(key, for: (provider ?? self.provider).keychainKey)
+    func setBackendToken(_ token: String?) {
+        try? keychain.set(token, for: .backendAPIToken)
         rebuildRecognizer()
+        if token?.isEmpty == false, hasAcceptedPhotoProcessing { syncMealEvents(loadedEvents) }
     }
 
     func setProvider(_ provider: RecognitionProvider) {
@@ -358,37 +393,63 @@ final class AppModel {
     }
 
     private func rebuildRecognizer() {
-        let keychain = self.keychain
-        let key = provider.keychainKey
-        let upstream: any MealRecognizer
-        let promptVersion: String
-        switch provider {
-        case .openAI:
-            let configuration = config.lunaConfiguration
-            promptVersion = configuration.promptVersion
-            upstream = LunaSession(configuration: configuration) { try keychain.get(key) }
-        case .gemini:
-            let configuration = config.geminiConfiguration
-            promptVersion = configuration.promptVersion
-            upstream = GeminiSession(configuration: configuration) { try keychain.get(key) }
-        }
-
-        refiner = upstream as? any MealRefiner
-
-        guard let directory = (try? EventLog.defaultURL())?
-            .deletingLastPathComponent()
-            .appendingPathComponent("recognitions", isDirectory: true),
-            // Namespaced by generator: the same plate re-read by the other
-            // provider must cost an API call, or the comparison is fiction.
-            let caching = try? CachingRecognizer(
-                upstream: upstream,
-                directory: directory,
-                namespace: promptVersion
-            )
+        guard let baseURL = backendBaseURL,
+              let token = backendToken,
+              let deviceID = stableDeviceID()
         else {
-            recognizer = upstream
+            backend = nil
+            recognizer = nil
+            refiner = nil
             return
         }
-        recognizer = caching
+        let session = BackendSession(configuration: .init(
+            baseURL: baseURL,
+            token: token,
+            deviceID: deviceID,
+            provider: provider
+        ))
+        backend = session
+        recognizer = session
+        refiner = session
+    }
+
+    private var backendBaseURL: URL? {
+        guard let value = Bundle.main.object(forInfoDictionaryKey: "EatsomeAPIBaseURL") as? String,
+              !value.isEmpty
+        else { return nil }
+        return URL(string: value)
+    }
+
+    private var backendToken: String? {
+        if let saved = (try? keychain.get(.backendAPIToken)) ?? nil, !saved.isEmpty { return saved }
+        guard let bundled = Bundle.main.object(forInfoDictionaryKey: "EatsomeAPIToken") as? String,
+              !bundled.isEmpty,
+              !bundled.contains("$(")
+        else { return nil }
+        return bundled
+    }
+
+    private func stableDeviceID() -> String? {
+        if let saved = (try? keychain.get(.deviceID)) ?? nil, !saved.isEmpty { return saved }
+        let created = UUIDv7.generate().uuidString
+        do {
+            try keychain.set(created, for: .deviceID)
+            return created
+        } catch {
+            cloudError = error.localizedDescription
+            return nil
+        }
+    }
+
+    private func syncMealEvents(_ events: [LoggedEvent]) {
+        guard hasAcceptedPhotoProcessing, let backend, !events.isEmpty else { return }
+        Task {
+            do {
+                try await backend.syncMealEvents(events)
+                cloudError = nil
+            } catch {
+                cloudError = "Cloud sync: \(error.localizedDescription)"
+            }
+        }
     }
 }

@@ -66,7 +66,7 @@ struct OnboardingView: View {
                 VStack(alignment: .leading, spacing: 11) {
                     promise("No calories, ever")
                     promise("No perfect days to keep up")
-                    promise("Your photos stay on your phone")
+                    promise("Private storage you can delete")
                 }
             }
 
@@ -147,7 +147,7 @@ struct OnboardingView: View {
                     Image(systemName: "info.circle")
                         .font(.system(size: 17, weight: .medium))
                         .foregroundStyle(WellieTheme.blue)
-                    WellieProse("The photo is sent once to be read, then kept on your phone. Nothing is posted anywhere.")
+                    WellieProse("Before the first photo is sent, you'll see exactly where it is stored, which AI reads it, and how to delete it.")
                 }
                 .wellieCard(padding: 17)
             }

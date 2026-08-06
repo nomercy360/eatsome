@@ -151,6 +151,23 @@ export const corpusConsents = sqliteTable("corpus_consents", {
   updatedAt: integer("updated_at").notNull(),
 });
 
+/** Revocable development access. Raw invite tokens are never stored. */
+export const friendInviteTokens = sqliteTable(
+  "friend_invite_tokens",
+  {
+    tokenHash: text("token_hash").primaryKey(),
+    accountId: text("account_id").notNull(),
+    label: text().notNull(),
+    createdAt: integer("created_at").notNull(),
+    revokedAt: integer("revoked_at"),
+  },
+  (table) => [
+    index("friend_invite_tokens_account_idx").on(table.accountId, table.revokedAt),
+    index("friend_invite_tokens_label_idx").on(table.label, table.revokedAt),
+    check("friend_invite_tokens_hash_check", sql`length(${table.tokenHash}) = 64`),
+  ],
+);
+
 export const mealEvals = sqliteTable(
   "meal_evals",
   {

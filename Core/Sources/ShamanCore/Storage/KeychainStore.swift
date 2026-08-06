@@ -1,13 +1,12 @@
 import Foundation
 import Security
 
-/// The API key lives here and nowhere else — not in Info.plist, not in a
-/// constant, not in UserDefaults.
+/// Device credentials live here rather than in UserDefaults.
 ///
-/// For a single-user build this is sufficient: the key never leaves your device
-/// and there is nobody to hide it from. It stops being sufficient the moment a
-/// binary goes to a second person, which is also the moment a proxy stops being
-/// over-engineering. See `MealRecognizer` — that swap is one conformance.
+/// The old provider keys remain readable so an installed build does not lose
+/// them during migration, but recognition now uses the app-owned backend. Its
+/// invite token selects the private backend account; a stable device id remains
+/// available for event provenance and install-level diagnostics.
 public struct KeychainStore: Sendable {
     public let service: String
 
@@ -19,6 +18,8 @@ public struct KeychainStore: Sendable {
     public enum Key: String, Sendable {
         case openAIAPIKey = "openai.api_key"
         case geminiAPIKey = "gemini.api_key"
+        case backendAPIToken = "backend.api_token"
+        case deviceID = "backend.device_id"
     }
 
     public func set(_ value: String?, for key: Key) throws {

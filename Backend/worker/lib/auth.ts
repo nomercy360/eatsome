@@ -11,6 +11,11 @@ async function digest(value: string): Promise<ArrayBuffer> {
   return crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
 }
 
+export async function tokenDigest(value: string): Promise<string> {
+  const bytes = new Uint8Array(await digest(value));
+  return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
 export async function tokensMatch(provided: string, expected: string): Promise<boolean> {
   if (!provided || !expected) return false;
   const [left, right] = await Promise.all([digest(provided), digest(expected)]);
@@ -23,6 +28,23 @@ export async function tokensMatch(provided: string, expected: string): Promise<b
     difference |= (a[index] ?? 0) ^ (b[index] ?? 0);
   }
   return difference === 0;
+}
+
+/** Resolve a revocable friend token without retaining the bearer credential. */
+export async function accountForInviteToken(
+  database: D1Database,
+  token: string,
+): Promise<string | null> {
+  const tokenHash = await tokenDigest(token);
+  const row = await database
+    .prepare(
+      `SELECT account_id AS accountId
+         FROM friend_invite_tokens
+        WHERE token_hash = ? AND revoked_at IS NULL`,
+    )
+    .bind(tokenHash)
+    .first<{ accountId: string }>();
+  return row?.accountId ?? null;
 }
 
 /**
@@ -61,9 +83,15 @@ export async function requireAccount(
   request?: Request,
 ): Promise<string> {
   const token = bearerToken(authorizationHeader);
-  if (!token || !(await tokensMatch(token, env.EATSOME_API_TOKEN))) {
-    throw new HttpError(401, "A valid bearer token is required.");
+  if (!token) throw new HttpError(401, "A valid invite token is required.");
+
+  const invitedAccount = await accountForInviteToken(env.DB, token);
+  if (invitedAccount) return invitedAccount;
+
+  // Migration-only owner fallback. Friend builds never embed this secret; once
+  // the owner's invite token is installed, the Worker secret can be removed.
+  if (env.EATSOME_API_TOKEN && (await tokensMatch(token, env.EATSOME_API_TOKEN))) {
+    return env.ACCOUNT_ID === "anonymous" && request ? accountForDevice(request) : env.ACCOUNT_ID;
   }
-  // The token says "this is the app". The device id says which copy of it.
-  return env.ACCOUNT_ID === "anonymous" && request ? accountForDevice(request) : env.ACCOUNT_ID;
+  throw new HttpError(401, "A valid invite token is required.");
 }

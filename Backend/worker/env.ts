@@ -35,7 +35,7 @@ export type Env = {
    *  and a proxy in front of paid model APIs needs a bound in money, not in
    *  requests per location. */
   RECOGNITIONS_PER_DAY: string;
-  /** Per device, for fairness between honest callers. */
+  /** Per authenticated development account, for fairness between testers. */
   RECOGNITIONS_PER_DEVICE_PER_DAY: string;
   RECOGNITION_LIMIT: RateLimit;
   SYNC_LIMIT: RateLimit;

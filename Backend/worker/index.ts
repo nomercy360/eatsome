@@ -6,6 +6,7 @@ import {
   eventListQuerySchema,
   ingestEventsRequestSchema,
   recognitionRequestSchema,
+  refinementRequestSchema,
   rerunRecognitionRequestSchema,
   sha256Schema,
 } from "../src/contracts";
@@ -14,6 +15,7 @@ import { addCorpusItem, deleteAccountData, deleteOrphanCorpus, optOutCorpus } fr
 import { ingestEvents, listEvents, listMealEvals } from "./data/events";
 import { deleteOrphanMedia, getMediaObject } from "./data/media";
 import { recognizeMeal, rerunRecognition } from "./data/recognitions";
+import { refineMeal } from "./data/refinements";
 import type { Env } from "./env";
 import { requireAccount, requireStableAccount } from "./lib/auth";
 import { HttpError } from "./lib/http-error";
@@ -70,7 +72,7 @@ app.get("/health", async (c) => {
 });
 
 app.post("/v1/recognitions", zValidator("json", recognitionRequestSchema), async (c) => {
-  await enforceRecognitionLimits(c.env, c.req.raw);
+  await enforceRecognitionLimits(c.env, c.get("accountId"));
   const input = c.req.valid("json");
   const provider = resolveProvider(c.env, input.provider);
   if (!apiKeyFor(c.env, provider)) {
@@ -88,7 +90,7 @@ app.post(
   "/v1/recognitions/:hash/rerun",
   zValidator("json", rerunRecognitionRequestSchema),
   async (c) => {
-    await enforceRecognitionLimits(c.env, c.req.raw);
+    await enforceRecognitionLimits(c.env, c.get("accountId"));
     const accountId = requireStableAccount(c.get("accountId"));
     const photoHash = sha256Schema.safeParse(c.req.param("hash"));
     if (!photoHash.success) throw new HttpError(400, "Invalid photo hash.");
@@ -106,8 +108,27 @@ app.post(
   },
 );
 
+app.post(
+  "/v1/recognitions/:hash/refine",
+  zValidator("json", refinementRequestSchema),
+  async (c) => {
+    await enforceRecognitionLimits(c.env, c.get("accountId"));
+    const accountId = requireStableAccount(c.get("accountId"));
+    const photoHash = sha256Schema.safeParse(c.req.param("hash"));
+    if (!photoHash.success) throw new HttpError(400, "Invalid photo hash.");
+    const result = await refineMeal(
+      c.env,
+      accountId,
+      photoHash.data.toLowerCase(),
+      c.req.valid("json"),
+    );
+    c.header("Cache-Control", "no-store");
+    return c.json(result, 201);
+  },
+);
+
 app.post("/v1/events/batch", zValidator("json", ingestEventsRequestSchema), async (c) => {
-  await enforceSyncLimits(c.env, c.req.raw);
+  await enforceSyncLimits(c.env, c.get("accountId"));
   const result = await ingestEvents(c.env, c.get("accountId"), c.req.valid("json"));
   return c.json(result, result.inserted === 0 ? 200 : 201);
 });
@@ -127,18 +148,18 @@ app.get("/v1/media/:hash", async (c) => {
 });
 
 app.post("/v1/corpus/items", zValidator("json", corpusItemRequestSchema), async (c) => {
-  await enforceSyncLimits(c.env, c.req.raw);
+  await enforceSyncLimits(c.env, c.get("accountId"));
   const result = await addCorpusItem(c.env, c.get("accountId"), c.req.valid("json"));
   return c.json(result, result.cached ? 200 : 201);
 });
 
 app.delete("/v1/corpus/consent", async (c) => {
-  await enforceSyncLimits(c.env, c.req.raw);
+  await enforceSyncLimits(c.env, c.get("accountId"));
   return c.json(await optOutCorpus(c.env, c.get("accountId")));
 });
 
 app.delete("/v1/account", async (c) => {
-  await enforceSyncLimits(c.env, c.req.raw);
+  await enforceSyncLimits(c.env, c.get("accountId"));
   return c.json(await deleteAccountData(c.env, c.get("accountId")));
 });
 

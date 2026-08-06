@@ -40,6 +40,8 @@ struct MealCaptureView: View {
     @State private var showingCamera = false
     @State private var showingDetails = false
     @State private var showingAddFood = false
+    @State private var showingPhotoConsent = false
+    @State private var pendingConsentImage: Data?
     @State private var pickerItem: PhotosPickerItem?
     @State private var editing: EditingFood?
     @State private var cameraStatus = AVCaptureDevice.authorizationStatus(for: .video)
@@ -69,6 +71,19 @@ struct MealCaptureView: View {
                 FoodGroupPicker { group in
                     items.append(MealItem(group: group, portion: .medium))
                     didEdit = true
+                }
+            }
+            .sheet(isPresented: $showingPhotoConsent) {
+                PhotoProcessingConsentView {
+                    model.acceptPhotoProcessing()
+                    if let pendingConsentImage {
+                        self.pendingConsentImage = nil
+                        Task { await recognize(pendingConsentImage) }
+                    }
+                } onCancel: {
+                    pendingConsentImage = nil
+                    imageData = nil
+                    stage = .choosing
                 }
             }
             .sheet(item: $editing) { target in
@@ -564,7 +579,12 @@ struct MealCaptureView: View {
         artifact = nil
         answeredQuestions = []
         didEdit = false
-        Task { await recognize(normalized) }
+        if model.hasAcceptedPhotoProcessing {
+            Task { await recognize(normalized) }
+        } else {
+            pendingConsentImage = normalized
+            showingPhotoConsent = true
+        }
     }
 
     private func recognize(_ data: Data) async {
@@ -652,6 +672,68 @@ struct MealCaptureView: View {
             await model.saveRecipe(recipe)
         }
         dismiss()
+    }
+}
+
+/// Explicit permission before the first photo leaves the phone. This is kept
+/// separate from camera authorization: access to a sensor is not consent to
+/// cloud storage or disclosure to a third-party AI provider.
+private struct PhotoProcessingConsentView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(AppModel.self) private var model
+    let onAgree: () -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    Text("Before this photo is read")
+                        .font(WellieTheme.font(26, weight: .bold))
+                    WellieProse(
+                        "eatsome will store the 1024-pixel meal image in its private Cloudflare R2 bucket and send it to \(model.provider.displayName) to identify foods.",
+                        size: 16
+                    )
+                    VStack(alignment: .leading, spacing: 12) {
+                        consentPoint("Stored for retries", "The private cloud copy lets you retry recognition without uploading again.")
+                        consentPoint("Kept in your test account", "Your private invite keeps your photos separate from every other tester and controls deletion.")
+                        consentPoint("Delete whenever you want", "Deleting a meal removes its cloud copy when no other meal uses it; Settings can erase all cloud data and withdraw consent.")
+                        consentPoint("Research use is separate", "eatsome does not add the image to its research corpus unless you separately opt in.")
+                    }
+                    .wellieCard(color: WellieTheme.ice)
+                }
+                .wellieColumn()
+            }
+            .background(WellieTheme.background)
+            .safeAreaInset(edge: .bottom) {
+                VStack(spacing: 10) {
+                    Button("Agree and send this photo") {
+                        onAgree()
+                        dismiss()
+                    }
+                    .buttonStyle(WelliePrimaryButtonStyle())
+                    Button("Not now") {
+                        onCancel()
+                        dismiss()
+                    }
+                    .buttonStyle(WellieQuietButtonStyle())
+                }
+                .padding(.horizontal, WellieTheme.screenInset)
+                .padding(.vertical, 12)
+                .background(WellieTheme.background)
+            }
+        }
+        .interactiveDismissDisabled()
+        .wellieScreen()
+    }
+
+    private func consentPoint(_ title: String, _ detail: String) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(title).font(WellieTheme.font(15.5, weight: .bold))
+            Text(detail)
+                .font(WellieTheme.font(13.5, weight: .medium))
+                .foregroundStyle(WellieTheme.muted)
+        }
     }
 }
 

@@ -3,14 +3,8 @@ import SwiftUI
 
 /// Screen `2i`. Settings, without the machinery.
 ///
-/// The provider switch, the model name and the seven diagnostic rows are gone
-/// from the interface: recognition is something the app does, not something the
-/// user configures. What is left is Health, the two habit answers, the protein
-/// target, and the honest privacy statement.
-///
-/// Diagnostics — and the key the recognizer still needs until it talks to a
-/// server of ours — stay reachable by tapping the version row five times. That
-/// keeps them for the person who built this without handing them to anyone else.
+/// Recognition goes through the app-owned backend; provider controls stay in
+/// the workshop because they are an evaluation tool, not user configuration.
 struct SettingsView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
@@ -20,6 +14,7 @@ struct SettingsView: View {
     @State private var showingWorkshop = false
     @State private var showingMethod = false
     @State private var showingPrivacy = false
+    @State private var showingDevelopmentAccess = false
 
     var body: some View {
         NavigationStack {
@@ -45,6 +40,7 @@ struct SettingsView: View {
             .navigationDestination(isPresented: $showingWorkshop) { WorkshopView() }
             .sheet(isPresented: $showingMethod) { ScoreMethodView() }
             .sheet(isPresented: $showingPrivacy) { PrivacyView() }
+            .sheet(isPresented: $showingDevelopmentAccess) { FriendAccessView() }
             .onAppear { habits = model.projection.habits }
         }
         .wellieScreen()
@@ -233,6 +229,15 @@ struct SettingsView: View {
                 WellieChevronRow(title: "Your photos and data")
             }
             .buttonStyle(.plain)
+
+            WellieRowDivider()
+            Button { showingDevelopmentAccess = true } label: {
+                WellieChevronRow(
+                    title: "Development access",
+                    value: model.hasBackendAccess ? "Saved" : "Invite needed"
+                )
+            }
+            .buttonStyle(.plain)
         }
         .wellieListCard()
     }
@@ -264,23 +269,88 @@ struct SettingsView: View {
     }
 }
 
+/// Temporary TestFlight access without collecting a name, email, or password.
+/// Every token resolves to one isolated backend account and can be revoked by
+/// the developer without shipping another build.
+private struct FriendAccessView: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
+    @State private var token = ""
+    @FocusState private var isEditing: Bool
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    Text("Development invite")
+                        .font(WellieTheme.font(26, weight: .bold))
+                    WellieProse(
+                        "Paste the private invite token you received. It identifies your test account without asking for a name, email address or password.",
+                        size: 16
+                    )
+                    SecureField("eat_dev_…", text: $token)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .focused($isEditing)
+                        .font(.system(size: 15, weight: .medium, design: .monospaced))
+                        .padding(16)
+                        .background(WellieTheme.well, in: RoundedRectangle(cornerRadius: 16))
+
+                    Button("Save invite") {
+                        model.setBackendToken(trimmedToken)
+                        dismiss()
+                    }
+                    .buttonStyle(WelliePrimaryButtonStyle())
+                    .disabled(trimmedToken.isEmpty)
+
+                    if model.hasBackendAccess {
+                        Button("Remove invite from this phone", role: .destructive) {
+                            model.setBackendToken(nil)
+                            dismiss()
+                        }
+                        .buttonStyle(WellieSecondaryButtonStyle())
+                    }
+                }
+                .wellieColumn()
+            }
+            .background(WellieTheme.background)
+            .navigationTitle("Development access")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+        .onAppear { isEditing = !model.hasBackendAccess }
+        .wellieScreen()
+    }
+
+    private var trimmedToken: String {
+        token.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
+
 /// What the app does with a photograph, said plainly and in one place.
 struct PrivacyView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
+    @State private var confirmingCloudDeletion = false
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: WellieTheme.cardSpacing) {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Your photos stay on your phone.")
+                        Text("Your photos have two private copies.")
                             .font(WellieTheme.font(22, weight: .bold))
                         WellieProse(
                             """
-                            A meal photo is sent once, to \(model.provider.host), to be read. It is not \
-                            stored there by us and it is not posted anywhere. The copy that stays is the \
-                            one on this device, and deleting a meal deletes its photograph with it.
+                            A meal photo stays on this device and is also stored in eatsome's private \
+                            Cloudflare R2 bucket so a failed reading or an explicit retry does not need \
+                            another upload. The backend sends it to \(model.provider.displayName) for AI \
+                            recognition. It is never public, and deleting the meal removes its cloud \
+                            reference and, when no other meal uses it, the cloud photograph.
                             """,
                             size: 15
                         )
@@ -303,6 +373,26 @@ struct PrivacyView: View {
                     .wellieCard()
 
                     VStack(alignment: .leading, spacing: 12) {
+                        Text("You stay in control")
+                            .font(WellieTheme.font(17, weight: .bold))
+                        WellieProse(
+                            "Delete all cloud data to remove this development account's stored photos, meal events, recognition results and research-corpus consent. Local meals stay on this phone.",
+                            size: 15
+                        )
+                        Button("Delete all cloud data", role: .destructive) {
+                            confirmingCloudDeletion = true
+                        }
+                        .buttonStyle(WellieSecondaryButtonStyle())
+                        .disabled(model.isDeletingCloudData)
+                        if let error = model.cloudError {
+                            Text(error)
+                                .font(WellieTheme.font(12.5, weight: .medium))
+                                .foregroundStyle(WellieTheme.attention)
+                        }
+                    }
+                    .wellieCard()
+
+                    VStack(alignment: .leading, spacing: 12) {
                         Text("Health is read only")
                             .font(WellieTheme.font(17, weight: .bold))
                         WellieProse(
@@ -319,6 +409,14 @@ struct PrivacyView: View {
                 }
                 .wellieColumn()
             }
+            .alert("Delete all cloud data?", isPresented: $confirmingCloudDeletion) {
+                Button("Delete cloud data", role: .destructive) {
+                    Task { await model.revokePhotoProcessingAndDeleteCloudData() }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This removes the server copies for this development account and withdraws photo-processing consent. It cannot be undone.")
+            }
             .background(WellieTheme.background)
             .navigationTitle("Your photos and data")
             .navigationBarTitleDisplayMode(.inline)
@@ -333,13 +431,12 @@ struct PrivacyView: View {
     }
 }
 
-/// Behind five taps on the version row: the provider switch, the key, and the
-/// counters. Everything the redesign took off the settings screen, kept for the
-/// one person who needs it and shown to nobody else.
+/// Behind five taps on the version row: provider diagnostics and the bootstrap
+/// backend token used by development builds.
 struct WorkshopView: View {
     @Environment(AppModel.self) private var model
 
-    @State private var apiKey = ""
+    @State private var backendToken = ""
     @FocusState private var isEditingKey: Bool
 
     var body: some View {
@@ -348,13 +445,13 @@ struct WorkshopView: View {
                 VStack(alignment: .leading, spacing: 14) {
                     WellieSectionTitle(
                         text: "Recognition",
-                        detail: "Per device, not per account — the point is to run both against your own plates."
+                        detail: "The phone calls eatsome's backend; only the backend calls a model provider."
                     )
 
                     Picker("Provider", selection: Binding(
                         get: { model.provider },
                         set: { newValue in
-                            apiKey = ""
+                            backendToken = ""
                             isEditingKey = false
                             model.setProvider(newValue)
                         }
@@ -367,7 +464,7 @@ struct WorkshopView: View {
 
                     row("Model", model.activeModel)
 
-                    SecureField("\(model.provider.displayName) API key", text: $apiKey)
+                    SecureField("Backend access token", text: $backendToken)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .font(WellieTheme.font(15, weight: .medium))
@@ -379,14 +476,14 @@ struct WorkshopView: View {
 
                     HStack {
                         Label(
-                            model.hasAPIKey ? "Key stored in Keychain" : "No key stored",
-                            systemImage: model.hasAPIKey ? "checkmark.circle.fill" : "circle"
+                            model.hasBackendAccess ? "Backend access configured" : "No backend token",
+                            systemImage: model.hasBackendAccess ? "checkmark.circle.fill" : "circle"
                         )
                         .font(WellieTheme.font(13, weight: .medium))
-                        .foregroundStyle(model.hasAPIKey ? WellieTheme.blue : WellieTheme.muted)
+                        .foregroundStyle(model.hasBackendAccess ? WellieTheme.blue : WellieTheme.muted)
                         Spacer()
-                        if model.hasAPIKey {
-                            Button("Remove", role: .destructive) { model.setAPIKey(nil) }
+                        if model.hasBackendAccess {
+                            Button("Remove", role: .destructive) { model.setBackendToken(nil) }
                                 .font(WellieTheme.font(13, weight: .semibold))
                         }
                     }
@@ -422,13 +519,13 @@ struct WorkshopView: View {
         .wellieScreen()
     }
 
-    private var trimmedKey: String { apiKey.trimmingCharacters(in: .whitespacesAndNewlines) }
+    private var trimmedKey: String { backendToken.trimmingCharacters(in: .whitespacesAndNewlines) }
 
     private func saveKey() {
         isEditingKey = false
         guard !trimmedKey.isEmpty else { return }
-        model.setAPIKey(trimmedKey)
-        apiKey = ""
+        model.setBackendToken(trimmedKey)
+        backendToken = ""
     }
 
     private func row(_ label: String, _ value: String, warning: Bool = false) -> some View {

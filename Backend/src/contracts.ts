@@ -118,6 +118,48 @@ export const rerunRecognitionRequestSchema = z.strictObject({
 
 export type RerunRecognitionRequest = z.infer<typeof rerunRecognitionRequestSchema>;
 
+export const refinementItemSchema = z.strictObject({
+  group: z.enum(foodGroups),
+  portion: z.enum(portions),
+  label: z.string().max(200).nullable(),
+});
+
+export const refinementRequestSchema = z.strictObject({
+  provider: z.enum(recognitionProviders).optional(),
+  current: z.array(refinementItemSchema).max(64),
+  note: z.string().trim().min(1).max(2_000),
+});
+
+export type RefinementRequest = z.infer<typeof refinementRequestSchema>;
+
+export const mealRevisionSchema = z.strictObject({
+  add: z.array(
+    z.strictObject({
+      group: z.enum(foodGroups),
+      portion: z.enum(portions),
+      label: z.string().max(200).nullable(),
+      alternatives: z.array(z.enum(foodGroups)).max(3),
+    }),
+  ),
+  revise: z.array(
+    z.strictObject({
+      index: z.number().int().min(1).max(64),
+      group: z.enum(foodGroups),
+      portion: z.enum(portions),
+    }),
+  ),
+  remove: z.array(z.number().int().min(1).max(64)),
+  notes: z.string().max(2_000).nullable(),
+});
+
+export type MealRevision = z.infer<typeof mealRevisionSchema>;
+
+export function mealRevisionJsonSchema(): Record<string, unknown> {
+  const schema = z.toJSONSchema(mealRevisionSchema, { target: "draft-07" });
+  delete schema.$schema;
+  return schema;
+}
+
 export const mealItemSchema = z.strictObject({
   id: z.string().uuid(),
   group: z.enum(foodGroups),
