@@ -16,6 +16,10 @@ struct SwipeToRemove<Content: View>: View {
 
     @State private var offset: CGFloat = 0
     @State private var isOpen = false
+    /// Decided once, on the first movement of a drag, and held until it ends.
+    /// Judging direction on every update lets a diagonal drag flicker between
+    /// scrolling and swiping; a finger that started downward stays scrolling.
+    @State private var isHorizontal: Bool?
 
     private let width: CGFloat = 92
 
@@ -38,19 +42,34 @@ struct SwipeToRemove<Content: View>: View {
             content
                 .background(WellieTheme.surface)
                 .offset(x: offset)
-                // High priority, or there is no swipe at all: the row wraps a
-                // NavigationLink, and a plain `.gesture` loses to the control's
-                // own press handling, which claims the touch and cancels the
-                // drag before it starts. A tap still reaches the row — it never
-                // travels the 14pt this needs.
-                .highPriorityGesture(
+                // Simultaneous, and it has to be all three of those words.
+                //
+                // A plain `.gesture` loses outright: the row wraps a
+                // NavigationLink, whose press handling claims the touch and
+                // cancels the drag before it starts, which is why swiping did
+                // nothing at all. `.highPriorityGesture` fixes that and breaks
+                // something worse — it takes the touch ahead of the enclosing
+                // ScrollView, so every drag beginning on a meal row is swallowed
+                // and the whole of Today stops scrolling. Refusing to move the
+                // row is not the same as declining the gesture.
+                //
+                // Simultaneous lets the scroll view keep its pan while this
+                // watches the same finger, and the axis latch below is what
+                // decides which of them is being asked for.
+                .simultaneousGesture(
                     DragGesture(minimumDistance: 14)
                         .onChanged { value in
-                            guard abs(value.translation.width) > abs(value.translation.height) else { return }
+                            if isHorizontal == nil {
+                                isHorizontal = abs(value.translation.width) > abs(value.translation.height)
+                            }
+                            guard isHorizontal == true else { return }
                             let base = isOpen ? -width : 0
                             offset = min(0, max(-width - 20, base + value.translation.width))
                         }
                         .onEnded { _ in
+                            let wasHorizontal = isHorizontal == true
+                            isHorizontal = nil
+                            guard wasHorizontal else { return }
                             withAnimation(.snappy(duration: 0.22)) {
                                 isOpen = offset < -width / 2
                                 offset = isOpen ? -width : 0

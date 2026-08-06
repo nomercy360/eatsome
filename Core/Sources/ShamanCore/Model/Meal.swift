@@ -76,6 +76,10 @@ public enum MealSource: String, Codable, Sendable {
 public enum MealShare: String, Codable, Sendable, CaseIterable {
     case whole
     case part
+    /// A few bites of someone else's — enough to have eaten, not enough to
+    /// count as a portion. Without it the honest answer to a shared plate you
+    /// picked at is "half", which is four times what it was.
+    case taste
 
     /// Deliberately coarse, like `Portion`. "Half of it" is a judgement a person
     /// can make from memory; "38%" is not.
@@ -83,6 +87,7 @@ public enum MealShare: String, Codable, Sendable, CaseIterable {
         switch self {
         case .whole: 1.0
         case .part: 0.5
+        case .taste: 0.25
         }
     }
 
@@ -90,7 +95,27 @@ public enum MealShare: String, Codable, Sendable, CaseIterable {
         switch self {
         case .whole: "Ate it all"
         case .part: "Ate part of it"
+        case .taste: "Had a taste"
         }
+    }
+
+    /// For the picker, where the three sit side by side and the question above
+    /// them supplies the verb.
+    public var chipName: String {
+        switch self {
+        case .whole: "All of it"
+        case .part: "Half"
+        case .taste: "A taste"
+        }
+    }
+
+    /// An unknown value is a share written by a build newer than this one.
+    /// Falling back beats throwing: a `MealEntry` that will not decode is a meal
+    /// that silently vanishes from the projection, and `whole` errs toward
+    /// counting what was eaten rather than losing it.
+    public init(from decoder: any Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        self = MealShare(rawValue: raw) ?? .whole
     }
 }
 

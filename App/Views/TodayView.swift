@@ -15,6 +15,11 @@ struct TodayView: View {
     @State private var showingSettings = false
     @State private var showingHistory = false
     @State private var openDay: DayLog?
+    /// The empty state runs its own capture sheet. The camera tab presents one
+    /// from the root, but the tab is a sibling of this view rather than
+    /// something it can reach — and a card headed "Photograph your first meal"
+    /// has to be able to do that itself.
+    @State private var capturing = false
 
     private var meals: [MealEntry] { model.mealsToday() }
     private var days: [DayLog] { model.weekDays() }
@@ -48,6 +53,7 @@ struct TodayView: View {
             .navigationTitle("eatsome")
             .navigationBarTitleDisplayMode(.inline)
             .refreshable { await model.refreshHealth() }
+            .sheet(isPresented: $capturing) { MealCaptureView() }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button { showingHistory = true } label: {
@@ -165,6 +171,16 @@ struct TodayView: View {
         VStack(alignment: .leading, spacing: 14) {
             WellieSectionTitle(text: "Photograph your first meal")
             WellieProse("Breakfast, a snack, whatever is next. It takes about ten seconds.")
+
+            // Without this the card asks for a photograph and offers only the
+            // other way of doing it — "or add it by hand" reading as the
+            // alternative to a button that was never on the card. The camera is
+            // in the tab bar, but day one is the moment you are least likely to
+            // know that.
+            Button("Photograph a meal") { capturing = true }
+                .buttonStyle(WelliePrimaryButtonStyle())
+                .padding(.top, 2)
+
             NavigationLink { AddByHandView(day: Date()) } label: {
                 Text("or add it by hand")
                     .font(WellieTheme.font(14.5, weight: .semibold))

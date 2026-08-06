@@ -224,13 +224,22 @@ struct WellieChip: View {
     let text: String
     var style: Style = .soft
     var size: CGFloat = 13.5
+    /// Take the whole width offered instead of hugging the text.
+    ///
+    /// The frame has to be inside the background, not around it: applied
+    /// outside, the capsule stays the width of its label and only the invisible
+    /// layout box grows, which reads as three small pills adrift in a wide row.
+    var fills = false
 
     var body: some View {
         Text(text)
             .font(WellieTheme.font(size, weight: .semibold))
             .foregroundStyle(foreground)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
             .padding(.horizontal, 13)
             .padding(.vertical, 8)
+            .frame(maxWidth: fills ? .infinity : nil)
             .background(background, in: Capsule())
             .overlay {
                 if style == .outline {
@@ -371,6 +380,9 @@ struct WellieWeekDots: View {
 struct WellieChevronRow: View {
     let title: String
     var value: String?
+    /// A full-screen list can afford 16; a sheet listing four ingredients above
+    /// a Done button cannot, and the rows there are the first thing to give.
+    var verticalPadding: CGFloat = 16
 
     var body: some View {
         HStack(spacing: 8) {

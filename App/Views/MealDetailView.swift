@@ -93,8 +93,19 @@ struct MealDetailView: View {
         .sheet(item: $openDish) { dish in
             DishSheet(
                 dish: dish,
-                figure: { model.figure(for: [$0]) },
+                onRename: { name in
+                    guard let index = dishes.firstIndex(where: { $0.id == dish.id }) else { return }
+                    dishes[index].name = name
+                    draft.items = dishes.flatMap { $0.flattened() }
+                },
                 onEditIngredient: { editing = EditingFood(id: $0) },
+                onAddIngredient: {
+                    guard let index = dishes.firstIndex(where: { $0.id == dish.id }) else { return }
+                    let added = MealItem(group: .other, portion: .medium)
+                    dishes[index].items.append(added)
+                    draft.items = dishes.flatMap { $0.flattened() }
+                    editing = EditingFood(id: added.id)
+                },
                 onCount: { count in
                     guard let index = dishes.firstIndex(where: { $0.id == dish.id }) else { return }
                     dishes[index].count = count
@@ -168,9 +179,7 @@ struct MealDetailView: View {
                 .init(id: $0.id, text: FoodPhrase.word(for: $0.group, label: $0.label))
             }
         }
-        return dishes.map { dish in
-            .init(id: dish.id, text: dish.count > 1 ? "\(dish.count) × \(dish.name)" : dish.name)
-        }
+        return FoodSentence.words(for: dishes)
     }
 
     private func tapWord(_ id: UUID) {
@@ -184,16 +193,19 @@ struct MealDetailView: View {
     /// The one control that exists because sharing genuinely changes the
     /// arithmetic: a platter counted whole is the largest way this app can
     /// overstate a week.
+    /// The same one question as the capture screen, worded identically. Two
+    /// screens asking the same thing in different words is how a person comes
+    /// to believe they are two different things.
     private var shareCard: some View {
-        HStack(spacing: 14) {
+        VStack(alignment: .leading, spacing: 10) {
             VStack(alignment: .leading, spacing: 3) {
-                Text("How much did you eat?")
+                Text("How much was yours?")
                     .font(WellieTheme.font(15.5, weight: .semibold))
-                Text("Half counts as half toward your week")
+                Text("Covers sharing too — half a shared bowl counts half")
                     .font(WellieTheme.font(13, weight: .medium))
                     .foregroundStyle(WellieTheme.muted)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            Spacer(minLength: 8)
             ShareChips(share: Binding(get: { draft.eaten }, set: { draft.share = $0 }))
         }
         .wellieCard(padding: 20)

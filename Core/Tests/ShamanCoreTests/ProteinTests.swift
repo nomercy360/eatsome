@@ -173,6 +173,28 @@ struct ProteinTests {
         #expect(PlateFigure.forPlate([ramen]).text == "3 g protein")
     }
 
+    @Test("A taste is a quarter, and an unknown share is not a lost meal")
+    func shareHasThreeAnswers() throws {
+        #expect(MealShare.whole.factor == 1.0)
+        #expect(MealShare.part.factor == 0.5)
+        #expect(MealShare.taste.factor == 0.25)
+        #expect(MealShare.allCases.map(\.chipName) == ["All of it", "Half", "A taste"])
+
+        let plate = MealEntry.fixture(daysAgo: 0, [(.whiteMeat, .medium)])
+        var picked = plate
+        picked.share = .taste
+        #expect(Protein.grams(in: picked) == 26 * 0.25)
+
+        // A share written by a newer build decodes to `whole` rather than
+        // throwing. Throwing would fail the whole `MealEntry`, and a meal that
+        // will not decode is a meal that disappears from the projection without
+        // saying so.
+        let future = try JSONDecoder().decode(MealShare.self, from: Data(#""nibbled""#.utf8))
+        #expect(future == .whole)
+        let known = try JSONDecoder().decode(MealShare.self, from: Data(#""taste""#.utf8))
+        #expect(known == .taste)
+    }
+
     @Test("The daily target follows body weight and intent")
     func target() {
         #expect(Protein.dailyTarget(weightKilograms: 79.4, intent: .building) == 159)

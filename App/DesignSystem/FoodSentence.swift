@@ -100,6 +100,43 @@ struct FoodSentence: View {
     }
 }
 
+extension FoodSentence {
+    /// The sentence for a plate of dishes, in one place because two screens
+    /// draw it and a rule that lives in both is a rule that will differ in one.
+    ///
+    /// A dish is normally one word with its ingredients behind it. The
+    /// exception is the dish `MealDish.regrouped` builds for food a correction
+    /// added: it has no name, because guessing which dish a new food joined
+    /// would silently change that dish's count. Rendering its empty name put a
+    /// blank chip in the middle of the sentence — "Looks like ramen and ." —
+    /// after a fix that had worked perfectly. Those foods are said one by one
+    /// instead, which also means tapping one opens the food rather than a dish
+    /// sheet titled "Untitled dish".
+    static func words(for dishes: [MealDish], uncertain: UUID? = nil) -> [Word] {
+        dishes.flatMap { dish -> [Word] in
+            let name = dish.name.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !name.isEmpty else {
+                return dish.items.map { item in
+                    Word(
+                        id: item.id,
+                        text: FoodPhrase.word(for: item.group, label: item.label),
+                        isUncertain: item.id == uncertain
+                    )
+                }
+            }
+            return [
+                Word(
+                    id: dish.id,
+                    text: dish.count > 1 ? "\(dish.count) × \(name)" : name,
+                    // The question is about an ingredient, so the dish holding
+                    // it is what carries the mark.
+                    isUncertain: dish.items.contains { $0.id == uncertain }
+                )
+            ]
+        }
+    }
+}
+
 /// Builds the sentence's words from whatever the app currently believes the
 /// meal is. The model's own label wins when it has one — "french toast" is
 /// what you recognise; "Refined grains" is what it counts as.

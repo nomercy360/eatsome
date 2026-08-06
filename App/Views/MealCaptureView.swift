@@ -104,14 +104,32 @@ struct MealCaptureView: View {
                 guard !dishes.isEmpty else { return }
                 dishes = MealDish.regrouped(updated, keeping: dishes)
             }
-            .sheet(isPresented: $showingFix) {
-                FixSheet(text: $note) { Task { await reread() } }
+            // Full screen, not a sheet: the keyboard and a detent cannot agree
+            // on a height, and the argument happens in front of the reader.
+            .fullScreenCover(isPresented: $showingFix) {
+                FixScreen(text: $note) { Task { await reread() } }
             }
             .sheet(item: $openDish) { dish in
                 DishSheet(
                     dish: dish,
-                    figure: { model.figure(for: [$0]) },
+                    onRename: { name in
+                        guard let index = dishes.firstIndex(where: { $0.id == dish.id }) else { return }
+                        dishes[index].name = name
+                        items = dishes.flatMap { $0.flattened() }
+                        didEdit = true
+                    },
                     onEditIngredient: { editing = EditingFood(id: $0) },
+                    onAddIngredient: {
+                        guard let index = dishes.firstIndex(where: { $0.id == dish.id }) else { return }
+                        let added = MealItem(group: .other, portion: .medium)
+                        dishes[index].items.append(added)
+                        items = dishes.flatMap { $0.flattened() }
+                        didEdit = true
+                        // Straight into the picker: a row reading "something
+                        // else, normal" is not an ingredient, it is a promise
+                        // to name one.
+                        editing = EditingFood(id: added.id)
+                    },
                     onCount: { count in
                         guard let index = dishes.firstIndex(where: { $0.id == dish.id }) else { return }
                         dishes[index].count = count
@@ -340,6 +358,15 @@ struct MealCaptureView: View {
     private var fixRow: some View {
         Button { showingFix = true } label: {
             HStack(spacing: 12) {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(WellieTheme.ice)
+                    .frame(width: 38, height: 38)
+                    .overlay {
+                        Image(systemName: "pencil")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(WellieTheme.blue)
+                    }
+
                 VStack(alignment: .leading, spacing: 3) {
                     Text(savedNote.isEmpty ? "Something wrong or missing?" : "What you told me")
                         .font(WellieTheme.font(15, weight: .semibold))
@@ -360,10 +387,15 @@ struct MealCaptureView: View {
                     .foregroundStyle(WellieTheme.muted)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+            // Both inside the label, and in this order: applied outside the
+            // button the card is only decoration around it, and the tap target
+            // shrinks to the glyphs — a row-sized thing that answers to a
+            // word-sized press.
+            .wellieCard()
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .disabled(isRefining)
-        .wellieCard()
     }
 
     private var savedNote: String {
@@ -555,15 +587,7 @@ struct MealCaptureView: View {
                 )
             }
         } else {
-            words = dishes.map { dish in
-                .init(
-                    id: dish.id,
-                    text: dish.count > 1 ? "\(dish.count) × \(dish.name)" : dish.name,
-                    // The question is about an ingredient, so the dish holding
-                    // it is what carries the mark.
-                    isUncertain: dish.items.contains { $0.id == openQuestion?.id }
-                )
-            }
+            words = FoodSentence.words(for: dishes, uncertain: openQuestion?.id)
         }
         // Everything already on the list keeps its place and its wording; the
         // ghost is appended, so the fix reads as an addition to a sentence you
@@ -710,7 +734,10 @@ struct MealCaptureView: View {
                     Spacer()
                     Image(systemName: showingDetails ? "chevron.up" : "chevron.down")
                         .font(.system(size: 12, weight: .bold))
-                    Text("Time, portions, sharing")
+                    // Not "sharing": it used to promise a control that was not
+                    // in the panel. Sharing is now folded into the one portion
+                    // question, so the label names what is actually in there.
+                    Text("Time & portions")
                         .font(WellieTheme.font(14, weight: .semibold))
                     Spacer()
                 }
@@ -722,20 +749,23 @@ struct MealCaptureView: View {
 
             if showingDetails {
                 VStack(alignment: .leading, spacing: 16) {
-                    DatePicker("Eaten at", selection: $eatenAt)
-                        .font(WellieTheme.font(15.5, weight: .semibold))
+                    EatenAtRow(eatenAt: $eatenAt)
 
                     WellieRowDivider()
 
-                    HStack(spacing: 14) {
+                    // One question, not two. "How much did you eat" and "did
+                    // you share it" are the same fact asked twice — what
+                    // fraction of the plate was yours — and answering both
+                    // invites answering them inconsistently.
+                    VStack(alignment: .leading, spacing: 10) {
                         VStack(alignment: .leading, spacing: 3) {
-                            Text("How much did you eat?")
+                            Text("How much was yours?")
                                 .font(WellieTheme.font(15.5, weight: .semibold))
-                            Text("Half counts as half toward your week")
+                            Text("Covers sharing too — half a shared bowl counts half")
                                 .font(WellieTheme.font(13, weight: .medium))
                                 .foregroundStyle(WellieTheme.muted)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
-                        Spacer(minLength: 8)
                         ShareChips(share: $share)
                     }
                 }
@@ -997,21 +1027,83 @@ struct CaptureRouteRow: View {
 
 /// All / Half, as two chips rather than a segmented control — it is a fact
 /// about this plate, not a mode the screen is in.
+/// The date as a word where there is one. "Aug 6, 2026" is how a database
+/// writes today; nobody back-logs a meal by ISO date, and the system picker's
+/// own label cannot be changed — hence the pill and the popover behind it.
+struct EatenAtRow: View {
+    @Binding var eatenAt: Date
+
+    @State private var showingDay = false
+    @State private var showingTime = false
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text("Eaten")
+                .font(WellieTheme.font(15.5, weight: .semibold))
+            Spacer(minLength: 8)
+
+            // Both pills are ours. Leaving the time to the system picker meant
+            // two badges side by side in two different fills and two different
+            // corner radii, because a compact `DatePicker` styles itself and
+            // will not be told otherwise.
+            pill(DayFormat.title(eatenAt)) { showingDay = true }
+                .popover(isPresented: $showingDay) {
+                    // A graphical picker given no width is squeezed to whatever
+                    // the popover guesses, which clipped the month header to
+                    // "026 >". It needs about this much.
+                    DatePicker("", selection: $eatenAt, displayedComponents: .date)
+                        .datePickerStyle(.graphical)
+                        .labelsHidden()
+                        .frame(width: 320)
+                        .padding(10)
+                        .presentationCompactAdaptation(.popover)
+                }
+
+            pill(eatenAt.formatted(date: .omitted, time: .shortened)) { showingTime = true }
+                .popover(isPresented: $showingTime) {
+                    DatePicker("", selection: $eatenAt, displayedComponents: .hourAndMinute)
+                        .datePickerStyle(.wheel)
+                        .labelsHidden()
+                        .frame(width: 260, height: 180)
+                        .padding(.horizontal, 10)
+                        .presentationCompactAdaptation(.popover)
+                }
+        }
+    }
+
+    private func pill(_ text: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(text)
+                .font(WellieTheme.font(15, weight: .semibold))
+                .foregroundStyle(WellieTheme.ink)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 9)
+                .background(WellieTheme.ice, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 struct ShareChips: View {
     @Binding var share: MealShare
 
     var body: some View {
-        HStack(spacing: 6) {
-            chip("All", value: .whole)
-            chip("Half", value: .part)
+        // Equal thirds rather than intrinsic widths: three chips sized to their
+        // own text leave a ragged row, and the widest of them is the one that
+        // wraps first when the type size goes up.
+        HStack(spacing: 12) {
+            ForEach(MealShare.allCases, id: \.self) { value in
+                Button { share = value } label: {
+                    WellieChip(
+                        text: value.chipName,
+                        style: share == value ? .selected : .soft,
+                        size: 14.5,
+                        fills: true
+                    )
+                }
+                .buttonStyle(.plain)
+            }
         }
-    }
-
-    private func chip(_ text: String, value: MealShare) -> some View {
-        Button { share = value } label: {
-            WellieChip(text: text, style: share == value ? .selected : .soft)
-        }
-        .buttonStyle(.plain)
     }
 }
 
