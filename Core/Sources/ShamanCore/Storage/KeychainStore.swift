@@ -4,9 +4,10 @@ import Security
 /// Device credentials live here rather than in UserDefaults.
 ///
 /// The old provider keys remain readable so an installed build does not lose
-/// them during migration, but recognition now uses the app-owned backend. Its
-/// invite token selects the private backend account; a stable device id remains
-/// available for event provenance and install-level diagnostics.
+/// them during migration, but recognition now uses the app-owned backend. The
+/// device id generated on first launch is what keeps this install's cloud data
+/// separate from every other tester's, so it is the one value worth surviving
+/// an app reinstall; the backend token is an override for development builds.
 public struct KeychainStore: Sendable {
     public let service: String
 

@@ -14,7 +14,6 @@ struct SettingsView: View {
     @State private var showingWorkshop = false
     @State private var showingMethod = false
     @State private var showingPrivacy = false
-    @State private var showingDevelopmentAccess = false
 
     var body: some View {
         NavigationStack {
@@ -40,7 +39,6 @@ struct SettingsView: View {
             .navigationDestination(isPresented: $showingWorkshop) { WorkshopView() }
             .sheet(isPresented: $showingMethod) { ScoreMethodView() }
             .sheet(isPresented: $showingPrivacy) { PrivacyView() }
-            .sheet(isPresented: $showingDevelopmentAccess) { FriendAccessView() }
             .onAppear { habits = model.projection.habits }
         }
         .wellieScreen()
@@ -229,15 +227,6 @@ struct SettingsView: View {
                 WellieChevronRow(title: "Your photos and data")
             }
             .buttonStyle(.plain)
-
-            WellieRowDivider()
-            Button { showingDevelopmentAccess = true } label: {
-                WellieChevronRow(
-                    title: "Development access",
-                    value: model.hasBackendAccess ? "Saved" : "Invite needed"
-                )
-            }
-            .buttonStyle(.plain)
         }
         .wellieListCard()
     }
@@ -266,68 +255,6 @@ struct SettingsView: View {
         let short = info?["CFBundleShortVersionString"] as? String ?? "1.0"
         let build = info?["CFBundleVersion"] as? String ?? "1"
         return "\(short) (\(build))"
-    }
-}
-
-/// Temporary TestFlight access without collecting a name, email, or password.
-/// Every token resolves to one isolated backend account and can be revoked by
-/// the developer without shipping another build.
-private struct FriendAccessView: View {
-    @Environment(AppModel.self) private var model
-    @Environment(\.dismiss) private var dismiss
-    @State private var token = ""
-    @FocusState private var isEditing: Bool
-
-    var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    Text("Development invite")
-                        .font(WellieTheme.font(26, weight: .bold))
-                    WellieProse(
-                        "Paste the private invite token you received. It identifies your test account without asking for a name, email address or password.",
-                        size: 16
-                    )
-                    SecureField("eat_dev_…", text: $token)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .focused($isEditing)
-                        .font(.system(size: 15, weight: .medium, design: .monospaced))
-                        .padding(16)
-                        .background(WellieTheme.well, in: RoundedRectangle(cornerRadius: 16))
-
-                    Button("Save invite") {
-                        model.setBackendToken(trimmedToken)
-                        dismiss()
-                    }
-                    .buttonStyle(WelliePrimaryButtonStyle())
-                    .disabled(trimmedToken.isEmpty)
-
-                    if model.hasBackendAccess {
-                        Button("Remove invite from this phone", role: .destructive) {
-                            model.setBackendToken(nil)
-                            dismiss()
-                        }
-                        .buttonStyle(WellieSecondaryButtonStyle())
-                    }
-                }
-                .wellieColumn()
-            }
-            .background(WellieTheme.background)
-            .navigationTitle("Development access")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") { dismiss() }
-                }
-            }
-        }
-        .onAppear { isEditing = !model.hasBackendAccess }
-        .wellieScreen()
-    }
-
-    private var trimmedToken: String {
-        token.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 

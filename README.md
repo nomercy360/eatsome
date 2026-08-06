@@ -44,7 +44,7 @@ Core/            SwiftPM package — all logic, no frameworks, fully tested
     AI/          Luna client, strict JSON schema, SHA-256 recognition cache
     Storage/     JSONL event log, Keychain
     Config/      Remote-or-bundled tunables
-App/             iOS app — SwiftUI, 1024px meal camera input, HealthKit
+App/             iOS app — SwiftUI, 2048px meal camera input, HealthKit
   DesignSystem/  Wellie-derived color, type, card, chip, and button tokens
   Support/       Read-only HealthKit import and app configuration
 Backend/         Cloudflare Worker — Hono, D1/Drizzle, private R2, model proxy
@@ -65,10 +65,11 @@ Requires Xcode and XcodeGen.
 That generates `eatsome.xcodeproj` from `project.yml`. Open the project, select a
 development team, and run it on an iPhone; HealthKit is unavailable on macOS.
 
-Recognition goes through the app-owned Worker. TestFlight builds contain no
-credential: each development friend receives a revocable token and pastes it
-once under Settings → Development access. It is retained in Keychain, and
-model-provider keys never ship in the app.
+Recognition goes through the app-owned Worker, so no model-provider key ever
+ships in the app. The build carries one shared Worker token and there is
+nothing to enter: every install generates its own id on first launch, and that
+id is what keeps one tester's photos, meals and daily quota apart from
+another's.
 
 ### Installing on a phone that is not here
 

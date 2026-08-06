@@ -45,9 +45,10 @@ targets:
         # export-compliance question on every single TestFlight build.
         ITSAppUsesNonExemptEncryption: false
         EatsomeAPIBaseURL: https://eatsome-api.peatch.workers.dev/api/v1
-        # Supplied as an xcodebuild setting by release-testflight.sh. This is a
-        # single-owner bootstrap token, not user authentication; replace it
-        # with per-install or per-user auth before distributing to anyone else.
+        # Supplied as an xcodebuild setting by release-testflight.sh. It says
+        # "this is the app", not "this is you": testers are separated by the
+        # device id the app generates, and everyone on the build shares this
+        # value. App Attest is what replaces it before a public release.
         EatsomeAPIToken: $(EATSOME_API_TOKEN)
     entitlements:
       path: App/Support/eatsome.entitlements

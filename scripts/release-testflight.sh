@@ -83,11 +83,21 @@ if [[ -n "${ASC_KEY_ID:-}" && -n "${ASC_ISSUER_ID:-}" && -f "$ASC_KEY_PATH" ]]; 
          -authenticationKeyIssuerID "$ASC_ISSUER_ID")
 fi
 
-# Friend builds intentionally contain no credential. Each tester receives a
-# revocable token out of band and enters it once; Keychain retains it. Setting
-# EATSOME_API_TOKEN explicitly remains useful for a private owner-only build.
-APP_BACKEND_TOKEN="${EATSOME_API_TOKEN:-}"
-BACKEND_BUILD_SETTING=("EATSOME_API_TOKEN=$APP_BACKEND_TOKEN")
+# The archive carries the shared Worker token, the same way it carries the
+# issuer id: from a one-line file so it survives a new shell. Nobody types a
+# credential into the app, so a build without this one reaches TestFlight and
+# fails on the first photo — which is why it is a hard error here.
+EATSOME_TOKEN_FILE="${EATSOME_TOKEN_FILE:-$HOME/.eatsome/api_token}"
+if [[ -z "${EATSOME_API_TOKEN:-}" && -f "$EATSOME_TOKEN_FILE" ]]; then
+  EATSOME_API_TOKEN="$(tr -d '[:space:]' < "$EATSOME_TOKEN_FILE")"
+fi
+if [[ -z "${EATSOME_API_TOKEN:-}" ]]; then
+  echo "error: no backend token. Recognition would fail on every tester's phone."
+  echo "  export EATSOME_API_TOKEN=…   (the same value as the Worker secret)"
+  echo "  or write it to $EATSOME_TOKEN_FILE"
+  exit 1
+fi
+BACKEND_BUILD_SETTING=("EATSOME_API_TOKEN=$EATSOME_API_TOKEN")
 
 command -v xcodegen >/dev/null || { echo "error: brew install xcodegen"; exit 1; }
 
