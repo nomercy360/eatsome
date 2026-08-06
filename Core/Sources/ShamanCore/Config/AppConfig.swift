@@ -40,7 +40,7 @@ public struct AppConfig: Codable, Sendable {
         public var geminiMediaResolution: String?
     }
 
-    public var defaultProvider: RecognitionProvider { recognition.provider ?? .openAI }
+    public var defaultProvider: RecognitionProvider { recognition.provider ?? .gemini }
 
     public static let fallback = AppConfig(
         version: 1,
@@ -48,11 +48,11 @@ public struct AppConfig: Codable, Sendable {
         medas: MedasConfiguration(),
         recognition: Recognition(
             model: "gpt-5.6-luna",
-            imageDetail: "low",
+            imageDetail: "high",
             reasoningEffort: "low",
             systemPrompt: nil,
             promptVersion: nil,
-            provider: .openAI,
+            provider: .gemini,
             geminiModel: "gemini-3.6-flash",
             geminiThinkingLevel: "low",
             geminiMediaResolution: nil

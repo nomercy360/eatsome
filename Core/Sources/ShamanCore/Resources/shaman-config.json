@@ -5,9 +5,9 @@
     "windowDays": 7
   },
   "recognition": {
-    "provider": "openai",
+    "provider": "gemini",
     "model": "gpt-5.6-luna",
-    "imageDetail": "low",
+    "imageDetail": "high",
     "reasoningEffort": "low",
     "geminiModel": "gemini-3.6-flash",
     "geminiThinkingLevel": "low"

@@ -42,8 +42,14 @@ struct PhotoStore {
     }
 
     func image(for hash: String?) -> UIImage? {
-        guard let hash, let url = url(for: hash), let data = try? Data(contentsOf: url) else { return nil }
-        return UIImage(data: data)
+        data(for: hash).flatMap(UIImage.init(data:))
+    }
+
+    /// The stored bytes themselves, for a correction that wants the model to
+    /// look at the plate again rather than only at what was typed.
+    func data(for hash: String?) -> Data? {
+        guard let hash, let url = url(for: hash) else { return nil }
+        return try? Data(contentsOf: url)
     }
 
     func remove(_ hash: String?) {

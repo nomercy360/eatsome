@@ -22,7 +22,7 @@ struct FlowLayout: Layout {
         for row in rows(for: subviews, in: bounds.width) {
             var x = bounds.minX
             for index in row.indices {
-                let size = subviews[index].sizeThatFits(.unspecified)
+                let size = size(of: subviews[index], in: bounds.width)
                 subviews[index].place(
                     at: CGPoint(x: x, y: y + (row.height - size.height) / 2),
                     proposal: ProposedViewSize(size)
@@ -31,6 +31,20 @@ struct FlowLayout: Layout {
             }
             y += row.height + lineSpacing
         }
+    }
+
+    /// Measured against the width it will actually get, never its ideal width.
+    ///
+    /// A model that answers one item labelled "tomato, lettuce, carrot, and
+    /// cucumber" produces a chip wider than the card, and an unspecified
+    /// proposal reports that full width as if it were available: the chip is
+    /// then placed at it and runs off the edge of the screen. Proposing the
+    /// bound instead lets the text wrap inside its own background, so the
+    /// sentence stays readable however badly one word behaves.
+    private func size(of subview: LayoutSubview, in width: CGFloat) -> CGSize {
+        let ideal = subview.sizeThatFits(.unspecified)
+        guard ideal.width > width else { return ideal }
+        return subview.sizeThatFits(ProposedViewSize(width: width, height: nil))
     }
 
     private struct Row {
@@ -44,7 +58,7 @@ struct FlowLayout: Layout {
         var x: CGFloat = 0
 
         for index in subviews.indices {
-            let size = subviews[index].sizeThatFits(.unspecified)
+            let size = size(of: subviews[index], in: width)
             let needed = current.indices.isEmpty ? size.width : x + spacing + size.width
             if needed > width, !current.indices.isEmpty {
                 rows.append(current)

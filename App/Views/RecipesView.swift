@@ -89,7 +89,13 @@ struct RecipesView: View {
                     .foregroundStyle(WellieTheme.muted)
                     .lineLimit(1)
             }
-            Spacer(minLength: 0)
+            Spacer(minLength: 8)
+            // Named, never a bare gram figure: this is the one thing here ever
+            // weighed, and an unlabelled "34 g" on a dish reads as its weight.
+            Text("\(Int(model.protein(in: recipe.items).rounded())) g protein")
+                .font(WellieTheme.font(13, weight: .semibold))
+                .foregroundStyle(WellieTheme.muted)
+                .fixedSize()
             Image(systemName: "chevron.right")
                 .font(.system(size: 13, weight: .bold))
                 .foregroundStyle(WellieTheme.faint)
@@ -143,9 +149,20 @@ struct RecipeEditor: View {
                     .wellieCard(padding: 20)
 
                     VStack(alignment: .leading, spacing: 14) {
-                        Text(items.isEmpty ? "What goes in it?" : "Tap a word to change it")
-                            .font(WellieTheme.font(13, weight: .semibold))
-                            .foregroundStyle(WellieTheme.muted)
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Text(items.isEmpty ? "What goes in it?" : "Tap a word to change it")
+                                .font(WellieTheme.font(13, weight: .semibold))
+                                .foregroundStyle(WellieTheme.muted)
+                            Spacer(minLength: 0)
+                            // Follows the sentence as you edit it, so the cost of
+                            // swapping fish for pastry is visible while you swap.
+                            if !items.isEmpty {
+                                Text("\(Int(model.protein(in: items).rounded())) g protein")
+                                    .font(WellieTheme.font(13, weight: .semibold))
+                                    .foregroundStyle(WellieTheme.ink)
+                                    .fixedSize()
+                            }
+                        }
 
                         if items.isEmpty {
                             WellieProse("Everything, including what a photo can't see — the eggs, the oil, the butter.")

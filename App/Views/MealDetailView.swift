@@ -15,15 +15,21 @@ struct MealDetailView: View {
 
     @State private var draft: MealEntry
     @State private var editing: EditingFood?
-    @State private var showingAddFood = false
     @State private var showingDelete = false
     @State private var showingRecipeName = false
     @State private var recipeName = ""
+    @State private var isRefining = false
+    @State private var refineFailure: String?
+    /// The note as it stood when this meal was last read. Whatever was saved
+    /// with the meal has already been through the model, so it is where the
+    /// comparison starts.
+    @State private var readNote: String
     @FocusState private var isTyping: Bool
 
     init(meal: MealEntry) {
         self.meal = meal
         _draft = State(initialValue: meal)
+        _readNote = State(initialValue: meal.note ?? "")
     }
 
     var body: some View {
@@ -74,9 +80,6 @@ struct MealDetailView: View {
                 )
             }
         }
-        .sheet(isPresented: $showingAddFood) {
-            FoodGroupPicker { draft.items.append(MealItem(group: $0, portion: .medium)) }
-        }
         .alert("Save as a dish", isPresented: $showingRecipeName) {
             TextField("Lentil soup", text: $recipeName)
             Button("Save") { saveAsRecipe() }
@@ -105,9 +108,19 @@ struct MealDetailView: View {
 
     private var sentenceCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(draft.items.isEmpty ? "Nothing on this meal yet" : "Tap a word to change it")
-                .font(WellieTheme.font(13, weight: .semibold))
-                .foregroundStyle(WellieTheme.muted)
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(draft.items.isEmpty ? "Nothing on this meal yet" : "Tap a word to change it")
+                    .font(WellieTheme.font(13, weight: .semibold))
+                    .foregroundStyle(WellieTheme.muted)
+                Spacer(minLength: 0)
+                // Share included, so halving the plate below visibly halves it.
+                if !draft.items.isEmpty {
+                    Text("\(Int(model.protein(in: draft).rounded())) g protein")
+                        .font(WellieTheme.font(13, weight: .semibold))
+                        .foregroundStyle(WellieTheme.ink)
+                        .fixedSize()
+                }
+            }
 
             if !draft.items.isEmpty {
                 FoodSentence(
@@ -118,13 +131,6 @@ struct MealDetailView: View {
                     onTap: { editing = EditingFood(id: $0) }
                 )
             }
-
-            Button { showingAddFood = true } label: {
-                Label("Add something", systemImage: "plus")
-                    .font(WellieTheme.font(15, weight: .semibold))
-                    .foregroundStyle(WellieTheme.blue)
-            }
-            .padding(.top, 2)
         }
         .wellieCard()
     }
@@ -147,12 +153,15 @@ struct MealDetailView: View {
         .wellieCard(padding: 20)
     }
 
+    /// The only way food is added or corrected here: say what was missed and the
+    /// model returns a delta. There is no picker any more, on purpose — one path
+    /// to fix a meal, and it is the one that also teaches the prompt something.
     private var noteCard: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Your note")
+            Text("Missing or wrong?")
                 .font(WellieTheme.font(15.5, weight: .semibold))
             TextField(
-                "What the photo couldn't show",
+                "There was also a coffee",
                 text: Binding(get: { draft.note ?? "" }, set: { draft.note = $0.isEmpty ? nil : $0 }),
                 axis: .vertical
             )
@@ -161,9 +170,64 @@ struct MealDetailView: View {
             .lineLimit(1...5)
             .padding(14)
             .background(WellieTheme.well, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+
+            if hasNewNote {
+                Button {
+                    Task { await reread() }
+                } label: {
+                    if isRefining {
+                        ProgressView().frame(maxWidth: .infinity)
+                    } else {
+                        Label(
+                            draft.items.isEmpty ? "Put this on the list" : "Take this into account",
+                            systemImage: "sparkles"
+                        )
+                        .font(WellieTheme.font(15, weight: .semibold))
+                        .frame(maxWidth: .infinity)
+                    }
+                }
+                .buttonStyle(WellieSecondaryButtonStyle())
+                .disabled(isRefining)
+            }
+
+            if let refineFailure {
+                Text(refineFailure)
+                    .font(WellieTheme.font(12.5, weight: .medium))
+                    .foregroundStyle(WellieTheme.attention)
+            }
+
             WellieCaption("Kept with this meal. Save it as a dish and it comes back next time.")
         }
         .wellieCard(padding: 20)
+    }
+
+    /// Offering to re-read is only honest while the note says something the list
+    /// has not already been through.
+    private var hasNewNote: Bool {
+        let now = (draft.note ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return !now.isEmpty && now != readNote.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// A delta, not a re-run: the items may have been fixed by hand since, and
+    /// regenerating the list would throw that work away.
+    private func reread() async {
+        let text = (draft.note ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        isTyping = false
+        isRefining = true
+        refineFailure = nil
+        defer { isRefining = false }
+        do {
+            let revision = try await model.refine(
+                imageData: PhotoStore.shared.data(for: meal.photoHash),
+                current: draft.items,
+                note: text
+            )
+            draft.items = revision.applied(to: draft.items)
+            readNote = text
+        } catch {
+            refineFailure = error.localizedDescription
+        }
     }
 
     private var factsCard: some View {

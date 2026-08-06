@@ -22,7 +22,9 @@ struct ConfigTests {
         // answering the same prompt never pool into one bucket.
         #expect(config.lunaConfiguration.promptVersion == "\(MealPrompt.version)/gpt-5.6-luna")
         #expect(config.geminiConfiguration.promptVersion == "\(MealPrompt.version)/gemini-3.6-flash")
-        #expect(config.defaultProvider == .openAI)
+        // Gemini is production: it won on the evals, and the bundled file is
+        // what decides — `bootstrap()` reads this, not the property initializer.
+        #expect(config.defaultProvider == .gemini)
         #expect(config.model(for: .gemini) == "gemini-3.6-flash")
         #expect(config.geminiConfiguration.systemPrompt == MealPrompt.system)
     }
@@ -39,7 +41,9 @@ struct ConfigTests {
         )
         let config = try JSONDecoder().decode(AppConfig.self, from: legacy)
 
-        #expect(config.defaultProvider == .openAI)
+        // A file with no `provider` field gets today's default rather than the
+        // one that was current when it was written.
+        #expect(config.defaultProvider == .gemini)
         #expect(config.model(for: .gemini) == GeminiSession.Configuration().model)
     }
 

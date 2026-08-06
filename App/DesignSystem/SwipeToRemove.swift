@@ -38,7 +38,12 @@ struct SwipeToRemove<Content: View>: View {
             content
                 .background(WellieTheme.surface)
                 .offset(x: offset)
-                .gesture(
+                // High priority, or there is no swipe at all: the row wraps a
+                // NavigationLink, and a plain `.gesture` loses to the control's
+                // own press handling, which claims the touch and cancels the
+                // drag before it starts. A tap still reaches the row — it never
+                // travels the 14pt this needs.
+                .highPriorityGesture(
                     DragGesture(minimumDistance: 14)
                         .onChanged { value in
                             guard abs(value.translation.width) > abs(value.translation.height) else { return }

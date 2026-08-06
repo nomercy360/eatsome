@@ -39,7 +39,6 @@ struct MealCaptureView: View {
 
     @State private var showingCamera = false
     @State private var showingDetails = false
-    @State private var showingAddFood = false
     @State private var showingPhotoConsent = false
     @State private var pendingConsentImage: Data?
     @State private var pickerItem: PhotosPickerItem?
@@ -66,12 +65,6 @@ struct MealCaptureView: View {
             }
             .sheet(isPresented: $showingCamera) {
                 CameraPhotoPicker { setPhoto($0) }.ignoresSafeArea()
-            }
-            .sheet(isPresented: $showingAddFood) {
-                FoodGroupPicker { group in
-                    items.append(MealItem(group: group, portion: .medium))
-                    didEdit = true
-                }
             }
             .sheet(isPresented: $showingPhotoConsent) {
                 PhotoProcessingConsentView {
@@ -319,7 +312,7 @@ struct MealCaptureView: View {
 
                         Button("Tell me what it was") {
                             stage = .reviewing
-                            showingAddFood = true
+                            isTyping = true
                         }
                         .buttonStyle(WellieSecondaryButtonStyle())
                     }
@@ -356,7 +349,11 @@ struct MealCaptureView: View {
                 }
 
                 sentenceCard
-                noteCard(caption: "Optional. It stays with the meal, so next time this dish starts complete.")
+                noteCard(
+                    caption: items.isEmpty
+                        ? "What you type is read into the list, and stays with the meal."
+                        : "Optional. It stays with the meal, so next time this dish starts complete."
+                )
                 detailsRow
             }
             .wellieColumn()
@@ -369,12 +366,21 @@ struct MealCaptureView: View {
 
     private var sentenceCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(items.isEmpty ? "Nothing on the list yet" : "Tap a word to change it")
-                .font(WellieTheme.font(13, weight: .semibold))
-                .foregroundStyle(WellieTheme.muted)
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(items.isEmpty ? "Nothing on the list yet" : "Tap a word to change it")
+                    .font(WellieTheme.font(13, weight: .semibold))
+                    .foregroundStyle(WellieTheme.muted)
+                Spacer(minLength: 0)
+                if !items.isEmpty {
+                    Text("\(Int(model.protein(in: items).rounded())) g protein")
+                        .font(WellieTheme.font(13, weight: .semibold))
+                        .foregroundStyle(WellieTheme.ink)
+                        .fixedSize()
+                }
+            }
 
             if items.isEmpty {
-                WellieProse("Add what you ate and it counts the same as a photo would.")
+                WellieProse("Say what you ate below and it counts the same as a photo would.")
             } else {
                 FoodSentence(
                     lead: artifact == nil ? "You had" : "Looks like",
@@ -390,13 +396,6 @@ struct MealCaptureView: View {
             }
 
             if let question = openQuestion { uncertainty(question) }
-
-            Button { showingAddFood = true } label: {
-                Label(items.isEmpty ? "Add a food" : "Add something", systemImage: "plus")
-                    .font(WellieTheme.font(15, weight: .semibold))
-                    .foregroundStyle(WellieTheme.blue)
-            }
-            .padding(.top, 2)
         }
         .wellieCard()
     }
@@ -465,10 +464,19 @@ struct MealCaptureView: View {
 
     private func noteCard(caption: String) -> some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Anything the photo can't show?")
+            // With nothing on the list this box is not an addendum, it is the
+            // meal: typing is the only way food gets onto it. That covers a meal
+            // entered by hand and a photograph that could not be read.
+            Text(items.isEmpty ? "What did you eat?" : "Anything the photo can't show?")
                 .font(WellieTheme.font(15, weight: .semibold))
 
-            TextField("Fried in butter, two eggs in the batter…", text: $note, axis: .vertical)
+            TextField(
+                items.isEmpty
+                    ? "Two eggs, toast, and a coffee…"
+                    : "Fried in butter, two eggs in the batter…",
+                text: $note,
+                axis: .vertical
+            )
                 .font(WellieTheme.font(15, weight: .medium))
                 .focused($isTyping)
                 .lineLimit(1...4)
@@ -477,16 +485,22 @@ struct MealCaptureView: View {
 
             // A re-read only makes sense once the note says something the model
             // did not already have, and it applies a delta so hand edits stay.
-            if stage == .reviewing, artifact != nil, hasNewNote {
+            // No photograph is not a reason to withhold it — the words alone are
+            // enough, and for a hand-entered meal they are the only input there
+            // is going to be.
+            if stage == .reviewing, hasNewNote {
                 Button {
                     Task { await reread() }
                 } label: {
                     if isRefining {
                         ProgressView().frame(maxWidth: .infinity)
                     } else {
-                        Label("Take this into account", systemImage: "sparkles")
-                            .font(WellieTheme.font(15, weight: .semibold))
-                            .frame(maxWidth: .infinity)
+                        Label(
+                            items.isEmpty ? "Put this on the list" : "Take this into account",
+                            systemImage: "sparkles"
+                        )
+                        .font(WellieTheme.font(15, weight: .semibold))
+                        .frame(maxWidth: .infinity)
                     }
                 }
                 .buttonStyle(WellieSecondaryButtonStyle())
@@ -632,7 +646,7 @@ struct MealCaptureView: View {
 
     private func addByHand() {
         stage = .reviewing
-        showingAddFood = true
+        isTyping = true
     }
 
     /// A meal logged for an earlier day lands at midday on that day rather than
@@ -691,12 +705,12 @@ private struct PhotoProcessingConsentView: View {
                     Text("Before this photo is read")
                         .font(WellieTheme.font(26, weight: .bold))
                     WellieProse(
-                        "eatsome will store the 1024-pixel meal image in its private Cloudflare R2 bucket and send it to \(model.provider.displayName) to identify foods.",
+                        "eatsome will store the 2048-pixel meal image in its private Cloudflare R2 bucket and send it to \(model.provider.displayName) to identify foods.",
                         size: 16
                     )
                     VStack(alignment: .leading, spacing: 12) {
                         consentPoint("Stored for retries", "The private cloud copy lets you retry recognition without uploading again.")
-                        consentPoint("Kept in your test account", "Your private invite keeps your photos separate from every other tester and controls deletion.")
+                        consentPoint("Kept to this phone", "The cloud copy is filed under this install's own id, so no other tester's app can reach it.")
                         consentPoint("Delete whenever you want", "Deleting a meal removes its cloud copy when no other meal uses it; Settings can erase all cloud data and withdraw consent.")
                         consentPoint("Research use is separate", "eatsome does not add the image to its research corpus unless you separately opt in.")
                     }

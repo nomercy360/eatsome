@@ -4,7 +4,17 @@ import UIKit
 /// remote media storage. Keeping this boundary in one place prevents an eval
 /// from replaying a different render than the model originally saw.
 enum ModelInputImage {
-    static let maximumDimension: CGFloat = 1024
+    /// The whole frame, never a crop — the long edge is scaled and both sides
+    /// follow, so nothing leaves the picture.
+    ///
+    /// 2048 rather than 1024 because printed packaging is food too: a nutrition
+    /// panel or a product name is often the only thing in the frame that
+    /// settles what a carton actually is, and it is the first thing a downscale
+    /// destroys. It is worth spending on only while the provider is asked to
+    /// look closely — with OpenAI's `detail: low` the image is reduced to a
+    /// flat 85 tokens at its end regardless, and the extra pixels buy nothing
+    /// but upload. See `OPENAI_IMAGE_DETAIL` in the Worker.
+    static let maximumDimension: CGFloat = 2048
     static let compressionQuality: CGFloat = 0.82
 
     static func render(_ data: Data) -> Data? {

@@ -31,7 +31,12 @@ final class AppModel {
     /// Which vendor recognizes photos on this device. Stored here rather than in
     /// the config file because it is a per-device experiment, not a policy: the
     /// point is to run both against your own plates and keep the better one.
-    private(set) var provider: RecognitionProvider = .openAI
+    ///
+    /// Gemini is the one that was kept. Note this value is sent with every
+    /// request and overrides the Worker's own default, so changing production
+    /// means changing both — a deployment that disagrees with the build loses
+    /// to the build, silently.
+    private(set) var provider: RecognitionProvider = .gemini
 
     var hasBackendAccess: Bool { backendToken != nil }
 
@@ -135,7 +140,7 @@ final class AppModel {
         defer { isDeletingCloudData = false }
         do {
             guard let backend else {
-                throw BackendError.invalidRequest("Save your development invite before deleting its cloud data.")
+                throw BackendError.invalidRequest("This build has no backend access, so there is nothing stored to delete.")
             }
             try await backend.deleteAccountData()
             hasAcceptedPhotoProcessing = false
@@ -296,6 +301,19 @@ final class AppModel {
 
     var proteinToday: Double {
         Protein.grams(in: mealsToday(), gramsPerServing: config.proteinTable)
+    }
+
+    /// What a described dish contributes, for the dishes screen. No share
+    /// factor: a recipe is one serving of itself, and how much of it you ate is
+    /// a property of the meal you log, not of the dish.
+    func protein(in items: [MealItem]) -> Double {
+        Protein.grams(in: items, gramsPerServing: config.proteinTable)
+    }
+
+    /// What one saved meal contributed, share included — half a plate is half
+    /// the protein, and that is the number the day was built from.
+    func protein(in meal: MealEntry) -> Double {
+        Protein.grams(in: meal, gramsPerServing: config.proteinTable)
     }
 
     /// Nil until Health has a weight: a target invented from a guessed body
