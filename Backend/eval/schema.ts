@@ -32,8 +32,13 @@ import * as z from "zod";
  *     models. `dedup_note` largely retires with it, because two vegetable rows
  *     inside one bowl are no longer indistinguishable from two plates of veg.
  *     Adds `coffee` and `tea`, so caffeine has somewhere to come from.
+ *
+ *   v4 — `grams` on an ingredient, so a weighing prompt has somewhere to put an
+ *     answer. Bumped because the fingerprint is what keeps runs comparable: a v3
+ *     row could not carry a weight and a v4 row can, so pooling them would
+ *     average a measurement with the absence of one.
  */
-export const SCHEMA_VERSION = "eval-schema-v3-2026-08-06";
+export const SCHEMA_VERSION = "eval-schema-v4-2026-08-07";
 
 export const evalFoodGroups = [
   // Same idea as the app, dataset spelling.
