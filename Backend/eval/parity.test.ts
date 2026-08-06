@@ -20,16 +20,45 @@ import { EVAL_PROMPT_FILE } from "./version";
 const prompt = readFileSync(join(import.meta.dirname, "../../prompts", EVAL_PROMPT_FILE), "utf8");
 const cases = loadGoldenCases();
 
+/**
+ * Golden signals the prompt under test does not model.
+ *
+ * The golden set is written richer than the app on purpose, so that a gap is
+ * visible instead of being scored as model error. But a gap has to be declared
+ * to stay visible: an undeclared one means the prompt quietly stopped asking
+ * for something the dataset still grades, and every model loses those cases
+ * identically while the report reads as a model problem.
+ *
+ * Everything here is unmeasurable until the shipped schema grows somewhere to
+ * put it — `MealEntry` has no field for a cooking flag or for whether a plate
+ * was shared, so asking the model would produce an answer with nowhere to go.
+ */
+const UNMODELLED: Record<string, string> = {
+  added_sugar: "no field, and the group cannot carry it — sweetened yoghurt is still `dairy`",
+  breaded: "no field on MealItem; would be scored and then discarded",
+  raw_ingredient: "shopping vs a meal is a product question, not a prompt one",
+  opaque_packaging: "no field; the panel already reports what could be read",
+  filling_unknown: "no field; the uncertainty shows as `alternatives` instead",
+  eaten: "MealShare says how much was eaten, never whether it was",
+  not_yet_eaten: "see raw_ingredient — the app cannot log an intention",
+  not_a_meal: "the app has no way to decline a photograph",
+  shared_plate: "folded into MealShare, which asks how much was yours",
+  ate_part: "same — MealShare.part is the answer, not a status",
+};
+
+
 describe("golden and schema speak the same language", () => {
   it("every group in the golden exists in the schema", () => {
     const used = new Set(cases.flatMap((one) => goldenIngredients(one.dishes).map((item) => item.group)));
     expect([...used].filter((g) => !(evalFoodGroups as readonly string[]).includes(g))).toEqual([]);
   });
 
-  it("every flag in the golden exists in the schema and the prompt", () => {
+  it("every flag in the golden exists in the schema, and any the prompt drops is declared", () => {
     const used = new Set(cases.flatMap((one) => goldenIngredients(one.dishes).flatMap((item) => item.flags ?? [])));
     expect([...used].filter((f) => !(evalFlags as readonly string[]).includes(f))).toEqual([]);
-    expect([...used].filter((f) => !prompt.includes(f))).toEqual([]);
+    // Silence is the failure mode, not absence: a flag the prompt stopped
+    // asking for is fine, provided somebody wrote down that it did.
+    expect([...used].filter((f) => !prompt.includes(f) && !(f in UNMODELLED))).toEqual([]);
   });
 
   /**
@@ -73,9 +102,21 @@ describe("golden and schema speak the same language", () => {
     expect(groupish).toEqual([]);
   });
 
-  it("every meal_status in the golden exists in the schema and the prompt", () => {
+  it("every meal_status in the golden exists in the schema, and any the prompt drops is declared", () => {
     const used = new Set(cases.map((one) => one.meal_status).filter(Boolean) as string[]);
     expect([...used].filter((s) => !(mealStatuses as readonly string[]).includes(s))).toEqual([]);
-    expect([...used].filter((s) => !prompt.includes(s))).toEqual([]);
+    expect([...used].filter((s) => !prompt.includes(s) && !(s in UNMODELLED))).toEqual([]);
+  });
+
+  it("declares nothing it does not need to", () => {
+    // A declaration that has outlived its gap is worse than none: it is a
+    // standing excuse for a signal the prompt may have started modelling again,
+    // and it would hide the next regression in the same field.
+    const flags = new Set(cases.flatMap((one) => goldenIngredients(one.dishes).flatMap((i) => i.flags ?? [])));
+    const statuses = new Set(cases.map((one) => one.meal_status).filter(Boolean) as string[]);
+    const stale = Object.keys(UNMODELLED).filter(
+      (key) => (!flags.has(key) && !statuses.has(key)) || prompt.includes(key),
+    );
+    expect(stale).toEqual([]);
   });
 });

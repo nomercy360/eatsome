@@ -9,9 +9,20 @@
  * test ended up hard-coding `meal-v6.md` beside a harness that had moved on.
  */
 
-/** The candidate prompt. Versions are immutable; a fix is a new file. */
-export const EVAL_PROMPT_FILE = "meal-v14.md";
-export const EVAL_PROMPT_VERSION = "meal-v14-2026-08-06";
+/**
+ * The prompt under test. Production by default, because an eval that grades a
+ * prompt nobody ships reports on a build that does not exist — which is what
+ * this did for as long as it pointed at `meal-v14`, a candidate the app never
+ * ran and whose vocabulary the app has no fields for.
+ *
+ * A candidate is measured by overriding it for the run:
+ *
+ *   EVAL_PROMPT=meal-v17.md EVAL_PROMPT_ID=meal-v17-2026-09-01 pnpm eval:run
+ *
+ * Versions are immutable; a fix is a new file.
+ */
+export const EVAL_PROMPT_FILE = process.env.EVAL_PROMPT ?? "meal-v16.md";
+export const EVAL_PROMPT_VERSION = process.env.EVAL_PROMPT_ID ?? "meal-v16-2026-08-07";
 
 /**
  * The visible boundary the models are shown: orientation baked in, longest edge
