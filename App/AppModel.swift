@@ -310,6 +310,31 @@ final class AppModel {
         Protein.grams(in: items, gramsPerServing: config.proteinTable)
     }
 
+    /// What one dish contributes at its own count and size — the figure the
+    /// dish sheet shows while those two controls are being turned. The
+    /// ingredients alone are one normal serving of it, so anything that reads
+    /// them directly reports a large plate as a normal one.
+    func protein(in dish: MealDish) -> Double {
+        Protein.grams(in: dish, gramsPerServing: config.proteinTable)
+    }
+
+    /// What a meal being composed is worth, before it is saved. The flat rows
+    /// cannot answer this: they carry no panel, so a labelled drink would be
+    /// worth its food group here and its label afterwards.
+    func protein(in dishes: [MealDish]) -> Double {
+        Protein.grams(in: dishes, gramsPerServing: config.proteinTable)
+    }
+
+    /// The one figure above a plate — protein, or the caffeine a label printed
+    /// when there is no protein to report. See `PlateFigure`.
+    func figure(for dishes: [MealDish], share: MealShare = .whole) -> PlateFigure {
+        PlateFigure.forPlate(dishes, share: share, gramsPerServing: config.proteinTable)
+    }
+
+    func figure(for meal: MealEntry) -> PlateFigure {
+        PlateFigure.forMeal(meal, gramsPerServing: config.proteinTable)
+    }
+
     /// What one saved meal contributed, share included — half a plate is half
     /// the protein, and that is the number the day was built from.
     func protein(in meal: MealEntry) -> Double {

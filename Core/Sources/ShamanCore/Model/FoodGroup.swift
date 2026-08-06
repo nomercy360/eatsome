@@ -30,6 +30,19 @@ public enum FoodGroup: String, Codable, CaseIterable, Sendable, Hashable {
     case sweets
     case pastry
     case sugaryDrinks = "sugary_drinks"
+    /// What a person drinks, split out from `other` because that bucket was
+    /// answering for all of it. Filed under `other` a coffee inherited the
+    /// bucket's protein estimate, and 2 g of protein in a black coffee is a
+    /// number the app invented. MEDAS has no item for any of these, so they
+    /// score nowhere — the same honest nothing `healthyFats` gets.
+    ///
+    /// A latte is a `coffee` ingredient and a `dairy` ingredient in one dish,
+    /// not dairy alone: the milk and the caffeine are different facts.
+    case coffee
+    case tea
+    case juice
+    case plantMilk = "plant_milk"
+    case smoothie
     case butter
     case alcohol
     case sofrito
@@ -54,6 +67,11 @@ public enum FoodGroup: String, Codable, CaseIterable, Sendable, Hashable {
         case .sweets: "Sweets"
         case .pastry: "Commercial pastry"
         case .sugaryDrinks: "Sugary drinks"
+        case .coffee: "Coffee"
+        case .tea: "Tea"
+        case .juice: "Juice"
+        case .plantMilk: "Plant milk"
+        case .smoothie: "Smoothie"
         case .butter: "Butter / margarine / cream"
         case .alcohol: "Alcohol"
         case .sofrito: "Sofrito"
@@ -89,6 +107,11 @@ public enum FoodGroup: String, Codable, CaseIterable, Sendable, Hashable {
         case .sweets: "Sweets & chocolate"
         case .pastry: "Cakes & pastry"
         case .sugaryDrinks: "Fizzy & sweet drinks"
+        case .coffee: "Coffee & espresso"
+        case .tea: "Tea"
+        case .juice: "Fruit juice"
+        case .plantMilk: "Oat & soy milk"
+        case .smoothie: "Smoothie"
         case .butter: "Butter & cream"
         case .alcohol: "Alcohol"
         case .sofrito: "Tomato & onion base"
@@ -121,6 +144,11 @@ public enum FoodGroup: String, Codable, CaseIterable, Sendable, Hashable {
         case .sweets: "Sweets"
         case .pastry: "Pastry"
         case .sugaryDrinks: "Sweet drinks"
+        case .coffee: "Coffee"
+        case .tea: "Tea"
+        case .juice: "Juice"
+        case .plantMilk: "Plant milk"
+        case .smoothie: "Smoothie"
         case .butter: "Butter"
         case .alcohol: "Alcohol"
         case .sofrito: "Tomato base"
@@ -145,6 +173,12 @@ public enum FoodGroup: String, Codable, CaseIterable, Sendable, Hashable {
         case .sweets, .pastry: [.sweets, .pastry]
         case .oliveOil, .butter: [.oliveOil, .butter, .healthyFats]
         case .fruit, .vegetables, .healthyFats: [.fruit, .vegetables, .healthyFats]
+        // A dark drink in a mug is coffee or tea and a photo rarely settles it,
+        // and juice, smoothie and a sweetened bottle are the same liquid to a
+        // camera. Plant milk pairs with dairy, which is what it is mistaken for.
+        case .coffee, .tea: [.coffee, .tea]
+        case .juice, .smoothie, .sugaryDrinks: [.juice, .smoothie, .sugaryDrinks]
+        case .plantMilk, .dairy: [.plantMilk, .dairy]
         default: []
         }
     }

@@ -33,19 +33,12 @@ const table: Record<string, Mapping> = {
     kind: "unmapped",
     why: "The prompt deliberately routes sauces to what they are made of — mayonnaise to butter, oil dressings to olive_oil, tomato to sofrito, yoghurt to dairy. The dataset keeps `sauce` as a category, so these items disagree by design rather than by error.",
   },
-  juice: {
-    kind: "unmapped",
-    why: "Neither fruit nor necessarily sugary_drinks; the dataset has a no-added-sugar case that would be wrong in both.",
-  },
-  smoothie: {
-    kind: "unmapped",
-    why: "Between fruit, juice and dairy depending on what is in it.",
-  },
-  plant_milk: {
-    kind: "unmapped",
-    why: "Not dairy, and MEDAS has no place for it.",
-  },
 };
+// `juice`, `smoothie` and `plant_milk` were unmapped here until the app grew
+// groups for them, and `coffee` and `tea` never reached this table because the
+// golden set has no drink-only meal — they fell through to `other`, which is
+// how a black coffee came to be worth 2 g of protein. All five now resolve
+// through `foodGroups` as exact matches.
 
 export function mapGroup(goldenGroup: string): Mapping {
   const known = table[goldenGroup];

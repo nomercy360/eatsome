@@ -45,7 +45,21 @@ public enum Protein {
         FoodGroup.oliveOil.rawValue: 0,
         FoodGroup.sugaryDrinks.rawValue: 0,
         FoodGroup.alcohol.rawValue: 0,
-        FoodGroup.other.rawValue: 2
+        // Calibrated against dairy, where one serving is about 200 ml of milk.
+        // Black coffee and unsweetened tea round to nothing. Plant milk spans
+        // oat at about 1 g to soy at about 7 g, so this is a midpoint and the
+        // least certain figure in the table.
+        FoodGroup.coffee.rawValue: 0,
+        FoodGroup.tea.rawValue: 0,
+        FoodGroup.juice.rawValue: 1,
+        FoodGroup.plantMilk.rawValue: 3,
+        FoodGroup.smoothie.rawValue: 2,
+        // Zero, because `other` is the bucket for food that was not recognised
+        // and a number here is invented rather than estimated. It read 2 g,
+        // which is how a black coffee came to be worth 2 g of protein. Under-
+        // reporting an unrecognised food is recoverable — the person can name
+        // it — while a figure the app made up is not visible as a mistake.
+        FoodGroup.other.rawValue: 0
     ]
 
     /// What a day should reach, from body weight and how hard you are training.
@@ -103,12 +117,22 @@ public enum Protein {
         return grams(in: dish.items, gramsPerServing: gramsPerServing) * dish.multiplier
     }
 
+    /// Grams across a plate of dishes — a meal that is still being composed and
+    /// has no `MealEntry` yet.
+    ///
+    /// Not the same as summing `flattened()`: a flat row carries servings and
+    /// no panel, so a labelled drink flattens to whatever its food group is
+    /// worth. Anything that shows a figure before the meal is saved has to come
+    /// through here, or the number moves when it is saved.
+    public static func grams(in dishes: [MealDish], gramsPerServing: [String: Double] = defaultGramsPerServing) -> Double {
+        dishes.reduce(0.0) { $0 + grams(in: $1, gramsPerServing: gramsPerServing) }
+    }
+
     /// Grams in one meal, which is the plate above times the share you ate —
     /// half a shared dish is half the protein.
     public static func grams(in meal: MealEntry, gramsPerServing: [String: Double] = defaultGramsPerServing) -> Double {
-        let plate = meal.storedDishes.map { dishes in
-            dishes.reduce(0.0) { $0 + grams(in: $1, gramsPerServing: gramsPerServing) }
-        } ?? grams(in: meal.items, gramsPerServing: gramsPerServing)
+        let plate = meal.storedDishes.map { grams(in: $0, gramsPerServing: gramsPerServing) }
+            ?? grams(in: meal.items, gramsPerServing: gramsPerServing)
         return plate * meal.eaten.factor
     }
 

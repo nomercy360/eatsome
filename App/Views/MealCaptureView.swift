@@ -103,7 +103,7 @@ struct MealCaptureView: View {
             .sheet(item: $openDish) { dish in
                 DishSheet(
                     dish: dish,
-                    protein: model.protein(in: dish.items),
+                    figure: { model.figure(for: [$0]) },
                     onEditIngredient: { editing = EditingFood(id: $0) },
                     onCount: { count in
                         guard let index = dishes.firstIndex(where: { $0.id == dish.id }) else { return }
@@ -182,6 +182,21 @@ struct MealCaptureView: View {
             }
             .wellieColumn()
         }
+    }
+
+    /// The figure above the sentence, which has to be the one the meal will
+    /// read once it is saved — the same inputs `PlateFigure.forMeal` will see
+    /// for the `MealEntry` this screen writes.
+    ///
+    /// `items` is the flattened list and carries no nutrition panel, so a
+    /// labelled drink read from it is worth its food group now and its label a
+    /// tap later — a tester watched a Monster go from 2 g to 0 g on save. The
+    /// share is applied for the same reason: it is applied after saving.
+    /// Dishes are empty only for a meal typed by hand, which has no panels.
+    private var figureForThisMeal: PlateFigure {
+        dishes.isEmpty
+            ? .protein(grams: model.protein(in: items) * share.factor)
+            : model.figure(for: dishes, share: share)
     }
 
     private var chooserSubtitle: String {
@@ -405,7 +420,7 @@ struct MealCaptureView: View {
                     .foregroundStyle(WellieTheme.muted)
                 Spacer(minLength: 0)
                 if !items.isEmpty {
-                    Text("\(Int(model.protein(in: items).rounded())) g protein")
+                    Text(figureForThisMeal.text)
                         .font(WellieTheme.font(13, weight: .semibold))
                         .foregroundStyle(WellieTheme.ink)
                         .fixedSize()

@@ -9,7 +9,12 @@ import SwiftUI
 /// a "kaisen don" scores wrong and looks right.
 struct DishSheet: View {
     let dish: MealDish
-    let protein: Double
+    /// The figure for a dish as configured, asked again on every change:
+    /// `count` and `size` both scale it, a transcribed panel overrides the size
+    /// entirely, and a labelled drink with no protein reads as caffeine
+    /// instead. The sheet cannot arrive at any of that by arithmetic on one
+    /// number handed to it.
+    let figure: (MealDish) -> PlateFigure
     let onEditIngredient: (UUID) -> Void
     let onCount: (Int) -> Void
     let onSize: (Portion) -> Void
@@ -21,20 +26,30 @@ struct DishSheet: View {
 
     init(
         dish: MealDish,
-        protein: Double,
+        figure: @escaping (MealDish) -> PlateFigure,
         onEditIngredient: @escaping (UUID) -> Void,
         onCount: @escaping (Int) -> Void,
         onSize: @escaping (Portion) -> Void,
         onRemove: @escaping () -> Void
     ) {
         self.dish = dish
-        self.protein = protein
+        self.figure = figure
         self.onEditIngredient = onEditIngredient
         self.onCount = onCount
         self.onSize = onSize
         self.onRemove = onRemove
         _count = State(initialValue: dish.count)
         _size = State(initialValue: dish.size)
+    }
+
+    /// The dish as the two controls currently describe it. The bindings lead
+    /// the stored dish by a frame — the callbacks write it — so the figure is
+    /// read from here rather than from `dish`, which would lag every tap.
+    private var edited: MealDish {
+        var edited = dish
+        edited.count = count
+        edited.size = size
+        return edited
     }
 
     var body: some View {
@@ -46,7 +61,7 @@ struct DishSheet: View {
                             Text("How many?")
                                 .font(WellieTheme.font(15.5, weight: .semibold))
                             Spacer(minLength: 0)
-                            Text("\(Int((protein * Double(count)).rounded())) g protein")
+                            Text(figure(edited).text)
                                 .font(WellieTheme.font(13, weight: .semibold))
                                 .foregroundStyle(WellieTheme.muted)
                                 .fixedSize()

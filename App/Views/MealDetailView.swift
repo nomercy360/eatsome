@@ -93,7 +93,7 @@ struct MealDetailView: View {
         .sheet(item: $openDish) { dish in
             DishSheet(
                 dish: dish,
-                protein: model.protein(in: dish.items),
+                figure: { model.figure(for: [$0]) },
                 onEditIngredient: { editing = EditingFood(id: $0) },
                 onCount: { count in
                     guard let index = dishes.firstIndex(where: { $0.id == dish.id }) else { return }
@@ -146,7 +146,7 @@ struct MealDetailView: View {
                 Spacer(minLength: 0)
                 // Share included, so halving the plate below visibly halves it.
                 if !draft.items.isEmpty {
-                    Text("\(Int(model.protein(in: draft).rounded())) g protein")
+                    Text(model.figure(for: draft).text)
                         .font(WellieTheme.font(13, weight: .semibold))
                         .foregroundStyle(WellieTheme.ink)
                         .fixedSize()

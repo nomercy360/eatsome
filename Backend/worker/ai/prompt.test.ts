@@ -4,14 +4,14 @@ import { describe, expect, it } from "vitest";
 import { MEAL_PROMPT_VERSION, MEAL_RECOGNITION_SYSTEM_PROMPT } from "./prompt";
 import { productionSpec } from "./spec";
 
-const promptFile = join(import.meta.dirname, "../../../prompts/meal-v13.md");
+const promptFile = join(import.meta.dirname, "../../../prompts/meal-v15.md");
 
 describe("meal recognition prompt", () => {
   it("matches the file it was generated from", () => {
     // The app and the proxy each used to hold their own copy, and within a day
     // the proxy was two rules behind while both reported the same version.
     expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toBe(readFileSync(promptFile, "utf8").trimEnd());
-    expect(MEAL_PROMPT_VERSION).toBe("meal-v13-2026-08-06");
+    expect(MEAL_PROMPT_VERSION).toBe("meal-v15-2026-08-06");
   });
 
   it("is the version the deployment stamps and keys its cache on", () => {
