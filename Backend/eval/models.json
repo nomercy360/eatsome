@@ -1,13 +1,14 @@
 {
-  "note": "The matrix is models, not vendors. `candidate` rows are ones that could ship and are what the gate acts on; `ceiling` rows exist only to answer whether there is headroom worth chasing, and never fail a build. Costs are per million tokens, for the report — a request is roughly 2k in and 400 out, so a month at four photos a day is about 120 requests.",
+  "note": "The matrix is models, not vendors. `candidate` rows are ones that could ship and are what the gate acts on; `ceiling` rows exist only to answer whether there is headroom worth chasing, and never fail a build. Costs are per million tokens, for the report — a request is roughly 2k in and 400 out, so a month at four photos a day is about 120 requests. `control` rows are kept only to prove a check works and never gate anything: qwen fabricates a nutrition panel on almost every dish — 623 wrong figures against 5 for every other model, including 420 calories for a tray of whole fruit — so it is the row that shows the invented-panel gate has teeth.",
   "models": [
     {
       "id": "qwen-3.7-flash",
       "provider": "qwen",
       "model": "qwen3.7-flash",
-      "tier": "candidate",
+      "tier": "control",
       "usdPerMillionInput": 0.03,
-      "usdPerMillionOutput": 0.13
+      "usdPerMillionOutput": 0.13,
+      "why": "Recall 89% and structure 84%, so it sees the food. Disqualified on fabrication, not vision: 2/46 with 623 invented panel figures on 2026-08-06."
     },
     {
       "id": "gpt-5.6-luna",

@@ -23,7 +23,7 @@ export type RunRecord = {
   caseId: string;
   /** The models.json entry, which is what reports and flips are keyed on. */
   modelId: string;
-  tier: "candidate" | "ceiling";
+  tier: "candidate" | "ceiling" | "control";
   provider: RecognitionProvider;
   model: string;
   promptVersion: string;
@@ -116,7 +116,7 @@ export type EvalModel = {
   /** `candidate` could ship and is what the gate acts on. `ceiling` answers
    *  whether there is headroom worth chasing and never fails a build — at a
    *  two-dollar subscription, a Sonnet-class default is half the revenue. */
-  tier: "candidate" | "ceiling";
+  tier: "candidate" | "ceiling" | "control";
   usdPerMillionInput: number;
   usdPerMillionOutput: number;
 };
