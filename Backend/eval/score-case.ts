@@ -193,13 +193,30 @@ export function scoreCase(golden: GoldenCase, raw: string, told = false): CaseSc
   const recall = expectedSet.size === 0 ? 1 : hits.length / expectedSet.size;
   const precision = actualSet.size === 0 ? 0 : hits.length / actualSet.size;
 
-  // An ingredient's portion is its share of one serving, so it is judged
-  // against the golden's ingredient, not against the dish.
+  // Quantity, in servings, because that is the unit the app scores in and the
+  // only one both sides can be expressed in.
+  //
+  // The golden set says `count × size × portion` on a three-step ladder; the
+  // model now answers in absolute grams. Comparing the ladder strings to each
+  // other used to be the check, and it graded a field nothing scores from — a
+  // build could return 300 g of beef as 30 and still pass, because it said
+  // "medium" either way.
+  //
+  // Both sides are converted to servings and the error is judged with a
+  // tolerance, since neither side is a measurement: the golden is another
+  // model's reading, and agreeing with it to the nearest half serving is as
+  // much as the ladder can express.
   const judgeable = visible.filter((item) => actualSet.has(item.group));
-  const portionHits = judgeable.filter((item) =>
-    actualItems.some((found) => found.group === item.group && found.portion === item.portion),
-  );
-  const portionMatch = judgeable.length === 0 ? 1 : portionHits.length / judgeable.length;
+  const quantityHits = judgeable.filter((item) => {
+    const want = servingsOfGolden(item);
+    return actualItems.some((found) => {
+      if (found.group !== item.group) return false;
+      const got = servingsOfFound(found);
+      if (got === null) return found.portion === item.portion;
+      return Math.abs(got - want) <= Math.max(0.5, want * 0.4);
+    });
+  });
+  const portionMatch = judgeable.length === 0 ? 1 : quantityHits.length / judgeable.length;
 
   /**
    * Structure, matched on what is inside a dish rather than on what it is
@@ -382,3 +399,43 @@ export function scoreCase(golden: GoldenCase, raw: string, told = false): CaseSc
     pass: failures.length === 0,
   };
 }
+
+/** The three-step ladder as servings. */
+const LADDER: Record<string, number> = { small: 0.5, medium: 1, large: 2, S: 0.5, M: 1, L: 2 };
+
+/**
+ * What the golden annotation claims is present, in servings. The dataset writes
+ * quantity as `count × size × portion`, so all three have to come back out.
+ */
+function servingsOfGolden(item: {
+  portion?: string;
+  dishCount?: number;
+  dishSize?: string;
+}): number {
+  // `dishCount`/`dishSize`, not `count`/`size` — `goldenIngredients` renames
+  // them as it flattens. Reading the wrong names defaults silently to one
+  // medium serving, which scores every dish as average and looks like it works.
+  const count = item.dishCount ?? 1;
+  const size = LADDER[item.dishSize ?? "M"] ?? 1;
+  return count * size * (LADDER[item.portion ?? "M"] ?? 1);
+}
+
+/**
+ * What the model said, in servings. Null when it answered on the ladder alone —
+ * a cached answer from before grams were asked for, which is judged the old way
+ * rather than scored against a number it never produced.
+ */
+function servingsOfFound(found: { grams?: number | null; group: string; servings?: number | null }): number | null {
+  if (found.grams != null) return found.grams / (SERVING_GRAMS[found.group] ?? 100);
+  if (found.servings != null) return found.servings;
+  return null;
+}
+
+/** Grams in one serving, mirroring `ServingWeight.defaultGrams` in Core. */
+const SERVING_GRAMS: Record<string, number> = {
+  fish: 100, white_meat: 100, red_meat: 100, processed_meat: 50, egg: 50, dairy: 200,
+  legumes: 150, nuts: 30, whole_grains: 150, refined_grains: 150, vegetables: 100,
+  fruit: 120, healthy_fats: 30, pastry: 60, sweets: 30, sofrito: 50, butter: 15,
+  olive_oil: 10, sugary_drinks: 330, coffee: 200, tea: 200, juice: 200,
+  plant_milk: 200, smoothie: 250, alcohol: 330, other: 100,
+};

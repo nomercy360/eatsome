@@ -117,8 +117,40 @@ public struct MealDish: Codable, Sendable, Hashable, Identifiable {
     }
 
     /// What one ingredient of this dish contributes once the dish's own
-    /// quantity is applied.
+    /// quantity is applied. Only meaningful for a dish described in portions —
+    /// see `weighed`.
     public var multiplier: Double { Double(count) * size.servings }
+
+    /// True when recognition weighed this dish's ingredients.
+    ///
+    /// A weighed ingredient's `grams` is everything of it on the plate, so the
+    /// dish's own `count` and `size` must not be applied on top: three beers
+    /// arrive as one dish with the grams of three beers already in it. Changing
+    /// `count` in the UI rewrites those grams instead — see `scaled(toCount:)`.
+    /// Multiplying anyway is the same mistake that made one bowl of ramen worth
+    /// 126 g of protein, and on 220 weighed dishes it cost 7 points of median
+    /// error and half again as many gross misses.
+    public var weighed: Bool { items.contains { $0.grams != nil } }
+
+    /// The dish as if a different number of servings had been present. Used by
+    /// the count control, which now rewrites weights rather than multiplying
+    /// them at score time.
+    public func scaled(toCount newCount: Int) -> MealDish {
+        guard weighed, count > 0, newCount > 0, newCount != count else {
+            var copy = self
+            copy.count = max(1, newCount)
+            return copy
+        }
+        let factor = Double(newCount) / Double(count)
+        var copy = self
+        copy.count = newCount
+        copy.items = items.map { item in
+            var scaled = item
+            if let grams = item.grams { scaled.grams = grams * factor }
+            return scaled
+        }
+        return copy
+    }
 
     /// The dish as rows the scorer can add up, each carrying the servings the
     /// three factors produced.
@@ -166,7 +198,12 @@ public struct MealDish: Codable, Sendable, Hashable, Identifiable {
                 label: item.label,
                 modelAlternatives: item.modelAlternatives,
                 dish: name,
-                servings: item.portion.servings * multiplier
+                // A weighed ingredient already says how much is there. Writing a
+                // `servings` beside it would be a second answer to the same
+                // question, and `effectiveServings` prefers grams anyway — so
+                // the only way they could ever disagree is if this wrote one.
+                servings: item.grams == nil ? item.portion.servings * multiplier : nil,
+                grams: item.grams
             )
         }
     }

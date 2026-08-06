@@ -108,7 +108,10 @@ struct MealDetailView: View {
                 },
                 onCount: { count in
                     guard let index = dishes.firstIndex(where: { $0.id == dish.id }) else { return }
-                    dishes[index].count = count
+                    // Rewrites the weights rather than multiplying at score time: a
+                    // weighed dish already holds every serving that is present, so
+                    // "one, not three" has to take two thirds of it back off.
+                    dishes[index] = dishes[index].scaled(toCount: count)
                     draft.items = dishes.flatMap { $0.flattened() }
                 },
                 onSize: { size in

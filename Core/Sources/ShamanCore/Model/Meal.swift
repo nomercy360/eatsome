@@ -20,10 +20,24 @@ public struct MealItem: Codable, Sendable, Hashable, Identifiable {
     /// of `Portion` says three. Nil means the portion is the whole story, which
     /// is true of every meal in the log written before dishes.
     public var servings: Double?
+    /// The edible weight of this ingredient on the plate, when recognition
+    /// estimated one. Absolute: everything of it that is there, not its share
+    /// of one serving of a dish, so nothing multiplies it afterwards.
+    ///
+    /// Optional because every line written before grams existed has none, and
+    /// a required field would stop the whole log decoding.
+    public var grams: Double?
 
     /// The number that scores. One place, so no caller has to remember which of
-    /// the two fields is authoritative.
-    public var effectiveServings: Double { servings ?? portion.servings }
+    /// the three fields is authoritative.
+    ///
+    /// Grams win when they exist: they are the closest thing to an observation,
+    /// where `servings` is arithmetic done upstream and `portion` is a bucket.
+    /// Then the flattened `servings`, then the portion the picker offers.
+    public func effectiveServings(servingGrams: [String: Double] = ServingWeight.defaultGrams) -> Double {
+        if let grams { return ServingWeight.servings(fromGrams: grams, of: group, table: servingGrams) }
+        return servings ?? portion.servings
+    }
 
     /// The ingredient as it belongs inside a dish: its own share of one
     /// serving, with the dish's count and size stripped back off. Flattening
@@ -35,7 +49,8 @@ public struct MealItem: Codable, Sendable, Hashable, Identifiable {
             group: group,
             portion: portion,
             label: label,
-            modelAlternatives: modelAlternatives
+            modelAlternatives: modelAlternatives,
+            grams: grams
         )
     }
 
@@ -46,7 +61,8 @@ public struct MealItem: Codable, Sendable, Hashable, Identifiable {
         label: String? = nil,
         modelAlternatives: [FoodGroup]? = nil,
         dish: String? = nil,
-        servings: Double? = nil
+        servings: Double? = nil,
+        grams: Double? = nil
     ) {
         self.id = id
         self.group = group
@@ -55,6 +71,7 @@ public struct MealItem: Codable, Sendable, Hashable, Identifiable {
         self.modelAlternatives = modelAlternatives
         self.dish = dish
         self.servings = servings
+        self.grams = grams
     }
 }
 
@@ -230,14 +247,22 @@ public struct MealEntry: Codable, Sendable, Hashable, Identifiable {
 
     /// What this meal contributes to the week for one group: the plate, capped
     /// at one large portion per group, then scaled by how much of it you ate.
-    public func servings(of group: FoodGroup) -> Double {
-        min(rawServings(of: group), MealScoring.perMealGroupCap) * eaten.factor
+    public func servings(
+        of group: FoodGroup,
+        servingGrams: [String: Double] = ServingWeight.defaultGrams
+    ) -> Double {
+        min(rawServings(of: group, servingGrams: servingGrams), MealScoring.perMealGroupCap)
+            * eaten.factor
     }
 
     /// What is on the plate, before either rule applies. This is the number to
     /// show next to the food; `servings(of:)` is the number that scores.
-    public func rawServings(of group: FoodGroup) -> Double {
-        items.filter { $0.group == group }.reduce(0) { $0 + $1.effectiveServings }
+    public func rawServings(
+        of group: FoodGroup,
+        servingGrams: [String: Double] = ServingWeight.defaultGrams
+    ) -> Double {
+        items.filter { $0.group == group }
+            .reduce(0) { $0 + $1.effectiveServings(servingGrams: servingGrams) }
     }
 
     /// The meal as it reads: the dish names in the order recognition gave them,

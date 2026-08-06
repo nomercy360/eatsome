@@ -132,7 +132,10 @@ struct MealCaptureView: View {
                     },
                     onCount: { count in
                         guard let index = dishes.firstIndex(where: { $0.id == dish.id }) else { return }
-                        dishes[index].count = count
+                        // Rewrites the weights rather than multiplying at score time: a
+                        // weighed dish already holds every serving that is present, so
+                        // "one, not three" has to take two thirds of it back off.
+                        dishes[index] = dishes[index].scaled(toCount: count)
                         items = dishes.flatMap { $0.flattened() }
                         didEdit = true
                     },
@@ -198,7 +201,7 @@ struct MealCaptureView: View {
                     takePhotoRow
                 }
 
-                if !model.recipes.isEmpty { dishesCard }
+                if !model.suggestedRecipes.isEmpty { dishesCard }
 
                 Button("Add it by hand instead") { addByHand() }
                     .buttonStyle(WellieQuietButtonStyle())
@@ -270,10 +273,10 @@ struct MealCaptureView: View {
     /// you cooked most is the one you are most likely cooking now.
     private var dishesCard: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Or a dish you cook often")
+            Text(hasFrequentlyLoggedDish ? "Or a dish you cook often" : "Or a dish you saved recently")
                 .font(WellieTheme.font(15, weight: .bold))
 
-            ForEach(model.recipes.prefix(3)) { recipe in
+            ForEach(model.suggestedRecipes) { recipe in
                 Button { load(recipe) } label: {
                     HStack(spacing: 14) {
                         RoundedRectangle(cornerRadius: 15, style: .continuous)
@@ -305,9 +308,13 @@ struct MealCaptureView: View {
         .wellieCard()
     }
 
+    private var hasFrequentlyLoggedDish: Bool {
+        model.suggestedRecipes.contains { model.timesLogged($0) > 0 }
+    }
+
     private func timesLoggedText(_ recipe: Recipe) -> String {
         let count = model.timesLogged(recipe)
-        return count == 0 ? "Not logged yet" : "Logged \(count) time\(count == 1 ? "" : "s")"
+        return count == 0 ? "Saved recently" : "Logged \(count) time\(count == 1 ? "" : "s")"
     }
 
     // MARK: - 2d · Reading

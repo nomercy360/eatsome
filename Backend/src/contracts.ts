@@ -72,6 +72,11 @@ const rawJsonSchema = z
 export const mealRecognitionItemSchema = z.strictObject({
   group: z.enum(foodGroups),
   portion: z.enum(portions),
+  // Edible weight on the plate, absolute: everything of this ingredient that is
+  // there, across every serving present. Nothing multiplies it by the dish's
+  // count or size afterwards. Nullable and optional so answers cached before
+  // grams were asked for still parse rather than being re-bought.
+  grams: z.number().min(0).max(20_000).nullable().optional(),
   label: z.string().max(200).nullable(),
   // Uncertainty is a shortlist of rival groups, not a number. A model asked to
   // score its own certainty returns the same round value for every item on the
@@ -197,9 +202,14 @@ export const mealRecognitionSchema = z.strictObject({
 
 export type MealRecognition = z.infer<typeof mealRecognitionSchema>;
 
-/** A flattened ingredient, carrying the servings the three factors produced. */
+/**
+ * A flattened ingredient, carrying whichever quantity describes it: `grams` when
+ * it was weighed, `servings` when it was described in portions and the dish's
+ * count and size had to be multiplied in. Never both — that is how the two come
+ * to disagree.
+ */
 export const mealFlatItemSchema = mealRecognitionItemSchema.extend({
-  servings: z.number().min(0),
+  servings: z.number().min(0).nullable(),
   dish: z.string().max(120).nullable(),
 });
 
@@ -214,7 +224,13 @@ export const mealRecognitionPayloadSchema = mealRecognitionSchema.extend({
 
 export type MealRecognitionPayload = z.infer<typeof mealRecognitionPayloadSchema>;
 
-/** count × size × the ingredient's share of one serving. */
+/**
+ * The flat list the client scores from.
+ *
+ * A weighed ingredient carries its own quantity and gets no `servings`: grams
+ * are absolute, so multiplying by count and size would apply the dish's size
+ * twice. Only a dish described in portions still needs the arithmetic.
+ */
 export function flattenDishes(recognition: MealRecognition): MealRecognitionPayload {
   const servingsFor = { small: 0.5, medium: 1, large: 2 } as const;
   return {
@@ -224,7 +240,10 @@ export function flattenDishes(recognition: MealRecognition): MealRecognitionPayl
       dish.ingredients.map((ingredient) => ({
         ...ingredient,
         dish: dish.name,
-        servings: dish.count * servingsFor[dish.size] * servingsFor[ingredient.portion],
+        servings:
+          ingredient.grams == null
+            ? dish.count * servingsFor[dish.size] * servingsFor[ingredient.portion]
+            : null,
       })),
     ),
   };

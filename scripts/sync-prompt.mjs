@@ -15,8 +15,8 @@ import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
-const activeVersion = "meal-v15-2026-08-06";
-const promptFile = "meal-v15.md";
+const activeVersion = "meal-v16-2026-08-07";
+const promptFile = "meal-v16.md";
 
 const prompt = readFileSync(join(root, "prompts", promptFile), "utf8").trimEnd();
 

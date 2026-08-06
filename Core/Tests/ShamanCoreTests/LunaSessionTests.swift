@@ -41,7 +41,7 @@ struct LunaSessionTests {
             ((properties["items"] as? [String: Any])?["items"]) as? [String: Any]
         )
         #expect(itemSchema["additionalProperties"] as? Bool == false)
-        #expect(Set(try #require(itemSchema["required"] as? [String])) == ["group", "portion", "label", "alternatives"])
+        #expect(Set(try #require(itemSchema["required"] as? [String])) == ["group", "portion", "grams", "label", "alternatives"])
 
         // The enum has to be the actual model, or the app silently drops groups.
         let itemProperties = try #require(itemSchema["properties"] as? [String: Any])
@@ -91,14 +91,14 @@ struct LunaSessionTests {
             .deletingLastPathComponent()
             .deletingLastPathComponent()
             .deletingLastPathComponent()
-            .appendingPathComponent("prompts/meal-v15.md")
+            .appendingPathComponent("prompts/meal-v16.md")
         let source = try String(contentsOf: file, encoding: .utf8)
 
         #expect(
             MealPrompt.system == source.trimmingCharacters(in: .whitespacesAndNewlines),
             "run: node scripts/sync-prompt.mjs"
         )
-        #expect(MealPrompt.version == "meal-v15-2026-08-06")
+        #expect(MealPrompt.version == "meal-v16-2026-08-07")
     }
 
     @Test("A well-formed response decodes")

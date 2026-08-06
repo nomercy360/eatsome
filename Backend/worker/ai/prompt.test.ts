@@ -4,14 +4,14 @@ import { describe, expect, it } from "vitest";
 import { MEAL_PROMPT_VERSION, MEAL_RECOGNITION_SYSTEM_PROMPT } from "./prompt";
 import { productionSpec } from "./spec";
 
-const promptFile = join(import.meta.dirname, "../../../prompts/meal-v15.md");
+const promptFile = join(import.meta.dirname, "../../../prompts/meal-v16.md");
 
 describe("meal recognition prompt", () => {
   it("matches the file it was generated from", () => {
     // The app and the proxy each used to hold their own copy, and within a day
     // the proxy was two rules behind while both reported the same version.
     expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toBe(readFileSync(promptFile, "utf8").trimEnd());
-    expect(MEAL_PROMPT_VERSION).toBe("meal-v15-2026-08-06");
+    expect(MEAL_PROMPT_VERSION).toBe("meal-v16-2026-08-07");
   });
 
   it("is the version the deployment stamps and keys its cache on", () => {
@@ -24,11 +24,20 @@ describe("meal recognition prompt", () => {
     expect(deployed).toBe(MEAL_PROMPT_VERSION);
   });
 
-  it("states the three quantities separately, which is where double-counting starts", () => {
-    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("how many servings of THAT dish");
-    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("how big ONE serving is");
-    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("in ONE serving of the dish");
-    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("counts the meal twice");
+  it("asks for weight once, and says nothing multiplies it", () => {
+    // The quantity used to be three numbers that multiplied — dish count, dish
+    // size, ingredient portion — and a model that saw one large bowl said so at
+    // two levels, which compounded into 126 g of protein for a single ramen. On
+    // 220 weighed dishes the flat weight beat the ladder by 11 points of median
+    // error, so the prompt now asks for one absolute number and promises, twice,
+    // that nothing is applied on top of it.
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("It is ABSOLUTE");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("across every serving in the photograph");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("Nothing multiplies `grams`");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("so do not divide by them either");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("never multiplied into them");
+    // Weight is asked for, energy and the other macros still are not.
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("Never estimate calories");
     // Two bananas and an apple are two dishes; a cut fruit plate is one.
     expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("Separate discrete countable things");
     expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("mixed fruit plate");

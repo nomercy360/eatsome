@@ -51,7 +51,7 @@ struct GeminiSessionTests {
         let properties = try #require(schema["properties"] as? [String: Any])
         let itemSchema = try #require((properties["items"] as? [String: Any])?["items"] as? [String: Any])
         let itemProperties = try #require(itemSchema["properties"] as? [String: Any])
-        #expect(Set(try #require(itemSchema["required"] as? [String])) == ["group", "portion", "label", "alternatives"])
+        #expect(Set(try #require(itemSchema["required"] as? [String])) == ["group", "portion", "grams", "label", "alternatives"])
 
         // The enum has to be the actual model, or the app silently drops groups.
         let groups = try #require((itemProperties["group"] as? [String: Any])?["enum"] as? [String])

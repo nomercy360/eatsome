@@ -146,6 +146,8 @@ struct DishSheet: View {
             parts.append("\(dish.items.count) ingredients")
         }
         if let counts = groupSummary { parts.append("counts toward \(counts)") }
+        let total = dish.items.compactMap(\.grams).reduce(0, +)
+        if total > 0 { parts.insert("\(Int(total.rounded())) g", at: 0) }
         return parts.joined(separator: " · ")
     }
 
@@ -167,7 +169,8 @@ struct DishSheet: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("How many?")
                         .font(WellieTheme.font(15.5, weight: .semibold))
-                    Text("Three cans is one dish, three times")
+                    Text(dish.weighed ? "Three cans is one dish, three times — this rescales the weights"
+                                      : "Three cans is one dish, three times")
                         .font(WellieTheme.font(12.5, weight: .medium))
                         .foregroundStyle(WellieTheme.muted)
                         .fixedSize(horizontal: false, vertical: true)
@@ -177,6 +180,7 @@ struct DishSheet: View {
             }
             .padding(.vertical, 13)
 
+            if !dish.weighed {
             WellieRowDivider()
 
             HStack(spacing: 10) {
@@ -204,6 +208,7 @@ struct DishSheet: View {
                 }
             }
             .padding(.vertical, 13)
+            }
         }
         .padding(.horizontal, 16)
         .background(WellieTheme.well, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
@@ -272,7 +277,10 @@ struct DishSheet: View {
                 } label: {
                     WellieChevronRow(
                         title: FoodPhrase.word(for: item.group, label: item.label),
-                        value: item.portion.plainName,
+                        // The weight where recognition estimated one. A gram
+                        // figure and a size chip side by side would be two
+                        // answers to one question, and only the weight scores.
+                        value: item.grams.map { "\(Int($0.rounded())) g" } ?? item.portion.plainName,
                         verticalPadding: 9
                     )
                     .contentShape(Rectangle())

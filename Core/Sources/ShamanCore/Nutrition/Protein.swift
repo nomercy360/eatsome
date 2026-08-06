@@ -97,7 +97,7 @@ public enum Protein {
     /// nothing to say about protein you actually ate.
     public static func grams(in items: [MealItem], gramsPerServing: [String: Double] = defaultGramsPerServing) -> Double {
         items.reduce(0.0) { total, item in
-            total + (gramsPerServing[item.group.rawValue] ?? 0) * item.effectiveServings
+            total + (gramsPerServing[item.group.rawValue] ?? 0) * item.effectiveServings()
         }
     }
 
@@ -114,7 +114,12 @@ public enum Protein {
     /// says nothing about a 200 ml carton.
     public static func grams(in dish: MealDish, gramsPerServing: [String: Double] = defaultGramsPerServing) -> Double {
         if let confirmed = dish.panel?.protein { return confirmed * Double(dish.count) }
-        return grams(in: dish.items, gramsPerServing: gramsPerServing) * dish.multiplier
+        // A weighed dish has the whole plate in its ingredients already. Applying
+        // the dish multiplier here as well is the compounding that made one bowl
+        // of ramen worth 126 g — `size` says "large" and so does the ingredient,
+        // and the two multiply into four.
+        let plate = grams(in: dish.items, gramsPerServing: gramsPerServing)
+        return dish.weighed ? plate : plate * dish.multiplier
     }
 
     /// Grams across a plate of dishes — a meal that is still being composed and

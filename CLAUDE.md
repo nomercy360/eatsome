@@ -49,9 +49,31 @@ Anything that touches a framework goes in `App/`. HealthKit is isolated in
   from the packaged fraction of a diet while looking exactly like a total —
   worse than absent. Nothing asks a model for calories from the look of food.
   `ProteinTests` fails on any symbol that aggregates them.
-- **No grams or macros in recognition.** The schema and the prompt deal in food
-  groups and coarse portions only. Nothing asks a model for a weight.
-- **Protein in grams is the single exception**, and it is derived unless a
+- **Recognition asks for weight, and for nothing else numeric.** An ingredient
+  carries `grams` — the edible weight of it on the plate. Fat, carbohydrate and
+  calories are still never requested: a weight is something a photograph shows,
+  and those are a food database's answer rather than a model's.
+
+  This replaced a three-step portion ladder in August 2026, on evidence rather
+  than taste. Scored against Nutrition5k, whose ingredients were weighed on a
+  scale as they went onto the plate, the ladder ran 37% median error against
+  grams' 26%, and systematically under-read: ×0.68 on plates over 45 g of
+  protein. Grams also express what the ladder could not say at all — `large`
+  caps at two servings, so 300 g of beef in a pan had no representation.
+- **Grams are absolute, and nothing multiplies them.** An ingredient's `grams`
+  is everything of it present, across every serving in the photograph. The dish
+  still carries `count`, but as a label and a control: changing it rewrites the
+  weights (`MealDish.scaled(toCount:)`) rather than scaling at score time. The
+  old `count × size × portion` product is what made one bowl of ramen worth
+  126 g of protein — the model called the bowl large and the noodles large, and
+  the two compounded. Measured, that structure cost 7 points of median error and
+  half again as many gross misses. `MealDish.weighed` is the switch; a meal
+  logged before grams keeps the ladder and scores exactly as it always did.
+- **`ServingWeight` converts weight to servings, and is not a nutrition table.**
+  It says what one MEDAS serving of a group weighs, nothing about what is in it.
+  Its alcohol row is wrong by construction and says so: MEDAS counts drinks, and
+  a drink is defined by ethanol rather than volume.
+- **Protein is the only macro totalled**, and it is derived unless a
   label was read — a transcribed panel wins, and is the only protein figure ever
   stored. The derived one is computed on read, never written, so retuning the
   table moves every estimate in the history and no measurement. It is otherwise
@@ -63,8 +85,9 @@ Anything that touches a framework goes in `App/`. HealthKit is isolated in
   Carbohydrate and fat get no gram targets — that road ends at a calorie
   counter.
 - **A meal is dishes; a dish is ingredients.** `count` is how many servings of
-  the dish, `size` is how big one is, and an ingredient's `portion` is its share
-  of one serving — three independent answers that multiply. `MealEntry` stores
+  the dish and `size` how big one is; both are labels on a weighed dish and only
+  multiply on a meal described in portions, which is every meal logged before
+  August 2026 and everything added by hand. `MealEntry` stores
   the dishes and the flat list both, and `MealDish.flattened()` is the only
   thing that writes the flat list; a build from before dishes scores an old meal
   and a new one alike from it.

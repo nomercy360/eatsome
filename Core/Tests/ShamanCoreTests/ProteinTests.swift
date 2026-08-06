@@ -53,11 +53,11 @@ struct ProteinTests {
         // Three beers arrive as one dish with count 3, flattened to servings 3.0.
         // No case of `Portion` can say three, which is why the field exists.
         let beers = MealItem(group: .alcohol, portion: .medium, label: "beer", dish: "beer", servings: 3)
-        #expect(beers.effectiveServings == 3)
+        #expect(beers.effectiveServings() == 3)
 
         // A meal from before dishes has no servings and is unchanged by any of this.
         let legacy = MealItem(group: .fish, portion: .large)
-        #expect(legacy.effectiveServings == Portion.large.servings)
+        #expect(legacy.effectiveServings() == Portion.large.servings)
 
         let dinner = MealEntry(
             eatenAt: 0,
@@ -193,6 +193,80 @@ struct ProteinTests {
         #expect(future == .whole)
         let known = try JSONDecoder().decode(MealShare.self, from: Data(#""taste""#.utf8))
         #expect(known == .taste)
+    }
+
+    @Test("A weighed dish is its weight, and nothing multiplies it")
+    func gramsAreAbsolute() {
+        // 300 g of beef in a pan is three servings of red meat. The portion
+        // ladder could not say that at all — `large` caps at two — which is why
+        // a photograph of exactly this read low all evening.
+        let pan = MealDish(
+            name: "beef fried rice",
+            count: 1,
+            size: .large,
+            items: [
+                MealItem(group: .redMeat, portion: .large, label: "beef", grams: 300),
+                MealItem(group: .refinedGrains, portion: .large, label: "rice", grams: 400)
+            ]
+        )
+        #expect(pan.weighed)
+        // 300/100 × 24 for the beef, 400/150 × 3 for the rice. `size: .large`
+        // is present and must change nothing.
+        #expect(Protein.grams(in: pan) == 72 + 8)
+
+        var normal = pan
+        normal.size = .medium
+        #expect(Protein.grams(in: normal) == Protein.grams(in: pan))
+
+        // The flat rows agree with the dish, as they must — that equality is
+        // what the 38-vs-76 bug broke.
+        #expect(Protein.grams(in: pan.flattened()) == Protein.grams(in: pan))
+        // And no `servings` is written beside the grams, or the two could drift.
+        #expect(pan.flattened().allSatisfy { $0.servings == nil && $0.grams != nil })
+
+        // A dish with no weights is unchanged: the ladder still multiplies.
+        let described = MealDish(name: "steak", size: .large,
+                                 items: [MealItem(group: .redMeat, portion: .medium)])
+        #expect(!described.weighed)
+        #expect(Protein.grams(in: described) == 48)
+    }
+
+    @Test("The count control rewrites the weight instead of multiplying it")
+    func countScalesGrams() {
+        let beers = MealDish(
+            name: "beer", count: 3,
+            items: [MealItem(group: .alcohol, portion: .medium, label: "beer", grams: 1500)]
+        )
+        // Three 500 ml beers. Saying you only had one takes the weight down to
+        // one, rather than leaving 1500 g behind a label that says "1".
+        let one = beers.scaled(toCount: 1)
+        #expect(one.count == 1)
+        #expect(one.items[0].grams == 500)
+        #expect(beers.scaled(toCount: 6).items[0].grams == 3000)
+
+        // A dish described in portions has no weight to rewrite, so only the
+        // count moves and the old arithmetic still applies.
+        let described = MealDish(name: "beer", count: 3,
+                                 items: [MealItem(group: .alcohol, portion: .medium)])
+        #expect(described.scaled(toCount: 1).count == 1)
+        #expect(described.scaled(toCount: 1).items[0].grams == nil)
+    }
+
+    @Test("Grams outrank the ladder, and a meal without them is untouched")
+    func gramsWinOverPortion() {
+        let weighed = MealItem(group: .fish, portion: .small, grams: 200)
+        #expect(weighed.effectiveServings() == 2)          // 200/100, not 0.5
+        let described = MealItem(group: .fish, portion: .small)
+        #expect(described.effectiveServings() == 0.5)
+
+        // Every line in the log written before grams existed still decodes and
+        // still scores exactly as it did.
+        let legacy = try? JSONDecoder().decode(
+            MealItem.self,
+            from: Data(#"{"id":"\#(UUID().uuidString)","group":"fish","portion":"large"}"#.utf8)
+        )
+        #expect(legacy?.grams == nil)
+        #expect(legacy?.effectiveServings() == 2.0)
     }
 
     @Test("The daily target follows body weight and intent")
