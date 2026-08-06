@@ -4,6 +4,33 @@ import Testing
 
 @Suite("MEDAS adherence")
 struct MedasTests {
+    @Test("Regrouping an edited list keeps each dish's count and loses nothing")
+    func regroupAfterACorrection() {
+        let original = [
+            MealDish(name: "fried rice", count: 2, items: [
+                MealItem(group: .refinedGrains, portion: .medium, label: "rice"),
+                MealItem(group: .whiteMeat, portion: .small, label: "chicken")
+            ]),
+            MealDish(name: "beer", count: 3, items: [
+                MealItem(group: .alcohol, portion: .medium, label: "beer")
+            ])
+        ]
+        var flat = original.flatMap { $0.flattened() }
+        // A correction adds a food, and the delta knows nothing about dishes.
+        flat.append(MealItem(group: .oliveOil, portion: .small, label: "oil it was fried in"))
+
+        let regrouped = MealDish.regrouped(flat, keeping: original)
+        #expect(regrouped.map(\.name) == ["fried rice", "beer", ""])
+        // Counts survive: no flat row carries them.
+        #expect(regrouped.map(\.count) == [2, 3, 1])
+
+        // Flattening again must not apply the count twice.
+        let again = regrouped.flatMap { $0.flattened() }
+        #expect(again.filter { $0.group == .alcohol }.map(\.servings) == [3])
+        #expect(again.filter { $0.group == .refinedGrains }.map(\.servings) == [2])
+        #expect(again.count == flat.count)
+    }
+
     @Test("The flat list is exactly what the dishes imply, and only they write it")
     func flattenedMatchesDishes() {
         // Both are stored: dishes so the meal reads, items so a build that has

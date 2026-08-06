@@ -127,6 +127,36 @@ public struct MealDish: Codable, Sendable, Hashable, Identifiable {
     /// never heard of dishes still scores a meal correctly. They can only
     /// disagree if something writes one without the other, which is why this is
     /// the single way the flat list is ever produced.
+    /// Rebuild dishes from a flat list that has been edited.
+    ///
+    /// Corrections arrive as a delta against the flat items — the refiner adds,
+    /// revises and removes rows, and knows nothing about dishes. Regrouping by
+    /// name puts the survivors back where they were and keeps each dish's own
+    /// `count`, `size` and `panel`, which no flat row carries. Anything the
+    /// correction added has no dish name and lands in one unnamed dish, because
+    /// guessing which dish a new food joined would silently change a count.
+    public static func regrouped(_ items: [MealItem], keeping dishes: [MealDish]) -> [MealDish] {
+        var byName: [String: MealDish] = [:]
+        for dish in dishes { byName[dish.name] = dish }
+
+        var order: [String?] = []
+        var grouped: [String?: [MealItem]] = [:]
+        for item in items {
+            if grouped[item.dish] == nil { order.append(item.dish) }
+            grouped[item.dish, default: []].append(item)
+        }
+
+        return order.compactMap { name in
+            guard let members = grouped[name], !members.isEmpty else { return nil }
+            guard let name else {
+                return MealDish(name: "", items: members.map { $0.withoutDishQuantity() })
+            }
+            var dish = byName[name] ?? MealDish(name: name)
+            dish.items = members.map { $0.withoutDishQuantity() }
+            return dish
+        }
+    }
+
     public func flattened() -> [MealItem] {
         items.map { item in
             MealItem(

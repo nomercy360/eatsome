@@ -25,6 +25,20 @@ public struct MealItem: Codable, Sendable, Hashable, Identifiable {
     /// the two fields is authoritative.
     public var effectiveServings: Double { servings ?? portion.servings }
 
+    /// The ingredient as it belongs inside a dish: its own share of one
+    /// serving, with the dish's count and size stripped back off. Flattening
+    /// multiplied them in, and storing the product inside the dish as well
+    /// would apply it twice the next time the dish is flattened.
+    public func withoutDishQuantity() -> MealItem {
+        MealItem(
+            id: id,
+            group: group,
+            portion: portion,
+            label: label,
+            modelAlternatives: modelAlternatives
+        )
+    }
+
     public init(
         id: UUID = UUIDv7.generate(),
         group: FoodGroup,

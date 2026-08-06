@@ -25,6 +25,11 @@ struct MealCaptureView: View {
     @State private var imageData: Data?
     @State private var artifact: RecognitionArtifact?
     @State private var items: [MealItem] = []
+    /// The names, counts and sizes the flat list cannot carry. `items` stays
+    /// the edit surface — the refiner returns a delta against it — and this is
+    /// rebuilt from it, so the two never drift.
+    @State private var dishes: [MealDish] = []
+    @State private var openDish: MealDish?
     @State private var eatenAt = Date()
     @State private var share = MealShare.whole
     @State private var note = ""
@@ -90,6 +95,28 @@ struct MealCaptureView: View {
                         }
                     )
                 }
+            }
+            .onChange(of: items) { _, updated in
+                guard !dishes.isEmpty else { return }
+                dishes = MealDish.regrouped(updated, keeping: dishes)
+            }
+            .sheet(item: $openDish) { dish in
+                DishSheet(
+                    dish: dish,
+                    protein: model.protein(in: dish.items),
+                    onEditIngredient: { editing = EditingFood(id: $0) },
+                    onCount: { count in
+                        guard let index = dishes.firstIndex(where: { $0.id == dish.id }) else { return }
+                        dishes[index].count = count
+                        items = dishes.flatMap { $0.flattened() }
+                        didEdit = true
+                    },
+                    onRemove: {
+                        let names = Set(dish.items.map(\.id))
+                        items.removeAll { names.contains($0.id) }
+                        didEdit = true
+                    }
+                )
             }
             .onChange(of: pickerItem) { _, item in
                 guard let item else { return }
@@ -384,20 +411,46 @@ struct MealCaptureView: View {
             } else {
                 FoodSentence(
                     lead: artifact == nil ? "You had" : "Looks like",
-                    words: items.map { item in
-                        .init(
-                            id: item.id,
-                            text: FoodPhrase.word(for: item.group, label: item.label),
-                            isUncertain: item.id == openQuestion?.id
-                        )
-                    },
-                    onTap: { editing = EditingFood(id: $0) }
+                    words: sentenceWords,
+                    onTap: { tapWord($0) }
                 )
             }
 
             if let question = openQuestion { uncertainty(question) }
         }
         .wellieCard()
+    }
+
+    /// A dish is one word — "2 plates of fried rice" — and its ingredients are
+    /// behind it. Without dishes the sentence still reads food by food, which
+    /// is every meal logged before this and everything added by hand.
+    private var sentenceWords: [FoodSentence.Word] {
+        guard !dishes.isEmpty else {
+            return items.map { item in
+                .init(
+                    id: item.id,
+                    text: FoodPhrase.word(for: item.group, label: item.label),
+                    isUncertain: item.id == openQuestion?.id
+                )
+            }
+        }
+        return dishes.map { dish in
+            .init(
+                id: dish.id,
+                text: dish.count > 1 ? "\(dish.count) × \(dish.name)" : dish.name,
+                // The question is about an ingredient, so the dish holding it
+                // is what carries the mark.
+                isUncertain: dish.items.contains { $0.id == openQuestion?.id }
+            )
+        }
+    }
+
+    private func tapWord(_ id: UUID) {
+        if let dish = dishes.first(where: { $0.id == id }) {
+            openDish = dish
+        } else {
+            editing = EditingFood(id: id)
+        }
     }
 
     /// One question, never a queue of them.
@@ -590,6 +643,7 @@ struct MealCaptureView: View {
         }
         imageData = normalized
         items = []
+        dishes = []
         artifact = nil
         answeredQuestions = []
         didEdit = false
@@ -608,7 +662,8 @@ struct MealCaptureView: View {
         do {
             let result = try await model.recognize(imageData: data, note: sent.isEmpty ? nil : sent)
             artifact = result
-            items = result.recognition.asMealItems()
+            dishes = result.recognition.asMealDishes() ?? []
+            items = dishes.isEmpty ? result.recognition.asMealItems() : dishes.flatMap { $0.flattened() }
             noteAtRecognition = sent
             stage = .reviewing
         } catch {
@@ -628,6 +683,7 @@ struct MealCaptureView: View {
         do {
             let revision = try await model.refine(imageData: imageData, current: items, note: text)
             items = revision.applied(to: items)
+            dishes = MealDish.regrouped(items, keeping: dishes)
             noteAtRecognition = text
             didEdit = true
         } catch {
@@ -669,16 +725,19 @@ struct MealCaptureView: View {
         let source: MealSource = imageData != nil ? .photo : (sourceRecipeID != nil ? .recipe : .manual)
         let trimmedNote = note.trimmingCharacters(in: .whitespacesAndNewlines)
 
+        // One writer for both representations, so they cannot disagree.
+        let saved = dishes.isEmpty ? [] : MealDish.regrouped(items, keeping: dishes)
         let meal = MealEntry(
             eatenAt: eatenAt.epochMillis,
-            items: items,
+            items: saved.isEmpty ? items : saved.flatMap { $0.flattened() },
             source: source,
             photoHash: imageData.flatMap { PhotoStore.shared.store($0) },
             note: trimmedNote.isEmpty ? nil : trimmedNote,
             recognitionEvidence: evidence,
             share: share,
             wasCorrected: artifact != nil && didEdit,
-            recipeID: sourceRecipeID
+            recipeID: sourceRecipeID,
+            storedDishes: saved.isEmpty ? nil : saved
         )
         await model.logMeal(meal)
         // Logging a saved dish bumps it up the list for next time.
@@ -852,5 +911,100 @@ struct CameraPhotoPicker: UIViewControllerRepresentable {
         }
 
         func imagePickerControllerDidCancel(_ picker: UIImagePickerController) { parent.dismiss() }
+    }
+}
+
+/// What is inside a dish, and how many of it there were.
+///
+/// The sentence names dishes because that is what a person recognises; this is
+/// where the ingredients live, which is where a salmon filed as white meat gets
+/// corrected. Hiding them entirely would hide the only mistake that matters —
+/// a "kaisen don" scores wrong and looks right.
+private struct DishSheet: View {
+    let dish: MealDish
+    let protein: Double
+    let onEditIngredient: (UUID) -> Void
+    let onCount: (Int) -> Void
+    let onRemove: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var count: Int
+
+    init(
+        dish: MealDish,
+        protein: Double,
+        onEditIngredient: @escaping (UUID) -> Void,
+        onCount: @escaping (Int) -> Void,
+        onRemove: @escaping () -> Void
+    ) {
+        self.dish = dish
+        self.protein = protein
+        self.onEditIngredient = onEditIngredient
+        self.onCount = onCount
+        self.onRemove = onRemove
+        _count = State(initialValue: dish.count)
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: WellieTheme.cardSpacing) {
+                    VStack(alignment: .leading, spacing: 14) {
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Text("How many?")
+                                .font(WellieTheme.font(15.5, weight: .semibold))
+                            Spacer(minLength: 0)
+                            Text("\(Int((protein * Double(count)).rounded())) g protein")
+                                .font(WellieTheme.font(13, weight: .semibold))
+                                .foregroundStyle(WellieTheme.muted)
+                                .fixedSize()
+                        }
+                        Stepper(value: $count, in: 1...24) {
+                            Text(count == 1 ? "One" : "\(count)")
+                                .font(WellieTheme.font(17, weight: .bold))
+                        }
+                        .onChange(of: count) { _, updated in onCount(updated) }
+                        WellieCaption("How many servings of this dish. Three beers is one dish, three times.")
+                    }
+                    .wellieCard(padding: 20)
+
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text("What's in it")
+                            .font(WellieTheme.font(13, weight: .semibold))
+                            .foregroundStyle(WellieTheme.muted)
+                        ForEach(dish.items) { item in
+                            Button {
+                                dismiss()
+                                onEditIngredient(item.id)
+                            } label: {
+                                WellieChevronRow(
+                                    title: FoodPhrase.word(for: item.group, label: item.label),
+                                    value: item.portion.plainName
+                                )
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .wellieListCard()
+
+                    Button("Remove this dish", role: .destructive) {
+                        onRemove()
+                        dismiss()
+                    }
+                    .font(WellieTheme.font(15.5, weight: .semibold))
+                    .foregroundStyle(WellieTheme.danger)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 6)
+                }
+                .wellieColumn()
+            }
+            .background(WellieTheme.background)
+            .navigationTitle(dish.name)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) { Button("Done") { dismiss() } }
+            }
+        }
+        .wellieScreen()
     }
 }
