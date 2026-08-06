@@ -17,6 +17,14 @@ struct FoodSentence: View {
         /// Drawn with an underline: the model named a rival for this one that
         /// would score differently, and the question is asked below.
         var isUncertain = false
+        /// Not a word yet — a placeholder for what a fix is about to add.
+        ///
+        /// The point of the ghost is that the rest of the sentence does not
+        /// move: your confirmed words stay exactly where they were while the
+        /// model works, and only this one is unsettled. Blanking the sentence
+        /// and rebuilding it is what makes a correction feel like it threw
+        /// your work away.
+        var isPending = false
     }
 
     let lead: String
@@ -46,10 +54,11 @@ struct FoodSentence: View {
             Button { onTap?(word.id) } label: {
                 Text(word.text)
                     .font(WellieTheme.font(size, weight: .semibold))
-                    .foregroundStyle(WellieTheme.ink)
+                    .foregroundStyle(word.isPending ? WellieTheme.muted : WellieTheme.ink)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 2)
                     .background(WellieTheme.ice, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                    .opacity(word.isPending ? 0.55 : 1)
                     .overlay(alignment: .bottom) {
                         if word.isUncertain {
                             RoundedRectangle(cornerRadius: 1)
@@ -61,12 +70,17 @@ struct FoodSentence: View {
                     }
             }
             .buttonStyle(.plain)
-            .disabled(onTap == nil)
-            .accessibilityLabel(word.isUncertain ? "\(word.text), unsure" : word.text)
-            .accessibilityHint(onTap == nil ? "" : "Change what this is")
+            .disabled(onTap == nil || word.isPending)
+            .accessibilityLabel(accessibilityLabel(for: word))
+            .accessibilityHint(onTap == nil || word.isPending ? "" : "Change what this is")
 
             if !joiner.isEmpty { plain(joiner) }
         }
+    }
+
+    private func accessibilityLabel(for word: Word) -> String {
+        if word.isPending { return "Working in your fix" }
+        return word.isUncertain ? "\(word.text), unsure" : word.text
     }
 
     private func plain(_ text: String) -> some View {

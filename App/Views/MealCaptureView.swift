@@ -40,6 +40,10 @@ struct MealCaptureView: View {
     /// new information, and offering to re-read is only honest while it differs.
     @State private var noteAtRecognition = ""
     @State private var isRefining = false
+    @State private var showingFix = false
+    /// The line under the spinner. Starts on the plain one so the first thing
+    /// read is what is actually happening, then wanders.
+    @State private var chatter = PlateChatter.phrases[0]
     @State private var sourceRecipeID: UUID?
 
     @State private var showingCamera = false
@@ -99,6 +103,9 @@ struct MealCaptureView: View {
             .onChange(of: items) { _, updated in
                 guard !dishes.isEmpty else { return }
                 dishes = MealDish.regrouped(updated, keeping: dishes)
+            }
+            .sheet(isPresented: $showingFix) {
+                FixSheet(text: $note) { Task { await reread() } }
             }
             .sheet(item: $openDish) { dish in
                 DishSheet(
@@ -295,9 +302,15 @@ struct MealCaptureView: View {
                 VStack(alignment: .leading, spacing: 18) {
                     HStack(spacing: 10) {
                         ProgressView().controlSize(.small)
-                        Text("Reading your plate")
+                        Text(chatter)
                             .font(WellieTheme.font(15, weight: .semibold))
                             .foregroundStyle(WellieTheme.blue)
+                            .contentTransition(.opacity)
+                            .animation(.easeInOut(duration: 0.28), value: chatter)
+                            // The line changes under the reader; announcing
+                            // every one would talk over them. VoiceOver hears
+                            // the state once and the phrases stay decorative.
+                            .accessibilityLabel("Reading your plate")
                     }
 
                     // The sentence assembling itself. A spinner alone says
@@ -311,11 +324,63 @@ struct MealCaptureView: View {
                     WellieProse("A few seconds. You can put the phone down — it'll be here when you come back.")
                 }
                 .wellieCard()
-
-                noteCard(caption: "Type it now and it'll be taken into account.")
+                .task { await runChatter() }
             }
             .wellieColumn()
         }
+    }
+
+    /// One line, not a text box.
+    ///
+    /// A field here puts a keyboard over the sentence it is asking about, and
+    /// most meals need no correction at all — an open box asks every one of
+    /// them a question. The row says a fix is possible and gets out of the way;
+    /// the sheet is where the typing happens, over the top, with the sentence
+    /// still in place behind it.
+    private var fixRow: some View {
+        Button { showingFix = true } label: {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(savedNote.isEmpty ? "Something wrong or missing?" : "What you told me")
+                        .font(WellieTheme.font(15, weight: .semibold))
+                        .foregroundStyle(WellieTheme.ink)
+                    Text(
+                        savedNote.isEmpty
+                            ? "Say it in a sentence — everything else stays as you set it"
+                            : savedNote
+                    )
+                        .font(WellieTheme.font(13, weight: .medium))
+                        .foregroundStyle(WellieTheme.muted)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(WellieTheme.muted)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .buttonStyle(.plain)
+        .disabled(isRefining)
+        .wellieCard()
+    }
+
+    private var savedNote: String {
+        note.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Runs for as long as the reading card is on screen; SwiftUI cancels it
+    /// when the stage changes, so nothing has to stop it.
+    private func runChatter() async {
+        var generator = SystemRandomNumberGenerator()
+        for phrase in PlateChatter.order(using: &generator) {
+            chatter = phrase
+            try? await Task.sleep(for: .seconds(PlateChatter.interval))
+            if Task.isCancelled { return }
+        }
+        // A read slow enough to exhaust the list holds on the last line. Going
+        // back to the top would read as the app having started over.
     }
 
     private func skeleton(_ fraction: Double, tone: Color) -> some View {
@@ -347,7 +412,14 @@ struct MealCaptureView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("I couldn't read this one.")
                             .font(WellieTheme.font(22, weight: .bold))
-                        WellieProse(failure ?? "Something went wrong on the way there.", size: 15)
+                        // The reassurance first, because it is the question
+                        // being asked; the reason second, because it is the
+                        // one thing that tells you which route below to take.
+                        WellieProse(
+                            "The photo is saved, so nothing is lost. "
+                                + (failure ?? "Something went wrong on the way there."),
+                            size: 15
+                        )
                     }
 
                     VStack(spacing: 10) {
@@ -397,11 +469,16 @@ struct MealCaptureView: View {
                 }
 
                 sentenceCard
-                noteCard(
-                    caption: items.isEmpty
-                        ? "What you type is read into the list, and stays with the meal."
-                        : "Optional. It stays with the meal, so next time this dish starts complete."
-                )
+                // With nothing on the list, typing is not a correction — it is
+                // the only way food gets onto the meal at all, so it stays an
+                // open field. Once there is a sentence to read, the correction
+                // is a row: a keyboard over the thing you are checking is the
+                // one layout that cannot work.
+                if items.isEmpty {
+                    noteCard(caption: "What you type is read into the list, and stays with the meal.")
+                } else {
+                    fixRow
+                }
                 detailsRow
             }
             .wellieColumn()
@@ -415,14 +492,18 @@ struct MealCaptureView: View {
     private var sentenceCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(items.isEmpty ? "Nothing on the list yet" : "Tap a word to change it")
+                Text(sentenceCardHeading)
                     .font(WellieTheme.font(13, weight: .semibold))
-                    .foregroundStyle(WellieTheme.muted)
+                    .foregroundStyle(isRefining ? WellieTheme.blue : WellieTheme.muted)
                 Spacer(minLength: 0)
                 if !items.isEmpty {
+                    // Dimmed rather than blanked: the figure it is showing is
+                    // still the true one for the list as it stands, and a
+                    // number that vanishes reads as a number that was wrong.
                     Text(figureForThisMeal.text)
                         .font(WellieTheme.font(13, weight: .semibold))
                         .foregroundStyle(WellieTheme.ink)
+                        .opacity(isRefining ? 0.4 : 1)
                         .fixedSize()
                 }
             }
@@ -437,34 +518,63 @@ struct MealCaptureView: View {
                 )
             }
 
-            if let question = openQuestion { uncertainty(question) }
+            // The fix is quoted back verbatim while it is being worked in, so
+            // the wait is attached to the words that caused it. The promise
+            // that nothing else moves is the reassurance worth repeating.
+            if isRefining, !noteAtRecognition.isEmpty || hasNewNote {
+                WellieCaption("Your fix: “\(fixInFlight)” — everything else stays as you set it.")
+            } else if let question = openQuestion {
+                uncertainty(question)
+            }
         }
         .wellieCard()
+        .animation(.easeInOut(duration: 0.2), value: isRefining)
+    }
+
+    private var sentenceCardHeading: String {
+        if isRefining { return "Working your fix in…" }
+        return items.isEmpty ? "Nothing on the list yet" : "Tap a word to change it"
+    }
+
+    private var fixInFlight: String {
+        let typed = note.trimmingCharacters(in: .whitespacesAndNewlines)
+        return typed.isEmpty ? noteAtRecognition : typed
     }
 
     /// A dish is one word — "2 plates of fried rice" — and its ingredients are
     /// behind it. Without dishes the sentence still reads food by food, which
     /// is every meal logged before this and everything added by hand.
     private var sentenceWords: [FoodSentence.Word] {
-        guard !dishes.isEmpty else {
-            return items.map { item in
+        var words: [FoodSentence.Word]
+        if dishes.isEmpty {
+            words = items.map { item in
                 .init(
                     id: item.id,
                     text: FoodPhrase.word(for: item.group, label: item.label),
                     isUncertain: item.id == openQuestion?.id
                 )
             }
+        } else {
+            words = dishes.map { dish in
+                .init(
+                    id: dish.id,
+                    text: dish.count > 1 ? "\(dish.count) × \(dish.name)" : dish.name,
+                    // The question is about an ingredient, so the dish holding
+                    // it is what carries the mark.
+                    isUncertain: dish.items.contains { $0.id == openQuestion?.id }
+                )
+            }
         }
-        return dishes.map { dish in
-            .init(
-                id: dish.id,
-                text: dish.count > 1 ? "\(dish.count) × \(dish.name)" : dish.name,
-                // The question is about an ingredient, so the dish holding it
-                // is what carries the mark.
-                isUncertain: dish.items.contains { $0.id == openQuestion?.id }
-            )
-        }
+        // Everything already on the list keeps its place and its wording; the
+        // ghost is appended, so the fix reads as an addition to a sentence you
+        // still recognise rather than a sentence being rewritten.
+        if isRefining { words.append(.init(id: Self.ghostWordID, text: "…", isPending: true)) }
+        return words
     }
+
+    /// Stable, so the ghost is one view being animated rather than a new view
+    /// appearing on every redraw.
+    private static let ghostWordID = UUID()
 
     private func tapWord(_ id: UUID) {
         if let dish = dishes.first(where: { $0.id == id }) {
@@ -637,9 +747,12 @@ struct MealCaptureView: View {
 
     private var saveBar: some View {
         VStack(spacing: 8) {
+            // Disabled for the few seconds a fix is being worked in, and for
+            // no other reason: saving mid-revision would store a list the
+            // person has already told the app is wrong.
             Button(saveTitle) { Task { await save() } }
-                .buttonStyle(WelliePrimaryButtonStyle(enabled: !items.isEmpty))
-                .disabled(items.isEmpty)
+                .buttonStyle(WelliePrimaryButtonStyle(enabled: !items.isEmpty && !isRefining))
+                .disabled(items.isEmpty || isRefining)
         }
         .padding(.horizontal, WellieTheme.screenInset)
         .padding(.top, 12)
