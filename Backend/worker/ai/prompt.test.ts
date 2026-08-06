@@ -4,14 +4,56 @@ import { describe, expect, it } from "vitest";
 import { MEAL_PROMPT_VERSION, MEAL_RECOGNITION_SYSTEM_PROMPT } from "./prompt";
 import { productionSpec } from "./spec";
 
-const promptFile = join(import.meta.dirname, "../../../prompts/meal-v5.md");
+const promptFile = join(import.meta.dirname, "../../../prompts/meal-v13.md");
 
 describe("meal recognition prompt", () => {
   it("matches the file it was generated from", () => {
     // The app and the proxy each used to hold their own copy, and within a day
     // the proxy was two rules behind while both reported the same version.
     expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toBe(readFileSync(promptFile, "utf8").trimEnd());
-    expect(MEAL_PROMPT_VERSION).toBe("meal-v5-2026-08-05");
+    expect(MEAL_PROMPT_VERSION).toBe("meal-v13-2026-08-06");
+  });
+
+  it("is the version the deployment stamps and keys its cache on", () => {
+    // MEAL_PROMPT_VERSION reaches the Worker as a var, while the prompt text
+    // comes from the generated constant. Let those disagree and answers to the
+    // new prompt are cached under the old key, and every eval row names a
+    // prompt that did not produce it — which is invisible in the data.
+    const wrangler = readFileSync(join(import.meta.dirname, "../../wrangler.jsonc"), "utf8");
+    const deployed = /"MEAL_PROMPT_VERSION":\s*"([^"]+)"/.exec(wrangler)?.[1];
+    expect(deployed).toBe(MEAL_PROMPT_VERSION);
+  });
+
+  it("states the three quantities separately, which is where double-counting starts", () => {
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("how many servings of THAT dish");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("how big ONE serving is");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("in ONE serving of the dish");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("counts the meal twice");
+    // Two bananas and an apple are two dishes; a cut fruit plate is one.
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("Separate discrete countable things");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("mixed fruit plate");
+  });
+
+  it("gives every transcribed figure a unit, and does no arithmetic to get one", () => {
+    // `carbohydrate: 1` is true per 100ml of a Monster and wrong by 3.55x for
+    // the can. A number without its basis cannot be used at all.
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("do no arithmetic of any kind");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("not salt into sodium");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("not per-100ml into per-can");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("a panel with figures and no basis is worse");
+    // The band shortcut is gone: it let caffeine come from the warning band and
+    // the macros from the table, and one `basis` cannot describe two units.
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("One table, one basis, every field from it");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("converting between them is not your job");
+  });
+
+  it("allows a figure it cannot read to come back absent", () => {
+    // A fabricated number stored where confirmed values live is worse than no
+    // number, because the field's only value is that it is the trustworthy one.
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("Transcribe only");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("every field is null");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("a plausible one is not");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("The panel does not replace them");
   });
 
   it("contains the real-food failure rules", () => {

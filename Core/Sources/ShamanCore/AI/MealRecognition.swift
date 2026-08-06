@@ -20,12 +20,26 @@ public struct MealRecognition: Codable, Sendable, Hashable {
         /// answering a question about the photograph, and the answer is directly
         /// useful: it becomes the one-tap correction.
         public let alternatives: [FoodGroup]
+        /// The dish this ingredient came out of, and what it contributes once
+        /// the dish's count and size are applied. Both are absent from answers
+        /// produced before dishes existed, and from cache files written then.
+        public let dish: String?
+        public let servings: Double?
 
-        public init(group: FoodGroup, portion: Portion, label: String?, alternatives: [FoodGroup] = []) {
+        public init(
+            group: FoodGroup,
+            portion: Portion,
+            label: String?,
+            alternatives: [FoodGroup] = [],
+            dish: String? = nil,
+            servings: Double? = nil
+        ) {
             self.group = group
             self.portion = portion
             self.label = label
             self.alternatives = alternatives
+            self.dish = dish
+            self.servings = servings
         }
 
         /// The alternatives that would move the MEDAS score differently than the
@@ -37,17 +51,69 @@ public struct MealRecognition: Codable, Sendable, Hashable {
         }
     }
 
+    /// The named things the model saw, when it was asked for dishes. Nil for a
+    /// cache file or a build from before dishes, which is why `items` — the
+    /// flattened list — remains what everything scores from.
+    public struct Dish: Codable, Sendable, Hashable {
+        public let name: String
+        public let count: Int
+        public let size: Portion
+        /// Figures transcribed from packaging, when any were printed and legible.
+        public let panel: NutritionPanel?
+        public let ingredients: [Item]
+
+        public init(
+            name: String,
+            count: Int = 1,
+            size: Portion = .medium,
+            panel: NutritionPanel? = nil,
+            ingredients: [Item] = []
+        ) {
+            self.name = name
+            self.count = count
+            self.size = size
+            self.panel = panel
+            self.ingredients = ingredients
+        }
+    }
+
     public let items: [Item]
+    public let dishes: [Dish]?
     /// True when food outside the primary, closest tray/place setting was
     /// deliberately ignored. The correction UI must ask whether it belongs to
     /// the user before saving.
     public let otherMealsVisible: Bool
     public let notes: String?
 
-    public init(items: [Item], otherMealsVisible: Bool, notes: String?) {
+    public init(items: [Item], dishes: [Dish]? = nil, otherMealsVisible: Bool, notes: String?) {
         self.items = items
+        self.dishes = dishes
         self.otherMealsVisible = otherMealsVisible
         self.notes = notes
+    }
+
+    /// The dishes as they will be stored, with the flat list derived from them
+    /// by `MealDish.flattened()` and nowhere else. Nil when the answer had no
+    /// dishes, in which case `asMealItems()` is the whole meal.
+    public func asMealDishes() -> [MealDish]? {
+        dishes.map { dishes in
+            dishes.map { dish in
+                MealDish(
+                    name: dish.name,
+                    count: dish.count,
+                    size: dish.size,
+                    panel: (dish.panel?.isEmpty ?? true) ? nil : dish.panel,
+                    items: dish.ingredients.map {
+                        MealItem(
+                            group: $0.group,
+                            portion: $0.portion,
+                            label: $0.label,
+                            modelAlternatives: $0.alternatives
+                        )
+                    }
+                )
+            }
+        }
     }
 
     public func asMealItems() -> [MealItem] {
@@ -56,7 +122,9 @@ public struct MealRecognition: Codable, Sendable, Hashable {
                 group: $0.group,
                 portion: $0.portion,
                 label: $0.label,
-                modelAlternatives: $0.alternatives
+                modelAlternatives: $0.alternatives,
+                dish: $0.dish,
+                servings: $0.servings
             )
         }
     }
@@ -66,6 +134,7 @@ public struct MealRecognition: Codable, Sendable, Hashable {
     // remain usable instead of costing a second API call.
     private enum CodingKeys: String, CodingKey {
         case items
+        case dishes
         case otherMealsVisible = "other_meals_visible"
         case notes
         case legacyConfidence = "confidence"
@@ -77,6 +146,8 @@ public struct MealRecognition: Codable, Sendable, Hashable {
         let label: String?
         let alternatives: [FoodGroup]?
         let confidence: Double?
+        let dish: String?
+        let servings: Double?
     }
 
     /// Below this, a legacy confidence number meant "ask the human". The groups
@@ -98,9 +169,12 @@ public struct MealRecognition: Codable, Sendable, Hashable {
                 portion: $0.portion,
                 label: $0.label,
                 alternatives: $0.alternatives
-                    ?? Self.legacyAlternatives(for: $0.group, confidence: $0.confidence ?? legacyConfidence)
+                    ?? Self.legacyAlternatives(for: $0.group, confidence: $0.confidence ?? legacyConfidence),
+                dish: $0.dish,
+                servings: $0.servings
             )
         }
+        dishes = try container.decodeIfPresent([Dish].self, forKey: .dishes)
         otherMealsVisible = try container.decodeIfPresent(Bool.self, forKey: .otherMealsVisible) ?? false
         notes = try container.decodeIfPresent(String.self, forKey: .notes)
     }
@@ -108,6 +182,7 @@ public struct MealRecognition: Codable, Sendable, Hashable {
     public func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(items, forKey: .items)
+        try container.encodeIfPresent(dishes, forKey: .dishes)
         try container.encode(otherMealsVisible, forKey: .otherMealsVisible)
         try container.encodeIfPresent(notes, forKey: .notes)
     }

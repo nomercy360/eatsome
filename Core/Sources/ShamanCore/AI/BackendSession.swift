@@ -3,8 +3,9 @@ import Foundation
 /// The app-owned recognition boundary.
 ///
 /// A request first lands in private R2, then the Worker sends those exact bytes
-/// to the configured model. The phone never holds a model-provider credential,
-/// and the invite token selects the account that owns and can erase the object.
+/// to the configured model. The phone never holds a model-provider credential:
+/// the shared token says the caller is the app, and the device id selects the
+/// account that owns and can erase the object.
 public struct BackendSession: MealRecognizer, MealRefiner, Sendable {
     public struct Configuration: Sendable {
         public var baseURL: URL
@@ -62,26 +63,26 @@ public struct BackendSession: MealRecognizer, MealRefiner, Sendable {
         )
     }
 
+    /// A correction in the person's own words, with or without a photograph.
+    ///
+    /// The photo path names the stored model input so the model sees the plate
+    /// it read; without one — a meal typed in by hand, or a reading that never
+    /// succeeded — the same prompt runs on the list and the words alone. Same
+    /// delta contract either way, so the caller cannot tell them apart.
     public func refine(
         imageData: Data?,
         mimeType: String,
         current: [MealItem],
         note: String
     ) async throws -> MealRevision {
-        guard let imageData else {
-            throw BackendError.invalidRequest("A stored photo is required to refine a recognition.")
-        }
         let input = RefinementRequest(
             provider: configuration.provider?.rawValue,
             current: current.map { .init(group: $0.group, portion: $0.portion, label: $0.label) },
             note: note
         )
-        let hash = ImageDigest.sha256(imageData)
-        let envelope: RevisionEnvelope = try await send(
-            path: "recognitions/\(hash)/refine",
-            method: "POST",
-            body: input
-        )
+        let path = imageData
+            .map { "recognitions/\(ImageDigest.sha256($0))/refine" } ?? "refinements"
+        let envelope: RevisionEnvelope = try await send(path: path, method: "POST", body: input)
         return envelope.revision
     }
 

@@ -1,4 +1,4 @@
-import type { RecognitionProvider, RecognitionRequest } from "../../src/contracts";
+import type { RecognitionProvider } from "../../src/contracts";
 import { recognitionProviders } from "../../src/contracts";
 import type { Env } from "../env";
 import { HttpError } from "../lib/http-error";
@@ -8,7 +8,7 @@ import { requestOpenAIRecognition } from "./openai";
 import { requestOpenRouterRecognition } from "./openrouter";
 import { requestQwenRecognition } from "./qwen";
 import { productionSpec, type RecognitionSpec } from "./spec";
-import type { ProviderRecognition } from "./types";
+import type { ProviderInput, ProviderRecognition } from "./types";
 
 /**
  * Which vendor answers, and with what.
@@ -61,7 +61,7 @@ export function apiKeyFor(env: Env, provider: RecognitionProvider): string | und
 
 export function requestMealRecognition(
   env: Env,
-  input: RecognitionRequest,
+  input: ProviderInput,
   provider: RecognitionProvider,
   spec: RecognitionSpec = productionSpec(input.note),
 ): Promise<ProviderRecognition> {

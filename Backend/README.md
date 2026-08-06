@@ -29,14 +29,16 @@ committed.
 
 ## API
 
-`GET /api/health` is public. Every `/api/v1/*` route requires a revocable friend
-token in `Authorization: Bearer <token>`. Only a SHA-256 digest is stored; the
-token selects the account that owns all D1 and R2 data.
+`GET /api/health` is public. Every `/api/v1/*` route requires the app's shared
+token in `Authorization: Bearer <token>` — it says "this is the app", and keeps
+a scanner out. Which copy of it is `X-Device-Id`, and that is what selects the
+account owning all D1 and R2 data.
 
 ```text
 POST /api/v1/recognitions  proxy one image to OpenAI or Gemini; cache by account/photo/prompt/model
 POST /api/v1/recognitions/:sha/rerun  rerun from the model input already in R2
 POST /api/v1/recognitions/:sha/refine return a delta against the current list, using the R2 photo
+POST /api/v1/refinements    the same delta with no photo, for a meal typed in or never read
 POST /api/v1/events/batch  idempotently append up to 500 device events
 GET  /api/v1/events        cursor-based event sync
 GET  /api/v1/evals         inspect model-output → human-correction pairs
@@ -66,7 +68,7 @@ are queryable side by side. Re-uploading the same event id is a successful no-op
 
 ```text
 recognition upload
-  └─ media/{account}/{yyyy-mm}/{source-sha}.jpg  exact 1024px JPEG model input
+  └─ media/{account}/{yyyy-mm}/{source-sha}.jpg  exact 2048px JPEG model input
 
 confirmed meal + explicit consent + safe client crop
   └─ corpus/{crop-sha}.jpg                      separate privacy-filtered bytes
@@ -112,19 +114,13 @@ The first run creates the D1 database and private `eatsome-media` bucket, then p
 id. Paste that id into `wrangler.jsonc` and run it again; it sets the secrets, migrates, and
 deploys. It is safe to re-run—existing resources and secrets are left alone.
 
-For a small development group, create one token per friend and send it privately:
+For a small development group there is nothing per-person to provision. Everyone on the TestFlight
+build shares `EATSOME_API_TOKEN`, which is baked into the archive, and the device id the app
+generates on first launch is the account: media prefixes, event rows, eval pairs, deletion and the
+daily recognition quota are all keyed on `device:<id>`. Two testers never see each other's data, and
+nobody types a credential.
 
-```bash
-./scripts/friend-token.sh issue "Ada's iPhone"
-./scripts/friend-token.sh list
-./scripts/friend-token.sh revoke friend:account-id-from-the-issue-command
-```
-
-The issue command prints the raw token exactly once. Passing an existing account id to a later
-`issue` command rotates access without moving that friend's data. Friend builds do not embed a
-shared credential. `X-Device-Id` remains event provenance only; ownership, deletion, and paid-use
-fairness derive from the token account.
-
-`EATSOME_API_TOKEN` remains a migration-only owner fallback. Remove that Worker secret after the
-owner has a friend token. Before a public release, replace development invites with App Attest and,
-if cross-device accounts are wanted, Sign in with Apple.
+That is a partition between honest callers, not a proof of identity: a header can say anything, and
+nothing stops one tester from reading another's id out of the traffic. Rotating the shared token
+means putting a new Worker secret and a new build out together. Before a public release, replace it
+with App Attest and, if cross-device accounts are wanted, Sign in with Apple.

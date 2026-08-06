@@ -1,9 +1,10 @@
 import { and, eq } from "drizzle-orm";
 import type {
-  MealRecognition,
+  MealRecognitionPayload,
   RecognitionRequest,
   RerunRecognitionRequest,
 } from "../../src/contracts";
+import { flattenDishes } from "../../src/contracts";
 import { decodeBase64Image, encodeBase64Image, sha256Hex } from "../ai/image";
 import { modelFor, requestMealRecognition, resolveProvider } from "../ai/recognize";
 import { createDb } from "../db/client";
@@ -15,7 +16,7 @@ import { enforcePaidRecognitionFairness } from "../lib/limits";
 import { ensureMediaObject, getStoredMediaInput } from "./media";
 
 export type RecognitionResponse = {
-  recognition: MealRecognition;
+  recognition: MealRecognitionPayload;
   rawModelJSON: string;
   promptVersion: string;
   model: string;
@@ -144,7 +145,7 @@ async function recognizeBytes(
     inputFingerprint: fingerprint,
     promptVersion: env.MEAL_PROMPT_VERSION,
     model,
-    result: result.recognition,
+    result: flattenDishes(result.recognition),
     rawModelJson: result.rawModelJson,
     providerRequestId: result.requestId,
     inputTokens: result.inputTokens,

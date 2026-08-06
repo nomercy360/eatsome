@@ -1,9 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { foodGroups, portions } from "../../src/contracts";
 import type { Env } from "../env";
 import { HttpError } from "../lib/http-error";
-import { geminiResponseSchema } from "./gemini";
+import { geminiResponseSchema, requestGeminiRecognition } from "./gemini";
 import { apiKeyFor, modelFor, resolveProvider } from "./recognize";
+import { revisionSpec } from "./revision";
+import { hasImage } from "./types";
 
 const env = {
   OPENAI_API_KEY: "sk-test",
@@ -44,6 +46,59 @@ describe("provider selection", () => {
   });
 });
 
+describe("a correction with no photograph", () => {
+  const spec = revisionSpec({
+    current: [{ group: "fish", portion: "medium", label: null }],
+    note: "there were two eggs in it",
+  });
+  const answer = { add: [], revise: [], remove: [], notes: null };
+
+  /** Captures the body Gemini would have received. */
+  function captureRequest() {
+    const sent: { body?: Record<string, never> } = {};
+    vi.stubGlobal("fetch", async (_url: string, init: { body: string }) => {
+      sent.body = JSON.parse(init.body);
+      return new Response(
+        JSON.stringify({
+          candidates: [{ content: { parts: [{ text: JSON.stringify(answer) }] } }],
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    });
+    return sent;
+  }
+
+  it("omits the image part rather than sending an empty one", async () => {
+    const sent = captureRequest();
+    await requestGeminiRecognition(env, { note: "there were two eggs in it" }, spec);
+    const parts = (sent.body as never as { contents: [{ parts: unknown[] }] }).contents[0].parts;
+    // A zero-length image is a decode error at the vendor, not an absent image.
+    expect(parts).toHaveLength(1);
+    expect(JSON.stringify(parts)).not.toContain("inlineData");
+    vi.unstubAllGlobals();
+  });
+
+  it("still sends the photograph when there is one", async () => {
+    const sent = captureRequest();
+    await requestGeminiRecognition(
+      env,
+      { mimeType: "image/jpeg", imageBase64: "abc", note: "x" },
+      spec,
+    );
+    const parts = (sent.body as never as { contents: [{ parts: unknown[] }] }).contents[0].parts;
+    expect(parts).toHaveLength(2);
+    expect(JSON.stringify(parts)).toContain("inlineData");
+    vi.unstubAllGlobals();
+  });
+
+  it("treats half an image as no image", () => {
+    expect(hasImage({ imageBase64: "abc", mimeType: "image/jpeg" })).toBe(true);
+    expect(hasImage({ imageBase64: "abc" })).toBe(false);
+    expect(hasImage({ mimeType: "image/jpeg" })).toBe(false);
+    expect(hasImage({})).toBe(false);
+  });
+});
+
 describe("gemini response schema", () => {
   const schema = geminiResponseSchema();
 
@@ -57,7 +112,11 @@ describe("gemini response schema", () => {
 
   it("carries the same food groups as the rest of the app", () => {
     const properties = schema.properties as Record<string, Record<string, unknown>>;
-    const item = (properties.items as { items: Record<string, unknown> }).items;
+    const dish = (properties.dishes as { items: Record<string, unknown> }).items;
+    const dishProperties = dish.properties as Record<string, Record<string, unknown>>;
+    expect(dish.required).toEqual(["name", "count", "size", "panel", "ingredients"]);
+    expect(dishProperties.size.enum).toEqual([...portions]);
+    const item = (dishProperties.ingredients as { items: Record<string, unknown> }).items;
     const itemProperties = item.properties as Record<string, Record<string, unknown>>;
 
     expect(itemProperties.group.enum).toEqual([...foodGroups]);

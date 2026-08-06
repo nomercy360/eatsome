@@ -15,13 +15,14 @@
   },
   "vars": {
     "ACCOUNT_ID": "anonymous",
-    "RECOGNITION_PROVIDER": "openai",
+    "RECOGNITION_PROVIDER": "gemini",
     "OPENAI_RECOGNITION_MODEL": "gpt-5.6-luna",
     "GEMINI_RECOGNITION_MODEL": "gemini-3.6-flash",
     "ANTHROPIC_RECOGNITION_MODEL": "claude-haiku-4-5-20251001",
     "QWEN_RECOGNITION_MODEL": "qwen3.7-flash",
     "QWEN_BASE_URL": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
-    "MEAL_PROMPT_VERSION": "meal-v5-2026-08-05",
+    "OPENAI_IMAGE_DETAIL": "high",
+    "MEAL_PROMPT_VERSION": "meal-v13-2026-08-06",
     "RECOGNITIONS_PER_DAY": "400",
     "RECOGNITIONS_PER_DEVICE_PER_DAY": "40"
   },

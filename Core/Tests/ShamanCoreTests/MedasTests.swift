@@ -4,6 +4,69 @@ import Testing
 
 @Suite("MEDAS adherence")
 struct MedasTests {
+    @Test("The flat list is exactly what the dishes imply, and only they write it")
+    func flattenedMatchesDishes() {
+        // Both are stored: dishes so the meal reads, items so a build that has
+        // never heard of a dish still scores it. They can only disagree if
+        // something writes one without the other.
+        let dishes = [
+            MealDish(
+                name: "fried rice",
+                count: 2,
+                size: .medium,
+                items: [
+                    MealItem(group: .refinedGrains, portion: .medium, label: "rice"),
+                    MealItem(group: .whiteMeat, portion: .small, label: "chicken")
+                ]
+            ),
+            MealDish(
+                name: "beer",
+                count: 3,
+                items: [MealItem(group: .alcohol, portion: .medium, label: "beer")]
+            )
+        ]
+        let meal = MealEntry(
+            eatenAt: 0,
+            items: dishes.flatMap { $0.flattened() },
+            source: .photo,
+            storedDishes: dishes
+        )
+
+        #expect(meal.items.map(\.servings) == [2, 1, 3])
+        #expect(meal.items.map(\.dish) == ["fried rice", "fried rice", "beer"])
+        #expect(meal.rawServings(of: .whiteMeat) == 1)
+        // 3 × 2 for the rice, 26 × 1 for the chicken, alcohol contributes none.
+        #expect(Protein.grams(in: meal) == 6 + 26)
+
+        // The two representations agree, which is the property worth guarding.
+        let reflattened = meal.storedDishes?.flatMap { $0.flattened() } ?? []
+        #expect(reflattened.map(\.servings) == meal.items.map(\.servings))
+        #expect(reflattened.map(\.group) == meal.items.map(\.group))
+    }
+
+    @Test("A dish groups its ingredients, and old meals group under nothing")
+    func dishGrouping() {
+        let meal = MealEntry(
+            eatenAt: 0,
+            items: [
+                MealItem(group: .vegetables, portion: .medium, label: "leaves", dish: "green salad", servings: 1),
+                MealItem(group: .oliveOil, portion: .small, label: "dressing", dish: "green salad", servings: 0.5),
+                MealItem(group: .alcohol, portion: .medium, label: "beer", dish: "beer", servings: 3),
+                MealItem(group: .fruit, portion: .medium, label: "apple")
+            ],
+            source: .photo
+        )
+        #expect(meal.dishGroups.map(\.name) == ["green salad", "beer", nil])
+        #expect(meal.dishGroups.first?.items.count == 2)
+
+        // Two dressed salads must not clear the 4 tbsp/day olive oil criterion,
+        // which is exactly what an ingredient portion of `small` protects.
+        #expect(meal.rawServings(of: .oliveOil) == 0.5)
+        // The count survives into the score, up to the per-meal cap.
+        #expect(meal.rawServings(of: .alcohol) == 3)
+        #expect(meal.servings(of: .alcohol) == MealScoring.perMealGroupCap)
+    }
+
     private let now = MealEntry.referenceNow
 
     /// A week that satisfies every scored item.

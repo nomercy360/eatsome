@@ -8,7 +8,7 @@ import {
   text,
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
-import type { LoggedEventInput, MealRecognition } from "../../src/contracts";
+import type { LoggedEventInput, MealRecognitionPayload } from "../../src/contracts";
 
 export const events = sqliteTable(
   "events",
@@ -38,7 +38,7 @@ export const recognitions = sqliteTable(
     inputFingerprint: text("input_fingerprint").notNull(),
     promptVersion: text("prompt_version").notNull(),
     model: text().notNull(),
-    result: text("result_json", { mode: "json" }).$type<MealRecognition>().notNull(),
+    result: text("result_json", { mode: "json" }).$type<MealRecognitionPayload>().notNull(),
     rawModelJson: text("raw_model_json").notNull(),
     providerRequestId: text("provider_request_id"),
     inputTokens: integer("input_tokens").notNull().default(0),
@@ -150,23 +150,6 @@ export const corpusConsents = sqliteTable("corpus_consents", {
   policyVersion: text("policy_version").notNull(),
   updatedAt: integer("updated_at").notNull(),
 });
-
-/** Revocable development access. Raw invite tokens are never stored. */
-export const friendInviteTokens = sqliteTable(
-  "friend_invite_tokens",
-  {
-    tokenHash: text("token_hash").primaryKey(),
-    accountId: text("account_id").notNull(),
-    label: text().notNull(),
-    createdAt: integer("created_at").notNull(),
-    revokedAt: integer("revoked_at"),
-  },
-  (table) => [
-    index("friend_invite_tokens_account_idx").on(table.accountId, table.revokedAt),
-    index("friend_invite_tokens_label_idx").on(table.label, table.revokedAt),
-    check("friend_invite_tokens_hash_check", sql`length(${table.tokenHash}) = 64`),
-  ],
-);
 
 export const mealEvals = sqliteTable(
   "meal_evals",

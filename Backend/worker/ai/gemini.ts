@@ -1,9 +1,8 @@
-import type { RecognitionRequest } from "../../src/contracts";
-import { foodGroups, mealRecognitionSchema, portions } from "../../src/contracts";
+import { foodGroups, mealRecognitionSchema, panelBases, portions } from "../../src/contracts";
 import type { Env } from "../env";
 import { HttpError } from "../lib/http-error";
 import { productionSpec, type RecognitionSpec } from "./spec";
-import type { ProviderRecognition } from "./types";
+import { hasImage, type ProviderInput, type ProviderRecognition } from "./types";
 
 const BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 
@@ -20,29 +19,121 @@ export function geminiResponseSchema(): Record<string, unknown> {
   const group = { type: "STRING", enum: [...foodGroups] };
   return {
     type: "OBJECT",
-    propertyOrdering: ["items", "other_meals_visible", "notes"],
-    required: ["items", "other_meals_visible", "notes"],
+    propertyOrdering: ["dishes", "other_meals_visible", "notes"],
+    required: ["dishes", "other_meals_visible", "notes"],
     properties: {
-      items: {
+      dishes: {
         type: "ARRAY",
+        description:
+          "One entry per named thing on the closest place setting. Fried chicken, rice and miso soup are three dishes.",
         items: {
           type: "OBJECT",
-          propertyOrdering: ["group", "portion", "label", "alternatives"],
-          required: ["group", "portion", "label", "alternatives"],
+          propertyOrdering: ["name", "count", "size", "panel", "ingredients"],
+          required: ["name", "count", "size", "panel", "ingredients"],
           properties: {
-            group: { ...group, description: "Your single best answer for this item." },
-            portion: { type: "STRING", enum: [...portions] },
-            label: {
+            name: {
               type: "STRING",
+              description:
+                "What you would call it out loud: 'som tam', 'fried rice', 'beer'. A name, never a list of contents.",
+            },
+            count: {
+              type: "INTEGER",
+              description:
+                "How many servings of this dish are present. Two plates of fried rice is one dish with count 2.",
+            },
+            size: {
+              type: "STRING",
+              enum: [...portions],
+              description: "How big ONE serving is, not how many there are.",
+            },
+            panel: {
+              type: "OBJECT",
               nullable: true,
               description:
-                "Short human name for one food. Never a hedge like 'melon or pineapple'.",
+                "Nutrition figures PRINTED on packaging, a price card or a menu, for one serving as the label defines it. Transcribe only — never estimate from the look of the food. Null when nothing is printed, or when it cannot be read.",
+              propertyOrdering: [
+                "protein",
+                "calories",
+                "fat",
+                "carbohydrate",
+                "salt",
+                "sodium",
+                "caffeine",
+                "basis",
+                "net_ml",
+                "net_g",
+              ],
+              required: [
+                "protein",
+                "calories",
+                "fat",
+                "carbohydrate",
+                "salt",
+                "sodium",
+                "caffeine",
+                "basis",
+                "net_ml",
+                "net_g",
+              ],
+              properties: {
+                protein: { type: "NUMBER", nullable: true, description: "Grams." },
+                calories: { type: "NUMBER", nullable: true, description: "kcal." },
+                fat: { type: "NUMBER", nullable: true, description: "Grams." },
+                carbohydrate: { type: "NUMBER", nullable: true, description: "Grams." },
+                salt: {
+                  type: "NUMBER",
+                  nullable: true,
+                  description: "Grams of salt equivalent — 食塩相当量. Never converted to sodium.",
+                },
+                sodium: {
+                  type: "NUMBER",
+                  nullable: true,
+                  description: "Grams, only if printed as sodium.",
+                },
+                caffeine: { type: "NUMBER", nullable: true, description: "Milligrams." },
+                basis: {
+                  type: "STRING",
+                  enum: [...panelBases],
+                  nullable: true,
+                  description:
+                    "What the figures are counted against, copied from the heading above them. Japanese drink labels usually print per 100ml.",
+                },
+                net_ml: {
+                  type: "NUMBER",
+                  nullable: true,
+                  description: "Contents in millilitres as printed, e.g. 355 for 内容量 355ml.",
+                },
+                net_g: { type: "NUMBER", nullable: true, description: "Contents in grams." },
+              },
             },
-            alternatives: {
+            ingredients: {
               type: "ARRAY",
-              description:
-                "Other groups that could plausibly be right for this item, most likely first, at most three. Empty when the group is obvious.",
-              items: group,
+              items: {
+                type: "OBJECT",
+                propertyOrdering: ["group", "portion", "label", "alternatives"],
+                required: ["group", "portion", "label", "alternatives"],
+                properties: {
+                  group: { ...group, description: "Your single best answer for this ingredient." },
+                  portion: {
+                    type: "STRING",
+                    enum: [...portions],
+                    description:
+                      "How much of this ingredient is in ONE serving of the dish. Never how much was eaten — do not apply count or size yourself.",
+                  },
+                  label: {
+                    type: "STRING",
+                    nullable: true,
+                    description:
+                      "Short human name for one food. Never a hedge like 'melon or pineapple'.",
+                  },
+                  alternatives: {
+                    type: "ARRAY",
+                    description:
+                      "Other groups that could plausibly be right for this ingredient, most likely first, at most three. Empty when the group is obvious.",
+                    items: group,
+                  },
+                },
+              },
             },
           },
         },
@@ -72,7 +163,7 @@ type GeminiResponse = {
 
 export async function requestGeminiRecognition(
   env: Env,
-  input: RecognitionRequest,
+  input: ProviderInput,
   spec: RecognitionSpec = productionSpec(),
 ): Promise<ProviderRecognition> {
   const startedAt = Date.now();
@@ -89,16 +180,23 @@ export async function requestGeminiRecognition(
       contents: [
         {
           role: "user",
-          parts: [
-            { text: spec.userPrompt },
-            { inlineData: { mimeType: input.mimeType, data: input.imageBase64 } },
-          ],
+          parts: hasImage(input)
+            ? [
+                { text: spec.userPrompt },
+                { inlineData: { mimeType: input.mimeType, data: input.imageBase64 } },
+              ]
+            : [{ text: spec.userPrompt }],
         },
       ],
       generationConfig: {
         responseMimeType: "application/json",
         responseSchema: spec.geminiSchema ?? geminiResponseSchema(),
         thinkingConfig: { thinkingLevel: env.GEMINI_THINKING_LEVEL || "low" },
+        // Gemini's counterpart to OpenAI's image detail: it decides how many
+        // tokens a picture is worth reading at. Omitted when unset so the API
+        // default stands — an invalid enum here fails the whole request, so it
+        // is opt-in and belongs in the eval before it belongs in production.
+        ...(env.GEMINI_MEDIA_RESOLUTION ? { mediaResolution: env.GEMINI_MEDIA_RESOLUTION } : {}),
       },
     }),
   });

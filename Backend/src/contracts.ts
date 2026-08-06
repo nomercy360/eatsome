@@ -75,13 +75,155 @@ export const mealRecognitionItemSchema = z.strictObject({
   alternatives: z.array(z.enum(foodGroups)),
 });
 
+/**
+ * One named thing on the tray, and what it is made of.
+ *
+ * `count` is how many servings of the dish are present and `size` is how big
+ * one of them is; the ingredient's own `portion` is how much of it goes into a
+ * single serving. Those three multiply, which is why the model is told to
+ * answer each independently — a model applying the count itself would double
+ * the meal, and there is no way to tell that apart from a genuinely large plate.
+ */
+/**
+ * A nutrition panel transcribed off packaging, for one serving as the label
+ * defines it.
+ *
+ * Read, never estimated — that distinction is the whole justification for the
+ * field existing. A model asked for grams from pixels returns a number with
+ * 30–50% error that is indistinguishable from data; a model reading a printed
+ * panel is doing OCR on a fact. Every field is nullable because an unreadable
+ * figure must be able to come back absent: a fabricated number stored in the
+ * one place reserved for confirmed values is worse than no value at all.
+ */
+export const panelBases = ["per_100ml", "per_100g", "per_serving", "per_container"] as const;
+
+export const nutritionPanelSchema = z.strictObject({
+  protein: z.number().min(0).max(500).nullable(),
+  calories: z.number().min(0).max(5_000).nullable(),
+  fat: z.number().min(0).max(500).nullable(),
+  carbohydrate: z.number().min(0).max(1_000).nullable(),
+  /** Grams of salt equivalent — 食塩相当量, which is what Japanese labels print.
+   *  Separate from `sodium` because a model given only one field converts into
+   *  it silently, twice observed, and a converted figure is indistinguishable
+   *  from a read one. */
+  salt: z.number().min(0).max(100).nullable(),
+  sodium: z.number().min(0).max(100).nullable(),
+  /** Milligrams. */
+  caffeine: z.number().min(0).max(2_000).nullable(),
+  /**
+   * What the figures are counted against, copied from the heading above them.
+   * A number without this has no unit: `carbohydrate: 1` is true per 100ml of a
+   * Monster and wrong by 3.55x for the can, and nothing downstream can tell.
+   */
+  basis: z.enum(panelBases).nullable(),
+  /** Contents as printed — 355 for 「内容量: 355ml」. What lets a per-100ml
+   *  panel be scaled to the container, by code rather than by the model. */
+  net_ml: z.number().min(0).max(10_000).nullable(),
+  net_g: z.number().min(0).max(10_000).nullable(),
+});
+
+export type NutritionPanel = z.infer<typeof nutritionPanelSchema>;
+
+const PANEL_FIGURES = [
+  "protein",
+  "calories",
+  "fat",
+  "carbohydrate",
+  "salt",
+  "sodium",
+  "caffeine",
+] as const;
+
+/** Salt is sodium chloride: 2.54 g of salt carries 1 g of sodium. */
+const SODIUM_PER_SALT = 1 / 2.54;
+
+/**
+ * The panel as one container's worth, which is what a person consumed: a can, a
+ * carton, a cup.
+ *
+ * The multiplication happens here rather than in the prompt because a model
+ * that does arithmetic does it invisibly — the same freedom that turned 0.1g of
+ * salt into "~0.04g sodium" unasked. Transcribed facts in, deterministic maths
+ * out, and a panel that cannot be scaled keeps its figures and says so through
+ * `basis` rather than pretending to be per-container.
+ */
+export function panelPerContainer(panel: NutritionPanel | null): NutritionPanel | null {
+  if (!panel) return null;
+  const factor =
+    panel.basis === "per_container" || panel.basis === "per_serving"
+      ? 1
+      : panel.basis === "per_100ml" && panel.net_ml
+        ? panel.net_ml / 100
+        : panel.basis === "per_100g" && panel.net_g
+          ? panel.net_g / 100
+          : null;
+  // Unscalable: no basis, or a per-100 panel with no printed contents. The
+  // figures stay exactly as read, because inventing the missing volume is the
+  // one thing worse than leaving the number in its own unit.
+  if (factor === null) return withSodium(panel);
+  const scaled: NutritionPanel = { ...panel, basis: "per_container" };
+  for (const field of PANEL_FIGURES) {
+    const value = panel[field];
+    if (value != null) scaled[field] = Math.round(value * factor * 100) / 100;
+  }
+  return withSodium(scaled);
+}
+
+/** Sodium from salt, when the label printed the one and not the other. */
+function withSodium(panel: NutritionPanel): NutritionPanel {
+  if (panel.sodium != null || panel.salt == null) return panel;
+  return { ...panel, sodium: Math.round(panel.salt * SODIUM_PER_SALT * 1000) / 1000 };
+}
+
+export const mealDishSchema = z.strictObject({
+  name: z.string().min(1).max(120),
+  count: z.number().int().min(1).max(24),
+  size: z.enum(portions),
+  ingredients: z.array(mealRecognitionItemSchema).max(24),
+  /** Null for almost all food, which has nothing printed on it. */
+  panel: nutritionPanelSchema.nullable(),
+});
+
 export const mealRecognitionSchema = z.strictObject({
-  items: z.array(mealRecognitionItemSchema).max(64),
+  dishes: z.array(mealDishSchema).max(16),
   other_meals_visible: z.boolean(),
   notes: z.string().max(2_000).nullable(),
 });
 
 export type MealRecognition = z.infer<typeof mealRecognitionSchema>;
+
+/** A flattened ingredient, carrying the servings the three factors produced. */
+export const mealFlatItemSchema = mealRecognitionItemSchema.extend({
+  servings: z.number().min(0),
+  dish: z.string().max(120).nullable(),
+});
+
+/**
+ * What the client receives: the dishes, plus the flat list the scorer has
+ * always used. Builds shipped before dishes existed read `items` and ignore the
+ * rest, so the structure can change without stranding a phone in the field.
+ */
+export const mealRecognitionPayloadSchema = mealRecognitionSchema.extend({
+  items: z.array(mealFlatItemSchema).max(64),
+});
+
+export type MealRecognitionPayload = z.infer<typeof mealRecognitionPayloadSchema>;
+
+/** count × size × the ingredient's share of one serving. */
+export function flattenDishes(recognition: MealRecognition): MealRecognitionPayload {
+  const servingsFor = { small: 0.5, medium: 1, large: 2 } as const;
+  return {
+    ...recognition,
+    dishes: recognition.dishes.map((dish) => ({ ...dish, panel: panelPerContainer(dish.panel) })),
+    items: recognition.dishes.flatMap((dish) =>
+      dish.ingredients.map((ingredient) => ({
+        ...ingredient,
+        dish: dish.name,
+        servings: dish.count * servingsFor[dish.size] * servingsFor[ingredient.portion],
+      })),
+    ),
+  };
+}
 
 export function mealRecognitionJsonSchema(): Record<string, unknown> {
   const schema = z.toJSONSchema(mealRecognitionSchema, { target: "draft-07" });

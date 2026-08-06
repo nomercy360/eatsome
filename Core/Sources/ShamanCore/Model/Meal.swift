@@ -12,19 +12,35 @@ public struct MealItem: Codable, Sendable, Hashable, Identifiable {
     /// have decided, the model's shortlist describes a different question.
     /// Empty means the model was asked and had no rival in mind.
     public var modelAlternatives: [FoodGroup]?
+    /// The dish this came out of, when recognition named one. Nil on every meal
+    /// logged before dishes existed, which is why nothing may depend on it.
+    public var dish: String?
+    /// What this contributes, when a dish supplied a count and a size that
+    /// `portion` alone cannot express — three beers is 3.0 servings and no case
+    /// of `Portion` says three. Nil means the portion is the whole story, which
+    /// is true of every meal in the log written before dishes.
+    public var servings: Double?
+
+    /// The number that scores. One place, so no caller has to remember which of
+    /// the two fields is authoritative.
+    public var effectiveServings: Double { servings ?? portion.servings }
 
     public init(
         id: UUID = UUIDv7.generate(),
         group: FoodGroup,
         portion: Portion,
         label: String? = nil,
-        modelAlternatives: [FoodGroup]? = nil
+        modelAlternatives: [FoodGroup]? = nil,
+        dish: String? = nil,
+        servings: Double? = nil
     ) {
         self.id = id
         self.group = group
         self.portion = portion
         self.label = label
         self.modelAlternatives = modelAlternatives
+        self.dish = dish
+        self.servings = servings
     }
 }
 
@@ -134,6 +150,14 @@ public struct MealEntry: Codable, Sendable, Hashable, Identifiable {
     /// It is what lets the dish list say "logged 6 times" from the log rather
     /// than from a counter that would drift the first time a meal was deleted.
     public var recipeID: UUID?
+    /// The meal as it reads, when recognition named dishes. Nil on every entry
+    /// written before dishes existed and on anything assembled by hand, which
+    /// is why `items` remains the list the score is computed from: a build that
+    /// has never heard of a dish still scores an old meal and a new one alike.
+    ///
+    /// When this is present, `items` is `dishes.flatMap(\.flattened())` and
+    /// nothing else — `MealDish.flattened()` is the only thing that writes it.
+    public var storedDishes: [MealDish]?
 
     public init(
         id: UUID = UUIDv7.generate(),
@@ -146,7 +170,8 @@ public struct MealEntry: Codable, Sendable, Hashable, Identifiable {
         recognitionEvidence: MealRecognitionEvidence? = nil,
         share: MealShare? = nil,
         wasCorrected: Bool = false,
-        recipeID: UUID? = nil
+        recipeID: UUID? = nil,
+        storedDishes: [MealDish]? = nil
     ) {
         self.id = id
         self.eatenAt = eatenAt
@@ -159,6 +184,7 @@ public struct MealEntry: Codable, Sendable, Hashable, Identifiable {
         self.share = share
         self.wasCorrected = wasCorrected
         self.recipeID = recipeID
+        self.storedDishes = storedDishes
     }
 
     public var eaten: MealShare { share ?? .whole }
@@ -172,7 +198,20 @@ public struct MealEntry: Codable, Sendable, Hashable, Identifiable {
     /// What is on the plate, before either rule applies. This is the number to
     /// show next to the food; `servings(of:)` is the number that scores.
     public func rawServings(of group: FoodGroup) -> Double {
-        items.filter { $0.group == group }.reduce(0) { $0 + $1.portion.servings }
+        items.filter { $0.group == group }.reduce(0) { $0 + $1.effectiveServings }
+    }
+
+    /// The meal as it reads: the dish names in the order recognition gave them,
+    /// each with the ingredients that belong to it. Items from before dishes
+    /// existed, and anything added by hand, come back under a nil name.
+    public var dishGroups: [(name: String?, items: [MealItem])] {
+        var order: [String?] = []
+        var grouped: [String?: [MealItem]] = [:]
+        for item in items {
+            if grouped[item.dish] == nil { order.append(item.dish) }
+            grouped[item.dish, default: []].append(item)
+        }
+        return order.map { (name: $0, items: grouped[$0] ?? []) }
     }
 }
 

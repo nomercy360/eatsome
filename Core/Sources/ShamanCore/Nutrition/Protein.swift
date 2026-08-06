@@ -76,17 +76,40 @@ public enum Protein {
         (weightKilograms * intent.gramsPerKilogram).rounded()
     }
 
-    /// Grams in one meal.
+    /// Grams in a list of foods — a plate, or a dish as it is described.
     ///
     /// Uses what is on the plate rather than what the MEDAS scorer counts: the
     /// per-group cap exists to stop a platter clearing a diet target, and has
-    /// nothing to say about protein you actually ate. The share you ate does
-    /// apply — half a shared dish is half the protein.
-    public static func grams(in meal: MealEntry, gramsPerServing: [String: Double] = defaultGramsPerServing) -> Double {
-        let onThePlate = meal.items.reduce(0.0) { total, item in
-            total + (gramsPerServing[item.group.rawValue] ?? 0) * item.portion.servings
+    /// nothing to say about protein you actually ate.
+    public static func grams(in items: [MealItem], gramsPerServing: [String: Double] = defaultGramsPerServing) -> Double {
+        items.reduce(0.0) { total, item in
+            total + (gramsPerServing[item.group.rawValue] ?? 0) * item.effectiveServings
         }
-        return onThePlate * meal.eaten.factor
+    }
+
+    /// Grams in one dish: what the label said, or what the table implies.
+    ///
+    /// One number out, from either of two kinds of input. A transcribed panel
+    /// is a fact and wins; everything else is estimated from food groups, which
+    /// is why nothing stores the estimate — retuning the table in
+    /// `shaman-config.json` moves every derived figure in the history, and must
+    /// move none of the measured ones.
+    ///
+    /// `size` drops out when a panel is present: a packaged serving is whatever
+    /// the box holds, so two cartons is twice the printed figure and "large"
+    /// says nothing about a 200 ml carton.
+    public static func grams(in dish: MealDish, gramsPerServing: [String: Double] = defaultGramsPerServing) -> Double {
+        if let confirmed = dish.panel?.protein { return confirmed * Double(dish.count) }
+        return grams(in: dish.items, gramsPerServing: gramsPerServing) * dish.multiplier
+    }
+
+    /// Grams in one meal, which is the plate above times the share you ate —
+    /// half a shared dish is half the protein.
+    public static func grams(in meal: MealEntry, gramsPerServing: [String: Double] = defaultGramsPerServing) -> Double {
+        let plate = meal.storedDishes.map { dishes in
+            dishes.reduce(0.0) { $0 + grams(in: $1, gramsPerServing: gramsPerServing) }
+        } ?? grams(in: meal.items, gramsPerServing: gramsPerServing)
+        return plate * meal.eaten.factor
     }
 
     public static func grams(in meals: [MealEntry], gramsPerServing: [String: Double] = defaultGramsPerServing) -> Double {

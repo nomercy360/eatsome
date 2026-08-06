@@ -25,7 +25,12 @@ export type Env = {
   // which is not the same thing across vendors — Anthropic ships with extended
   // thinking off while Gemini and OpenAI take an explicit level.
   OPENAI_REASONING_EFFORT: string;
+  /** `high` tiles the image so small print survives; `low` is a flat 85 tokens
+   *  and about 512px, which cannot read a label. Empty means `high`. */
+  OPENAI_IMAGE_DETAIL: string;
   GEMINI_THINKING_LEVEL: string;
+  /** e.g. `MEDIA_RESOLUTION_HIGH`. Empty leaves Gemini's own default. */
+  GEMINI_MEDIA_RESOLUTION: string;
   /** Tokens; 0 or empty leaves extended thinking off. */
   ANTHROPIC_THINKING_BUDGET: string;
   /** "true" turns Qwen's thinking mode on. */

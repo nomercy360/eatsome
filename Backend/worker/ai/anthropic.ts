@@ -1,9 +1,7 @@
-import type { RecognitionRequest } from "../../src/contracts";
-
 import type { Env } from "../env";
 import { HttpError } from "../lib/http-error";
 import { parseFor, productionSpec, type RecognitionSpec } from "./spec";
-import type { ProviderRecognition } from "./types";
+import { hasImage, type ProviderInput, type ProviderRecognition } from "./types";
 
 const ENDPOINT = "https://api.anthropic.com/v1/messages";
 const VERSION = "2023-06-01";
@@ -25,7 +23,7 @@ type AnthropicResponse = {
 
 export async function requestAnthropicRecognition(
   env: Env,
-  input: RecognitionRequest,
+  input: ProviderInput,
   spec: RecognitionSpec = productionSpec(),
 ): Promise<ProviderRecognition> {
   const startedAt = Date.now();
@@ -58,10 +56,14 @@ export async function requestAnthropicRecognition(
         {
           role: "user",
           content: [
-            {
-              type: "image",
-              source: { type: "base64", media_type: input.mimeType, data: input.imageBase64 },
-            },
+            ...(hasImage(input)
+              ? [
+                  {
+                    type: "image",
+                    source: { type: "base64", media_type: input.mimeType, data: input.imageBase64 },
+                  },
+                ]
+              : []),
             { type: "text", text: spec.userPrompt },
           ],
         },

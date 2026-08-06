@@ -1,10 +1,9 @@
 import OpenAI from "openai";
-import type { RecognitionRequest } from "../../src/contracts";
 
 import type { Env } from "../env";
 import { HttpError } from "../lib/http-error";
 import { parseFor, productionSpec, type RecognitionSpec } from "./spec";
-import type { ProviderRecognition } from "./types";
+import { hasImage, type ProviderInput, type ProviderRecognition } from "./types";
 
 /**
  * OpenRouter, for models no first-party client here reaches — Grok and Muse.
@@ -24,7 +23,7 @@ import type { ProviderRecognition } from "./types";
  */
 export async function requestOpenRouterRecognition(
   env: Env,
-  input: RecognitionRequest,
+  input: ProviderInput,
   spec: RecognitionSpec = productionSpec(),
 ): Promise<ProviderRecognition> {
   const startedAt = Date.now();
@@ -41,10 +40,14 @@ export async function requestOpenRouterRecognition(
         role: "user",
         content: [
           { type: "text", text: spec.userPrompt },
-          {
-            type: "image_url",
-            image_url: { url: `data:${input.mimeType};base64,${input.imageBase64}` },
-          },
+          ...(hasImage(input)
+            ? [
+                {
+                  type: "image_url" as const,
+                  image_url: { url: `data:${input.mimeType};base64,${input.imageBase64}` },
+                },
+              ]
+            : []),
         ],
       },
     ],

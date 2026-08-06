@@ -91,14 +91,14 @@ struct LunaSessionTests {
             .deletingLastPathComponent()
             .deletingLastPathComponent()
             .deletingLastPathComponent()
-            .appendingPathComponent("prompts/meal-v5.md")
+            .appendingPathComponent("prompts/meal-v13.md")
         let source = try String(contentsOf: file, encoding: .utf8)
 
         #expect(
             MealPrompt.system == source.trimmingCharacters(in: .whitespacesAndNewlines),
             "run: node scripts/sync-prompt.mjs"
         )
-        #expect(MealPrompt.version == "meal-v5-2026-08-05")
+        #expect(MealPrompt.version == "meal-v13-2026-08-06")
     }
 
     @Test("A well-formed response decodes")
