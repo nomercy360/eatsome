@@ -310,10 +310,11 @@ final class AppModel {
         Protein.grams(in: items, gramsPerServing: config.proteinTable)
     }
 
-    /// What one dish contributes at its own count and size — the figure the
-    /// dish sheet shows while those two controls are being turned. The
-    /// ingredients alone are one normal serving of it, so anything that reads
-    /// them directly reports a large plate as a normal one.
+    /// What one dish contributes at its own quantity — the figure the dish
+    /// sheet shows while the count stepper is being turned. On a meal old
+    /// enough to be described in portions the ingredients alone are one normal
+    /// serving of it, so anything reading them directly reports a large plate
+    /// as a normal one.
     func protein(in dish: MealDish) -> Double {
         Protein.grams(in: dish, gramsPerServing: config.proteinTable)
     }

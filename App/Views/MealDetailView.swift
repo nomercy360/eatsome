@@ -101,7 +101,7 @@ struct MealDetailView: View {
                 onEditIngredient: { editing = EditingFood(id: $0) },
                 onAddIngredient: {
                     guard let index = dishes.firstIndex(where: { $0.id == dish.id }) else { return }
-                    let added = MealItem(group: .other, portion: .medium)
+                    let added = MealItem(group: .other)
                     dishes[index].items.append(added)
                     draft.items = dishes.flatMap { $0.flattened() }
                     editing = EditingFood(id: added.id)
@@ -112,11 +112,6 @@ struct MealDetailView: View {
                     // weighed dish already holds every serving that is present, so
                     // "one, not three" has to take two thirds of it back off.
                     dishes[index] = dishes[index].scaled(toCount: count)
-                    draft.items = dishes.flatMap { $0.flattened() }
-                },
-                onSize: { size in
-                    guard let index = dishes.firstIndex(where: { $0.id == dish.id }) else { return }
-                    dishes[index].size = size
                     draft.items = dishes.flatMap { $0.flattened() }
                 },
                 onRemove: {

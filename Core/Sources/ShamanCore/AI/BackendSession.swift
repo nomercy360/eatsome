@@ -77,7 +77,7 @@ public struct BackendSession: MealRecognizer, MealRefiner, Sendable {
     ) async throws -> MealRevision {
         let input = RefinementRequest(
             provider: configuration.provider?.rawValue,
-            current: current.map { .init(group: $0.group, portion: $0.portion, label: $0.label) },
+            current: current.map { .init(group: $0.group, grams: $0.grams, label: $0.label) },
             note: note
         )
         let path = imageData
@@ -141,7 +141,11 @@ public struct BackendSession: MealRecognizer, MealRefiner, Sendable {
     private struct RefinementRequest: Encodable {
         struct Item: Encodable {
             let group: FoodGroup
-            let portion: Portion
+            /// Nil for a meal logged before weights, or typed in by hand. Sent
+            /// as null rather than filled in: the prompt says "no weight
+            /// recorded" in words, and a model told a hand-typed row weighs 100 g
+            /// has been handed a fact nobody established.
+            let grams: Double?
             let label: String?
         }
         let provider: String?

@@ -29,6 +29,11 @@ export const foodGroups = [
   "other",
 ] as const;
 
+/**
+ * Stored only. No prompt asks for one and no schema the model sees carries one
+ * from v17; this stays because `mealItemSchema` syncs events written before it,
+ * and the log is append-only.
+ */
 export const portions = ["small", "medium", "large"] as const;
 
 /// Both answer the same contract and the same prompt, so a device can switch
@@ -71,12 +76,16 @@ const rawJsonSchema = z
 
 export const mealRecognitionItemSchema = z.strictObject({
   group: z.enum(foodGroups),
-  portion: z.enum(portions),
   // Edible weight on the plate, absolute: everything of this ingredient that is
   // there, across every serving present. Nothing multiplies it by the dish's
-  // count or size afterwards. Nullable and optional so answers cached before
-  // grams were asked for still parse rather than being re-bought.
-  grams: z.number().min(0).max(20_000).nullable().optional(),
+  // count afterwards.
+  //
+  // Required, and the only quantity asked for. It was nullable while `portion`
+  // stood behind it, and a fallback is exactly what let the production Gemini
+  // schema omit the field for a month without anything failing — every answer
+  // parsed, and every answer was scored on the ladder grams had replaced. With
+  // nothing behind it, a weightless answer is now a loud one.
+  grams: z.number().min(0).max(20_000),
   label: z.string().max(200).nullable(),
   // Uncertainty is a shortlist of rival groups, not a number. A model asked to
   // score its own certainty returns the same round value for every item on the
@@ -88,11 +97,10 @@ export const mealRecognitionItemSchema = z.strictObject({
 /**
  * One named thing on the tray, and what it is made of.
  *
- * `count` is how many servings of the dish are present and `size` is how big
- * one of them is; the ingredient's own `portion` is how much of it goes into a
- * single serving. Those three multiply, which is why the model is told to
- * answer each independently — a model applying the count itself would double
- * the meal, and there is no way to tell that apart from a genuinely large plate.
+ * `count` is how many servings of the dish are present, and it is a label
+ * rather than a factor: the ingredients below already weigh every serving that
+ * is there. The client's stepper rewrites those weights when the count is
+ * corrected, so the number never multiplies anything at score time.
  */
 /**
  * A nutrition panel transcribed off packaging, for one serving as the label
@@ -188,7 +196,6 @@ function withSodium(panel: NutritionPanel): NutritionPanel {
 export const mealDishSchema = z.strictObject({
   name: z.string().min(1).max(120),
   count: z.number().int().min(1).max(24),
-  size: z.enum(portions),
   ingredients: z.array(mealRecognitionItemSchema).max(24),
   /** Null for almost all food, which has nothing printed on it. */
   panel: nutritionPanelSchema.nullable(),
@@ -203,10 +210,17 @@ export const mealRecognitionSchema = z.strictObject({
 export type MealRecognition = z.infer<typeof mealRecognitionSchema>;
 
 /**
- * A flattened ingredient, carrying whichever quantity describes it: `grams` when
- * it was weighed, `servings` when it was described in portions and the dish's
- * count and size had to be multiplied in. Never both — that is how the two come
- * to disagree.
+ * A flattened ingredient. `grams` is the whole quantity now, so `servings` is
+ * always null — kept in the shape rather than deleted because the field is what
+ * a client checks to find out whether the server did the arithmetic, and an
+ * absent field and a null one should not have to mean different things.
+ *
+ * Dropping `portion` from here is the one breaking change in this contract: a
+ * client built before v17 requires it and fails to decode without it. Worker and
+ * app ship together. There is no derived stand-in on purpose — turning grams
+ * back into small/medium/large needs a serving-weight table, that table lives in
+ * `shaman-config.json` on the client, and a second copy of it here is how the
+ * two start disagreeing.
  */
 export const mealFlatItemSchema = mealRecognitionItemSchema.extend({
   servings: z.number().min(0).nullable(),
@@ -227,12 +241,13 @@ export type MealRecognitionPayload = z.infer<typeof mealRecognitionPayloadSchema
 /**
  * The flat list the client scores from.
  *
- * A weighed ingredient carries its own quantity and gets no `servings`: grams
- * are absolute, so multiplying by count and size would apply the dish's size
- * twice. Only a dish described in portions still needs the arithmetic.
+ * There is no arithmetic left to do. An ingredient's grams already cover every
+ * serving present, so `servings` is null on every row — the `count × size ×
+ * portion` product that used to live here is the thing v17 removed, and the
+ * reason is that it compounded: the model called a bowl of ramen large and its
+ * noodles large, and one bowl came out worth 126 g of protein.
  */
 export function flattenDishes(recognition: MealRecognition): MealRecognitionPayload {
-  const servingsFor = { small: 0.5, medium: 1, large: 2 } as const;
   return {
     ...recognition,
     dishes: recognition.dishes.map((dish) => ({ ...dish, panel: panelPerContainer(dish.panel) })),
@@ -240,10 +255,7 @@ export function flattenDishes(recognition: MealRecognition): MealRecognitionPayl
       dish.ingredients.map((ingredient) => ({
         ...ingredient,
         dish: dish.name,
-        servings:
-          ingredient.grams == null
-            ? dish.count * servingsFor[dish.size] * servingsFor[ingredient.portion]
-            : null,
+        servings: null,
       })),
     ),
   };
@@ -286,7 +298,11 @@ export type RerunRecognitionRequest = z.infer<typeof rerunRecognitionRequestSche
 
 export const refinementItemSchema = z.strictObject({
   group: z.enum(foodGroups),
-  portion: z.enum(portions),
+  // Nullable here and nowhere else in the recognition path: this is the list as
+  // it stands on the person's phone, and a meal logged before grams — or added
+  // by hand — genuinely has no weight to send. The prompt says so in words when
+  // it happens, rather than inventing a number to fill the field.
+  grams: z.number().min(0).max(20_000).nullable(),
   label: z.string().max(200).nullable(),
 });
 
@@ -302,7 +318,7 @@ export const mealRevisionSchema = z.strictObject({
   add: z.array(
     z.strictObject({
       group: z.enum(foodGroups),
-      portion: z.enum(portions),
+      grams: z.number().min(0).max(20_000),
       label: z.string().max(200).nullable(),
       alternatives: z.array(z.enum(foodGroups)).max(3),
     }),
@@ -311,7 +327,7 @@ export const mealRevisionSchema = z.strictObject({
     z.strictObject({
       index: z.number().int().min(1).max(64),
       group: z.enum(foodGroups),
-      portion: z.enum(portions),
+      grams: z.number().min(0).max(20_000),
     }),
   ),
   remove: z.array(z.number().int().min(1).max(64)),
@@ -329,12 +345,23 @@ export function mealRevisionJsonSchema(): Record<string, unknown> {
 export const mealItemSchema = z.strictObject({
   id: z.string().uuid(),
   group: z.enum(foodGroups),
+  // Stored, not requested. `portion` stays required because it is on every line
+  // of every `events.jsonl` ever written and the log is append-only — v17 stops
+  // asking a model for one, it does not rewrite history. New items carry the
+  // schema default and score off `grams`.
   portion: z.enum(portions),
   label: z.string().max(200).nullable().optional(),
   modelAlternatives: z.array(z.enum(foodGroups)).nullable().optional(),
   // Events written before the alternatives contract still sync from devices
   // that have them in their append-only log. Accept, do not require.
   modelConfidence: z.number().min(0).max(1).nullable().optional(),
+  // A strict object rejects what it does not name, and `MealItem` has carried
+  // these three since dishes and grams landed. Without them here every weighed
+  // meal 400s on sync — invisible until now only because the production Gemini
+  // schema was never emitting a weight for one to carry.
+  grams: z.number().min(0).max(20_000).nullable().optional(),
+  servings: z.number().min(0).nullable().optional(),
+  dish: z.string().max(120).nullable().optional(),
 });
 
 export const recognitionEvidenceSchema = z.strictObject({

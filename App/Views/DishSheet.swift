@@ -8,22 +8,21 @@ import SwiftUI
 /// corrected. Hiding them entirely would hide the only mistake that matters —
 /// a "kaisen don" scores wrong and looks right.
 ///
-/// The two quantity controls get a row each. They shared one before, with a
-/// second line of explanation stealing the width, and the three size chips wrapped
-/// mid-word into "A litt le" against the edge of the card. A chip that wraps is a
-/// chip that was never going to fit, so the subtitle went and the row is theirs.
+/// One quantity control, and it is the count. "How big is one?" stood beside it
+/// until v17 offering A little / Normal / A lot, and on a weighed dish the chips
+/// moved nothing at all — grams outrank a size everywhere it is read. A control
+/// that looks live and changes no number is worse than an absent one, so the
+/// weight is now shown per ingredient and corrected in words on the fix screen.
 struct DishSheet: View {
     let dish: MealDish
     let onRename: (String) -> Void
     let onEditIngredient: (UUID) -> Void
     let onAddIngredient: () -> Void
     let onCount: (Int) -> Void
-    let onSize: (Portion) -> Void
     let onRemove: () -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var count: Int
-    @State private var size: Portion
     @State private var isRenaming = false
     @State private var draftName: String
 
@@ -33,7 +32,6 @@ struct DishSheet: View {
         onEditIngredient: @escaping (UUID) -> Void,
         onAddIngredient: @escaping () -> Void,
         onCount: @escaping (Int) -> Void,
-        onSize: @escaping (Portion) -> Void,
         onRemove: @escaping () -> Void
     ) {
         self.dish = dish
@@ -41,10 +39,8 @@ struct DishSheet: View {
         self.onEditIngredient = onEditIngredient
         self.onAddIngredient = onAddIngredient
         self.onCount = onCount
-        self.onSize = onSize
         self.onRemove = onRemove
         _count = State(initialValue: dish.count)
-        _size = State(initialValue: dish.size)
         _draftName = State(initialValue: dish.name)
     }
 
@@ -164,52 +160,20 @@ struct DishSheet: View {
     }
 
     private var quantityCard: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("How many?")
-                        .font(WellieTheme.font(15.5, weight: .semibold))
-                    Text(dish.weighed ? "Three cans is one dish, three times — this rescales the weights"
-                                      : "Three cans is one dish, three times")
-                        .font(WellieTheme.font(12.5, weight: .medium))
-                        .foregroundStyle(WellieTheme.muted)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Spacer(minLength: 8)
-                stepper
-            }
-            .padding(.vertical, 13)
-
-            if !dish.weighed {
-            WellieRowDivider()
-
-            HStack(spacing: 10) {
-                Text("How big is one?")
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("How many?")
                     .font(WellieTheme.font(15.5, weight: .semibold))
-                    .fixedSize()
-                Spacer(minLength: 6)
-                // `fixedSize` on each chip is what keeps "A little" one word
-                // wide. Without it the row shrinks them to fit and the text
-                // wraps inside the pill instead of the row admitting it is full.
-                HStack(spacing: 6) {
-                    ForEach(Portion.allCases, id: \.self) { option in
-                        Button {
-                            size = option
-                            onSize(option)
-                        } label: {
-                            WellieChip(
-                                text: option.plainName,
-                                style: size == option ? .selected : .soft
-                            )
-                            .fixedSize()
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
+                Text(dish.weighed ? "Three cans is one dish, three times — this rescales the weights"
+                                  : "Three cans is one dish, three times")
+                    .font(WellieTheme.font(12.5, weight: .medium))
+                    .foregroundStyle(WellieTheme.muted)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            .padding(.vertical, 13)
-            }
+            Spacer(minLength: 8)
+            stepper
         }
+        .padding(.vertical, 13)
         .padding(.horizontal, 16)
         .background(WellieTheme.well, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
@@ -277,9 +241,10 @@ struct DishSheet: View {
                 } label: {
                     WellieChevronRow(
                         title: FoodPhrase.word(for: item.group, label: item.label),
-                        // The weight where recognition estimated one. A gram
-                        // figure and a size chip side by side would be two
-                        // answers to one question, and only the weight scores.
+                        // The weight, read-only. The size chip that used to
+                        // stand here on an unweighed row was the second answer
+                        // to a question that now has one. A meal old enough to
+                        // have no weight still says what it said.
                         value: item.grams.map { "\(Int($0.rounded())) g" } ?? item.portion.plainName,
                         verticalPadding: 9
                     )

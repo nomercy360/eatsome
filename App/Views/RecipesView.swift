@@ -230,7 +230,7 @@ struct RecipeEditor: View {
                 }
             }
             .sheet(isPresented: $showingAddFood) {
-                FoodGroupPicker { items.append(MealItem(group: $0, portion: .medium)) }
+                FoodGroupPicker { items.append(MealItem(group: $0)) }
             }
             .onAppear(perform: load)
         }

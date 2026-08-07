@@ -10,13 +10,14 @@ import Foundation
 public struct MealRevision: Codable, Sendable, Hashable {
     public struct Addition: Codable, Sendable, Hashable {
         public let group: FoodGroup
-        public let portion: Portion
+        /// Edible weight of everything of this ingredient the person ate.
+        public let grams: Double
         public let label: String?
         public let alternatives: [FoodGroup]
 
-        public init(group: FoodGroup, portion: Portion, label: String?, alternatives: [FoodGroup] = []) {
+        public init(group: FoodGroup, grams: Double, label: String?, alternatives: [FoodGroup] = []) {
             self.group = group
-            self.portion = portion
+            self.grams = grams
             self.label = label
             self.alternatives = alternatives
         }
@@ -26,12 +27,16 @@ public struct MealRevision: Codable, Sendable, Hashable {
         /// 1-based, matching the numbered list the model was shown.
         public let index: Int
         public let group: FoodGroup
-        public let portion: Portion
+        /// The corrected weight, repeated unchanged when only the group was
+        /// wrong. A revision used to carry a `Portion` here, which could not move
+        /// a weighed item at all — `effectiveServings` prefers grams, so the
+        /// delta applied cleanly and changed nothing anyone could see.
+        public let grams: Double
 
-        public init(index: Int, group: FoodGroup, portion: Portion) {
+        public init(index: Int, group: FoodGroup, grams: Double) {
             self.index = index
             self.group = group
-            self.portion = portion
+            self.grams = grams
         }
     }
 
@@ -60,14 +65,19 @@ public struct MealRevision: Codable, Sendable, Hashable {
             guard result.indices.contains(index) else { continue }
             if result[index].group != change.group { result[index].modelAlternatives = nil }
             result[index].group = change.group
-            result[index].portion = change.portion
+            result[index].grams = change.grams
+            // A row flattened before grams carries the ladder's arithmetic in
+            // `servings`, and that would outrank nothing but still sit there
+            // contradicting the weight just written. Clearing it leaves one
+            // quantity on the item, which is the whole point.
+            result[index].servings = nil
         }
 
         let removals = Set(remove.map { $0 - 1 }.filter { result.indices.contains($0) })
         result = result.enumerated().filter { !removals.contains($0.offset) }.map(\.element)
 
         result += add.map {
-            MealItem(group: $0.group, portion: $0.portion, label: $0.label, modelAlternatives: $0.alternatives)
+            MealItem(group: $0.group, label: $0.label, modelAlternatives: $0.alternatives, grams: $0.grams)
         }
         return result
     }
@@ -103,18 +113,23 @@ public enum MealRevisionPrompt {
 
     Rules:
     - Change as little as possible. Everything you do not mention is kept exactly \
-      as it is. The groups and portions already in the list may have been set by \
+      as it is. The groups and weights already in the list may have been set by \
       hand, and overwriting them destroys the person's own corrections.
     - `add` is for food that is present but missing from the list — above all the \
       ingredients no photograph can show: the fat a dish was fried in, eggs and \
       milk in a batter, sugar in a sauce, the dressing on a salad.
-    - `revise` is for an item whose group or portion is wrong. Give its number \
-      from the list and the corrected group and portion.
+    - `revise` is for an item whose group or weight is wrong. Give its number \
+      from the list, the corrected group, and the weight — repeated unchanged \
+      when only the group was wrong.
     - `remove` is for an item that is not food this person ate.
-    - Report GROUPS and coarse PORTIONS only. Never calories, grams, or \
-      macronutrients.
-    - Portion is relative to a normal serving of that group for one adult: small \
-      is about half, medium is one, large is two or more.
+    - `grams` is the edible weight of that ingredient, in grams, and it is \
+      ABSOLUTE: everything of it the person ate. "Two eggs, not one" doubles the \
+      weight rather than adding a second row.
+    - An item listed with no weight was logged before weights existed or typed in \
+      by hand. Give it one if the person's words let you, and leave it out of \
+      `revise` if they do not.
+    - Never report calories, fat, carbohydrate or any other macronutrient. \
+      Weight is the only number.
     - Avocado, olives, seeds, and tahini are `healthy_fats`, never fruit or \
       vegetables. Mayonnaise and cream-based dressings are `butter`; oil-based \
       dressings are `olive_oil`. `pastry` is commercially produced baked goods \
@@ -125,7 +140,8 @@ public enum MealRevisionPrompt {
     public static func message(current: [MealItem], note: String) -> String {
         let list = current.enumerated().map { index, item in
             let name = item.label.map { "\($0) — " } ?? ""
-            return "\(index + 1). \(name)\(item.group.rawValue), \(item.portion.rawValue)"
+            let weight = item.grams.map { "\(Int($0.rounded())) g" } ?? "no weight recorded"
+            return "\(index + 1). \(name)\(item.group.rawValue), \(weight)"
         }.joined(separator: "\n")
 
         return """
@@ -154,10 +170,10 @@ public enum MealRevisionPrompt {
                     "items": [
                         "type": "object",
                         "additionalProperties": false,
-                        "required": ["group", "portion", "label", "alternatives"],
+                        "required": ["group", "grams", "label", "alternatives"],
                         "properties": [
                             "group": ["type": "string", "enum": FoodGroup.allCases.map(\.rawValue)],
-                            "portion": ["type": "string", "enum": Portion.allCases.map(\.rawValue)],
+                            "grams": ["type": "number", "description": "\(MealPrompt.gramsDescription)"],
                             "label": ["type": ["string", "null"], "description": "Short human name for one food."],
                             "alternatives": [
                                 "type": "array",
@@ -169,15 +185,15 @@ public enum MealRevisionPrompt {
                 ],
                 "revise": [
                     "type": "array",
-                    "description": "Items whose group or portion is wrong.",
+                    "description": "Items whose group or weight is wrong.",
                     "items": [
                         "type": "object",
                         "additionalProperties": false,
-                        "required": ["index", "group", "portion"],
+                        "required": ["index", "group", "grams"],
                         "properties": [
                             "index": ["type": "integer", "description": "The item's number in the list above, starting at 1."],
                             "group": ["type": "string", "enum": FoodGroup.allCases.map(\.rawValue)],
-                            "portion": ["type": "string", "enum": Portion.allCases.map(\.rawValue)]
+                            "grams": ["type": "number", "description": "\(MealPrompt.gramsDescription)"]
                         ]
                     ]
                 ],
@@ -203,11 +219,11 @@ public enum MealRevisionPrompt {
                     "description": "Food that is present but missing from the list.",
                     "items": [
                         "type": "OBJECT",
-                        "propertyOrdering": ["group", "portion", "label", "alternatives"],
-                        "required": ["group", "portion", "label", "alternatives"],
+                        "propertyOrdering": ["group", "grams", "label", "alternatives"],
+                        "required": ["group", "grams", "label", "alternatives"],
                         "properties": [
                             "group": ["type": "STRING", "enum": FoodGroup.allCases.map(\.rawValue)],
-                            "portion": ["type": "STRING", "enum": Portion.allCases.map(\.rawValue)],
+                            "grams": ["type": "NUMBER", "description": "\(MealPrompt.gramsDescription)"],
                             "label": [
                                 "type": "STRING",
                                 "nullable": true,
@@ -223,15 +239,15 @@ public enum MealRevisionPrompt {
                 ],
                 "revise": [
                     "type": "ARRAY",
-                    "description": "Items whose group or portion is wrong.",
+                    "description": "Items whose group or weight is wrong.",
                     "items": [
                         "type": "OBJECT",
-                        "propertyOrdering": ["index", "group", "portion"],
-                        "required": ["index", "group", "portion"],
+                        "propertyOrdering": ["index", "group", "grams"],
+                        "required": ["index", "group", "grams"],
                         "properties": [
                             "index": ["type": "INTEGER", "description": "The item's number in the list above, starting at 1."],
                             "group": ["type": "STRING", "enum": FoodGroup.allCases.map(\.rawValue)],
-                            "portion": ["type": "STRING", "enum": Portion.allCases.map(\.rawValue)]
+                            "grams": ["type": "NUMBER", "description": "\(MealPrompt.gramsDescription)"]
                         ]
                     ]
                 ],

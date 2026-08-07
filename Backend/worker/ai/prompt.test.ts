@@ -4,14 +4,14 @@ import { describe, expect, it } from "vitest";
 import { MEAL_PROMPT_VERSION, MEAL_RECOGNITION_SYSTEM_PROMPT } from "./prompt";
 import { productionSpec } from "./spec";
 
-const promptFile = join(import.meta.dirname, "../../../prompts/meal-v16.md");
+const promptFile = join(import.meta.dirname, "../../../prompts/meal-v17.md");
 
 describe("meal recognition prompt", () => {
   it("matches the file it was generated from", () => {
     // The app and the proxy each used to hold their own copy, and within a day
     // the proxy was two rules behind while both reported the same version.
     expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toBe(readFileSync(promptFile, "utf8").trimEnd());
-    expect(MEAL_PROMPT_VERSION).toBe("meal-v16-2026-08-07");
+    expect(MEAL_PROMPT_VERSION).toBe("meal-v17-2026-08-07");
   });
 
   it("is the version the deployment stamps and keys its cache on", () => {
@@ -34,13 +34,27 @@ describe("meal recognition prompt", () => {
     expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("It is ABSOLUTE");
     expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("across every serving in the photograph");
     expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("Nothing multiplies `grams`");
-    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("so do not divide by them either");
-    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("never multiplied into them");
-    // Weight is asked for, energy and the other macros still are not.
-    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("Never estimate calories");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("so do not divide by it either");
     // Two bananas and an apple are two dishes; a cut fruit plate is one.
     expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("Separate discrete countable things");
     expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("mixed fruit plate");
+  });
+
+  it("asks for exactly one quantity", () => {
+    // v16 asked for grams AND a coarse portion AND a dish size, then had to
+    // rank them: grams win, which made the other two tokens spent on an answer
+    // nothing read and a chip in the UI that changed no score. Worse, one line
+    // of v16 still said "Report food GROUPS and coarse PORTIONS only. Never
+    // estimate calories, grams, or macronutrients" — a v10 rule that outlived
+    // its prompt and sat eleven lines under the rule demanding a weight.
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("the ONLY quantity you report");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("Every ingredient carries a weight");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).not.toContain("coarse PORTIONS");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).not.toContain("`portion`");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).not.toContain("`size`");
+    // Weight is asked for; energy and the other macros still are not.
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("Never estimate calories");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("`grams` is the exception");
   });
 
   it("gives every transcribed figure a unit, and does no arithmetic to get one", () => {

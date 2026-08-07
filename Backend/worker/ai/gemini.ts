@@ -1,4 +1,4 @@
-import { foodGroups, mealRecognitionSchema, panelBases, portions } from "../../src/contracts";
+import { foodGroups, mealRecognitionSchema, panelBases } from "../../src/contracts";
 import type { Env } from "../env";
 import { HttpError } from "../lib/http-error";
 import { productionSpec, type RecognitionSpec } from "./spec";
@@ -28,8 +28,8 @@ export function geminiResponseSchema(): Record<string, unknown> {
           "One entry per named thing on the closest place setting. Fried chicken, rice and miso soup are three dishes.",
         items: {
           type: "OBJECT",
-          propertyOrdering: ["name", "count", "size", "panel", "ingredients"],
-          required: ["name", "count", "size", "panel", "ingredients"],
+          propertyOrdering: ["name", "count", "panel", "ingredients"],
+          required: ["name", "count", "panel", "ingredients"],
           properties: {
             name: {
               type: "STRING",
@@ -39,12 +39,7 @@ export function geminiResponseSchema(): Record<string, unknown> {
             count: {
               type: "INTEGER",
               description:
-                "How many servings of this dish are present. Two plates of fried rice is one dish with count 2.",
-            },
-            size: {
-              type: "STRING",
-              enum: [...portions],
-              description: "How big ONE serving is, not how many there are.",
+                "How many servings of this dish are present. Two plates of fried rice is one dish with count 2. A label on the weights below, never a multiplier of them.",
             },
             panel: {
               type: "OBJECT",
@@ -110,15 +105,21 @@ export function geminiResponseSchema(): Record<string, unknown> {
               type: "ARRAY",
               items: {
                 type: "OBJECT",
-                propertyOrdering: ["group", "portion", "label", "alternatives"],
-                required: ["group", "portion", "label", "alternatives"],
+                // `grams` is declared here and not merely described in the
+                // prompt because Gemini emits exactly the properties this
+                // schema names and silently drops the rest. It was missing for
+                // the whole of v16: the prompt asked for a weight on every
+                // ingredient, the eval schema had somewhere to put one and
+                // graded it well, and every answer the app actually received
+                // came back weightless and scored on the ladder grams replaced.
+                propertyOrdering: ["group", "grams", "label", "alternatives"],
+                required: ["group", "grams", "label", "alternatives"],
                 properties: {
                   group: { ...group, description: "Your single best answer for this ingredient." },
-                  portion: {
-                    type: "STRING",
-                    enum: [...portions],
+                  grams: {
+                    type: "NUMBER",
                     description:
-                      "How much of this ingredient is in ONE serving of the dish. Never how much was eaten — do not apply count or size yourself.",
+                      "Edible weight of this ingredient on the plate, in grams — everything of it that is there, already including every serving present. Never scale it by the dish's count; that is not applied afterwards either.",
                   },
                   label: {
                     type: "STRING",

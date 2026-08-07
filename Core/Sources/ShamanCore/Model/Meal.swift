@@ -3,6 +3,11 @@ import Foundation
 public struct MealItem: Codable, Sendable, Hashable, Identifiable {
     public let id: UUID
     public var group: FoodGroup
+    /// How much of it there was, coarsely. Nothing sets this any more — no model
+    /// is asked for one and no screen offers one — but it stays required and
+    /// stays stored, because it is on every line of `events.jsonl` written
+    /// before v17 and the log is append-only. New items take `.medium` and score
+    /// off `grams`; old ones score off this, exactly as they always did.
     public var portion: Portion
     /// Free text from the model ("grilled sardines"). Never scored — it exists
     /// so the correction sheet can show you what the model thought it saw.
@@ -40,7 +45,7 @@ public struct MealItem: Codable, Sendable, Hashable, Identifiable {
     }
 
     /// The ingredient as it belongs inside a dish: its own share of one
-    /// serving, with the dish's count and size stripped back off. Flattening
+    /// serving, with the dish's own quantity stripped back off. Flattening
     /// multiplied them in, and storing the product inside the dish as well
     /// would apply it twice the next time the dish is flattened.
     public func withoutDishQuantity() -> MealItem {
@@ -57,7 +62,7 @@ public struct MealItem: Codable, Sendable, Hashable, Identifiable {
     public init(
         id: UUID = UUIDv7.generate(),
         group: FoodGroup,
-        portion: Portion,
+        portion: Portion = .medium,
         label: String? = nil,
         modelAlternatives: [FoodGroup]? = nil,
         dish: String? = nil,

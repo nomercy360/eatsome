@@ -41,7 +41,10 @@ struct LunaSessionTests {
             ((properties["items"] as? [String: Any])?["items"]) as? [String: Any]
         )
         #expect(itemSchema["additionalProperties"] as? Bool == false)
-        #expect(Set(try #require(itemSchema["required"] as? [String])) == ["group", "portion", "grams", "label", "alternatives"])
+        #expect(Set(try #require(itemSchema["required"] as? [String])) == ["group", "grams", "label", "alternatives"])
+        // One quantity. `portion` stood beside `grams` until v17 and always lost
+        // to it — asking for both spent tokens on an answer nothing read.
+        #expect(itemSchema.description.contains("portion") == false)
 
         // The enum has to be the actual model, or the app silently drops groups.
         let itemProperties = try #require(itemSchema["properties"] as? [String: Any])
@@ -91,14 +94,14 @@ struct LunaSessionTests {
             .deletingLastPathComponent()
             .deletingLastPathComponent()
             .deletingLastPathComponent()
-            .appendingPathComponent("prompts/meal-v16.md")
+            .appendingPathComponent("prompts/meal-v17.md")
         let source = try String(contentsOf: file, encoding: .utf8)
 
         #expect(
             MealPrompt.system == source.trimmingCharacters(in: .whitespacesAndNewlines),
             "run: node scripts/sync-prompt.mjs"
         )
-        #expect(MealPrompt.version == "meal-v16-2026-08-07")
+        #expect(MealPrompt.version == "meal-v17-2026-08-07")
     }
 
     @Test("A well-formed response decodes")
@@ -107,32 +110,52 @@ struct LunaSessionTests {
         {"status":"completed","output":[
           {"type":"reasoning","summary":[]},
           {"type":"message","content":[{"type":"output_text","text":
-            "{\\"items\\":[{\\"group\\":\\"fish\\",\\"portion\\":\\"large\\",\\"label\\":\\"grilled sardines\\",\\"alternatives\\":[\\"white_meat\\"]},{\\"group\\":\\"olive_oil\\",\\"portion\\":\\"small\\",\\"label\\":null,\\"alternatives\\":[]}],\\"other_meals_visible\\":true,\\"notes\\":null}"
+            "{\\"items\\":[{\\"group\\":\\"fish\\",\\"grams\\":180,\\"label\\":\\"grilled sardines\\",\\"alternatives\\":[\\"white_meat\\"]},{\\"group\\":\\"olive_oil\\",\\"grams\\":9,\\"label\\":null,\\"alternatives\\":[]}],\\"other_meals_visible\\":true,\\"notes\\":null}"
           }]}
         ]}
         """
-        let artifact = try LunaSession.parse(Data(json.utf8), promptVersion: "test-v3")
+        let artifact = try LunaSession.parse(Data(json.utf8), promptVersion: "test-v17")
         let recognition = artifact.recognition
         #expect(recognition.items.count == 2)
         #expect(recognition.items[0].group == .fish)
-        #expect(recognition.items[0].portion == .large)
+        #expect(recognition.items[0].grams == 180)
         #expect(recognition.items[0].alternatives == [.whiteMeat])
         #expect(recognition.items[1].group == .oliveOil)
         #expect(recognition.items[1].alternatives.isEmpty)
         #expect(recognition.otherMealsVisible)
-        #expect(artifact.promptVersion == "test-v3")
+        #expect(artifact.promptVersion == "test-v17")
         #expect(artifact.rawModelJSON.contains("grilled sardines"))
 
         let mealItems = recognition.asMealItems()
         #expect(mealItems.count == 2)
         #expect(mealItems[0].label == "grilled sardines")
+        #expect(mealItems[0].grams == 180)
         #expect(mealItems[0].modelAlternatives == [.whiteMeat])
+    }
+
+    @Test("An answer cached under an older prompt still scores what it scored")
+    func parsesPreGramsAnswer() throws {
+        // v16 and earlier returned a portion and no weight. Those cache files
+        // outlive the prompt that bought them, and throwing them away would cost
+        // a real API call each — so the portion is decoded into `servings`,
+        // which is where the ladder's answer already lived.
+        let json = """
+        {"status":"completed","output":[
+          {"type":"message","content":[{"type":"output_text","text":
+            "{\\"items\\":[{\\"group\\":\\"fish\\",\\"portion\\":\\"large\\",\\"label\\":\\"sardines\\",\\"alternatives\\":[]}],\\"other_meals_visible\\":false,\\"notes\\":null}"
+          }]}
+        ]}
+        """
+        let recognition = try LunaSession.parse(Data(json.utf8), promptVersion: "meal-v16").recognition
+        #expect(recognition.items[0].grams == nil)
+        #expect(recognition.items[0].servings == Portion.large.servings)
+        #expect(recognition.asMealItems()[0].effectiveServings() == Portion.large.servings)
     }
 
     @Test("Only alternatives that would move the score are worth confirming")
     func scoreCriticalAlternatives() {
         let meat = MealRecognition.Item(
-            group: .whiteMeat, portion: .medium, label: "minced meat topping",
+            group: .whiteMeat, label: "minced meat topping",
             alternatives: [.redMeat, .processedMeat]
         )
         // Red and processed meat both count against item 5; white meat counts
@@ -140,7 +163,7 @@ struct LunaSessionTests {
         #expect(meat.scoreCriticalAlternatives() == [.redMeat, .processedMeat])
 
         let rice = MealRecognition.Item(
-            group: .refinedGrains, portion: .medium, label: "white rice",
+            group: .refinedGrains, label: "white rice",
             alternatives: [.wholeGrains]
         )
         // MEDAS scores no grain item at all, so this one is not worth a tap.
@@ -209,9 +232,9 @@ struct LunaSessionTests {
                 let recognition = MealRecognition(
                     items: [.init(
                         group: .vegetables,
-                        portion: .medium,
                         label: "salad",
-                        alternatives: []
+                        alternatives: [],
+                        grams: 90
                     )],
                     otherMealsVisible: false,
                     notes: nil

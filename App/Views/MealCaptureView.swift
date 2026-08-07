@@ -25,7 +25,7 @@ struct MealCaptureView: View {
     @State private var imageData: Data?
     @State private var artifact: RecognitionArtifact?
     @State private var items: [MealItem] = []
-    /// The names, counts and sizes the flat list cannot carry. `items` stays
+    /// The names and counts the flat list cannot carry. `items` stays
     /// the edit surface — the refiner returns a delta against it — and this is
     /// rebuilt from it, so the two never drift.
     @State private var dishes: [MealDish] = []
@@ -121,7 +121,7 @@ struct MealCaptureView: View {
                     onEditIngredient: { editing = EditingFood(id: $0) },
                     onAddIngredient: {
                         guard let index = dishes.firstIndex(where: { $0.id == dish.id }) else { return }
-                        let added = MealItem(group: .other, portion: .medium)
+                        let added = MealItem(group: .other)
                         dishes[index].items.append(added)
                         items = dishes.flatMap { $0.flattened() }
                         didEdit = true
@@ -136,12 +136,6 @@ struct MealCaptureView: View {
                         // weighed dish already holds every serving that is present, so
                         // "one, not three" has to take two thirds of it back off.
                         dishes[index] = dishes[index].scaled(toCount: count)
-                        items = dishes.flatMap { $0.flattened() }
-                        didEdit = true
-                    },
-                    onSize: { size in
-                        guard let index = dishes.firstIndex(where: { $0.id == dish.id }) else { return }
-                        dishes[index].size = size
                         items = dishes.flatMap { $0.flattened() }
                         didEdit = true
                     },
@@ -863,8 +857,11 @@ struct MealCaptureView: View {
     }
 
     private func load(_ recipe: Recipe) {
+        // Fresh ids, everything else as saved — including the weight. Rebuilding
+        // without `grams` used to cost a recipe its quantity on every load, and
+        // once portions stopped meaning anything that was the whole quantity.
         items = recipe.items.map {
-            MealItem(group: $0.group, portion: $0.portion, label: $0.label)
+            MealItem(group: $0.group, portion: $0.portion, label: $0.label, grams: $0.grams)
         }
         note = recipe.note ?? ""
         sourceRecipeID = recipe.id

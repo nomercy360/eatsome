@@ -4,6 +4,33 @@ Newest first. Every entry names the failure the change is meant to fix, so a
 version that does not fix anything is visibly a version that does not fix
 anything.
 
+v9 through v16 shipped without entries. That is a gap in this file, not a run of
+versions that changed nothing.
+
+## meal-v17-2026-08-07
+
+One quantity. v16 asked for `grams` and for `portion` and `size` alongside it,
+and the two answers had to be reconciled somewhere — which meant every reader,
+human or machine, had to know that grams win.
+
+- **The prompt contradicted itself.** v16 asked for a weight on every ingredient
+  and then, eleven lines later in the panel section, said "Report food GROUPS
+  and coarse PORTIONS only. Never estimate calories, grams, or macronutrients".
+  Both lines shipped. The second is a v10-era rule that survived the rewrite,
+  and it sat in exactly the section a packaged item exercises.
+- **`portion` and `size` are gone from the contract.** Grams are absolute and
+  nothing multiplies them, so a coarse second opinion had no consumer:
+  `effectiveServings` already preferred grams, which made a `portion` the model
+  spent tokens on unreadable and a `size` chip in the UI inert. Asking for one
+  number means it cannot disagree with another.
+- **The panel rule now says what it means.** Calories, fat and carbohydrate are
+  still read off a label or not reported; `grams` is named as the exception,
+  because a weight is something the photograph shows.
+
+Not graded yet. v16's numbers were measured against the eval schema, which
+carries grams; the production Gemini schema never did — see the note in
+`Backend/worker/ai/gemini.ts`.
+
 ## meal-v8-2026-08-05
 
 Three changes, two of them fixing rules that could not be obeyed. Still not the

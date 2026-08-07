@@ -22,7 +22,7 @@
     "QWEN_RECOGNITION_MODEL": "qwen3.7-flash",
     "QWEN_BASE_URL": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
     "OPENAI_IMAGE_DETAIL": "high",
-    "MEAL_PROMPT_VERSION": "meal-v16-2026-08-07",
+    "MEAL_PROMPT_VERSION": "meal-v17-2026-08-07",
     "RECOGNITIONS_PER_DAY": "400",
     "RECOGNITIONS_PER_DEVICE_PER_DAY": "40"
   },

@@ -146,7 +146,7 @@ struct AddByHandView: View {
     }
 
     private func add(_ group: FoodGroup) {
-        picked.append(MealItem(group: group, portion: .medium))
+        picked.append(MealItem(group: group))
     }
 
     private func startOfCapture(_ day: Date) -> Date {

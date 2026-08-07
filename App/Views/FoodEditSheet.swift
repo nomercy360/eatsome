@@ -3,10 +3,16 @@ import SwiftUI
 
 /// What opens when you tap a word in the sentence.
 ///
-/// Two questions and a way out, in the order they matter: what is it, how much
-/// was there, and remove it. The model's own shortlist comes first, then the
-/// groups it habitually confuses, then everything — so the likely answer is
-/// one tap and the unlikely one is still reachable.
+/// One question and a way out: what is it, and remove it. The model's own
+/// shortlist comes first, then the groups it habitually confuses, then
+/// everything — so the likely answer is one tap and the unlikely one is still
+/// reachable.
+///
+/// How much is shown and not asked. It was three chips until v17, and on a
+/// weighed item they moved nothing — `effectiveServings` reads grams and never
+/// reached the portion. Weight is corrected in words on the fix screen instead,
+/// where "that was half a bowl" revises the number rather than picking a bucket
+/// for it.
 struct FoodEditSheet: View {
     @Binding var item: MealItem
     let onRemove: () -> Void
@@ -43,23 +49,12 @@ struct FoodEditSheet: View {
                     }
                     .wellieCard()
 
-                    VStack(alignment: .leading, spacing: 14) {
-                        WellieSectionTitle(text: "How much?", detail: "Rough is fine — nothing here is weighed.")
-                        HStack(spacing: 7) {
-                            ForEach(Portion.allCases, id: \.self) { portion in
-                                Button {
-                                    item.portion = portion
-                                    onChange?()
-                                } label: {
-                                    WellieChip(
-                                        text: portion.plainName,
-                                        style: portion == item.portion ? .selected : .soft,
-                                        size: 14
-                                    )
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
+                    VStack(alignment: .leading, spacing: 10) {
+                        WellieSectionTitle(text: "How much?", detail: weightDetail)
+                        Text(weight)
+                            .font(WellieTheme.font(22, weight: .bold))
+                            .foregroundStyle(WellieTheme.ink)
+                            .contentTransition(.numericText())
                     }
                     .wellieCard()
 
@@ -91,6 +86,19 @@ struct FoodEditSheet: View {
         }
         .presentationDetents([.medium, .large])
         .wellieScreen()
+    }
+
+    /// What the photo was read as weighing. An item with no weight is either
+    /// older than v17 or typed in by hand, and says so rather than showing a
+    /// number nobody arrived at.
+    private var weight: String {
+        item.grams.map { "\(Int($0.rounded())) g" } ?? "Not weighed"
+    }
+
+    private var weightDetail: String {
+        item.grams == nil
+            ? "Added by hand. Say what it was on the fix screen and it gets a weight."
+            : "Read off the photo. Wrong? Say so on the fix screen — \"only half of that\"."
     }
 
     /// The model's rivals, then the ones it habitually confuses, then nothing

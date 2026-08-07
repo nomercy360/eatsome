@@ -51,7 +51,12 @@ struct GeminiSessionTests {
         let properties = try #require(schema["properties"] as? [String: Any])
         let itemSchema = try #require((properties["items"] as? [String: Any])?["items"] as? [String: Any])
         let itemProperties = try #require(itemSchema["properties"] as? [String: Any])
-        #expect(Set(try #require(itemSchema["required"] as? [String])) == ["group", "portion", "grams", "label", "alternatives"])
+        #expect(Set(try #require(itemSchema["required"] as? [String])) == ["group", "grams", "label", "alternatives"])
+        // Gemini emits exactly the properties this schema names, which is how a
+        // missing `grams` went unnoticed for a version: the prompt asked for a
+        // weight and the schema had nowhere to put one.
+        #expect(itemProperties["grams"] != nil)
+        #expect(itemProperties["portion"] == nil)
 
         // The enum has to be the actual model, or the app silently drops groups.
         let groups = try #require((itemProperties["group"] as? [String: Any])?["enum"] as? [String])
@@ -120,7 +125,7 @@ struct GeminiSessionTests {
                 let call = await counter.increment()
                 return RecognitionArtifact(
                     recognition: MealRecognition(
-                        items: [.init(group: .vegetables, portion: .medium, label: "call \(call)")],
+                        items: [.init(group: .vegetables, label: "call \(call)", grams: 90)],
                         otherMealsVisible: false,
                         notes: nil
                     ),

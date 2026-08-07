@@ -188,15 +188,14 @@ public struct GeminiSession: MealRecognizer, MealRefiner {
                     "type": "ARRAY",
                     "items": [
                         "type": "OBJECT",
-                        "propertyOrdering": ["group", "portion", "grams", "label", "alternatives"],
-                        "required": ["group", "portion", "grams", "label", "alternatives"],
+                        "propertyOrdering": ["group", "grams", "label", "alternatives"],
+                        "required": ["group", "grams", "label", "alternatives"],
                         "properties": [
                             "group": [
                                 "type": "STRING",
                                 "enum": FoodGroup.allCases.map(\.rawValue),
                                 "description": "Your single best answer for this item."
                             ],
-                            "portion": ["type": "STRING", "enum": Portion.allCases.map(\.rawValue)],
                             "grams": [
                                 "type": "NUMBER",
                                 "description": MealPrompt.gramsDescription

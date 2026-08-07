@@ -8,13 +8,17 @@ import Foundation
 /// points of median error and corrected a systematic under-read.
 ///
 /// Grams are absolute — everything of that ingredient on the plate — so nothing
-/// multiplies them by the dish's count or size afterwards. Fat, carbohydrate and
+/// multiplies them by the dish's count afterwards. Fat, carbohydrate and
 /// calories are still never requested: a weight is an observation, and those are
 /// a nutrition database's answer, not a model's.
+///
+/// It is also the *only* quantity asked for. `portion` and `size` were requested
+/// alongside grams until v17 and then always lost to them, which made the coarse
+/// answer tokens spent on something nothing read — and hid, for a month, that
+/// the production Gemini schema was returning no weight at all.
 public struct MealRecognition: Codable, Sendable, Hashable {
     public struct Item: Codable, Sendable, Hashable {
         public let group: FoodGroup
-        public let portion: Portion
         public let label: String?
         /// Other groups that could plausibly be right for THIS item, most likely
         /// first. Empty is the normal case and means the model was not torn.
@@ -26,19 +30,22 @@ public struct MealRecognition: Codable, Sendable, Hashable {
         /// answering a question about the photograph, and the answer is directly
         /// useful: it becomes the one-tap correction.
         public let alternatives: [FoodGroup]
-        /// The dish this ingredient came out of, and what it contributes once
-        /// the dish's count and size are applied. Both are absent from answers
-        /// produced before dishes existed, and from cache files written then.
+        /// The dish this ingredient came out of. Absent from answers produced
+        /// before dishes existed, and from cache files written then.
         public let dish: String?
+        /// Always nil from v17 on: the server has no arithmetic left to do. Read
+        /// only so an answer cached under an older prompt still scores the way
+        /// it did when it was bought.
         public let servings: Double?
-        /// The edible weight of this ingredient on the plate. Optional because
-        /// every cached answer written before grams were asked for has none, and
-        /// a required field would throw them all away.
+        /// The edible weight of this ingredient on the plate, and the quantity.
+        ///
+        /// Still optional, and only for cache files written before grams were
+        /// asked for — a required field would throw all of them away. Nothing
+        /// the current contract returns has a nil here.
         public let grams: Double?
 
         public init(
             group: FoodGroup,
-            portion: Portion,
             label: String?,
             alternatives: [FoodGroup] = [],
             dish: String? = nil,
@@ -46,7 +53,6 @@ public struct MealRecognition: Codable, Sendable, Hashable {
             grams: Double? = nil
         ) {
             self.group = group
-            self.portion = portion
             self.label = label
             self.alternatives = alternatives
             self.dish = dish
@@ -68,8 +74,9 @@ public struct MealRecognition: Codable, Sendable, Hashable {
     /// flattened list — remains what everything scores from.
     public struct Dish: Codable, Sendable, Hashable {
         public let name: String
+        /// How many servings of this dish. A label on the weights below rather
+        /// than a factor over them — the ingredients already weigh all of it.
         public let count: Int
-        public let size: Portion
         /// Figures transcribed from packaging, when any were printed and legible.
         public let panel: NutritionPanel?
         public let ingredients: [Item]
@@ -77,13 +84,11 @@ public struct MealRecognition: Codable, Sendable, Hashable {
         public init(
             name: String,
             count: Int = 1,
-            size: Portion = .medium,
             panel: NutritionPanel? = nil,
             ingredients: [Item] = []
         ) {
             self.name = name
             self.count = count
-            self.size = size
             self.panel = panel
             self.ingredients = ingredients
         }
@@ -113,12 +118,10 @@ public struct MealRecognition: Codable, Sendable, Hashable {
                 MealDish(
                     name: dish.name,
                     count: dish.count,
-                    size: dish.size,
                     panel: (dish.panel?.isEmpty ?? true) ? nil : dish.panel,
                     items: dish.ingredients.map {
                         MealItem(
                             group: $0.group,
-                            portion: $0.portion,
                             label: $0.label,
                             modelAlternatives: $0.alternatives,
                             grams: $0.grams
@@ -133,7 +136,6 @@ public struct MealRecognition: Codable, Sendable, Hashable {
         items.map {
             MealItem(
                 group: $0.group,
-                portion: $0.portion,
                 label: $0.label,
                 modelAlternatives: $0.alternatives,
                 dish: $0.dish,
@@ -156,11 +158,15 @@ public struct MealRecognition: Codable, Sendable, Hashable {
 
     private struct DecodedItem: Decodable {
         let group: FoodGroup
-        let portion: Portion
         let label: String?
         let alternatives: [FoodGroup]?
         let confidence: Double?
         let dish: String?
+        /// Carried by every answer written before v17 and by none written after.
+        /// Decoded and dropped: `Item` has no portion to put it in, and the point
+        /// of the version is that there is one quantity. An old cache row keeps
+        /// its `servings`, which is where its ladder arithmetic already landed.
+        let portion: Portion?
         let servings: Double?
         let grams: Double?
     }
@@ -181,12 +187,13 @@ public struct MealRecognition: Codable, Sendable, Hashable {
         items = try container.decode([DecodedItem].self, forKey: .items).map {
             Item(
                 group: $0.group,
-                portion: $0.portion,
                 label: $0.label,
                 alternatives: $0.alternatives
                     ?? Self.legacyAlternatives(for: $0.group, confidence: $0.confidence ?? legacyConfidence),
                 dish: $0.dish,
-                servings: $0.servings,
+                // An old row that had only a portion kept its quantity in
+                // `servings`; one that had neither is a serving, as it was.
+                servings: $0.servings ?? ($0.grams == nil ? $0.portion?.servings : nil),
                 grams: $0.grams
             )
         }
@@ -284,7 +291,7 @@ public enum MealPrompt {
     /// and a model that helpfully multiplies would be double-counting something
     /// nothing downstream divides back out.
     static let gramsDescription = """
-    Edible weight of this ingredient on the plate, in grams — everything of it that is there, already including every serving present. Never scale it by the dish's count or size; that is not applied afterwards either.
+    Edible weight of this ingredient on the plate, in grams — everything of it that is there, already including every serving present. Never scale it by the dish's count; that is not applied afterwards either. This is the only quantity asked for.
     """
 
     /// Strict JSON Schema for the Responses API. Every property must appear in
@@ -304,14 +311,13 @@ public enum MealPrompt {
                     "items": [
                         "type": "object",
                         "additionalProperties": false,
-                        "required": ["group", "portion", "grams", "label", "alternatives"],
+                        "required": ["group", "grams", "label", "alternatives"],
                         "properties": [
                             "group": [
                                 "type": "string",
                                 "enum": FoodGroup.allCases.map(\.rawValue),
                                 "description": "Your single best answer for this item."
                             ],
-                            "portion": ["type": "string", "enum": Portion.allCases.map(\.rawValue)],
                             "grams": ["type": "number", "description": "\(gramsDescription)"],
                             "label": [
                                 "type": ["string", "null"],

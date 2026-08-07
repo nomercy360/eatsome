@@ -42,6 +42,10 @@ Anything that touches a framework goes in `App/`. HealthKit is isolated in
   silently disappears from the projection.
 - **A text correction is a delta, never a re-run.** `MealRefiner` returns a
   `MealRevision` that touches only the rows the model names; hand edits survive.
+  It is also the *only* way a quantity is corrected by hand — an `add` and a
+  `revise` both carry `grams`. They carried a `Portion` until v17, which could
+  not move a weighed row at all: the delta applied, the summary said "1 changed",
+  and `effectiveServings` went on reading the weight.
 - **No calories are ever derived, and none are ever totalled.** A figure
   transcribed off a printed label may be stored, because reading a fact is not
   estimating one, and it stays inert: nothing sums it and no screen shows a
@@ -60,6 +64,25 @@ Anything that touches a framework goes in `App/`. HealthKit is isolated in
   grams' 26%, and systematically under-read: ×0.68 on plates over 45 g of
   protein. Grams also express what the ladder could not say at all — `large`
   caps at two servings, so 300 g of beef in a pan had no representation.
+- **Weight is the only quantity, and it is required.** `portion` and `size` were
+  asked for alongside `grams` from v16 and always lost to it in
+  `effectiveServings`, so from v17 neither is in a prompt, a response schema, or
+  a control. `grams` is non-nullable in `mealRecognitionItemSchema`, which is the
+  point: while a coarse fallback stood behind it, the production Gemini schema
+  omitted the field entirely for a month, every answer still parsed, and every
+  meal was quietly scored on the ladder grams had replaced. A fallback for a
+  required measurement is a way to not notice it is missing.
+
+  Both stored fields survive on `MealItem` and `MealDish` because the log is
+  append-only and a meal from before v17 must score the way it scored the day it
+  was written. Nothing sets them on a new item.
+- **The Gemini response schema is hand-written; everything else is derived.**
+  `geminiResponseSchema()` in `Backend/worker/ai/gemini.ts` is the one contract
+  not generated from Zod — Gemini rejects `additionalProperties` and spells
+  nullable as a flag — and it emits *exactly* the properties it names, dropping
+  anything the prompt asks for and it does not declare. That is how v16 shipped
+  a weighing prompt that returned no weights. `recognize.test.ts` now compares
+  its ingredient fields against `mealRecognitionJsonSchema()`; keep that guard.
 - **Grams are absolute, and nothing multiplies them.** An ingredient's `grams`
   is everything of it present, across every serving in the photograph. The dish
   still carries `count`, but as a label and a control: changing it rewrites the
@@ -69,6 +92,8 @@ Anything that touches a framework goes in `App/`. HealthKit is isolated in
   the two compounded. Measured, that structure cost 7 points of median error and
   half again as many gross misses. `MealDish.weighed` is the switch; a meal
   logged before grams keeps the ladder and scores exactly as it always did.
+  `flattenDishes` now writes `servings: null` on every row: there is no
+  arithmetic left for the server to do.
 - **`ServingWeight` converts weight to servings, and is not a nutrition table.**
   It says what one MEDAS serving of a group weighs, nothing about what is in it.
   Its alcohol row is wrong by construction and says so: MEDAS counts drinks, and
@@ -85,17 +110,22 @@ Anything that touches a framework goes in `App/`. HealthKit is isolated in
   Carbohydrate and fat get no gram targets — that road ends at a calorie
   counter.
 - **A meal is dishes; a dish is ingredients.** `count` is how many servings of
-  the dish and `size` how big one is; both are labels on a weighed dish and only
-  multiply on a meal described in portions, which is every meal logged before
-  August 2026 and everything added by hand. `MealEntry` stores
-  the dishes and the flat list both, and `MealDish.flattened()` is the only
-  thing that writes the flat list; a build from before dishes scores an old meal
-  and a new one alike from it.
+  the dish; `size` is a stored leftover that only multiplies on a meal described
+  in portions, which is every meal logged before August 2026 and everything added
+  by hand. `MealEntry` stores the dishes and the flat list both, and
+  `MealDish.flattened()` is the only thing that writes the flat list; a build
+  from before dishes scores an old meal and a new one alike from it.
+- **Quantity is shown, not picked.** The dish sheet (`2d`) offers a count
+  stepper and nothing else; the ingredient sheet shows a weight and does not
+  edit it. Both offered portion chips until v17, and on a weighed row the chips
+  changed no number while looking exactly like a control that did. A wrong weight
+  is corrected in words on the fix screen, which is what `MealRefiner` is for.
 - **Items are what was seen; `MealEntry.servings(of:)` is what counts.** A meal
   contributes at most one large portion of any single group
   (`MealScoring.perMealGroupCap`), scaled by `MealShare`. Never sum
   `item.portion.servings` directly into a score — four fruit rows on one platter
-  are one plate of fruit.
+  are one plate of fruit. `MealItem.effectiveServings()` is the one place that
+  decides which of `grams`, `servings` and `portion` is authoritative.
 - **Thresholds and prompts belong in `shaman-config.json`,** not in Swift
   literals, so they can change without a rebuild.
 - **Three names per food group, and they are not interchangeable.**

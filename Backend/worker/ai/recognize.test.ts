@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { foodGroups, portions } from "../../src/contracts";
+import { foodGroups, mealRecognitionJsonSchema } from "../../src/contracts";
 import type { Env } from "../env";
 import { HttpError } from "../lib/http-error";
 import { geminiResponseSchema, requestGeminiRecognition } from "./gemini";
@@ -48,7 +48,7 @@ describe("provider selection", () => {
 
 describe("a correction with no photograph", () => {
   const spec = revisionSpec({
-    current: [{ group: "fish", portion: "medium", label: null }],
+    current: [{ group: "fish", grams: 120, label: null }],
     note: "there were two eggs in it",
   });
   const answer = { add: [], revise: [], remove: [], notes: null };
@@ -114,17 +114,56 @@ describe("gemini response schema", () => {
     const properties = schema.properties as Record<string, Record<string, unknown>>;
     const dish = (properties.dishes as { items: Record<string, unknown> }).items;
     const dishProperties = dish.properties as Record<string, Record<string, unknown>>;
-    expect(dish.required).toEqual(["name", "count", "size", "panel", "ingredients"]);
-    expect(dishProperties.size.enum).toEqual([...portions]);
+    expect(dish.required).toEqual(["name", "count", "panel", "ingredients"]);
     const item = (dishProperties.ingredients as { items: Record<string, unknown> }).items;
     const itemProperties = item.properties as Record<string, Record<string, unknown>>;
 
     expect(itemProperties.group.enum).toEqual([...foodGroups]);
-    expect(itemProperties.portion.enum).toEqual([...portions]);
     expect((itemProperties.alternatives.items as { enum: string[] }).enum).toEqual([...foodGroups]);
-    expect(item.required).toEqual(["group", "portion", "label", "alternatives"]);
+    expect(item.required).toEqual(["group", "grams", "label", "alternatives"]);
     // Nullability is a flag here, not a union type.
     expect(itemProperties.label.nullable).toBe(true);
     expect(properties.notes.nullable).toBe(true);
+  });
+
+  it("asks for a weight on every ingredient", () => {
+    // The v16 regression, as a test. This schema is hand-written while every
+    // other provider derives theirs from the Zod contract, so it is the one
+    // that can quietly fall behind — and it did: the prompt asked for grams,
+    // the eval schema had a slot for them, and this one did not, so Gemini
+    // emitted none and the app scored a month of meals on the old ladder.
+    const properties = schema.properties as Record<string, Record<string, unknown>>;
+    const dish = (properties.dishes as { items: Record<string, unknown> }).items;
+    const dishProperties = dish.properties as Record<string, Record<string, unknown>>;
+    const item = (dishProperties.ingredients as { items: Record<string, unknown> }).items;
+    const itemProperties = item.properties as Record<string, Record<string, unknown>>;
+
+    expect(itemProperties.grams.type).toBe("NUMBER");
+    // Not nullable, and required: Gemini returns exactly the properties named
+    // here, so anything optional is a field that can come back missing.
+    expect(itemProperties.grams.nullable).toBeUndefined();
+    expect(item.required).toContain("grams");
+  });
+
+  it("names the same ingredient fields as the contract every other provider gets", () => {
+    // The drift guard. OpenAI, Anthropic, Qwen and OpenRouter are all handed
+    // `mealRecognitionJsonSchema()`; only Gemini gets the copy above. Comparing
+    // the two is what turns "someone forgot to add the field here as well" from
+    // a silent month into a failing test.
+    const contract = mealRecognitionJsonSchema() as {
+      properties: {
+        dishes: { items: { properties: { ingredients: { items: { properties: object } } } } };
+      };
+    };
+    const contractFields = Object.keys(
+      contract.properties.dishes.items.properties.ingredients.items.properties,
+    ).sort();
+
+    const properties = schema.properties as Record<string, Record<string, unknown>>;
+    const dish = (properties.dishes as { items: Record<string, unknown> }).items;
+    const dishProperties = dish.properties as Record<string, Record<string, unknown>>;
+    const item = (dishProperties.ingredients as { items: Record<string, unknown> }).items;
+
+    expect(Object.keys(item.properties as object).sort()).toEqual(contractFields);
   });
 });

@@ -18,12 +18,11 @@ describe("meal recognition contract", () => {
         {
           name: "keema curry",
           count: 1,
-          size: "medium",
           panel: null,
           ingredients: [
             {
               group: "white_meat",
-              portion: "medium",
+              grams: 140,
               label: "minced meat",
               alternatives: ["red_meat"],
             },
@@ -43,37 +42,47 @@ describe("meal recognition contract", () => {
     expect(JSON.stringify(jsonSchema)).toContain("ingredients");
   });
 
-  it("multiplies count, size and the ingredient's share of one serving", () => {
+  it("rejects an ingredient with no weight", () => {
+    // The whole point of v17. While `grams` was nullable behind a `portion`
+    // fallback, the production Gemini schema omitted the field entirely and
+    // every answer still parsed — the failure was silent for a month.
+    expect(() =>
+      mealRecognitionSchema.parse({
+        dishes: [
+          {
+            name: "beer",
+            count: 1,
+            panel: null,
+            ingredients: [{ group: "alcohol", label: "beer", alternatives: [] }],
+          },
+        ],
+        other_meals_visible: false,
+        notes: null,
+      }),
+    ).toThrow();
+  });
+
+  it("passes weights through untouched and multiplies nothing", () => {
     const flat = flattenDishes({
       dishes: [
-        // Three beers: the count is the whole quantity.
+        // Three beers: the count says three and the grams already hold all
+        // three. Multiplying here is what made one bowl of ramen 126 g of
+        // protein — the model called the bowl large and the noodles large.
         {
           name: "beer",
           count: 3,
-          size: "medium",
           panel: null,
-          ingredients: [{ group: "alcohol", portion: "medium", label: "beer", alternatives: [] }],
+          ingredients: [{ group: "alcohol", grams: 1_200, label: "beer", alternatives: [] }],
         },
         // One salad: mostly leaves, a drizzle of oil. Two dressed salads must
         // not clear the 4 tbsp/day olive oil criterion between them.
         {
           name: "green salad",
           count: 1,
-          size: "medium",
           panel: null,
           ingredients: [
-            { group: "vegetables", portion: "medium", label: "leaves", alternatives: [] },
-            { group: "olive_oil", portion: "small", label: "dressing", alternatives: [] },
-          ],
-        },
-        // A big plate of one thing reaches the same place by the other route.
-        {
-          name: "fried rice",
-          count: 1,
-          size: "large",
-          panel: null,
-          ingredients: [
-            { group: "refined_grains", portion: "medium", label: "rice", alternatives: [] },
+            { group: "vegetables", grams: 90, label: "leaves", alternatives: [] },
+            { group: "olive_oil", grams: 8, label: "dressing", alternatives: [] },
           ],
         },
       ],
@@ -81,32 +90,51 @@ describe("meal recognition contract", () => {
       notes: null,
     });
 
-    expect(flat.items.map((item) => [item.dish, item.group, item.servings])).toEqual([
-      ["beer", "alcohol", 3],
-      ["green salad", "vegetables", 1],
-      ["green salad", "olive_oil", 0.5],
-      ["fried rice", "refined_grains", 2],
+    expect(flat.items.map((item) => [item.dish, item.group, item.grams])).toEqual([
+      ["beer", "alcohol", 1_200],
+      ["green salad", "vegetables", 90],
+      ["green salad", "olive_oil", 8],
     ]);
+    // No arithmetic left to record. A client that finds a number here is
+    // reading a server that still multiplied.
+    expect(flat.items.every((item) => item.servings === null)).toBe(true);
     // The dishes survive alongside the flat list a shipped build still reads.
-    expect(flat.dishes).toHaveLength(3);
+    expect(flat.dishes).toHaveLength(2);
   });
 });
 
 describe("meal refinement contract", () => {
   it("accepts a minimal delta against a numbered current list", () => {
     const request = refinementRequestSchema.parse({
-      current: [{ group: "white_meat", portion: "medium", label: "chicken" }],
+      // A hand-typed row has no weight to send, and says so rather than
+      // inventing one for the field.
+      current: [
+        { group: "white_meat", grams: 160, label: "chicken" },
+        { group: "vegetables", grams: null, label: "salad" },
+      ],
       note: "fried in butter",
     });
-    expect(request.current).toHaveLength(1);
+    expect(request.current).toHaveLength(2);
     expect(
       mealRevisionSchema.parse({
-        add: [{ group: "butter", portion: "small", label: "butter", alternatives: [] }],
+        add: [{ group: "butter", grams: 12, label: "butter", alternatives: [] }],
         revise: [],
         remove: [],
         notes: null,
-      }).add[0]?.group,
-    ).toBe("butter");
+      }).add[0]?.grams,
+    ).toBe(12);
+  });
+
+  it("revises a weight, which is the correction that used to do nothing", () => {
+    // A revise carrying a portion could not move a weighed item: grams win in
+    // `effectiveServings`, so the delta applied and changed no score.
+    const revision = mealRevisionSchema.parse({
+      add: [],
+      revise: [{ index: 1, group: "egg", grams: 100 }],
+      remove: [],
+      notes: null,
+    });
+    expect(revision.revise[0]?.grams).toBe(100);
   });
 });
 

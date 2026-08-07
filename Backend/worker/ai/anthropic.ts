@@ -43,7 +43,7 @@ export async function requestAnthropicRecognition(
       tools: [
         {
           name: TOOL_NAME,
-          description: "Record the food groups and portions visible in the photograph.",
+          description: "Record the food groups and weights visible in the photograph.",
           input_schema: spec.jsonSchema,
         },
       ],

@@ -78,20 +78,22 @@ public struct NutritionPanel: Codable, Sendable, Hashable {
 /// One named thing on the tray, and what it is made of.
 ///
 /// The dish is what a person recognises — "kaisen don", "two beers" — and the
-/// ingredients underneath are what the diet score is made of. Quantity lives
-/// here rather than on the ingredients: `count` is how many servings are
-/// present and `size` is how big one of them is, while an ingredient's
-/// `portion` says how much of it goes into a single serving. Three factors,
-/// each answered independently, because a model applying the count itself
-/// doubles the meal and nothing downstream can tell that from a large plate.
+/// ingredients underneath are what the diet score is made of. The quantity is on
+/// the ingredients, as weight: `count` is how many servings are present, but it
+/// is a label and a control rather than a factor, since the weights below
+/// already cover every serving there is.
 public struct MealDish: Codable, Sendable, Hashable, Identifiable {
     public let id: UUID
     public var name: String
     /// How many servings of this dish. Three beers is one dish with count 3.
     public var count: Int
-    /// How big ONE serving is. Ignored when `panel` is present: a packaged
-    /// item's serving is whatever the box holds, and "large" means nothing
-    /// about a 200 ml carton.
+    /// How big ONE serving is, on a meal old enough to be described in portions.
+    ///
+    /// Nothing sets this any more: no model is asked for it and the dish sheet
+    /// stopped offering the chips in v17, because on a weighed dish the control
+    /// changed no score — `effectiveServings` prefers grams — while looking
+    /// exactly like one that did. It stays on the type so a meal logged before
+    /// August 2026 still scores the way it was scored the day it was logged.
     public var size: Portion
     /// What the packaging said, when it said anything. Nil for almost all food,
     /// which is cooked and has nothing printed on it.
