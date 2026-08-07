@@ -154,10 +154,15 @@ final class AppModel {
 
     var recipes: [Recipe] { projection.recentRecipes }
 
+    /// Two keeps the manual route visible on the smallest supported phones.
+    /// The projection ranks by use and falls back to recency before a dish has
+    /// ever been reused.
+    var suggestedRecipes: [Recipe] { projection.suggestedRecipes(limit: 2) }
+
     /// Counted from the log rather than kept as a tally, so deleting a meal
     /// takes its use with it.
     func timesLogged(_ recipe: Recipe) -> Int {
-        projection.meals.values.count { $0.recipeID == recipe.id }
+        projection.timesLogged(recipeID: recipe.id)
     }
 
     func saveRecipe(_ recipe: Recipe) async {

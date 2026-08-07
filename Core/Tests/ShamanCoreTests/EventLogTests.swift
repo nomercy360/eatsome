@@ -127,6 +127,41 @@ struct EventLogTests {
         #expect(projection.recipes.isEmpty)
     }
 
+    @Test("Meal chooser suggests recent dishes until it has usage history")
+    func recentRecipeSuggestions() {
+        let older = Recipe(name: "Older", items: [], updatedAt: 100)
+        let middle = Recipe(name: "Middle", items: [], updatedAt: 200)
+        let newest = Recipe(name: "Newest", items: [], updatedAt: 300)
+        let projection = Projection(replaying: [older, middle, newest].map {
+            LoggedEvent(occurredAt: $0.updatedAt, payload: .recipeSaved($0))
+        })
+
+        #expect(projection.suggestedRecipes(limit: 2).map(\.id) == [newest.id, middle.id])
+        #expect(projection.suggestedRecipes(limit: 0).isEmpty)
+    }
+
+    @Test("Meal chooser prefers the most logged dishes and uses recency for ties")
+    func frequentRecipeSuggestions() {
+        let recentUnused = Recipe(name: "New but unused", items: [], updatedAt: 400)
+        let olderFavourite = Recipe(name: "Favourite", items: [], updatedAt: 100)
+        let newerTie = Recipe(name: "Newer tie", items: [], updatedAt: 300)
+        let olderTie = Recipe(name: "Older tie", items: [], updatedAt: 200)
+        let recipes = [recentUnused, olderFavourite, newerTie, olderTie]
+        var events = recipes.map { LoggedEvent(occurredAt: $0.updatedAt, payload: .recipeSaved($0)) }
+
+        let uses: [(Recipe, EpochMillis)] = [
+            (olderFavourite, 500), (olderFavourite, 600), (newerTie, 700), (olderTie, 800)
+        ]
+        for (recipe, time) in uses {
+            events.append(LoggedEvent(occurredAt: time, payload: .mealLogged(recipe.newMeal(eatenAt: time))))
+        }
+
+        let projection = Projection(replaying: events)
+        #expect(projection.suggestedRecipes(limit: 3).map(\.id) == [olderFavourite.id, newerTie.id, olderTie.id])
+        #expect(projection.timesLogged(recipeID: olderFavourite.id) == 2)
+        #expect(!projection.suggestedRecipes(limit: 4).contains { $0.id == recentUnused.id })
+    }
+
     @Test("Deletion removes from the projection")
     func deletion() async throws {
         let url = temporaryURL()

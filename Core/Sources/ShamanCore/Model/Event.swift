@@ -129,6 +129,36 @@ public struct Projection: Sendable {
         recipes.values.sorted { $0.updatedAt > $1.updatedAt }
     }
 
+    /// The quickest saved-dish choices for the meal chooser.
+    ///
+    /// Once a dish has actually been logged, frequency is the strongest signal:
+    /// it is more useful to offer lentil soup for the twelfth time than a recipe
+    /// that was merely edited yesterday. Before any saved dish has been reused,
+    /// there is no frequency signal, so the most recently saved dishes are the
+    /// honest fallback. Unused dishes do not displace established favourites.
+    public func suggestedRecipes(limit: Int) -> [Recipe] {
+        guard limit > 0 else { return [] }
+
+        let uses = Dictionary(grouping: meals.values.compactMap(\.recipeID), by: { $0 })
+            .mapValues(\.count)
+        let used = recipes.values.filter { uses[$0.id, default: 0] > 0 }
+        let candidates = used.isEmpty ? Array(recipes.values) : used
+
+        return Array(candidates.sorted { left, right in
+            let leftUses = uses[left.id, default: 0]
+            let rightUses = uses[right.id, default: 0]
+            if leftUses != rightUses { return leftUses > rightUses }
+            if left.updatedAt != right.updatedAt { return left.updatedAt > right.updatedAt }
+            return left.id.uuidString < right.id.uuidString
+        }.prefix(limit))
+    }
+
+    /// Counted from the projected log so a deleted meal immediately stops
+    /// contributing to a dish's popularity.
+    public func timesLogged(recipeID: UUID) -> Int {
+        meals.values.count { $0.recipeID == recipeID }
+    }
+
     public func meals(from start: EpochMillis, to end: EpochMillis) -> [MealEntry] {
         meals.values.filter { $0.eatenAt >= start && $0.eatenAt < end }
             .sorted { $0.eatenAt < $1.eatenAt }
