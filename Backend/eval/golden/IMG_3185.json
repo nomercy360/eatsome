@@ -23,7 +23,6 @@
           "group": "dairy",
           "weight_g": 80,
           "weight_source": "label",
-          "protein_g": 3,
           "flags": ["added_sugar"]
         }
       ]

@@ -14,6 +14,15 @@ import { basename, join } from "node:path";
  * quantity was re-annotated in grams, and `weight_source` says how each number
  * was arrived at, because a converted ladder value looking exactly like a
  * weighed one is the same trap at a smaller scale.
+ *
+ * `protein_g` was removed in the same pass rather than left empty. It was an
+ * annotator's rough figure written per serving under the ladder, and once the
+ * weights moved it no longer corresponded to its own `weight_g` — 14 of 36 came
+ * to imply an impossible density, chicken schnitzel at 3.4 g per 100 g. A field
+ * that looks like ground truth and is not is worse than an absent one, which is
+ * the argument that retired the ladder in the first place. Protein is graded
+ * against `eval/labelled.json`, where the figure was printed on a board or a
+ * package: `pnpm eval:nutrients`.
  */
 export type GoldenItem = {
   name: string;
@@ -38,7 +47,6 @@ export type GoldenItem = {
    *               half-serving resolution the ladder actually had.
    */
   weight_source: "label" | "annotated" | "ladder";
-  protein_g?: number;
   flags?: string[];
   /** Not visible in the photo: reachable only through the note or a recipe. */
   hidden?: boolean;

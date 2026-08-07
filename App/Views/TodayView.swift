@@ -232,35 +232,110 @@ struct TodayView: View {
         return nil
     }
 
-    /// The one macronutrient in grams, and the only one there will ever be.
+    /// The day in five figures, protein first.
+    ///
+    /// Protein keeps the meter because it is the only one of the five that is a
+    /// floor — a number to reach, where the rest are ranges to sit inside and
+    /// salt is a ceiling. Drawing four more meters would say they were all the
+    /// same kind of thing and invite eating to each of them, so the other four
+    /// are stated next to their target and left alone.
     private var proteinRow: some View {
-        let grams = model.proteinToday
-        return HStack(spacing: 16) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text("Protein")
-                    .font(WellieTheme.font(13, weight: .semibold))
-                    .foregroundStyle(WellieTheme.muted)
-                Text("\(Int(grams.rounded())) g")
-                    .font(WellieTheme.font(19, weight: .bold))
-                    .foregroundStyle(WellieTheme.ink)
+        let total = model.nutrientsToday
+        let day = total.nutrients
+        let targets = model.dailyTargets
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 16) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Protein")
+                        .font(WellieTheme.font(13, weight: .semibold))
+                        .foregroundStyle(WellieTheme.muted)
+                    Text("\(Int(day.protein.rounded())) g")
+                        .font(WellieTheme.font(19, weight: .bold))
+                        .foregroundStyle(WellieTheme.ink)
+                }
+
+                if let target = targets?.protein {
+                    WellieMeter(fraction: day.protein / max(target, 1), height: 6)
+                    Text("of \(Int(target))")
+                        .font(WellieTheme.font(13, weight: .semibold))
+                        .foregroundStyle(WellieTheme.muted)
+                } else {
+                    Text("A weight from Health sets the target.")
+                        .font(WellieTheme.font(12.5, weight: .medium))
+                        .foregroundStyle(WellieTheme.muted)
+                        .multilineTextAlignment(.trailing)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                }
             }
 
-            if let target = model.proteinTarget {
-                WellieMeter(fraction: grams / max(target, 1), height: 6)
-                Text("of \(Int(target))")
-                    .font(WellieTheme.font(13, weight: .semibold))
-                    .foregroundStyle(WellieTheme.muted)
-            } else {
-                Text("A weight from Health sets the target.")
-                    .font(WellieTheme.font(12.5, weight: .medium))
-                    .foregroundStyle(WellieTheme.muted)
-                    .multilineTextAlignment(.trailing)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
+            Divider().overlay(WellieTheme.hairline)
+
+            HStack(alignment: .top, spacing: 0) {
+                figureCell("Energy", "\(Int(day.kcal.rounded()))", "kcal",
+                           of: targets.map { "\(Int($0.kcal))" })
+                figureCell("Carbs", "\(Int(day.carbohydrate.rounded()))", "g",
+                           of: targets.map { "\(Int($0.carbohydrate))" })
+                figureCell("Fat", "\(Int(day.fat.rounded()))", "g",
+                           of: targets.map { "\(Int($0.fat))" })
+                // No target beside salt, deliberately. The derived figure is a
+                // floor — composition tables publish unsalted preparations, and
+                // measured against a canteen meal that printed 4 g this reads
+                // 0.7 — so putting "of 5" next to it would turn a known
+                // undercount into a reassurance. `Nutrients.saltGrams` has the
+                // measurement. What the caption says instead is what is true.
+                figureCell("Salt",
+                           (total.saltIsFloor ? "≥ " : "") + String(format: "%.1f", day.saltGrams),
+                           "g", of: nil)
+            }
+
+            if total.saltIsFloor {
+                Text("Salt is what the food tables know about; cooking adds more.")
+                    .font(WellieTheme.font(11, weight: .medium))
+                    .foregroundStyle(WellieTheme.faint)
+            }
+
+            if !total.isComplete {
+                // Said out loud rather than swallowed. A total quietly short by
+                // the weight of an unrecognised dish is the exact failure this
+                // app refused to ship for three years, and the fix is one tap
+                // away: name the food and it resolves.
+                Text("\(Int(total.unresolvedGrams.rounded())) g not recognised — "
+                     + "these figures are short by whatever it was.")
+                    .font(WellieTheme.font(12, weight: .medium))
+                    .foregroundStyle(WellieTheme.attention)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
         .background(WellieTheme.well, in: RoundedRectangle(cornerRadius: WellieTheme.innerRadius, style: .continuous))
+    }
+
+    private func figureCell(
+        _ name: String,
+        _ value: String,
+        _ unit: String,
+        of target: String?
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(name)
+                .font(WellieTheme.font(11.5, weight: .semibold))
+                .foregroundStyle(WellieTheme.muted)
+            HStack(alignment: .firstTextBaseline, spacing: 2) {
+                Text(value)
+                    .font(WellieTheme.font(16, weight: .bold))
+                    .foregroundStyle(WellieTheme.ink)
+                Text(unit)
+                    .font(WellieTheme.font(11, weight: .semibold))
+                    .foregroundStyle(WellieTheme.muted)
+            }
+            if let target {
+                Text("of \(target)")
+                    .font(WellieTheme.font(11, weight: .medium))
+                    .foregroundStyle(WellieTheme.faint)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: - Meals

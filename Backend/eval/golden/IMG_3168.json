@@ -13,8 +13,7 @@
           "alternatives": ["red_meat"],
           "weight_g": 650,
           "weight_source": "annotated",
-          "flags": ["fried", "breaded"],
-          "protein_g": 22
+          "flags": ["fried", "breaded"]
         }
       ]
     },
@@ -44,8 +43,7 @@
           "name": "feta",
           "group": "dairy",
           "weight_g": 60,
-          "weight_source": "annotated",
-          "protein_g": 8
+          "weight_source": "annotated"
         }
       ]
     },

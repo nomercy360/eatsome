@@ -64,7 +64,7 @@ struct OnboardingView: View {
                 )
 
                 VStack(alignment: .leading, spacing: 11) {
-                    promise("No calories, ever")
+                    promise("Every figure traced to a food table")
                     promise("No perfect days to keep up")
                     promise("Private storage you can delete")
                 }

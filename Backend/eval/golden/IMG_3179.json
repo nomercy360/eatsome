@@ -10,15 +10,13 @@
           "name": "fried eggs",
           "group": "egg",
           "weight_g": 100,
-          "weight_source": "annotated",
-          "protein_g": 12
+          "weight_source": "annotated"
         },
         {
           "name": "blue cheese and parmesan",
           "group": "dairy",
           "weight_g": 35,
-          "weight_source": "annotated",
-          "protein_g": 5
+          "weight_source": "annotated"
         }
       ]
     },

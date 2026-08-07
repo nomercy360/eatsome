@@ -16,8 +16,7 @@
           "name": "chicken",
           "group": "white_meat",
           "weight_g": 60,
-          "weight_source": "annotated",
-          "protein_g": 14
+          "weight_source": "annotated"
         },
         {
           "name": "croutons",

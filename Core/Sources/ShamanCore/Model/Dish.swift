@@ -16,17 +16,26 @@ import Foundation
 public struct NutritionPanel: Codable, Sendable, Hashable {
     /// Grams, for one serving as printed.
     public var protein: Double?
-    /// Kept because it was printed, never summed and never shown as a daily
-    /// figure. Only packaged food carries a label, so a total built from these
-    /// would be computed from the packaged fraction of a diet while looking
-    /// exactly like a total — worse than absent. See `Protein` for the one
-    /// number that does have a complete baseline and therefore can be totalled.
+    /// Kilocalories, for one serving as printed.
+    ///
+    /// This was kept and never summed for two years, because only packaged food
+    /// carries a label and a total built from these would have been computed
+    /// from the packaged fraction of a diet while looking exactly like a total.
+    /// What changed is the baseline underneath, not the argument: every food now
+    /// derives energy from `FoodNutrientTable`, so a printed figure improves a
+    /// complete total rather than creating a partial one — which is the test
+    /// `Protein` had to pass to be totalled in the first place.
     public var calories: Double?
     public var fat: Double?
     public var carbohydrate: Double?
     /// Grams of salt equivalent, as Japanese labels print it. `sodium` is
     /// derived from it by the backend when only salt was printed.
     public var salt: Double?
+    /// GRAMS, not milligrams — this field mirrors what a label prints and what
+    /// `nutritionPanelSchema` caps at 100, and the backend derives it from
+    /// `salt` in grams. `Nutrients.sodium` is milligrams, because that is the
+    /// unit composition tables publish; anything moving a figure between the two
+    /// multiplies by 1000. See `Nutrition.total(in:)`.
     public var sodium: Double?
     /// Milligrams.
     public var caffeine: Double?

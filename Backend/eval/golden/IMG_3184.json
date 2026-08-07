@@ -11,8 +11,7 @@
           "group": "white_meat",
           "weight_g": 110,
           "weight_source": "annotated",
-          "flags": ["fried", "breaded"],
-          "protein_g": 8
+          "flags": ["fried", "breaded"]
         }
       ]
     },
@@ -48,8 +47,7 @@
           "name": "miso broth",
           "group": "legumes",
           "weight_g": 150,
-          "weight_source": "annotated",
-          "protein_g": 2
+          "weight_source": "annotated"
         }
       ]
     },
@@ -61,8 +59,7 @@
           "name": "yogurt",
           "group": "dairy",
           "weight_g": 80,
-          "weight_source": "label",
-          "protein_g": 3
+          "weight_source": "label"
         }
       ]
     }

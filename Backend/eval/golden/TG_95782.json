@@ -12,8 +12,7 @@
           "group": "white_meat",
           "weight_g": 320,
           "weight_source": "annotated",
-          "flags": ["fried", "breaded"],
-          "protein_g": 20
+          "flags": ["fried", "breaded"]
         },
         {
           "name": "sweet and sour sauce",

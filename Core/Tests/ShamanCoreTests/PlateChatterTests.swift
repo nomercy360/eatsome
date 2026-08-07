@@ -3,13 +3,16 @@ import Testing
 
 @Suite("Reading-screen chatter")
 struct PlateChatterTests {
-    /// The one rule the whole product rests on, applied to the text a person
-    /// reads more often than any other in the app.
-    @Test("Nothing here counts calories, grams or macros")
-    func neverCountsWhatTheAppDoesNot() {
-        // Protein is not here: it is the one macro the app does count, so a
-        // phrase may say it. Everything else is the road to a calorie counter.
-        let banned = ["calorie", "kcal", "gram", "macro", "carb"]
+    /// Applied to the text a person reads more often than any other in the app.
+    @Test("Nothing here names a number the reading has not produced yet")
+    func neverPromisesAFigure() {
+        // These words were banned because the app refused to count any of them.
+        // It counts all of them now, and the ban stays for a smaller and more
+        // durable reason: this is the text shown *while* a photograph is being
+        // read, and naming a figure there advertises a number that does not
+        // exist yet and may not survive the correction sheet. The chatter says
+        // what is happening, never what the answer will be.
+        let banned = ["calorie", "kcal", "gram", "macro", "carb", "protein"]
         for phrase in PlateChatter.phrases {
             let lowered = phrase.lowercased()
             for word in banned {
@@ -17,7 +20,7 @@ struct PlateChatterTests {
             }
         }
         // This caught "Not counting calories…", which was written as a joke
-        // about the rule and would have shown the word to every person on
+        // about the old rule and would have shown the word to every person on
         // every meal. Denying the frame still puts the frame on screen.
     }
 

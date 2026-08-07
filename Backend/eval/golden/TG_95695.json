@@ -16,8 +16,7 @@
           "name": "beans",
           "group": "legumes",
           "weight_g": 80,
-          "weight_source": "annotated",
-          "protein_g": 7
+          "weight_source": "annotated"
         },
         {
           "name": "shredded lettuce",
@@ -48,8 +47,7 @@
           "group": "white_meat",
           "alternatives": ["red_meat"],
           "weight_g": 100,
-          "weight_source": "annotated",
-          "protein_g": 12
+          "weight_source": "annotated"
         }
       ]
     }

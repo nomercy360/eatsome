@@ -29,7 +29,6 @@
           "group": "egg",
           "weight_g": 100,
           "weight_source": "annotated",
-          "protein_g": 12,
           "hidden": true
         },
         {
@@ -49,8 +48,7 @@
           "name": "milk",
           "group": "dairy",
           "weight_g": 250,
-          "weight_source": "annotated",
-          "protein_g": 8
+          "weight_source": "annotated"
         }
       ]
     }

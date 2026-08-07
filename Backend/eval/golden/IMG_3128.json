@@ -17,15 +17,13 @@
           "group": "white_meat",
           "alternatives": ["red_meat"],
           "weight_g": 130,
-          "weight_source": "annotated",
-          "protein_g": 18
+          "weight_source": "annotated"
         },
         {
           "name": "fried egg",
           "group": "egg",
           "weight_g": 50,
-          "weight_source": "annotated",
-          "protein_g": 6
+          "weight_source": "annotated"
         },
         {
           "name": "cherry tomato",
@@ -43,8 +41,7 @@
           "name": "miso broth",
           "group": "legumes",
           "weight_g": 150,
-          "weight_source": "annotated",
-          "protein_g": 2
+          "weight_source": "annotated"
         }
       ]
     },

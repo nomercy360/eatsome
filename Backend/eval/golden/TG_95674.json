@@ -34,8 +34,7 @@
           "name": "fish topping",
           "group": "fish",
           "weight_g": 45,
-          "weight_source": "annotated",
-          "protein_g": 5
+          "weight_source": "annotated"
         },
         {
           "name": "sushi rice",

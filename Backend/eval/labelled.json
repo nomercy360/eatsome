@@ -1,0 +1,30 @@
+{
+  "note": "Meals whose protein was PUBLISHED, not estimated — a canteen board or a package panel. This is the only ground truth the protein table can honestly be graded against. The golden set's `protein_g` was an annotator's rough figure written per serving under the retired count x size x portion ladder; when the set was re-annotated in absolute grams those figures stopped corresponding to their own weights, and 14 of 36 came to imply impossible densities (chicken schnitzel at 3.4 g per 100 g). A table graded against a guess measures agreement with the guess.\n\nItems are annotated the same way the golden set is: edible weight on the plate, read off the photograph. So a gap here is the table AND the weight together, which is the number a person actually sees. Where a meal's published figure excludes part of the tray, `excludes` says so and those items are left out.\n\nTwo meals is not a calibration set. It is the start of one, and the honest thing to do with a table tuned on two points is not much. Add a row every time a meal arrives with a printed number.",
+  "meals": [
+    {
+      "id": "bibimbap-2026-08-07",
+      "photo": "IMG_3263",
+      "source": "canteen board",
+      "published": { "protein_g": 24, "calories_kcal": 670, "carbohydrate_g": 100, "salt_g": 4 },
+      "excludes": ["miso soup", "seasoned egg"],
+      "items": [
+        { "group": "refined_grains", "label": "white rice", "grams": 250 },
+        { "group": "red_meat", "label": "pork", "grams": 100 },
+        { "group": "vegetables", "label": "namul", "grams": 80 }
+      ]
+    },
+    {
+      "id": "mentaiko-pasta-2026-08-07",
+      "photo": "IMG_3264",
+      "source": "canteen board",
+      "published": { "protein_g": 21 },
+      "excludes": ["natto"],
+      "items": [
+        { "group": "refined_grains", "label": "spaghetti", "grams": 250 },
+        { "group": "fish", "label": "mentaiko", "grams": 35 },
+        { "group": "butter", "label": "butter", "grams": 10 },
+        { "group": "vegetables", "label": "nori seaweed", "grams": 2 }
+      ]
+    }
+  ]
+}

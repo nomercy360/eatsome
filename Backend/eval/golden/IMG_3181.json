@@ -10,8 +10,7 @@
           "name": "shrimp, squid and mussels",
           "group": "fish",
           "weight_g": 180,
-          "weight_source": "annotated",
-          "protein_g": 20
+          "weight_source": "annotated"
         }
       ]
     },
@@ -35,8 +34,7 @@
           "name": "chechil string cheese",
           "group": "dairy",
           "weight_g": 40,
-          "weight_source": "annotated",
-          "protein_g": 7
+          "weight_source": "annotated"
         }
       ]
     },

@@ -17,8 +17,7 @@
           "name": "cheese slice",
           "group": "dairy",
           "weight_g": 90,
-          "weight_source": "annotated",
-          "protein_g": 7
+          "weight_source": "annotated"
         }
       ]
     },
@@ -30,8 +29,7 @@
           "name": "yogurt",
           "group": "dairy",
           "weight_g": 150,
-          "weight_source": "annotated",
-          "protein_g": 8
+          "weight_source": "annotated"
         },
         {
           "name": "blueberries",

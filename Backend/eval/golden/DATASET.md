@@ -19,9 +19,18 @@ Types live in `../golden.ts`; this is the shape in prose.
   (servings present — a label on the weights, never a multiplier), optional
   `panel` (figures printed on packaging), `ingredients[]`.
 - `ingredients[]` — `name`, `group`, optional `alternatives` (rivals the
-  dataset accepts as right answers), `weight_g`, `weight_source`, optional
-  `protein_g` (rough, for the protein-sum track), `flags`, `hidden` (not
-  visible on the photo — reachable only via user note / saved recipe).
+  dataset accepts as right answers), `weight_g`, `weight_source`, `flags`,
+  `hidden` (not visible on the photo — reachable only via user note / saved
+  recipe).
+
+  `protein_g` was **removed** on 2026-08-07, not emptied. It held an
+  annotator's rough figure written per serving under the retired ladder, and
+  once quantity was re-annotated in grams it no longer matched its own
+  `weight_g`: 14 of 36 values implied an impossible density, chicken schnitzel
+  at 3.4 g per 100 g. Grading the protein table against it would have baked the
+  ladder back in through a field that looked like ground truth. Protein has its
+  own track in `../labelled.json` — meals whose figure was printed on a board
+  or a package — scored by `pnpm eval:nutrients`.
 - `weight_g` — edible weight, ABSOLUTE: everything of that ingredient present,
   across every serving in the photograph. Matches the app's definition, so
   golden and model compare with no conversion.
@@ -70,7 +79,7 @@ reported, never scored as model error.
 - dish structure match (grouping, not names) and count match on counted dishes
 - panel transcription: wrong or invented figures on labelled items
 - hidden-item recall only when the note is provided (separate track)
-- protein MAE on items with `protein_g`
+- nutrients: not scored here. See `../labelled.json` and `pnpm eval:nutrients`.
 
 ## Known trap census
 

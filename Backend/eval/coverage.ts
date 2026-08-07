@@ -18,13 +18,11 @@ const lossyGroups = new Map<string, { count: number; why: string }>();
 const weightSources = new Map<string, number>();
 let items = 0;
 let hidden = 0;
-let protein = 0;
 
 for (const one of cases) {
   for (const item of goldenIngredients(one.dishes)) {
     items += 1;
     if (item.hidden) hidden += 1;
-    if (typeof item.protein_g === "number") protein += 1;
 
     const mapping = mapGroup(item.group);
     if (mapping.kind === "unmapped") {
@@ -82,4 +80,4 @@ for (const [source, count] of [...weightSources].sort((a, b) => b[1] - a[1])) {
 
 console.log(`\n## Tracks that need their own runs\n`);
 console.log(`- hidden items (need the note slot): ${hidden}`);
-console.log(`- items carrying protein_g: ${protein}`);
+console.log(`- nutrients: graded on eval/labelled.json, not here — pnpm eval:nutrients`);

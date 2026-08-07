@@ -1,7 +1,7 @@
 import { appendFileSync, existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { loadGoldenCases, goldenIngredients } from "./golden";
+import { goldenIngredients, loadGoldenCases } from "./golden";
 import {
   EVAL_PROMPT_VERSION,
   type EvalModel,
@@ -92,7 +92,9 @@ for (const entry of models) {
       // Two sources, one line. The case's own user note travels on every track,
       // because without it the case has no defined answer; the hidden-item note
       // is what `--notes` adds on top.
-      const hidden = withNotes ? noteFor(goldenIngredients(one.dishes).filter((item) => item.hidden)) : undefined;
+      const hidden = withNotes
+        ? noteFor(goldenIngredients(one.dishes).filter((item) => item.hidden))
+        : undefined;
       const note = [one.user_note, hidden].filter(Boolean).join(" ") || undefined;
       jobs.push({ caseId: one.id, photo: one.photo, entry, run, note });
     }

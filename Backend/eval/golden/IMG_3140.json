@@ -40,8 +40,7 @@
           "name": "hard-boiled egg",
           "group": "egg",
           "weight_g": 100,
-          "weight_source": "annotated",
-          "protein_g": 6
+          "weight_source": "annotated"
         }
       ]
     },
@@ -53,8 +52,7 @@
           "name": "sliced cheese",
           "group": "dairy",
           "weight_g": 80,
-          "weight_source": "annotated",
-          "protein_g": 10
+          "weight_source": "annotated"
         }
       ]
     },

@@ -10,8 +10,7 @@
           "name": "sausage",
           "group": "processed_meat",
           "weight_g": 140,
-          "weight_source": "annotated",
-          "protein_g": 11
+          "weight_source": "annotated"
         }
       ]
     },

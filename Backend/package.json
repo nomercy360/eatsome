@@ -25,7 +25,8 @@
     "eval:ceiling": "promptfoo eval -c promptfooconfig.ceiling.yaml --repeat 3",
     "eval:holdout": "EVAL_INCLUDE_HOLDOUT=1 promptfoo eval -c promptfooconfig.yaml --repeat 3",
     "eval:run": "tsx eval/run.ts",
-    "eval:score": "tsx eval/score.ts"
+    "eval:score": "tsx eval/score.ts",
+    "eval:nutrients": "tsx eval/nutrients.ts"
   },
   "dependencies": {
     "@hono/zod-validator": "0.9.0",

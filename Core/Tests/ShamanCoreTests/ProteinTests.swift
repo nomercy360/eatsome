@@ -308,34 +308,18 @@ struct ProteinTests {
         #expect(AppConfig.fallback.proteinTable[FoodGroup.egg.rawValue] == 6)
     }
 
-    @Test("A transcribed panel is kept, and nothing totals it")
-    func caloriesAreStoredNeverSummed() throws {
-        // The rule used to be that a calorie figure could not exist anywhere.
-        // It can now be transcribed off a label, because reading a printed fact
-        // is not estimating one — but nothing may add them up. Only packaged
-        // food carries a label, so a total would be computed from the packaged
-        // fraction of a diet while looking exactly like a total.
-        let sources = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .appendingPathComponent("Sources/ShamanCore")
-        let files = FileManager.default
-            .enumerator(at: sources, includingPropertiesForKeys: nil)?
-            .compactMap { $0 as? URL }
-            .filter { $0.pathExtension == "swift" } ?? []
-        #expect(!files.isEmpty)
-
-        for file in files {
-            let text = (try? String(contentsOf: file, encoding: .utf8)) ?? ""
-            for banned in ["caloriesToday", "totalCalories", "sumCalories", "caloriesPer"] {
-                #expect(!text.contains(banned), "\(file.lastPathComponent) aggregates calories")
-            }
-        }
-
-        // Protein is the one figure with a complete baseline — every meal has
-        // an estimate — so a confirmed value improves that total instead of
-        // creating a partial one. That is the whole difference.
+    @Test("A transcribed panel wins figure by figure, not wholesale")
+    func panelOverridesPerNutrient() throws {
+        // Energy used to be forbidden anywhere in this codebase, on the grounds
+        // that only packaged food carries a label and a total built from the
+        // packaged fraction of a diet looks exactly like a total. What retired
+        // that rule is `FoodNutrientTable`: energy is now derived for every food
+        // from a published row and an observed weight, the same way protein
+        // always was, so the baseline is complete and the total is a total.
+        //
+        // The guard that replaces it is `everyGroupHasARepresentative` in
+        // `FoodNutrientTableTests`, which is the condition that actually matters
+        // — every food group must answer, or the completeness argument fails.
         let carton = MealDish(
             name: "protein drink",
             count: 2,
@@ -343,8 +327,101 @@ struct ProteinTests {
             panel: NutritionPanel(protein: 15, calories: 103),
             items: [MealItem(group: .dairy, portion: .medium, label: "milk protein")]
         )
-        #expect(Protein.grams(in: carton) == 30)
+        let total = Nutrition.total(in: carton)
+        #expect(total.nutrients.protein == 30)
+        #expect(total.nutrients.kcal == 206)
         // Size is ignored for a packaged serving; the table would have said 4.
         #expect(Protein.grams(in: MealDish(name: "x", size: .small, items: carton.items)) == 4)
+
+        // A panel that prints two figures and not the rest contributes two read
+        // numbers and leaves the others to the ingredients. Discarding the
+        // ingredients over a partial panel, or the panel over a missing field,
+        // would both throw away something true.
+        #expect(total.nutrients.fat == 0, "no fat row in the group table without a foods table")
+        #expect(total.isComplete, "a panel with energy answers for its whole dish")
+    }
+
+    @Test("A panel's sodium is grams; the table's is milligrams")
+    func panelSodiumCrossesTheUnitBoundary() {
+        // The Worker scales a Monster's per-100ml panel to the can and derives
+        // sodium from the printed salt IN GRAMS: 0.36 g of salt becomes 0.142 g
+        // of sodium. `Nutrients.sodium` is milligrams, because that is what
+        // every composition table publishes. Reading the panel field straight
+        // into it put the can at 0.142 mg — a thousandth of the truth, and
+        // invisible on a screen that rounds salt to one decimal.
+        let can = MealDish(
+            name: "energy drink",
+            count: 1,
+            panel: NutritionPanel(salt: 0.36, sodium: 0.142, basis: "per_container"),
+            items: [MealItem(group: .sugaryDrinks, label: "energy drink", grams: 355)]
+        )
+        let total = Nutrition.total(in: can)
+        #expect(total.nutrients.sodium == 142)
+        #expect(abs(total.nutrients.saltGrams - 0.361) < 0.005)
+
+        // Two cans is twice the printed figure, like every other panel field.
+        var two = can
+        two.count = 2
+        #expect(Nutrition.total(in: two).nutrients.sodium == 284)
+
+        // A panel that printed salt and nothing else — never scaled by the
+        // Worker — converts rather than reading zero.
+        let saltOnly = MealDish(
+            name: "miso soup",
+            panel: NutritionPanel(salt: 2.54, basis: "per_container"),
+            items: [MealItem(group: .legumes, label: "miso", grams: 20)]
+        )
+        #expect(abs(Nutrition.total(in: saltOnly).nutrients.sodium - 1000) < 2)
+    }
+
+    @Test("A label settles the salt; a table only bounds it")
+    func saltIsAFloorOnlyWhenDerived() {
+        // Monster Energy Zero Sugar, 355 ml: 食塩相当量 0.1 g per 100 ml, so the
+        // can is 0.36 g and it is exactly 0.36 g. Showing "≥ 0.4" would mark a
+        // number the label already settled as a lower bound.
+        let can = MealDish(
+            name: "Monster Energy Zero Sugar",
+            panel: NutritionPanel(
+                protein: 0, calories: 0, fat: 0, carbohydrate: 3.55,
+                salt: 0.36, sodium: 0.142, caffeine: 142, basis: "per_container"
+            ),
+            items: [MealItem(group: .sugaryDrinks, label: "energy drink", grams: 355)]
+        )
+        let labelled = Nutrition.total(in: can)
+        #expect(!labelled.saltIsFloor)
+        // And the carbohydrate really is on the label: 炭水化物 1.0 g per 100 ml
+        // with 糖類 0 g. Zero sugar is not zero carbohydrate.
+        #expect(labelled.nutrients.carbohydrate == 3.55)
+
+        // A bowl with no label derives its sodium from the tables, which know
+        // the salt in the food and not the salt in the cooking.
+        let bowl = MealDish(
+            name: "ramen",
+            items: [MealItem(group: .refinedGrains, label: "noodles", grams: 200)]
+        )
+        #expect(Nutrition.total(in: bowl).saltIsFloor)
+
+        // One unlabelled dish makes the whole plate a floor: the pessimistic
+        // side is the right side to round to on the figure where a confident
+        // understatement does the most harm.
+        #expect(Nutrition.total(in: [can, bowl]).saltIsFloor)
+    }
+
+    @Test("Salt is a ceiling and the rest are not")
+    func dailyTargetsFollowTheBody() {
+        // 70 kg, active: 1.6 g of protein a kilogram and 35 kcal a kilogram.
+        let targets = DailyTargets.forBody(weightKilograms: 70, intent: .active)
+        #expect(targets.protein == 112)
+        #expect(targets.kcal == 2450)
+        // Fat is 35% of energy, which is a Mediterranean figure rather than a
+        // guideline one: PREDIMED's arms ran 39-42% and beat the low-fat control.
+        #expect(targets.fat == 95)
+        // Carbohydrate is whatever energy is left once those two are set:
+        // 2450 - 448 from protein - 855 from fat, over 4.
+        #expect(targets.carbohydrate == 287)
+        // Salt does not scale with the body, because the evidence behind it is
+        // about blood pressure rather than size.
+        #expect(targets.salt == 5)
+        #expect(DailyTargets.forBody(weightKilograms: 100, intent: .active).salt == 5)
     }
 }

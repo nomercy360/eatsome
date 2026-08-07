@@ -17,8 +17,7 @@
           "group": "white_meat",
           "alternatives": ["red_meat"],
           "weight_g": 90,
-          "weight_source": "annotated",
-          "protein_g": 25
+          "weight_source": "annotated"
         },
         {
           "name": "salad filling",

@@ -10,8 +10,7 @@
           "name": "chicken roll",
           "group": "white_meat",
           "weight_g": 120,
-          "weight_source": "annotated",
-          "protein_g": 14
+          "weight_source": "annotated"
         },
         {
           "name": "cabbage and carrot",

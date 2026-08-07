@@ -22,8 +22,7 @@
           "name": "boiled egg",
           "group": "egg",
           "weight_g": 50,
-          "weight_source": "annotated",
-          "protein_g": 6
+          "weight_source": "annotated"
         },
         {
           "name": "grated cheese",
@@ -41,8 +40,7 @@
           "name": "emmental",
           "group": "dairy",
           "weight_g": 70,
-          "weight_source": "annotated",
-          "protein_g": 8
+          "weight_source": "annotated"
         }
       ]
     },

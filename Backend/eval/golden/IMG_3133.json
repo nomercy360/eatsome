@@ -17,8 +17,7 @@
           "group": "red_meat",
           "alternatives": ["processed_meat"],
           "weight_g": 90,
-          "weight_source": "annotated",
-          "protein_g": 20
+          "weight_source": "annotated"
         }
       ]
     },
@@ -45,8 +44,7 @@
           "alternatives": ["processed_meat"],
           "weight_g": 65,
           "weight_source": "annotated",
-          "flags": ["breaded", "fried"],
-          "protein_g": 3
+          "flags": ["breaded", "fried"]
         }
       ]
     },

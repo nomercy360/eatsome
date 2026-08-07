@@ -10,8 +10,7 @@
           "name": "salmon, tuna, prawn and eel",
           "group": "fish",
           "weight_g": 300,
-          "weight_source": "annotated",
-          "protein_g": 30
+          "weight_source": "annotated"
         },
         {
           "name": "sushi rice",

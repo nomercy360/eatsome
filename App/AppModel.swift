@@ -294,7 +294,7 @@ final class AppModel {
         return latest.asleep - baseline.reduce(0) { $0 + $1.asleep } / Double(baseline.count)
     }
 
-    // MARK: - Protein
+    // MARK: - Nutrition
 
     /// Per device, like the recognition provider: this is a training decision,
     /// not a property of the food.
@@ -304,15 +304,37 @@ final class AppModel {
 
     private static let proteinIntentKey = "proteinIntent"
 
-    var proteinToday: Double {
-        Protein.grams(in: mealsToday(), gramsPerServing: config.proteinTable)
+    /// Everything today came to, with the share of the weight that answered.
+    ///
+    /// One computation for all five figures, so nothing on any screen can
+    /// disagree with anything on another about the same day.
+    var nutrientsToday: NutrientTotal {
+        nutrients(in: mealsToday())
     }
+
+    func nutrients(in meals: [MealEntry]) -> NutrientTotal {
+        Nutrition.total(in: meals, gramsPerServing: config.proteinTable, foods: config.nutrientsPerGram)
+    }
+
+    func nutrients(in meal: MealEntry) -> NutrientTotal {
+        Nutrition.total(in: meal, gramsPerServing: config.proteinTable, foods: config.nutrientsPerGram)
+    }
+
+    func nutrients(in dishes: [MealDish]) -> NutrientTotal {
+        Nutrition.total(in: dishes, gramsPerServing: config.proteinTable, foods: config.nutrientsPerGram)
+    }
+
+    func nutrients(in dish: MealDish) -> NutrientTotal {
+        Nutrition.total(in: dish, gramsPerServing: config.proteinTable, foods: config.nutrientsPerGram)
+    }
+
+    var proteinToday: Double { nutrientsToday.nutrients.protein }
 
     /// What a described dish contributes, for the dishes screen. No share
     /// factor: a recipe is one serving of itself, and how much of it you ate is
     /// a property of the meal you log, not of the dish.
     func protein(in items: [MealItem]) -> Double {
-        Protein.grams(in: items, gramsPerServing: config.proteinTable)
+        Protein.grams(in: items, gramsPerServing: config.proteinTable, foods: config.nutrientsPerGram)
     }
 
     /// What one dish contributes at its own quantity — the figure the dish
@@ -321,36 +343,42 @@ final class AppModel {
     /// serving of it, so anything reading them directly reports a large plate
     /// as a normal one.
     func protein(in dish: MealDish) -> Double {
-        Protein.grams(in: dish, gramsPerServing: config.proteinTable)
+        Protein.grams(in: dish, gramsPerServing: config.proteinTable, foods: config.nutrientsPerGram)
     }
 
     /// What a meal being composed is worth, before it is saved. The flat rows
     /// cannot answer this: they carry no panel, so a labelled drink would be
     /// worth its food group here and its label afterwards.
     func protein(in dishes: [MealDish]) -> Double {
-        Protein.grams(in: dishes, gramsPerServing: config.proteinTable)
+        Protein.grams(in: dishes, gramsPerServing: config.proteinTable, foods: config.nutrientsPerGram)
     }
 
     /// The one figure above a plate — protein, or the caffeine a label printed
     /// when there is no protein to report. See `PlateFigure`.
     func figure(for dishes: [MealDish], share: MealShare = .whole) -> PlateFigure {
-        PlateFigure.forPlate(dishes, share: share, gramsPerServing: config.proteinTable)
+        PlateFigure.forPlate(dishes, share: share, gramsPerServing: config.proteinTable, foods: config.nutrientsPerGram)
     }
 
     func figure(for meal: MealEntry) -> PlateFigure {
-        PlateFigure.forMeal(meal, gramsPerServing: config.proteinTable)
+        PlateFigure.forMeal(meal, gramsPerServing: config.proteinTable, foods: config.nutrientsPerGram)
     }
 
     /// What one saved meal contributed, share included — half a plate is half
     /// the protein, and that is the number the day was built from.
     func protein(in meal: MealEntry) -> Double {
-        Protein.grams(in: meal, gramsPerServing: config.proteinTable)
+        Protein.grams(in: meal, gramsPerServing: config.proteinTable, foods: config.nutrientsPerGram)
     }
 
     /// Nil until Health has a weight: a target invented from a guessed body
     /// weight would be a number with no meaning behind it.
-    var proteinTarget: Double? {
-        latestWeight.map { Protein.dailyTarget(weightKilograms: $0.kilograms, intent: proteinIntent) }
+    var proteinTarget: Double? { dailyTargets?.protein }
+
+    /// All five, from the same body weight and the same intent. Nil for the same
+    /// reason `proteinTarget` is: without a weight there is nothing to derive
+    /// them from, and a default figure would be a stranger's target wearing this
+    /// person's label.
+    var dailyTargets: DailyTargets? {
+        latestWeight.map { DailyTargets.forBody(weightKilograms: $0.kilograms, intent: proteinIntent) }
     }
 
     func workoutCount(weeksAgo: Int, calendar: Calendar = .current) -> Int {

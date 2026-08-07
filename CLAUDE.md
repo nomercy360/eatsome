@@ -46,13 +46,56 @@ Anything that touches a framework goes in `App/`. HealthKit is isolated in
   `revise` both carry `grams`. They carried a `Portion` until v17, which could
   not move a weighed row at all: the delta applied, the summary said "1 changed",
   and `effectiveServings` went on reading the weight.
-- **No calories are ever derived, and none are ever totalled.** A figure
-  transcribed off a printed label may be stored, because reading a fact is not
-  estimating one, and it stays inert: nothing sums it and no screen shows a
-  daily number. Only packaged food carries a label, so a total would be built
-  from the packaged fraction of a diet while looking exactly like a total —
-  worse than absent. Nothing asks a model for calories from the look of food.
-  `ProteinTests` fails on any symbol that aggregates them.
+- **Nothing asks a model for a number except a weight.** That rule is
+  unchanged and is the one the rest rests on. A model asked how many calories
+  are on a plate returns a figure with 30–50% error that is indistinguishable
+  from data; a model asked what something weighs is reading the photograph.
+  `LunaSessionTests` still fails if the prompt or either schema mentions
+  calories.
+
+- **The other four figures are looked up, never estimated.** Energy,
+  carbohydrate, fat and sodium are `grams × per 100 g` from a published
+  composition row, exactly the arithmetic protein has always used, and they come
+  off the *same* source row as the protein figure — see `FoodNutrientTable` and
+  `scripts/build-food-table.py`. This replaced a two-year ban on calories in
+  August 2026. What lifted the ban was not a change of opinion but the arrival
+  of a complete baseline: the objection to totalling a transcribed panel was
+  that only packaged food carries one, so the total would be built from the
+  packaged fraction of a diet while looking exactly like a total.
+
+- **A total is only allowed when every food group can answer.** That is the
+  condition the paragraph above turns on, so it is a test rather than a
+  convention: `FoodNutrientTableTests.everyGroupHasARepresentative` requires a
+  sourced `GROUP_REPRESENTATIVE` row for all 26 groups but `other`. `other` has
+  none on purpose — it is the bucket for food that was not recognised, and a
+  figure for it would be invented rather than estimated. Its weight lands in
+  `NutrientTotal.unresolvedGrams`, which every screen showing a total must
+  surface; a partial total that does not say it is partial is the exact failure
+  this whole design is arranged against.
+
+- **Salt is a floor, and no screen may score it against the ceiling.**
+  Composition tables publish plain preparations — cooked white rice is 1 mg of
+  sodium per 100 g — while the salt in cooked food is added in sauces and
+  seasoning that carry no weight on the plate and appear in no ingredient list.
+  Measured against a canteen bibimbap that printed 4 g, the derived figure was
+  0.7 g: 82% low, and structurally so. `Nutrients.saltGrams` is therefore the
+  salt *in the food*, displayed as `≥`, with `DailyTargets.saltCeilingGrams`
+  deliberately not shown beside it. A salt reading of "well under" on a 4 g
+  lunch would be a confident, complete-looking, wrong number.
+
+- **Protein keeps its own group table, and it does not move.** On a table miss
+  protein falls back to `Protein.defaultGramsPerServing` while the other four
+  fall back to `FoodNutrientTable.groups`, so the two disagree slightly — cod is
+  22.8 g per 100 g against the `fish` row's 22. That seam is deliberate: every
+  protein figure in the history was scored against the hand-calibrated table,
+  and `pnpm eval:nutrients` measures changes to it. Consistency with a table
+  that did not exist when those figures were written is not worth restating
+  them.
+
+- **`Nutrition` is the only place any of the five is computed.**
+  `Protein.grams` is a thin accessor onto it, not a second implementation. Two
+  routes to the same number is how the number starts depending on which screen
+  asked.
 - **Recognition asks for weight, and for nothing else numeric.** An ingredient
   carries `grams` — the edible weight of it on the plate. Fat, carbohydrate and
   calories are still never requested: a weight is something a photograph shows,
@@ -98,17 +141,22 @@ Anything that touches a framework goes in `App/`. HealthKit is isolated in
   It says what one MEDAS serving of a group weighs, nothing about what is in it.
   Its alcohol row is wrong by construction and says so: MEDAS counts drinks, and
   a drink is defined by ethanol rather than volume.
-- **Protein is the only macro totalled**, and it is derived unless a
-  label was read — a transcribed panel wins, and is the only protein figure ever
-  stored. The derived one is computed on read, never written, so retuning the
-  table moves every estimate in the history and no measurement. It is otherwise
-  derived, never entered: `Protein.grams(in:)` multiplies group servings by a table in
-  `shaman-config.json`. It earns the exception because it is the only macro with
-  an absolute daily threshold worth hitting, the only one whose sources are
-  discrete enough to estimate from a photograph, and the only one whose target
-  computes itself from data already present (body weight, from HealthKit).
-  Carbohydrate and fat get no gram targets — that road ends at a calorie
-  counter.
+- **A transcribed panel wins figure by figure, not wholesale.** A printed
+  number is a fact and beats the table for that nutrient only; a carton printing
+  protein and energy but no sodium contributes two read figures and three
+  derived ones. Discarding the ingredients over a partial panel, or the panel
+  over a missing field, both throw away something true. Everything derived is
+  computed on read and never written, so retuning `shaman-config.json` moves
+  every estimate in the history and no measurement.
+
+- **Targets are floors, ranges, and one ceiling, and the type says which.**
+  `DailyTargets` derives all of them from body weight (HealthKit) and
+  `Protein.Intent`. Protein is a floor to reach; energy, carbohydrate and fat
+  are ranges to sit inside; salt is a ceiling. A screen that draws them all as
+  identical meters says they are the same kind of thing and invites eating to
+  each — which is why only protein gets a meter on Today. Nothing here uses
+  Mifflin-St Jeor: it needs height, age and sex, and asking for a birth date to
+  sharpen a number nobody should hit exactly is a bad trade.
 - **A meal is dishes; a dish is ingredients.** `count` is how many servings of
   the dish; `size` is a stored leftover that only multiplies on a meal described
   in portions, which is every meal logged before August 2026 and everything added

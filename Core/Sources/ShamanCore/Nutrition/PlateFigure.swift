@@ -10,9 +10,11 @@
 /// deciding for itself how to arrive at a number.
 ///
 /// Caffeine is shown, never totalled — no daily figure, no target. Brewed
-/// coffee carries no label, so a caffeine total would be built from the
-/// packaged fraction of what a person drank while looking exactly like a
-/// total. That is the same reason `NutritionPanel.calories` is never summed.
+/// coffee carries no label and no composition table in this app answers for it,
+/// so a caffeine total would be built from the packaged fraction of what a
+/// person drank while looking exactly like a total. Energy escaped that
+/// objection by acquiring a complete baseline in `FoodNutrientTable`; caffeine
+/// has not, and until it does it stays a fact on one card.
 public enum PlateFigure: Equatable, Sendable {
     case protein(grams: Double)
     case caffeine(milligrams: Double)
@@ -42,9 +44,10 @@ public enum PlateFigure: Equatable, Sendable {
     public static func forPlate(
         _ dishes: [MealDish],
         share: MealShare = .whole,
-        gramsPerServing: [String: Double] = Protein.defaultGramsPerServing
+        gramsPerServing: [String: Double] = Protein.defaultGramsPerServing,
+        foods: FoodNutrientTable? = nil
     ) -> PlateFigure {
-        let grams = Protein.grams(in: dishes, gramsPerServing: gramsPerServing) * share.factor
+        let grams = Protein.grams(in: dishes, gramsPerServing: gramsPerServing, foods: foods) * share.factor
         guard grams == 0, !dishes.isEmpty, dishes.allSatisfy({ $0.panel != nil }) else {
             return .protein(grams: grams)
         }
@@ -56,11 +59,12 @@ public enum PlateFigure: Equatable, Sendable {
     /// read and is always its protein.
     public static func forMeal(
         _ meal: MealEntry,
-        gramsPerServing: [String: Double] = Protein.defaultGramsPerServing
+        gramsPerServing: [String: Double] = Protein.defaultGramsPerServing,
+        foods: FoodNutrientTable? = nil
     ) -> PlateFigure {
         guard let dishes = meal.storedDishes else {
-            return .protein(grams: Protein.grams(in: meal, gramsPerServing: gramsPerServing))
+            return .protein(grams: Protein.grams(in: meal, gramsPerServing: gramsPerServing, foods: foods))
         }
-        return forPlate(dishes, share: meal.eaten, gramsPerServing: gramsPerServing)
+        return forPlate(dishes, share: meal.eaten, gramsPerServing: gramsPerServing, foods: foods)
     }
 }

@@ -291,14 +291,25 @@ struct ScoreMethodView: View {
                     .wellieCard(color: WellieTheme.ice)
 
                     VStack(alignment: .leading, spacing: 14) {
-                        Text("Why no calories")
+                        Text("Where the numbers come from")
                             .font(WellieTheme.font(17, weight: .bold))
                         WellieProse(
                             """
-                            Asked how many grams of rice is on a plate, a model produces a number with \
-                            thirty per cent error that still looks like data. Asked whether there is a \
-                            starch here and whether the portion is small, medium or large, it is \
-                            reliable. eatsome only ever asks the second question.
+                            eatsome never asks a model how many calories are on a plate. It asks one \
+                            question with a number in it — what does this weigh — and looks the rest \
+                            up: every figure you see is a published composition table multiplied by \
+                            that weight. The tables are the USDA's and Japan's MEXT, and each food \
+                            names the row it came from.
+                            """,
+                            size: 15
+                        )
+                        WellieProse(
+                            """
+                            So a figure is only as good as the weight behind it, which is the honest \
+                            limit and the one worth knowing. Correct a weight in words on the fix \
+                            screen and everything downstream of it moves. Food eatsome could not \
+                            recognise is counted as missing rather than as nothing, and today's card \
+                            says so when it happens.
                             """,
                             size: 15
                         )

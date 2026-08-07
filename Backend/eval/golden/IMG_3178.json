@@ -10,8 +10,7 @@
           "name": "sea bream",
           "group": "fish",
           "weight_g": 180,
-          "weight_source": "annotated",
-          "protein_g": 24
+          "weight_source": "annotated"
         },
         {
           "name": "tomato sauce",

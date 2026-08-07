@@ -10,8 +10,7 @@
           "name": "chickpeas",
           "group": "legumes",
           "weight_g": 150,
-          "weight_source": "annotated",
-          "protein_g": 9
+          "weight_source": "annotated"
         },
         {
           "name": "tomato curry sauce",

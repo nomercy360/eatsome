@@ -16,8 +16,7 @@
           "name": "prawns",
           "group": "fish",
           "weight_g": 40,
-          "weight_source": "annotated",
-          "protein_g": 18
+          "weight_source": "annotated"
         }
       ]
     },

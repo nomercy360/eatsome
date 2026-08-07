@@ -46,6 +46,7 @@ struct MealDetailView: View {
                 }
 
                 sentenceCard
+                nutrientCard
                 shareCard
                 noteCard
                 factsCard
@@ -167,6 +168,98 @@ struct MealDetailView: View {
             }
         }
         .wellieCard()
+    }
+
+    /// What this meal came to, share included.
+    ///
+    /// No targets here and no meters: a target is a property of a day, and a
+    /// single meal measured against one would say a normal lunch was a third of
+    /// a person. This card states what was eaten and stops.
+    ///
+    /// A figure that rounds to nothing is left out rather than printed as zero.
+    /// `PlateFigure` already settled this argument for the headline — "0 g
+    /// protein" above a can of Monster is a true sentence that tells a person
+    /// nothing they did not know — and a row of five zeros makes the two real
+    /// numbers on that can harder to find, not easier. A drink with 4 g of carbs
+    /// and 0.4 g of salt should say those two things.
+    @ViewBuilder
+    private var nutrientCard: some View {
+        if !draft.items.isEmpty {
+            let total = model.nutrients(in: draft)
+            let shown = shownFigures(total)
+            if !shown.isEmpty {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("This meal")
+                        .font(WellieTheme.font(13, weight: .semibold))
+                        .foregroundStyle(WellieTheme.muted)
+
+                    HStack(alignment: .top, spacing: 0) {
+                        ForEach(shown, id: \.name) { mealFigure($0.name, $0.value, $0.unit) }
+                        // Keeps two figures at two-fifths width rather than
+                        // stretching them across the card.
+                        ForEach(shown.count..<5, id: \.self) { _ in
+                            Color.clear.frame(maxWidth: .infinity)
+                        }
+                    }
+
+                    if !total.isComplete {
+                        Text("\(Int(total.unresolvedGrams.rounded())) g here was not recognised. "
+                             + "Name it on the fix screen and these figures fill in.")
+                            .font(WellieTheme.font(12, weight: .medium))
+                            .foregroundStyle(WellieTheme.attention)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .wellieCard()
+            }
+        }
+    }
+
+    /// The figures worth printing, in a fixed order, skipping the ones that
+    /// round to nothing.
+    private func shownFigures(
+        _ total: NutrientTotal
+    ) -> [(name: String, value: String, unit: String)] {
+        let meal = total.nutrients
+        var out: [(name: String, value: String, unit: String)] = []
+        func add(_ name: String, _ value: Double, _ unit: String, _ text: String) {
+            guard value.rounded() > 0 else { return }
+            out.append((name, text, unit))
+        }
+        add("Energy", meal.kcal, "kcal", "\(Int(meal.kcal.rounded()))")
+        add("Protein", meal.protein, "g", "\(Int(meal.protein.rounded()))")
+        add("Carbs", meal.carbohydrate, "g", "\(Int(meal.carbohydrate.rounded()))")
+        add("Fat", meal.fat, "g", "\(Int(meal.fat.rounded()))")
+        // Salt is the one shown to a decimal, because the interesting range is
+        // 0.5 to 5 g and whole grams would round most meals to nothing. `≥`
+        // only when it was derived: a label that printed 食塩相当量 settled the
+        // number, and marking that as a lower bound understates a known fact.
+        let salt = meal.saltGrams
+        if salt >= 0.05 {
+            out.append((
+                "Salt",
+                (total.saltIsFloor ? "≥ " : "") + String(format: "%.1f", salt),
+                "g"
+            ))
+        }
+        return out
+    }
+
+    private func mealFigure(_ name: String, _ value: String, _ unit: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(name)
+                .font(WellieTheme.font(11.5, weight: .semibold))
+                .foregroundStyle(WellieTheme.muted)
+            HStack(alignment: .firstTextBaseline, spacing: 2) {
+                Text(value)
+                    .font(WellieTheme.font(16, weight: .bold))
+                    .foregroundStyle(WellieTheme.ink)
+                Text(unit)
+                    .font(WellieTheme.font(11, weight: .semibold))
+                    .foregroundStyle(WellieTheme.muted)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     /// A dish is one word and its ingredients are behind it. A meal saved
