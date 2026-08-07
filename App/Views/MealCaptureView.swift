@@ -41,6 +41,18 @@ struct MealCaptureView: View {
     @State private var noteAtRecognition = ""
     @State private var isRefining = false
     @State private var showingFix = false
+    /// The dish a new ingredient is being named for, and the words being typed
+    /// for it. Empty between additions: one addition names one food.
+    @State private var adding: AddingIngredient?
+    @State private var addText = ""
+    /// The words currently being worked in as an addition, so the sentence card
+    /// says "adding" rather than quoting the last fix back at someone who is
+    /// doing something else.
+    @State private var addInFlight: String?
+    /// A refusal from the refiner, which used to land in `failure` and was
+    /// therefore invisible: `failure` is only ever drawn on the failure screen,
+    /// and a correction happens with the review screen still up.
+    @State private var refineFailure: String?
     /// The line under the spinner. Starts on the plain one so the first thing
     /// read is what is actually happening, then wanders.
     @State private var chatter = PlateChatter.phrases[0]
@@ -109,6 +121,13 @@ struct MealCaptureView: View {
             .fullScreenCover(isPresented: $showingFix) {
                 FixScreen(text: $note) { Task { await reread() } }
             }
+            // The same screen, different words. A new ingredient is named
+            // before it is anything else, and the weight follows from the name.
+            .fullScreenCover(item: $adding) { target in
+                FixScreen(purpose: .add, text: $addText) {
+                    Task { await addIngredient(to: target.dish) }
+                }
+            }
             .sheet(item: $openDish) { dish in
                 DishSheet(
                     dish: dish,
@@ -119,17 +138,12 @@ struct MealCaptureView: View {
                         didEdit = true
                     },
                     onEditIngredient: { editing = EditingFood(id: $0) },
-                    onAddIngredient: {
-                        guard let index = dishes.firstIndex(where: { $0.id == dish.id }) else { return }
-                        let added = MealItem(group: .other)
-                        dishes[index].items.append(added)
-                        items = dishes.flatMap { $0.flattened() }
-                        didEdit = true
-                        // Straight into the picker: a row reading "something
-                        // else, normal" is not an ingredient, it is a promise
-                        // to name one.
-                        editing = EditingFood(id: added.id)
-                    },
+                    // Never the ingredient sheet. It is pickers only, and a row
+                    // appended as `.other` to open it in gave the person
+                    // "Something else / Something else" and "Not weighed" — a
+                    // promise to name an ingredient with no way to name one.
+                    // Words first; the model weighs it and it joins the dish.
+                    onAddIngredient: { adding = AddingIngredient(id: dish.id, dish: dish.name) },
                     onCount: { count in
                         guard let index = dishes.firstIndex(where: { $0.id == dish.id }) else { return }
                         // Rewrites the weights rather than multiplying at score time: a
@@ -551,11 +565,18 @@ struct MealCaptureView: View {
                 )
             }
 
-            // The fix is quoted back verbatim while it is being worked in, so
-            // the wait is attached to the words that caused it. The promise
-            // that nothing else moves is the reassurance worth repeating.
-            if isRefining, !noteAtRecognition.isEmpty || hasNewNote {
+            // The words are quoted back verbatim while they are being worked
+            // in, so the wait is attached to what caused it. The promise that
+            // nothing else moves is the reassurance worth repeating.
+            if isRefining, let addInFlight {
+                WellieCaption("Adding “\(addInFlight)” — everything else stays as you set it.")
+            } else if isRefining, !noteAtRecognition.isEmpty || hasNewNote {
                 WellieCaption("Your fix: “\(fixInFlight)” — everything else stays as you set it.")
+            } else if let refineFailure {
+                Text(refineFailure)
+                    .font(WellieTheme.font(12.5, weight: .medium))
+                    .foregroundStyle(WellieTheme.attention)
+                    .fixedSize(horizontal: false, vertical: true)
             } else if let question = openQuestion {
                 uncertainty(question)
             }
@@ -565,7 +586,7 @@ struct MealCaptureView: View {
     }
 
     private var sentenceCardHeading: String {
-        if isRefining { return "Working your fix in…" }
+        if isRefining { return addInFlight == nil ? "Working your fix in…" : "Adding it to the list…" }
         return items.isEmpty ? "Nothing on the list yet" : "Tap a word to change it"
     }
 
@@ -844,6 +865,7 @@ struct MealCaptureView: View {
         guard !text.isEmpty else { return }
         isTyping = false
         isRefining = true
+        refineFailure = nil
         defer { isRefining = false }
         do {
             let revision = try await model.refine(imageData: imageData, current: items, note: text)
@@ -852,7 +874,51 @@ struct MealCaptureView: View {
             noteAtRecognition = text
             didEdit = true
         } catch {
-            failure = error.localizedDescription
+            refineFailure = error.localizedDescription
+        }
+    }
+
+    /// A named ingredient, weighed by the model and filed under the dish it was
+    /// added from.
+    ///
+    /// The same delta as a fix, because it is the same act: the person supplies
+    /// words, the model supplies the weight. Nothing here appends the words to
+    /// the meal's note — the note is what is still to be taken into account, and
+    /// these words have been. The row on the list is the record.
+    ///
+    /// The dish is written on afterwards rather than asked for: the refiner is
+    /// given a flat list and knows nothing about dishes, so every row it adds
+    /// comes back unfiled. Coming from a dish sheet there is nothing to guess.
+    private func addIngredient(to dish: String) async {
+        let text = addText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        addText = ""
+        addInFlight = text
+        isRefining = true
+        refineFailure = nil
+        defer {
+            isRefining = false
+            addInFlight = nil
+        }
+        do {
+            let existing = Set(items.map(\.id))
+            let revision = try await model.refine(imageData: imageData, current: items, note: text)
+            // A revision that changes nothing has to say so. Silently returning
+            // to a sentence with no new word in it reads as the app having
+            // dropped what you typed.
+            guard !revision.isEmpty else {
+                refineFailure = "I couldn't tell what “\(text)” was. Try naming it in a few plain words."
+                return
+            }
+            var updated = revision.applied(to: items)
+            for index in updated.indices where !existing.contains(updated[index].id) {
+                updated[index].dish = dish
+            }
+            items = updated
+            dishes = MealDish.regrouped(items, keeping: dishes)
+            didEdit = true
+        } catch {
+            refineFailure = error.localizedDescription
         }
     }
 

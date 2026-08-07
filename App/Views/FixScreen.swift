@@ -15,10 +15,26 @@ import SwiftUI
 /// where a sheet's grab handle was, and does the same job with less ceremony.
 ///
 /// It is a sentence, not a form: "say it like you'd tell a person".
+///
+/// Naming a new ingredient is the same screen with different words. It used to
+/// be the ingredient sheet, which is pickers only — a row appended as
+/// `.other` opened on "Something else / Something else" and "Not weighed", with
+/// nowhere to type what the thing actually was. There is no picker for the name
+/// of a food, and inventing one would ask a person to find "olive oil" in a
+/// list of 26 groups instead of saying it.
 struct FixScreen: View {
+    /// Which of the two jobs this screen is doing. Both are one act — words in,
+    /// a delta out — so the difference is copy and nothing else.
+    enum Purpose {
+        case fix
+        case add
+    }
+
+    var purpose: Purpose = .fix
     /// What the person last told the model, so reopening this shows the words
     /// already taken into account rather than an empty box that implies they
-    /// were forgotten.
+    /// were forgotten. An addition starts empty every time: it names one food
+    /// and is spent as soon as that food is on the list.
     @Binding var text: String
     var onSubmit: () -> Void
 
@@ -29,12 +45,12 @@ struct FixScreen: View {
         NavigationStack {
             VStack(alignment: .leading, spacing: 16) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("What should I fix?")
+                    Text(title)
                         .font(WellieTheme.font(22, weight: .bold))
-                    WellieProse("Say it like you'd tell a person. Your other edits are kept.", size: 15)
+                    WellieProse(subtitle, size: 15)
                 }
 
-                TextField("The toast is missing the eggs…", text: $text, axis: .vertical)
+                TextField(placeholder, text: $text, axis: .vertical)
                     .font(WellieTheme.font(17, weight: .medium))
                     .focused($isTyping)
                     .lineLimit(2...6)
@@ -46,7 +62,7 @@ struct FixScreen: View {
                     }
                     .onSubmit(submit)
 
-                Button("Update the meal", action: submit)
+                Button(actionTitle, action: submit)
                     .buttonStyle(WelliePrimaryButtonStyle())
                     .disabled(trimmed.isEmpty)
 
@@ -67,6 +83,37 @@ struct FixScreen: View {
         }
         .onAppear { isTyping = true }
         .wellieScreen()
+    }
+
+    private var title: String {
+        switch purpose {
+        case .fix: "What should I fix?"
+        case .add: "What should I add?"
+        }
+    }
+
+    /// The addition says out loud what happens next, because it is the answer
+    /// to the question the old sheet raised and could not answer: the weight is
+    /// not being asked for, it is being worked out.
+    private var subtitle: String {
+        switch purpose {
+        case .fix: "Say it like you'd tell a person. Your other edits are kept."
+        case .add: "Name it like you'd tell a person. It gets a weight and joins the list."
+        }
+    }
+
+    private var placeholder: String {
+        switch purpose {
+        case .fix: "The toast is missing the eggs…"
+        case .add: "A drizzle of olive oil…"
+        }
+    }
+
+    private var actionTitle: String {
+        switch purpose {
+        case .fix: "Update the meal"
+        case .add: "Add it"
+        }
     }
 
     private var trimmed: String {

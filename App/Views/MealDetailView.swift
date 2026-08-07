@@ -25,6 +25,15 @@ struct MealDetailView: View {
     @State private var recipeName = ""
     @State private var isRefining = false
     @State private var refineFailure: String?
+    /// The dish a new ingredient is being named for, the words being typed for
+    /// it, and — while the model is weighing them — the words to quote back.
+    /// Kept apart from the note: an addition is spent on the row it produces.
+    @State private var adding: AddingIngredient?
+    @State private var addText = ""
+    @State private var addInFlight: String?
+    /// Shown by the sentence rather than in the note card, which is where the
+    /// re-read reports and is several cards further down.
+    @State private var addFailure: String?
     /// The note as it stood when this meal was last read. Whatever was saved
     /// with the meal has already been through the model, so it is where the
     /// comparison starts.
@@ -100,13 +109,11 @@ struct MealDetailView: View {
                     draft.items = dishes.flatMap { $0.flattened() }
                 },
                 onEditIngredient: { editing = EditingFood(id: $0) },
-                onAddIngredient: {
-                    guard let index = dishes.firstIndex(where: { $0.id == dish.id }) else { return }
-                    let added = MealItem(group: .other)
-                    dishes[index].items.append(added)
-                    draft.items = dishes.flatMap { $0.flattened() }
-                    editing = EditingFood(id: added.id)
-                },
+                // Never the ingredient sheet: it is pickers only, and a row
+                // appended as `.other` to open it in gave the person "Something
+                // else / Something else" and "Not weighed" — a promise to name
+                // an ingredient with no way to name one.
+                onAddIngredient: { adding = AddingIngredient(id: dish.id, dish: dish.name) },
                 onCount: { count in
                     guard let index = dishes.firstIndex(where: { $0.id == dish.id }) else { return }
                     // Rewrites the weights rather than multiplying at score time: a
@@ -120,6 +127,14 @@ struct MealDetailView: View {
                     draft.items.removeAll { members.contains($0.id) }
                 }
             )
+        }
+        // The fix screen with the fix screen's words swapped out. Full screen
+        // for the reason it is full screen there: a keyboard and a detent
+        // cannot agree on a height.
+        .fullScreenCover(item: $adding) { target in
+            FixScreen(purpose: .add, text: $addText) {
+                Task { await addIngredient(to: target.dish) }
+            }
         }
         .alert("Save as a dish", isPresented: $showingRecipeName) {
             TextField("Lentil soup", text: $recipeName)
@@ -150,9 +165,9 @@ struct MealDetailView: View {
     private var sentenceCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(draft.items.isEmpty ? "Nothing on this meal yet" : "Tap a word to change it")
+                Text(sentenceHeading)
                     .font(WellieTheme.font(13, weight: .semibold))
-                    .foregroundStyle(WellieTheme.muted)
+                    .foregroundStyle(addInFlight == nil ? WellieTheme.muted : WellieTheme.blue)
                 Spacer(minLength: 0)
                 // Share included, so halving the plate below visibly halves it.
                 if !draft.items.isEmpty {
@@ -166,8 +181,23 @@ struct MealDetailView: View {
             if !draft.items.isEmpty {
                 FoodSentence(lead: "You had", words: sentenceWords, onTap: { tapWord($0) })
             }
+
+            if let addInFlight {
+                WellieCaption("Adding “\(addInFlight)” — everything else stays as you set it.")
+            } else if let addFailure {
+                Text(addFailure)
+                    .font(WellieTheme.font(12.5, weight: .medium))
+                    .foregroundStyle(WellieTheme.attention)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .wellieCard()
+        .animation(.easeInOut(duration: 0.2), value: addInFlight)
+    }
+
+    private var sentenceHeading: String {
+        if addInFlight != nil { return "Adding it to the list…" }
+        return draft.items.isEmpty ? "Nothing on this meal yet" : "Tap a word to change it"
     }
 
     /// What this meal came to, share included.
@@ -376,6 +406,52 @@ struct MealDetailView: View {
             readNote = text
         } catch {
             refineFailure = error.localizedDescription
+        }
+    }
+
+    /// A named ingredient, weighed by the model and filed under the dish it was
+    /// added from.
+    ///
+    /// The same delta as a fix, because it is the same act: the person supplies
+    /// words, the model supplies the weight. The words are not appended to the
+    /// note — the note is what is still to be taken into account, and these have
+    /// been. The row on the list is the record.
+    ///
+    /// The dish is written on afterwards rather than asked for: the refiner is
+    /// handed a flat list and knows nothing about dishes, so every row it adds
+    /// comes back unfiled. Coming from a dish sheet there is nothing to guess.
+    private func addIngredient(to dish: String) async {
+        let text = addText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        addText = ""
+        addInFlight = text
+        isRefining = true
+        addFailure = nil
+        defer {
+            isRefining = false
+            addInFlight = nil
+        }
+        do {
+            let existing = Set(draft.items.map(\.id))
+            let revision = try await model.refine(
+                imageData: PhotoStore.shared.data(for: meal.photoHash),
+                current: draft.items,
+                note: text
+            )
+            // A revision that changes nothing has to say so. Returning to a
+            // sentence with no new word in it reads as the app having dropped
+            // what you typed.
+            guard !revision.isEmpty else {
+                addFailure = "I couldn't tell what “\(text)” was. Try naming it in a few plain words."
+                return
+            }
+            var updated = revision.applied(to: draft.items)
+            for index in updated.indices where !existing.contains(updated[index].id) {
+                updated[index].dish = dish
+            }
+            draft.items = updated
+        } catch {
+            addFailure = error.localizedDescription
         }
     }
 

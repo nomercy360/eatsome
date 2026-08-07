@@ -257,6 +257,12 @@ struct DishSheet: View {
             // sheet only ever revises what is already listed. Without this the
             // only way to add a forgotten ingredient is to describe the whole
             // meal again.
+            //
+            // This opens the naming screen, never the ingredient sheet: that
+            // sheet is pickers only, so a row put there to be filled in read
+            // "Something else · Not weighed" with nothing to type into. A new
+            // ingredient is named in words, and the weight follows from the
+            // name.
             Button {
                 dismiss()
                 onAddIngredient()

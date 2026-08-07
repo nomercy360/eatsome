@@ -55,6 +55,18 @@ struct EditingFood: Identifiable, Hashable {
     let id: UUID
 }
 
+/// The dish a new ingredient is being named for. The name is what carries it
+/// home: `MealDish.regrouped` files a flat row by `MealItem.dish`, and the
+/// refiner returns rows with none — it is not told which dish a correction
+/// belongs to, and guessing would be worse than not knowing. Coming from a
+/// dish sheet there is nothing to guess.
+struct AddingIngredient: Identifiable, Hashable {
+    /// The dish's own id, so the presentation is keyed on the dish rather than
+    /// on a name two dishes could share.
+    let id: UUID
+    let dish: String
+}
+
 /// The photograph, or a stand-in that does not pretend to be one.
 struct MealThumbnail: View {
     let meal: MealEntry
