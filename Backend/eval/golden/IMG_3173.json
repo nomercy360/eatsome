@@ -27,10 +27,6 @@
       ]
     }
   ],
-  "traps": [
-    "butter_under_jam",
-    "jam_is_sweets_not_fruit",
-    "spread_on_is_one_dish"
-  ],
+  "traps": ["butter_under_jam", "jam_is_sweets_not_fruit", "spread_on_is_one_dish"],
   "photo": "photos/IMG_3173.JPG"
 }

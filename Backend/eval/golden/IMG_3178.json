@@ -16,9 +16,7 @@
         {
           "name": "tomato sauce",
           "group": "vegetables",
-          "alternatives": [
-            "sofrito"
-          ],
+          "alternatives": ["sofrito"],
           "weight_g": 120,
           "weight_source": "annotated"
         },

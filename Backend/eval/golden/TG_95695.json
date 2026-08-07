@@ -46,9 +46,7 @@
         {
           "name": "chicken",
           "group": "white_meat",
-          "alternatives": [
-            "red_meat"
-          ],
+          "alternatives": ["red_meat"],
           "weight_g": 100,
           "weight_source": "annotated",
           "protein_g": 12

@@ -15,8 +15,6 @@
       ]
     }
   ],
-  "traps": [
-    "half_is_a_size_not_a_count"
-  ],
+  "traps": ["half_is_a_size_not_a_count"],
   "photo": "photos/IMG_3169.JPG"
 }

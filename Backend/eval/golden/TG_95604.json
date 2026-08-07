@@ -9,9 +9,7 @@
         {
           "name": "escargot",
           "group": "fish",
-          "alternatives": [
-            "other"
-          ],
+          "alternatives": ["other"],
           "weight_g": 60,
           "weight_source": "annotated"
         },

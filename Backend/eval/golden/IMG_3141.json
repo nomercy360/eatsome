@@ -15,9 +15,7 @@
         {
           "name": "kebab meat",
           "group": "white_meat",
-          "alternatives": [
-            "red_meat"
-          ],
+          "alternatives": ["red_meat"],
           "weight_g": 90,
           "weight_source": "annotated",
           "protein_g": 25
@@ -31,9 +29,7 @@
         {
           "name": "garlic yoghurt sauce",
           "group": "dairy",
-          "alternatives": [
-            "butter_margarine_cream"
-          ],
+          "alternatives": ["butter_margarine_cream"],
           "weight_g": 30,
           "weight_source": "annotated"
         },
@@ -46,11 +42,6 @@
       ]
     }
   ],
-  "traps": [
-    "foreign_meal_bleed",
-    "sauce_missed",
-    "zero_alcohol_beer",
-    "white_vs_red_meat"
-  ],
+  "traps": ["foreign_meal_bleed", "sauce_missed", "zero_alcohol_beer", "white_vs_red_meat"],
   "photo": "photos/IMG_3141.JPG"
 }

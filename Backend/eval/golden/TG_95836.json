@@ -15,10 +15,6 @@
       ]
     }
   ],
-  "traps": [
-    "bottle_vs_glass_portion",
-    "can_not_bottle",
-    "alcohol_recall"
-  ],
+  "traps": ["bottle_vs_glass_portion", "can_not_bottle", "alcohol_recall"],
   "photo": "photos/TG_95836.jpeg"
 }

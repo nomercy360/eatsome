@@ -24,9 +24,7 @@
           "weight_g": 80,
           "weight_source": "label",
           "protein_g": 3,
-          "flags": [
-            "added_sugar"
-          ]
+          "flags": ["added_sugar"]
         }
       ]
     }

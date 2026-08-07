@@ -9,9 +9,7 @@
         {
           "name": "bread slice",
           "group": "whole_grain",
-          "alternatives": [
-            "refined_grain"
-          ],
+          "alternatives": ["refined_grain"],
           "weight_g": 40,
           "weight_source": "annotated"
         },
@@ -56,9 +54,6 @@
       ]
     }
   ],
-  "traps": [
-    "homemade_vs_commercial_pastry",
-    "piece_in_a_shared_bowl_is_its_own_dish"
-  ],
+  "traps": ["homemade_vs_commercial_pastry", "piece_in_a_shared_bowl_is_its_own_dish"],
   "photo": "photos/IMG_3137.JPG"
 }

@@ -15,9 +15,6 @@
       ]
     }
   ],
-  "traps": [
-    "dessert_components_not_separate",
-    "sweets_dedup"
-  ],
+  "traps": ["dessert_components_not_separate", "sweets_dedup"],
   "photo": "photos/IMG_3180.jpeg"
 }

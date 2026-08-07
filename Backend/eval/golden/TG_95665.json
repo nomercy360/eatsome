@@ -15,9 +15,6 @@
       ]
     }
   ],
-  "traps": [
-    "fake_food_object_in_frame",
-    "dessert_components_not_separate"
-  ],
+  "traps": ["fake_food_object_in_frame", "dessert_components_not_separate"],
   "photo": "photos/TG_95665.jpeg"
 }

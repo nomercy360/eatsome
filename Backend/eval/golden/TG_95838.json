@@ -51,10 +51,6 @@
       ]
     }
   ],
-  "traps": [
-    "bottle_and_glass_differ",
-    "fruit_dedup",
-    "unreadable_dark_drink"
-  ],
+  "traps": ["bottle_and_glass_differ", "fruit_dedup", "unreadable_dark_drink"],
   "photo": "photos/TG_95838.jpeg"
 }

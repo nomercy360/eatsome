@@ -40,10 +40,6 @@
       ]
     }
   ],
-  "traps": [
-    "same_food_pan_and_plate",
-    "fruit_in_salad_not_vegetables",
-    "seafood_dedup"
-  ],
+  "traps": ["same_food_pan_and_plate", "fruit_in_salad_not_vegetables", "seafood_dedup"],
   "photo": "photos/TG_95683.jpeg"
 }

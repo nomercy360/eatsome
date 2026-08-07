@@ -418,4 +418,3 @@ export function scoreCase(golden: GoldenCase, raw: string, told = false): CaseSc
     pass: failures.length === 0,
   };
 }
-

@@ -1,4 +1,4 @@
-import { loadGoldenCases, goldenIngredients } from "./golden";
+import { goldenIngredients, loadGoldenCases } from "./golden";
 import { mapGroup, weightProvenance } from "./taxonomy";
 
 /**

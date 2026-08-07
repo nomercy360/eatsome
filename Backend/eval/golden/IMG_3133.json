@@ -15,9 +15,7 @@
         {
           "name": "beef patty",
           "group": "red_meat",
-          "alternatives": [
-            "processed_meat"
-          ],
+          "alternatives": ["processed_meat"],
           "weight_g": 90,
           "weight_source": "annotated",
           "protein_g": 20
@@ -33,9 +31,7 @@
           "group": "potatoes",
           "weight_g": 110,
           "weight_source": "annotated",
-          "flags": [
-            "fried"
-          ]
+          "flags": ["fried"]
         }
       ]
     },
@@ -46,15 +42,10 @@
         {
           "name": "chicken nugget",
           "group": "white_meat",
-          "alternatives": [
-            "processed_meat"
-          ],
+          "alternatives": ["processed_meat"],
           "weight_g": 65,
           "weight_source": "annotated",
-          "flags": [
-            "breaded",
-            "fried"
-          ],
+          "flags": ["breaded", "fried"],
           "protein_g": 3
         }
       ]
@@ -80,9 +71,7 @@
         {
           "name": "sweetened iced tea",
           "group": "sugary_drinks",
-          "alternatives": [
-            "tea"
-          ],
+          "alternatives": ["tea"],
           "weight_g": 500,
           "weight_source": "annotated"
         }

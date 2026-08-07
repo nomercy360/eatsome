@@ -10,15 +10,10 @@
         {
           "name": "chicken schnitzel",
           "group": "white_meat",
-          "alternatives": [
-            "red_meat"
-          ],
+          "alternatives": ["red_meat"],
           "weight_g": 650,
           "weight_source": "annotated",
-          "flags": [
-            "fried",
-            "breaded"
-          ],
+          "flags": ["fried", "breaded"],
           "protein_g": 22
         }
       ]

@@ -11,10 +11,7 @@
           "group": "refined_grain",
           "weight_g": 90,
           "weight_source": "annotated",
-          "flags": [
-            "opaque_packaging",
-            "filling_unknown"
-          ]
+          "flags": ["opaque_packaging", "filling_unknown"]
         }
       ]
     },
@@ -25,20 +22,13 @@
         {
           "name": "fruit smoothie",
           "group": "smoothie",
-          "alternatives": [
-            "fruit",
-            "sugary_drinks"
-          ],
+          "alternatives": ["fruit", "sugary_drinks"],
           "weight_g": 400,
           "weight_source": "annotated"
         }
       ]
     }
   ],
-  "traps": [
-    "two_person_split",
-    "opaque_packaging_no_hallucination",
-    "smoothie_vs_fruit_vs_juice"
-  ],
+  "traps": ["two_person_split", "opaque_packaging_no_hallucination", "smoothie_vs_fruit_vs_juice"],
   "photo": "photos/IMG_3177.jpeg"
 }

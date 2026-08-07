@@ -11,9 +11,7 @@
           "group": "refined_grain",
           "weight_g": 450,
           "weight_source": "annotated",
-          "flags": [
-            "fried"
-          ]
+          "flags": ["fried"]
         }
       ]
     },
@@ -38,9 +36,7 @@
           "group": "sweets",
           "weight_g": 50,
           "weight_source": "annotated",
-          "flags": [
-            "added_sugar"
-          ]
+          "flags": ["added_sugar"]
         }
       ]
     },
@@ -57,10 +53,6 @@
       ]
     }
   ],
-  "traps": [
-    "same_food_two_forms",
-    "jam_is_sweets_not_fruit",
-    "fruit_dedup"
-  ],
+  "traps": ["same_food_two_forms", "jam_is_sweets_not_fruit", "fruit_dedup"],
   "photo": "photos/TG_95709.jpeg"
 }

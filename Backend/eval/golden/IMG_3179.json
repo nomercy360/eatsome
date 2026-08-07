@@ -29,9 +29,7 @@
         {
           "name": "rye bread",
           "group": "whole_grain",
-          "alternatives": [
-            "refined_grain"
-          ],
+          "alternatives": ["refined_grain"],
           "weight_g": 90,
           "weight_source": "annotated"
         }
@@ -57,10 +55,6 @@
       ]
     }
   ],
-  "traps": [
-    "cheese_on_eggs_missed",
-    "rye_whole_vs_refined",
-    "caffeine_in_coffee"
-  ],
+  "traps": ["cheese_on_eggs_missed", "rye_whole_vs_refined", "caffeine_in_coffee"],
   "photo": "photos/IMG_3179.jpeg"
 }

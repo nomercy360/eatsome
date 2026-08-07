@@ -15,10 +15,6 @@
       ]
     }
   ],
-  "traps": [
-    "fruit_in_dessert_not_fruit",
-    "homemade_vs_commercial_pastry",
-    "plate_vs_meal"
-  ],
+  "traps": ["fruit_in_dessert_not_fruit", "homemade_vs_commercial_pastry", "plate_vs_meal"],
   "photo": "photos/IMG_3165.JPG"
 }

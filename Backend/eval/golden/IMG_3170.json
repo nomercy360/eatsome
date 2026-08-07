@@ -27,9 +27,7 @@
         {
           "name": "milk",
           "group": "dairy",
-          "alternatives": [
-            "plant_milk"
-          ],
+          "alternatives": ["plant_milk"],
           "weight_g": 80,
           "weight_source": "annotated"
         },
@@ -42,10 +40,6 @@
       ]
     }
   ],
-  "traps": [
-    "honey_missed",
-    "milk_vs_plant_milk_ambiguous",
-    "stirred_bowl_is_one_dish"
-  ],
+  "traps": ["honey_missed", "milk_vs_plant_milk_ambiguous", "stirred_bowl_is_one_dish"],
   "photo": "photos/IMG_3170.JPG"
 }

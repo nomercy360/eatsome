@@ -9,9 +9,7 @@
         {
           "name": "bagel",
           "group": "whole_grain",
-          "alternatives": [
-            "refined_grain"
-          ],
+          "alternatives": ["refined_grain"],
           "weight_g": 110,
           "weight_source": "annotated"
         },

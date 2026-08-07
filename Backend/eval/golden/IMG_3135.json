@@ -51,10 +51,6 @@
       ]
     }
   ],
-  "traps": [
-    "plate_vs_meal",
-    "oversized_portion_default",
-    "count_the_countable_fruit"
-  ],
+  "traps": ["plate_vs_meal", "oversized_portion_default", "count_the_countable_fruit"],
   "photo": "photos/IMG_3135.JPG"
 }

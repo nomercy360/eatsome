@@ -34,9 +34,7 @@
         {
           "name": "prosciutto",
           "group": "processed_meat",
-          "alternatives": [
-            "red_meat"
-          ],
+          "alternatives": ["red_meat"],
           "weight_g": 25,
           "weight_source": "annotated"
         },
@@ -61,9 +59,7 @@
         {
           "name": "coconut water",
           "group": "juice",
-          "alternatives": [
-            "other"
-          ],
+          "alternatives": ["other"],
           "weight_g": 500,
           "weight_source": "annotated"
         }

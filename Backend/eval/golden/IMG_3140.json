@@ -90,11 +90,6 @@
       ]
     }
   ],
-  "traps": [
-    "avocado_taxonomy_healthy_fats",
-    "dairy_dedup",
-    "butter_present",
-    "caffeine_in_coffee"
-  ],
+  "traps": ["avocado_taxonomy_healthy_fats", "dairy_dedup", "butter_present", "caffeine_in_coffee"],
   "photo": "photos/IMG_3140.JPG"
 }

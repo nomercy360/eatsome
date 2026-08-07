@@ -15,9 +15,7 @@
         {
           "name": "minced meat topping",
           "group": "white_meat",
-          "alternatives": [
-            "red_meat"
-          ],
+          "alternatives": ["red_meat"],
           "weight_g": 130,
           "weight_source": "annotated",
           "protein_g": 18

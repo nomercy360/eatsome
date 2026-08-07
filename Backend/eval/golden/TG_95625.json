@@ -67,9 +67,7 @@
           "group": "sweets",
           "weight_g": 40,
           "weight_source": "annotated",
-          "flags": [
-            "added_sugar"
-          ]
+          "flags": ["added_sugar"]
         }
       ]
     }

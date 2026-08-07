@@ -15,9 +15,7 @@
         {
           "name": "prosciutto",
           "group": "processed_meat",
-          "alternatives": [
-            "red_meat"
-          ],
+          "alternatives": ["red_meat"],
           "weight_g": 40,
           "weight_source": "annotated"
         },

@@ -11,10 +11,7 @@
           "group": "white_meat",
           "weight_g": 110,
           "weight_source": "annotated",
-          "flags": [
-            "fried",
-            "breaded"
-          ],
+          "flags": ["fried", "breaded"],
           "protein_g": 8
         }
       ]

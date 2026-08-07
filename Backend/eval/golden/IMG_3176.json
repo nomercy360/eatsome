@@ -11,16 +11,11 @@
           "group": "red_meat",
           "weight_g": 600,
           "weight_source": "annotated",
-          "flags": [
-            "raw_ingredient"
-          ]
+          "flags": ["raw_ingredient"]
         }
       ]
     }
   ],
-  "traps": [
-    "raw_vs_cooked",
-    "prep_photo_not_meal"
-  ],
+  "traps": ["raw_vs_cooked", "prep_photo_not_meal"],
   "photo": "photos/IMG_3176.jpeg"
 }

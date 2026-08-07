@@ -54,9 +54,7 @@
           "group": "potatoes",
           "weight_g": 40,
           "weight_source": "annotated",
-          "flags": [
-            "fried"
-          ]
+          "flags": ["fried"]
         }
       ]
     },

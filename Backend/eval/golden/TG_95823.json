@@ -42,9 +42,7 @@
           "group": "refined_grain",
           "weight_g": 120,
           "weight_source": "annotated",
-          "flags": [
-            "fried"
-          ]
+          "flags": ["fried"]
         }
       ]
     }

@@ -11,16 +11,11 @@
           "group": "sweets",
           "weight_g": 175,
           "weight_source": "annotated",
-          "flags": [
-            "added_sugar"
-          ]
+          "flags": ["added_sugar"]
         }
       ]
     }
   ],
-  "traps": [
-    "sweets_shaped_as_fruit",
-    "fruit_in_dessert_not_fruit"
-  ],
+  "traps": ["sweets_shaped_as_fruit", "fruit_in_dessert_not_fruit"],
   "photo": "photos/TG_95716.jpeg"
 }

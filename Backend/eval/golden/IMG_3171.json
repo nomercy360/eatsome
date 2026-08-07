@@ -45,11 +45,6 @@
       ]
     }
   ],
-  "traps": [
-    "shelf_photo_not_eaten",
-    "korean_ocr",
-    "sauce_sachet",
-    "panel_on_the_front_of_a_pack"
-  ],
+  "traps": ["shelf_photo_not_eaten", "korean_ocr", "sauce_sachet", "panel_on_the_front_of_a_pack"],
   "photo": "photos/IMG_3171.JPG"
 }
