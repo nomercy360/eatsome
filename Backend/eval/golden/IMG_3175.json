@@ -5,12 +5,12 @@
     {
       "name": "apple-lime juice",
       "count": 1,
-      "size": "M",
       "ingredients": [
         {
           "name": "cold-pressed apple-lime juice",
           "group": "juice",
-          "portion": "M"
+          "weight_g": 330,
+          "weight_source": "label"
         }
       ]
     }

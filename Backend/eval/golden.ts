@@ -5,14 +5,39 @@ import { basename, join } from "node:path";
  * The dataset's own schema, kept as it was written rather than reshaped to fit
  * the app. Where the two disagree, `taxonomy.ts` says so out loud — a golden set
  * bent to match the code cannot tell you the code is wrong.
+ *
+ * The one deliberate reshaping is quantity. The set was annotated on the
+ * `count × size × portion` ladder the app used before August 2026; the app now
+ * asks for absolute grams and nothing else, and a golden that keeps answering
+ * in ladder cannot grade the number the app actually scores — a systematic
+ * ×0.68 under-read sits comfortably inside half-a-serving tolerance. So
+ * quantity was re-annotated in grams, and `weight_source` says how each number
+ * was arrived at, because a converted ladder value looking exactly like a
+ * weighed one is the same trap at a smaller scale.
  */
 export type GoldenItem = {
   name: string;
   group: string;
   alternatives?: string[];
-  /** This ingredient's share of ONE serving of its dish, never of the whole. */
-  portion?: "S" | "M" | "L";
-  weight_g?: number;
+  /**
+   * Edible weight on the plate, absolute: everything of this ingredient that
+   * is present, across every serving in the photograph — the same definition
+   * the prompt gives the model, so the two numbers are directly comparable.
+   */
+  weight_g: number;
+  /**
+   * Where `weight_g` came from, in descending order of trust:
+   *
+   *   label     — printed on the package (net weight, panel basis). A
+   *               measurement; graded tight.
+   *   annotated — estimated from the photograph by the annotator, against
+   *               references in frame. An honest estimate; graded with the
+   *               tolerance an estimate deserves.
+   *   ladder    — mechanically derived from the retired count×size×portion
+   *               annotation. Scaffolding awaiting a human pass; graded at the
+   *               half-serving resolution the ladder actually had.
+   */
+  weight_source: "label" | "annotated" | "ladder";
   protein_g?: number;
   flags?: string[];
   /** Not visible in the photo: reachable only through the note or a recipe. */
@@ -41,9 +66,11 @@ export type GoldenPanel = {
  */
 export type GoldenDish = {
   name: string;
-  /** Servings of this dish present. Three slices of bread is count 3. */
+  /**
+   * Servings of this dish present. Three slices of bread is count 3. A label,
+   * never a factor: each ingredient's `weight_g` already covers all of them.
+   */
   count: number;
-  size: "S" | "M" | "L";
   panel?: GoldenPanel | null;
   /**
    * Expected milligrams, derived from the drink and its count — never asked of
@@ -118,13 +145,12 @@ export function loadGoldenCases(): GoldenCase[] {
 /** Every ingredient with the dish it came from, for group-level scoring. */
 export function goldenIngredients(
   dishes: GoldenDish[],
-): Array<GoldenItem & { dish: string; dishCount: number; dishSize: "S" | "M" | "L" }> {
+): Array<GoldenItem & { dish: string; dishCount: number }> {
   return dishes.flatMap((dish) =>
     dish.ingredients.map((item) => ({
       ...item,
       dish: dish.name,
       dishCount: dish.count,
-      dishSize: dish.size,
     })),
   );
 }

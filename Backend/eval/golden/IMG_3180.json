@@ -5,12 +5,12 @@
     {
       "name": "bubble waffle",
       "count": 1,
-      "size": "L",
       "ingredients": [
         {
           "name": "bubble waffle with ice cream and sweets",
           "group": "sweets",
-          "portion": "L"
+          "weight_g": 260,
+          "weight_source": "annotated"
         }
       ]
     }

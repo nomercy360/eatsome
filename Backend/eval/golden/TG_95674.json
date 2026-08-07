@@ -5,54 +5,55 @@
     {
       "name": "hand-roll set",
       "count": 1,
-      "size": "M",
       "ingredients": [
         {
           "name": "nori sheets and fillings",
           "group": "vegetables",
-          "portion": "S"
+          "weight_g": 120,
+          "weight_source": "annotated"
         }
       ]
     },
     {
       "name": "udon in broth",
       "count": 1,
-      "size": "M",
       "ingredients": [
         {
           "name": "udon noodles",
           "group": "refined_grain",
-          "portion": "M"
+          "weight_g": 200,
+          "weight_source": "annotated"
         }
       ]
     },
     {
       "name": "nigiri",
       "count": 3,
-      "size": "S",
       "ingredients": [
         {
           "name": "fish topping",
           "group": "fish",
-          "portion": "M",
+          "weight_g": 45,
+          "weight_source": "annotated",
           "protein_g": 5
         },
         {
           "name": "sushi rice",
           "group": "refined_grain",
-          "portion": "S"
+          "weight_g": 60,
+          "weight_source": "annotated"
         }
       ]
     },
     {
       "name": "potato crisps",
       "count": 1,
-      "size": "S",
       "ingredients": [
         {
           "name": "potato crisps",
           "group": "potatoes",
-          "portion": "S",
+          "weight_g": 40,
+          "weight_source": "annotated",
           "flags": [
             "fried"
           ]
@@ -62,12 +63,12 @@
     {
       "name": "cocktail",
       "count": 1,
-      "size": "M",
       "ingredients": [
         {
           "name": "red cocktail",
           "group": "alcohol",
-          "portion": "M"
+          "weight_g": 200,
+          "weight_source": "annotated"
         }
       ]
     }

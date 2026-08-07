@@ -6,12 +6,12 @@
     {
       "name": "sweet and sour chicken",
       "count": 1,
-      "size": "M",
       "ingredients": [
         {
           "name": "battered chicken",
           "group": "white_meat",
-          "portion": "M",
+          "weight_g": 320,
+          "weight_source": "annotated",
           "flags": [
             "fried",
             "breaded"
@@ -21,53 +21,56 @@
         {
           "name": "sweet and sour sauce",
           "group": "sauce",
-          "portion": "M"
+          "weight_g": 60,
+          "weight_source": "annotated"
         }
       ]
     },
     {
       "name": "braised potato with peppers",
       "count": 1,
-      "size": "M",
       "ingredients": [
         {
           "name": "braised potato",
           "group": "potatoes",
-          "portion": "M"
+          "weight_g": 300,
+          "weight_source": "annotated"
         },
         {
           "name": "peppers",
           "group": "vegetables",
-          "portion": "S"
+          "weight_g": 60,
+          "weight_source": "annotated"
         }
       ]
     },
     {
       "name": "smashed cucumber with peanuts",
       "count": 1,
-      "size": "M",
       "ingredients": [
         {
           "name": "smashed cucumber in soy",
           "group": "vegetables",
-          "portion": "M"
+          "weight_g": 150,
+          "weight_source": "annotated"
         },
         {
           "name": "peanuts",
           "group": "nuts",
-          "portion": "S"
+          "weight_g": 15,
+          "weight_source": "annotated"
         }
       ]
     },
     {
       "name": "rice",
       "count": 1,
-      "size": "L",
       "ingredients": [
         {
           "name": "white rice",
           "group": "refined_grain",
-          "portion": "L"
+          "weight_g": 200,
+          "weight_source": "annotated"
         }
       ]
     }

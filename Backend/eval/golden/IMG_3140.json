@@ -2,26 +2,99 @@
   "scene": "breakfast: rye bread, avocado, herbs, boiled eggs, cheese, butter, coffee w/ milk",
   "meal_status": "eaten",
   "dishes": [
-    { "name": "dark rye bread", "count": 3, "size": "M",
-      "ingredients": [{ "name": "dark rye bread", "group": "whole_grain", "portion": "M" }] },
-    { "name": "avocado with herbs", "count": 1, "size": "M",
+    {
+      "name": "dark rye bread",
+      "count": 3,
       "ingredients": [
-        { "name": "sliced avocado", "group": "healthy_fats", "portion": "M" },
-        { "name": "parsley and herbs", "group": "vegetables", "portion": "S" }
-      ] },
-    { "name": "boiled eggs", "count": 2, "size": "M",
-      "ingredients": [{ "name": "hard-boiled egg", "group": "egg", "portion": "M", "protein_g": 6 }] },
-    { "name": "sliced cheese", "count": 1, "size": "M",
-      "ingredients": [{ "name": "sliced cheese", "group": "dairy", "portion": "M", "protein_g": 10 }] },
-    { "name": "butter", "count": 1, "size": "S",
-      "ingredients": [{ "name": "butter", "group": "butter_margarine_cream", "portion": "S" }] },
-    { "name": "coffee with milk", "count": 1, "size": "M",
+        {
+          "name": "dark rye bread",
+          "group": "whole_grain",
+          "weight_g": 170,
+          "weight_source": "annotated"
+        }
+      ]
+    },
+    {
+      "name": "avocado with herbs",
+      "count": 1,
+      "ingredients": [
+        {
+          "name": "sliced avocado",
+          "group": "healthy_fats",
+          "weight_g": 70,
+          "weight_source": "annotated"
+        },
+        {
+          "name": "parsley and herbs",
+          "group": "vegetables",
+          "weight_g": 10,
+          "weight_source": "annotated"
+        }
+      ]
+    },
+    {
+      "name": "boiled eggs",
+      "count": 2,
+      "ingredients": [
+        {
+          "name": "hard-boiled egg",
+          "group": "egg",
+          "weight_g": 100,
+          "weight_source": "annotated",
+          "protein_g": 6
+        }
+      ]
+    },
+    {
+      "name": "sliced cheese",
+      "count": 1,
+      "ingredients": [
+        {
+          "name": "sliced cheese",
+          "group": "dairy",
+          "weight_g": 80,
+          "weight_source": "annotated",
+          "protein_g": 10
+        }
+      ]
+    },
+    {
+      "name": "butter",
+      "count": 1,
+      "ingredients": [
+        {
+          "name": "butter",
+          "group": "butter_margarine_cream",
+          "weight_g": 120,
+          "weight_source": "annotated"
+        }
+      ]
+    },
+    {
+      "name": "coffee with milk",
+      "count": 1,
       "caffeine_mg": 95,
       "ingredients": [
-        { "name": "brewed coffee", "group": "coffee", "portion": "M" },
-        { "name": "milk", "group": "dairy", "portion": "S" }
-      ] }
+        {
+          "name": "brewed coffee",
+          "group": "coffee",
+          "weight_g": 180,
+          "weight_source": "annotated"
+        },
+        {
+          "name": "milk",
+          "group": "dairy",
+          "weight_g": 70,
+          "weight_source": "annotated"
+        }
+      ]
+    }
   ],
-  "traps": ["avocado_taxonomy_healthy_fats", "dairy_dedup", "butter_present", "caffeine_in_coffee"],
+  "traps": [
+    "avocado_taxonomy_healthy_fats",
+    "dairy_dedup",
+    "butter_present",
+    "caffeine_in_coffee"
+  ],
   "photo": "photos/IMG_3140.JPG"
 }

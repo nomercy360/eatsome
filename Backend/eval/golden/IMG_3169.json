@@ -5,12 +5,12 @@
     {
       "name": "dragon fruit",
       "count": 1,
-      "size": "S",
       "ingredients": [
         {
           "name": "dragon fruit",
           "group": "fruit",
-          "portion": "S"
+          "weight_g": 150,
+          "weight_source": "annotated"
         }
       ]
     }

@@ -5,42 +5,43 @@
     {
       "name": "chana masala",
       "count": 1,
-      "size": "M",
       "ingredients": [
         {
           "name": "chickpeas",
           "group": "legumes",
-          "portion": "M",
+          "weight_g": 150,
+          "weight_source": "annotated",
           "protein_g": 9
         },
         {
           "name": "tomato curry sauce",
           "group": "sauce",
-          "portion": "M"
+          "weight_g": 100,
+          "weight_source": "annotated"
         }
       ]
     },
     {
       "name": "basmati rice",
       "count": 1,
-      "size": "L",
       "ingredients": [
         {
           "name": "basmati rice",
           "group": "refined_grain",
-          "portion": "L"
+          "weight_g": 120,
+          "weight_source": "annotated"
         }
       ]
     },
     {
       "name": "paratha",
       "count": 1,
-      "size": "M",
       "ingredients": [
         {
           "name": "herbed paratha",
           "group": "refined_grain",
-          "portion": "M",
+          "weight_g": 120,
+          "weight_source": "annotated",
           "flags": [
             "fried"
           ]

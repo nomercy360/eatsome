@@ -5,12 +5,12 @@
     {
       "name": "raw beef steaks",
       "count": 3,
-      "size": "M",
       "ingredients": [
         {
           "name": "raw beef steak",
           "group": "red_meat",
-          "portion": "M",
+          "weight_g": 600,
+          "weight_source": "annotated",
           "flags": [
             "raw_ingredient"
           ]

@@ -5,12 +5,12 @@
     {
       "name": "wrap",
       "count": 1,
-      "size": "M",
       "ingredients": [
         {
           "name": "wrap bread",
           "group": "refined_grain",
-          "portion": "M",
+          "weight_g": 90,
+          "weight_source": "annotated",
           "flags": [
             "opaque_packaging",
             "filling_unknown"
@@ -21,16 +21,16 @@
     {
       "name": "fruit smoothie",
       "count": 1,
-      "size": "M",
       "ingredients": [
         {
           "name": "fruit smoothie",
           "group": "smoothie",
-          "portion": "M",
           "alternatives": [
             "fruit",
             "sugary_drinks"
-          ]
+          ],
+          "weight_g": 400,
+          "weight_source": "annotated"
         }
       ]
     }

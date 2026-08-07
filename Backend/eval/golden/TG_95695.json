@@ -5,46 +5,52 @@
     {
       "name": "burrito bowl",
       "count": 1,
-      "size": "L",
       "ingredients": [
         {
           "name": "white rice",
           "group": "refined_grain",
-          "portion": "M"
+          "weight_g": 150,
+          "weight_source": "annotated"
         },
         {
           "name": "beans",
           "group": "legumes",
-          "portion": "S",
+          "weight_g": 80,
+          "weight_source": "annotated",
           "protein_g": 7
         },
         {
           "name": "shredded lettuce",
           "group": "vegetables",
-          "portion": "M"
+          "weight_g": 80,
+          "weight_source": "annotated"
         },
         {
           "name": "sweetcorn",
           "group": "vegetables",
-          "portion": "S"
+          "weight_g": 50,
+          "weight_source": "annotated"
         },
         {
           "name": "grated cheese",
           "group": "dairy",
-          "portion": "S"
+          "weight_g": 60,
+          "weight_source": "annotated"
         },
         {
           "name": "guacamole",
           "group": "healthy_fats",
-          "portion": "S"
+          "weight_g": 80,
+          "weight_source": "annotated"
         },
         {
           "name": "chicken",
           "group": "white_meat",
-          "portion": "S",
           "alternatives": [
             "red_meat"
           ],
+          "weight_g": 100,
+          "weight_source": "annotated",
           "protein_g": 12
         }
       ]

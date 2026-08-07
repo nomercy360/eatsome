@@ -1,5 +1,5 @@
 import { loadGoldenCases, goldenIngredients } from "./golden";
-import { mapGroup, mapPortion } from "./taxonomy";
+import { mapGroup, weightProvenance } from "./taxonomy";
 
 /**
  * The app's debt to the dataset.
@@ -15,7 +15,7 @@ const cases = loadGoldenCases();
 
 const unmappedGroups = new Map<string, { count: number; why: string; cases: Set<string> }>();
 const lossyGroups = new Map<string, { count: number; why: string }>();
-const unscorablePortions = new Map<string, number>();
+const weightSources = new Map<string, number>();
 let items = 0;
 let hidden = 0;
 let protein = 0;
@@ -42,13 +42,8 @@ for (const one of cases) {
       lossyGroups.set(item.group, entry);
     }
 
-    const portion = mapPortion(item);
-    if (!portion.portion) {
-      unscorablePortions.set(
-        item.portion ?? "none",
-        (unscorablePortions.get(item.portion ?? "none") ?? 0) + 1,
-      );
-    }
+    const weight = weightProvenance(item);
+    weightSources.set(weight.source, (weightSources.get(weight.source) ?? 0) + 1);
   }
 }
 
@@ -76,9 +71,13 @@ for (const [group, entry] of lossyGroups) {
   console.log(`- **${group}** — ${entry.count} items. ${entry.why}`);
 }
 
-console.log(`\n## Portions the schema cannot express\n`);
-for (const [measure, count] of unscorablePortions) {
-  console.log(`- \`${measure}\` — ${count} of ${items} items scored on group only`);
+console.log(`\n## Weight provenance\n`);
+console.log(
+  `A \`ladder\` weight is scaffolding converted from the retired size annotation, ` +
+    `not a reading of the photograph — it is the hand pass's worklist.\n`,
+);
+for (const [source, count] of [...weightSources].sort((a, b) => b[1] - a[1])) {
+  console.log(`- \`${source}\` — ${count} of ${items} items`);
 }
 
 console.log(`\n## Tracks that need their own runs\n`);

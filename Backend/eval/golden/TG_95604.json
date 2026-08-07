@@ -5,20 +5,21 @@
     {
       "name": "escargots in garlic butter",
       "count": 7,
-      "size": "S",
       "ingredients": [
         {
           "name": "escargot",
           "group": "fish",
-          "portion": "S",
           "alternatives": [
             "other"
-          ]
+          ],
+          "weight_g": 60,
+          "weight_source": "annotated"
         },
         {
           "name": "herb garlic butter",
           "group": "butter_margarine_cream",
-          "portion": "S"
+          "weight_g": 25,
+          "weight_source": "annotated"
         }
       ]
     }

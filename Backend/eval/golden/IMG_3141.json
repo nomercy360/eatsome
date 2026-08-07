@@ -5,39 +5,43 @@
     {
       "name": "kebab sandwich",
       "count": 1,
-      "size": "M",
       "ingredients": [
         {
           "name": "pita bread",
           "group": "refined_grain",
-          "portion": "M"
+          "weight_g": 120,
+          "weight_source": "annotated"
         },
         {
           "name": "kebab meat",
           "group": "white_meat",
-          "portion": "M",
           "alternatives": [
             "red_meat"
           ],
+          "weight_g": 90,
+          "weight_source": "annotated",
           "protein_g": 25
         },
         {
           "name": "salad filling",
           "group": "vegetables",
-          "portion": "S"
+          "weight_g": 40,
+          "weight_source": "annotated"
         },
         {
           "name": "garlic yoghurt sauce",
           "group": "dairy",
-          "portion": "S",
           "alternatives": [
             "butter_margarine_cream"
-          ]
+          ],
+          "weight_g": 30,
+          "weight_source": "annotated"
         },
         {
           "name": "red sauce",
           "group": "sauce",
-          "portion": "S"
+          "weight_g": 15,
+          "weight_source": "annotated"
         }
       ]
     }

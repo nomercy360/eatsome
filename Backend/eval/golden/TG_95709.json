@@ -5,12 +5,12 @@
     {
       "name": "oladyi pancakes",
       "count": 1,
-      "size": "L",
       "ingredients": [
         {
           "name": "oladyi pancakes",
           "group": "refined_grain",
-          "portion": "L",
+          "weight_g": 450,
+          "weight_source": "annotated",
           "flags": [
             "fried"
           ]
@@ -20,24 +20,24 @@
     {
       "name": "fresh blueberries",
       "count": 1,
-      "size": "M",
       "ingredients": [
         {
           "name": "blueberries",
           "group": "fruit",
-          "portion": "M"
+          "weight_g": 200,
+          "weight_source": "annotated"
         }
       ]
     },
     {
       "name": "blueberry jam",
       "count": 1,
-      "size": "S",
       "ingredients": [
         {
           "name": "blueberry jam",
           "group": "sweets",
-          "portion": "S",
+          "weight_g": 50,
+          "weight_source": "annotated",
           "flags": [
             "added_sugar"
           ]
@@ -47,12 +47,12 @@
     {
       "name": "sour cream",
       "count": 1,
-      "size": "S",
       "ingredients": [
         {
           "name": "sour cream",
           "group": "dairy",
-          "portion": "S"
+          "weight_g": 120,
+          "weight_source": "annotated"
         }
       ]
     }

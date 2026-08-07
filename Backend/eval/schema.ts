@@ -37,8 +37,16 @@ import * as z from "zod";
  *     answer. Bumped because the fingerprint is what keeps runs comparable: a v3
  *     row could not carry a weight and a v4 row can, so pooling them would
  *     average a measurement with the absence of one.
+ *
+ *   v5 — grams-only, matching app prompt v17. `portion` and `size` are gone and
+ *     `grams` is required rather than nullable. v4 asked for both quantities
+ *     and let grams be null, which is exactly the shape that hid the production
+ *     bug: the app's Gemini schema had no grams slot, every answer parsed on
+ *     the ladder fallback, and the eval — asking a richer question than the app
+ *     — reported numbers for a prompt nobody was running. The eval now asks
+ *     the app's own quantity question; only the taxonomy stays wider.
  */
-export const SCHEMA_VERSION = "eval-schema-v4-2026-08-07";
+export const SCHEMA_VERSION = "eval-schema-v5-2026-08-07";
 
 export const evalFoodGroups = [
   // Same idea as the app, dataset spelling.
@@ -106,19 +114,16 @@ export const evalItemSchema = z.strictObject({
   name: z.string().max(200),
   group: z.enum(evalFoodGroups),
   alternatives: z.array(z.enum(evalFoodGroups)).max(3),
-  /** This ingredient's share of ONE serving of the dish, never of the whole. */
-  portion: z.enum(["S", "M", "L"]),
   /**
    * Edible weight on the plate, absolute — everything of this ingredient that
    * is there, across every serving present.
    *
-   * Nullable because a prompt is free not to ask for it, and the scorer falls
-   * back to `portion` when it is absent. That fallback is why this field has to
-   * exist at all: without it a weighing prompt returns nothing to weigh, the
-   * scorer silently grades the ladder instead, and the report says the new
-   * prompt was measured when the old quantity was.
+   * Required, and the only quantity. It was nullable with a `portion` fallback
+   * through v4, and a fallback for a required measurement is a way to not
+   * notice it is missing — the scorer silently graded the ladder and the
+   * report said the weight was measured.
    */
-  grams: z.number().min(0).max(20_000).nullable(),
+  grams: z.number().min(0).max(20_000),
   flags: z.array(z.enum(evalFlags)),
 });
 
@@ -139,10 +144,11 @@ export const evalPanelSchema = z.strictObject({
 
 export const evalDishSchema = z.strictObject({
   name: z.string().max(200),
-  /** Servings of this dish present. Three slices of bread is one dish, count 3. */
+  /**
+   * Servings of this dish present. Three slices of bread is one dish, count 3.
+   * A label on the weights, never a multiplier of them.
+   */
   count: z.number().int().min(1).max(99),
-  /** How big ONE serving is, never how many. */
-  size: z.enum(["S", "M", "L"]),
   panel: evalPanelSchema.nullable(),
   ingredients: z.array(evalItemSchema).max(24),
 });
@@ -175,12 +181,11 @@ export function evalGeminiSchema(): Record<string, unknown> {
         type: "ARRAY",
         items: {
           type: "OBJECT",
-          propertyOrdering: ["name", "count", "size", "panel", "ingredients"],
-          required: ["name", "count", "size", "panel", "ingredients"],
+          propertyOrdering: ["name", "count", "panel", "ingredients"],
+          required: ["name", "count", "panel", "ingredients"],
           properties: {
             name: { type: "STRING" },
             count: { type: "INTEGER" },
-            size: { type: "STRING", enum: ["S", "M", "L"] },
             panel: {
               type: "OBJECT",
               nullable: true,
@@ -206,14 +211,16 @@ export function evalGeminiSchema(): Record<string, unknown> {
               type: "ARRAY",
               items: {
                 type: "OBJECT",
-                propertyOrdering: ["name", "group", "alternatives", "portion", "grams", "flags"],
-                required: ["name", "group", "alternatives", "portion", "grams", "flags"],
+                propertyOrdering: ["name", "group", "alternatives", "grams", "flags"],
+                required: ["name", "group", "alternatives", "grams", "flags"],
                 properties: {
                   name: { type: "STRING" },
                   group,
                   alternatives: { type: "ARRAY", items: group, maxItems: 3 },
-                  portion: { type: "STRING", enum: ["S", "M", "L"] },
-                  grams: { type: "NUMBER", nullable: true },
+                  // Required and not nullable — Gemini emits exactly what a
+                  // schema names, which is how the app shipped a weighing
+                  // prompt with no weights for a month.
+                  grams: { type: "NUMBER" },
                   flags: { type: "ARRAY", items: { type: "STRING", enum: [...evalFlags] } },
                 },
               },

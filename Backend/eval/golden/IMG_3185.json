@@ -5,7 +5,6 @@
     {
       "name": "yogurt cup",
       "count": 1,
-      "size": "S",
       "panel": {
         "protein": 3.4,
         "calories": 58,
@@ -22,7 +21,8 @@
         {
           "name": "yogurt",
           "group": "dairy",
-          "portion": "S",
+          "weight_g": 80,
+          "weight_source": "label",
           "protein_g": 3,
           "flags": [
             "added_sugar"

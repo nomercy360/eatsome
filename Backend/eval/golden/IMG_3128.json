@@ -5,24 +5,84 @@
     {
       "name": "minced meat rice bowl",
       "count": 1,
-      "size": "M",
       "ingredients": [
-        { "name": "white rice", "group": "refined_grain", "portion": "L" },
-        { "name": "minced meat topping", "group": "white_meat", "portion": "M",
-          "alternatives": ["red_meat"], "protein_g": 18 },
-        { "name": "fried egg", "group": "egg", "portion": "M", "protein_g": 6 },
-        { "name": "cherry tomato", "group": "vegetables", "portion": "S" }
+        {
+          "name": "white rice",
+          "group": "refined_grain",
+          "weight_g": 200,
+          "weight_source": "annotated"
+        },
+        {
+          "name": "minced meat topping",
+          "group": "white_meat",
+          "alternatives": [
+            "red_meat"
+          ],
+          "weight_g": 130,
+          "weight_source": "annotated",
+          "protein_g": 18
+        },
+        {
+          "name": "fried egg",
+          "group": "egg",
+          "weight_g": 50,
+          "weight_source": "annotated",
+          "protein_g": 6
+        },
+        {
+          "name": "cherry tomato",
+          "group": "vegetables",
+          "weight_g": 15,
+          "weight_source": "annotated"
+        }
       ]
     },
-    { "name": "miso soup", "count": 1, "size": "S",
-      "ingredients": [{ "name": "miso broth", "group": "legumes", "portion": "S", "protein_g": 2 }] },
-    { "name": "side salad", "count": 1, "size": "S",
-      "ingredients": [{ "name": "shredded cabbage and lettuce", "group": "vegetables", "portion": "S" }] },
-    { "name": "iced tea", "count": 1, "size": "M",
+    {
+      "name": "miso soup",
+      "count": 1,
+      "ingredients": [
+        {
+          "name": "miso broth",
+          "group": "legumes",
+          "weight_g": 150,
+          "weight_source": "annotated",
+          "protein_g": 2
+        }
+      ]
+    },
+    {
+      "name": "side salad",
+      "count": 1,
+      "ingredients": [
+        {
+          "name": "shredded cabbage and lettuce",
+          "group": "vegetables",
+          "weight_g": 40,
+          "weight_source": "annotated"
+        }
+      ]
+    },
+    {
+      "name": "iced tea",
+      "count": 1,
       "caffeine_mg": null,
       "caffeine_note": "amber tea in a canteen tumbler: barley tea (0 mg) and oolong (~30 mg) look identical. Unknown is the correct answer.",
-      "ingredients": [{ "name": "unsweetened tea", "group": "tea", "portion": "M" }] }
+      "ingredients": [
+        {
+          "name": "unsweetened tea",
+          "group": "tea",
+          "weight_g": 250,
+          "weight_source": "annotated"
+        }
+      ]
+    }
   ],
-  "traps": ["foreign_tray_bleed", "missed_soup", "white_vs_red_meat", "missed_drink", "bowl_is_one_dish"],
+  "traps": [
+    "foreign_tray_bleed",
+    "missed_soup",
+    "white_vs_red_meat",
+    "missed_drink",
+    "bowl_is_one_dish"
+  ],
   "photo": "photos/IMG_3128.jpeg"
 }

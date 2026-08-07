@@ -74,7 +74,7 @@ type Summary = {
   errors: number;
   recall: number;
   precision: number;
-  portionMatch: number;
+  weightMatch: number;
   countMatch: number;
   countTotal: number;
   statusOk: number;
@@ -105,7 +105,7 @@ function summarise(records: RunRecord[]): Map<string, Summary> {
       errors: 0,
       recall: 0,
       precision: 0,
-      portionMatch: 0,
+      weightMatch: 0,
       countMatch: 0,
       countTotal: 0,
       statusOk: 0,
@@ -137,7 +137,7 @@ function summarise(records: RunRecord[]): Map<string, Summary> {
     const score = scoreCase(golden, record.raw, trackOf(record) === "notes");
     summary.recall += score.recall;
     summary.precision += score.precision;
-    summary.portionMatch += score.portionMatch;
+    summary.weightMatch += score.weightMatch;
     summary.countMatch += score.countMatch;
     summary.countTotal += score.countTotal;
     summary.excessRows += score.duplicateGroups.length;
@@ -233,7 +233,7 @@ for (const summary of [...current.values()].sort((a, b) => a.usd - b.usd)) {
     `| ${summary.modelId} | ${summary.tier} | ${passed}/${summary.perCase.size} | ` +
       `${((summary.recall / scored) * 100).toFixed(0)}% | ` +
       `${((summary.precision / scored) * 100).toFixed(0)}% | ` +
-      `${((summary.portionMatch / scored) * 100).toFixed(0)}% | ` +
+      `${((summary.weightMatch / scored) * 100).toFixed(0)}% | ` +
       `${summary.countTotal ? `${summary.countMatch}/${summary.countTotal}` : "—"} | ` +
       `${summary.statusKnown ? `${((summary.statusOk / summary.statusKnown) * 100).toFixed(0)}%` : "—"} | ` +
       `${summary.excessRows} | ` +

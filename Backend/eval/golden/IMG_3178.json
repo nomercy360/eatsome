@@ -5,43 +5,46 @@
     {
       "name": "sea bream in tomato sauce",
       "count": 1,
-      "size": "M",
       "ingredients": [
         {
           "name": "sea bream",
           "group": "fish",
-          "portion": "M",
+          "weight_g": 180,
+          "weight_source": "annotated",
           "protein_g": 24
         },
         {
           "name": "tomato sauce",
           "group": "vegetables",
-          "portion": "S",
           "alternatives": [
             "sofrito"
-          ]
+          ],
+          "weight_g": 120,
+          "weight_source": "annotated"
         },
         {
           "name": "olives",
           "group": "healthy_fats",
-          "portion": "S"
+          "weight_g": 20,
+          "weight_source": "annotated"
         },
         {
           "name": "baby potatoes",
           "group": "potatoes",
-          "portion": "S"
+          "weight_g": 80,
+          "weight_source": "annotated"
         }
       ]
     },
     {
       "name": "bread",
       "count": 2,
-      "size": "S",
       "ingredients": [
         {
           "name": "bread",
           "group": "refined_grain",
-          "portion": "S"
+          "weight_g": 50,
+          "weight_source": "annotated"
         }
       ]
     }

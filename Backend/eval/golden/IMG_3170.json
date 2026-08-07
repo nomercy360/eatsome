@@ -5,35 +5,39 @@
     {
       "name": "porridge with banana and almonds",
       "count": 1,
-      "size": "M",
       "ingredients": [
         {
           "name": "grain porridge",
           "group": "whole_grain",
-          "portion": "M"
+          "weight_g": 180,
+          "weight_source": "annotated"
         },
         {
           "name": "banana",
           "group": "fruit",
-          "portion": "M"
+          "weight_g": 90,
+          "weight_source": "annotated"
         },
         {
           "name": "almonds",
           "group": "nuts",
-          "portion": "S"
+          "weight_g": 15,
+          "weight_source": "annotated"
         },
         {
           "name": "milk",
           "group": "dairy",
-          "portion": "S",
           "alternatives": [
             "plant_milk"
-          ]
+          ],
+          "weight_g": 80,
+          "weight_source": "annotated"
         },
         {
           "name": "honey",
           "group": "sweets",
-          "portion": "S"
+          "weight_g": 15,
+          "weight_source": "annotated"
         }
       ]
     }

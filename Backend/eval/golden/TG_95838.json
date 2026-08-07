@@ -5,46 +5,48 @@
     {
       "name": "tomato and cheese toast",
       "count": 1,
-      "size": "M",
       "ingredients": [
         {
           "name": "toast bread",
           "group": "refined_grain",
-          "portion": "M"
+          "weight_g": 40,
+          "weight_source": "annotated"
         },
         {
           "name": "cheese",
           "group": "dairy",
-          "portion": "S"
+          "weight_g": 20,
+          "weight_source": "annotated"
         },
         {
           "name": "tomato",
           "group": "vegetables",
-          "portion": "S"
+          "weight_g": 80,
+          "weight_source": "annotated"
         }
       ]
     },
     {
       "name": "salad",
       "count": 1,
-      "size": "S",
       "ingredients": [
         {
           "name": "salad leaves",
           "group": "vegetables",
-          "portion": "S"
+          "weight_g": 30,
+          "weight_source": "annotated"
         }
       ]
     },
     {
       "name": "raspberries",
       "count": 1,
-      "size": "S",
       "ingredients": [
         {
           "name": "raspberries",
           "group": "fruit",
-          "portion": "S"
+          "weight_g": 120,
+          "weight_source": "annotated"
         }
       ]
     }

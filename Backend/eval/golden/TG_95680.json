@@ -5,12 +5,12 @@
     {
       "name": "beer",
       "count": 1,
-      "size": "M",
       "ingredients": [
         {
           "name": "beer",
           "group": "alcohol",
-          "portion": "M"
+          "weight_g": 500,
+          "weight_source": "annotated"
         }
       ]
     }

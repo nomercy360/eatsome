@@ -5,48 +5,48 @@
     {
       "name": "mango",
       "count": 2,
-      "size": "M",
       "ingredients": [
         {
           "name": "whole mango",
           "group": "fruit",
-          "portion": "M"
+          "weight_g": 460,
+          "weight_source": "annotated"
         }
       ]
     },
     {
       "name": "apricots",
       "count": 8,
-      "size": "S",
       "ingredients": [
         {
           "name": "apricot",
           "group": "fruit",
-          "portion": "S"
+          "weight_g": 280,
+          "weight_source": "annotated"
         }
       ]
     },
     {
       "name": "cherries",
       "count": 1,
-      "size": "L",
       "ingredients": [
         {
           "name": "cherries",
           "group": "fruit",
-          "portion": "L"
+          "weight_g": 500,
+          "weight_source": "annotated"
         }
       ]
     },
     {
       "name": "melon wedges",
       "count": 3,
-      "size": "S",
       "ingredients": [
         {
           "name": "melon wedge",
           "group": "fruit",
-          "portion": "S"
+          "weight_g": 400,
+          "weight_source": "annotated"
         }
       ]
     }

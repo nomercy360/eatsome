@@ -5,12 +5,12 @@
     {
       "name": "seafood mix",
       "count": 1,
-      "size": "M",
       "ingredients": [
         {
           "name": "shrimp, squid and mussels",
           "group": "fish",
-          "portion": "M",
+          "weight_g": 180,
+          "weight_source": "annotated",
           "protein_g": 20
         }
       ]
@@ -18,24 +18,24 @@
     {
       "name": "cucumber slices",
       "count": 1,
-      "size": "S",
       "ingredients": [
         {
           "name": "cucumber",
           "group": "vegetables",
-          "portion": "S"
+          "weight_g": 80,
+          "weight_source": "annotated"
         }
       ]
     },
     {
       "name": "string cheese",
       "count": 1,
-      "size": "S",
       "ingredients": [
         {
           "name": "chechil string cheese",
           "group": "dairy",
-          "portion": "S",
+          "weight_g": 40,
+          "weight_source": "annotated",
           "protein_g": 7
         }
       ]
@@ -43,12 +43,12 @@
     {
       "name": "white wine",
       "count": 1,
-      "size": "M",
       "ingredients": [
         {
           "name": "white wine",
           "group": "alcohol",
-          "portion": "M"
+          "weight_g": 120,
+          "weight_source": "annotated"
         }
       ]
     }

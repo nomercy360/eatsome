@@ -5,20 +5,21 @@
     {
       "name": "bread with cheese",
       "count": 1,
-      "size": "M",
       "ingredients": [
         {
           "name": "bread slice",
           "group": "whole_grain",
-          "portion": "M",
           "alternatives": [
             "refined_grain"
-          ]
+          ],
+          "weight_g": 40,
+          "weight_source": "annotated"
         },
         {
           "name": "cheese slice",
           "group": "dairy",
-          "portion": "M",
+          "weight_g": 90,
+          "weight_source": "annotated",
           "protein_g": 7
         }
       ]
@@ -26,30 +27,31 @@
     {
       "name": "yogurt with blueberries",
       "count": 1,
-      "size": "M",
       "ingredients": [
         {
           "name": "yogurt",
           "group": "dairy",
-          "portion": "M",
+          "weight_g": 150,
+          "weight_source": "annotated",
           "protein_g": 8
         },
         {
           "name": "blueberries",
           "group": "fruit",
-          "portion": "S"
+          "weight_g": 50,
+          "weight_source": "annotated"
         }
       ]
     },
     {
       "name": "chocolate cake",
       "count": 1,
-      "size": "S",
       "ingredients": [
         {
           "name": "chocolate cake",
           "group": "sweets",
-          "portion": "S"
+          "weight_g": 50,
+          "weight_source": "annotated"
         }
       ]
     }

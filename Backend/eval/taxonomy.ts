@@ -1,4 +1,4 @@
-import { foodGroups, portions } from "../src/contracts";
+import { foodGroups } from "../src/contracts";
 
 /**
  * The golden set speaks a richer vocabulary than the app does, and the gap has
@@ -49,29 +49,17 @@ export function mapGroup(goldenGroup: string): Mapping {
   return { kind: "unmapped", why: "not in the app's FoodGroup and not in the mapping table" };
 }
 
-const sizes: Record<string, string> = { S: "small", M: "medium", L: "large" };
-
 /**
- * `count` and `package` have no equivalent: the app has three coarse sizes and
- * no way to say "two eggs". A third of the golden items are counted, so those
- * items are scored on group only and reported separately rather than being
- * marked wrong for a distinction the schema cannot make.
+ * Quantity no longer maps — it converts. The golden and the app both speak
+ * absolute grams from v5/v17, so the only check left is that a weight was
+ * annotated at all, and where it came from. A `ladder`-sourced weight is
+ * scaffolding derived from the retired count×size×portion annotation; coverage
+ * reports it so the hand pass has a worklist rather than a claim of done.
  */
-/**
- * Both gaps this used to report are closed.
- *
- * It existed to say what the app could not express: a counted item, because
- * there was only small/medium/large, and a packaged one, because there was no
- * label. The dish now carries `count` and a transcribed `panel`, so an
- * ingredient has only its share of one serving left to map — and that always
- * maps. What remains is the check that it was given at all.
- */
-export function mapPortion(item: { portion?: string }): {
-  portion: string | null;
-  why?: string;
+export function weightProvenance(item: { weight_g?: number; weight_source?: string }): {
+  weighed: boolean;
+  source: string;
 } {
-  if (item.portion && sizes[item.portion]) return { portion: sizes[item.portion] };
-  return { portion: null, why: `no portion on the ingredient (${item.portion ?? "none"})` };
+  if (item.weight_g == null) return { weighed: false, source: "missing" };
+  return { weighed: true, source: item.weight_source ?? "unstated" };
 }
-
-export const appPortions = portions;

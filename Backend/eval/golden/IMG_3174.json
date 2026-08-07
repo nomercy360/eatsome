@@ -5,36 +5,36 @@
     {
       "name": "champagne",
       "count": 1,
-      "size": "M",
       "ingredients": [
         {
           "name": "champagne",
           "group": "alcohol",
-          "portion": "M"
+          "weight_g": 120,
+          "weight_source": "annotated"
         }
       ]
     },
     {
       "name": "olives",
       "count": 1,
-      "size": "S",
       "ingredients": [
         {
           "name": "olives",
           "group": "healthy_fats",
-          "portion": "S"
+          "weight_g": 60,
+          "weight_source": "annotated"
         }
       ]
     },
     {
       "name": "nuts",
       "count": 1,
-      "size": "S",
       "ingredients": [
         {
           "name": "nuts",
           "group": "nuts",
-          "portion": "S"
+          "weight_g": 30,
+          "weight_source": "annotated"
         }
       ]
     }

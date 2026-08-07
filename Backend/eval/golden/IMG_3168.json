@@ -6,15 +6,15 @@
     {
       "name": "chicken schnitzel",
       "count": 6,
-      "size": "M",
       "ingredients": [
         {
           "name": "chicken schnitzel",
           "group": "white_meat",
-          "portion": "M",
           "alternatives": [
             "red_meat"
           ],
+          "weight_g": 650,
+          "weight_source": "annotated",
           "flags": [
             "fried",
             "breaded"
@@ -26,29 +26,30 @@
     {
       "name": "tagliatelle",
       "count": 1,
-      "size": "L",
       "ingredients": [
         {
           "name": "pasta",
           "group": "refined_grain",
-          "portion": "L"
+          "weight_g": 500,
+          "weight_source": "annotated"
         }
       ]
     },
     {
       "name": "salad with feta",
       "count": 1,
-      "size": "L",
       "ingredients": [
         {
           "name": "salad",
           "group": "vegetables",
-          "portion": "L"
+          "weight_g": 200,
+          "weight_source": "annotated"
         },
         {
           "name": "feta",
           "group": "dairy",
-          "portion": "M",
+          "weight_g": 60,
+          "weight_source": "annotated",
           "protein_g": 8
         }
       ]
@@ -56,24 +57,24 @@
     {
       "name": "dip",
       "count": 1,
-      "size": "S",
       "ingredients": [
         {
           "name": "dip sauce",
           "group": "sauce",
-          "portion": "S"
+          "weight_g": 50,
+          "weight_source": "annotated"
         }
       ]
     },
     {
       "name": "rose wine",
       "count": 2,
-      "size": "M",
       "ingredients": [
         {
           "name": "rose wine",
           "group": "alcohol",
-          "portion": "M"
+          "weight_g": 300,
+          "weight_source": "annotated"
         }
       ]
     }

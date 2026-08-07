@@ -5,34 +5,38 @@
     {
       "name": "french toast with banana and honey",
       "count": 1,
-      "size": "L",
       "ingredients": [
         {
           "name": "french toast bread",
           "group": "refined_grain",
-          "portion": "L"
+          "weight_g": 200,
+          "weight_source": "annotated"
         },
         {
           "name": "banana",
           "group": "fruit",
-          "portion": "M"
+          "weight_g": 100,
+          "weight_source": "annotated"
         },
         {
           "name": "honey",
           "group": "sweets",
-          "portion": "S"
+          "weight_g": 20,
+          "weight_source": "annotated"
         },
         {
           "name": "eggs in the batter",
           "group": "egg",
-          "portion": "M",
+          "weight_g": 100,
+          "weight_source": "annotated",
           "protein_g": 12,
           "hidden": true
         },
         {
           "name": "butter it was fried in",
           "group": "butter_margarine_cream",
-          "portion": "S",
+          "weight_g": 15,
+          "weight_source": "annotated",
           "hidden": true
         }
       ]
@@ -40,12 +44,12 @@
     {
       "name": "mug of milk",
       "count": 1,
-      "size": "M",
       "ingredients": [
         {
           "name": "milk",
           "group": "dairy",
-          "portion": "M",
+          "weight_g": 250,
+          "weight_source": "annotated",
           "protein_g": 8
         }
       ]

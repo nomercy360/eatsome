@@ -5,12 +5,12 @@
     {
       "name": "cherry tart",
       "count": 2,
-      "size": "M",
       "ingredients": [
         {
           "name": "cherry tart",
           "group": "sweets",
-          "portion": "M"
+          "weight_g": 400,
+          "weight_source": "annotated"
         }
       ]
     }

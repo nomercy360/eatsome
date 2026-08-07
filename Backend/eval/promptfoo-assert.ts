@@ -30,7 +30,7 @@ export default function assertMealRecognition(
   const parts = [
     `recall ${(score.recall * 100).toFixed(0)}%`,
     `precision ${(score.precision * 100).toFixed(0)}%`,
-    `portions ${(score.portionMatch * 100).toFixed(0)}%`,
+    `weights ${(score.weightMatch * 100).toFixed(0)}%`,
   ];
   if (score.missedGroups.length > 0) parts.push(`missed: ${score.missedGroups.join(",")}`);
   if (score.duplicateGroups.length > 0) parts.push(`dupes: ${score.duplicateGroups.join(",")}`);

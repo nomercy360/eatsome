@@ -5,42 +5,43 @@
     {
       "name": "sesame pretzel",
       "count": 1,
-      "size": "M",
       "ingredients": [
         {
           "name": "sesame pretzel",
           "group": "refined_grain",
-          "portion": "M"
+          "weight_g": 85,
+          "weight_source": "annotated"
         }
       ]
     },
     {
       "name": "boiled egg with cheese",
       "count": 1,
-      "size": "S",
       "ingredients": [
         {
           "name": "boiled egg",
           "group": "egg",
-          "portion": "M",
+          "weight_g": 50,
+          "weight_source": "annotated",
           "protein_g": 6
         },
         {
           "name": "grated cheese",
           "group": "dairy",
-          "portion": "S"
+          "weight_g": 10,
+          "weight_source": "annotated"
         }
       ]
     },
     {
       "name": "emmental slices",
       "count": 1,
-      "size": "M",
       "ingredients": [
         {
           "name": "emmental",
           "group": "dairy",
-          "portion": "M",
+          "weight_g": 70,
+          "weight_source": "annotated",
           "protein_g": 8
         }
       ]
@@ -48,24 +49,24 @@
     {
       "name": "whipped butter",
       "count": 1,
-      "size": "S",
       "ingredients": [
         {
           "name": "whipped butter",
           "group": "butter_margarine_cream",
-          "portion": "S"
+          "weight_g": 25,
+          "weight_source": "annotated"
         }
       ]
     },
     {
       "name": "red jam",
       "count": 1,
-      "size": "S",
       "ingredients": [
         {
           "name": "red jam",
           "group": "sweets",
-          "portion": "S",
+          "weight_g": 40,
+          "weight_source": "annotated",
           "flags": [
             "added_sugar"
           ]

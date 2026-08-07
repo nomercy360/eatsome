@@ -18,8 +18,8 @@ export type CaseScore = {
   parseError?: string;
   recall: number;
   precision: number;
-  /** Of the groups found, how many also got the ingredient portion right. */
-  portionMatch: number;
+  /** Of the groups found, how many also weighed within tolerance. */
+  weightMatch: number;
   /** Dishes whose count was exactly right, over dishes the golden counts above one. */
   countMatch: number;
   countTotal: number;
@@ -93,8 +93,16 @@ const STRUCTURE_FLOOR = 0.67;
  *     everything the golden had, and escargot answered as its own declared
  *     alternative counted as a different dish. Both were the ruler, not the
  *     model.
+ *
+ * v7  grams against grams. The golden was re-annotated in absolute weights
+ *     (eval-schema-v5), so the serving-conversion layer — both ladders, the
+ *     serving-weight table, the half-serving tolerance — is gone, and quantity
+ *     is graded in the unit the model answers in, summed per group, with a
+ *     tolerance set by each golden weight's provenance. `portionMatch` is
+ *     renamed `weightMatch` because it measures a different thing; v6 and v7
+ *     quantity numbers are not comparable.
  */
-export const SCORER_VERSION = "scorer-v6-2026-08-06";
+export const SCORER_VERSION = "scorer-v7-2026-08-07";
 
 /**
  * Milligrams per serving, for deriving what a drink implies.
@@ -124,7 +132,7 @@ export function scoreCase(golden: GoldenCase, raw: string, told = false): CaseSc
     parsed: false,
     recall: 0,
     precision: 0,
-    portionMatch: 0,
+    weightMatch: 0,
     countMatch: 0,
     countTotal: 0,
     dishCount: 0,
@@ -193,30 +201,41 @@ export function scoreCase(golden: GoldenCase, raw: string, told = false): CaseSc
   const recall = expectedSet.size === 0 ? 1 : hits.length / expectedSet.size;
   const precision = actualSet.size === 0 ? 0 : hits.length / actualSet.size;
 
-  // Quantity, in servings, because that is the unit the app scores in and the
-  // only one both sides can be expressed in.
+  // Quantity, in grams on both sides — the same unit the model answers in,
+  // with no conversion in between. Until v7 the golden said `count × size ×
+  // portion` and both sides were pushed through a serving-weight table to
+  // compare; that judged everything at half-serving resolution, which is
+  // exactly the blur the grams switch was made to remove.
   //
-  // The golden set says `count × size × portion` on a three-step ladder; the
-  // model now answers in absolute grams. Comparing the ladder strings to each
-  // other used to be the check, and it graded a field nothing scores from — a
-  // build could return 300 g of beef as 30 and still pass, because it said
-  // "medium" either way.
-  //
-  // Both sides are converted to servings and the error is judged with a
-  // tolerance, since neither side is a measurement: the golden is another
-  // model's reading, and agreeing with it to the nearest half serving is as
-  // much as the ladder can express.
+  // The tolerance is provenance-aware. A weight transcribed off packaging is a
+  // measurement and is graded tight; an annotator's read of the photograph is
+  // an estimate and gets an estimate's slack; a weight mechanically converted
+  // from the retired ladder annotation still only carries the ladder's own
+  // resolution, and pretending otherwise would fail models against a number
+  // nobody measured. Grams summed across duplicate rows of a group on either
+  // side, so four fruit rows against one platter row compare as totals.
+  const tolerance = (item: { weight_source: string }, want: number) => {
+    if (item.weight_source === "label") return Math.max(10, want * 0.1);
+    if (item.weight_source === "ladder") return Math.max(30, want * 0.6);
+    return Math.max(20, want * 0.4);
+  };
+  const gramsOfActual = (group: string) =>
+    actualItems
+      .filter((found) => found.group === group)
+      .reduce<number | null>((sum, found) => {
+        if (found.grams == null) return sum;
+        return (sum ?? 0) + found.grams;
+      }, null);
   const judgeable = visible.filter((item) => actualSet.has(item.group));
   const quantityHits = judgeable.filter((item) => {
-    const want = servingsOfGolden(item);
-    return actualItems.some((found) => {
-      if (found.group !== item.group) return false;
-      const got = servingsOfFound(found);
-      if (got === null) return found.portion === item.portion;
-      return Math.abs(got - want) <= Math.max(0.5, want * 0.4);
-    });
+    const want = goldenItems
+      .filter((one) => one.group === item.group)
+      .reduce((sum, one) => sum + one.weight_g, 0);
+    const got = gramsOfActual(item.group);
+    if (got === null) return false;
+    return Math.abs(got - want) <= tolerance(item, want);
   });
-  const portionMatch = judgeable.length === 0 ? 1 : quantityHits.length / judgeable.length;
+  const weightMatch = judgeable.length === 0 ? 1 : quantityHits.length / judgeable.length;
 
   /**
    * Structure, matched on what is inside a dish rather than on what it is
@@ -375,7 +394,7 @@ export function scoreCase(golden: GoldenCase, raw: string, told = false): CaseSc
     parsed: true,
     recall,
     precision,
-    portionMatch,
+    weightMatch,
     countMatch,
     countTotal: counted.length,
     dishCount: actual.dishes.length,
@@ -400,84 +419,3 @@ export function scoreCase(golden: GoldenCase, raw: string, told = false): CaseSc
   };
 }
 
-/** The three-step ladder as servings. */
-const LADDER: Record<string, number> = { small: 0.5, medium: 1, large: 2, S: 0.5, M: 1, L: 2 };
-
-/**
- * What the golden annotation claims is present, in servings. The dataset writes
- * quantity as `count × size × portion`, so all three have to come back out.
- */
-function servingsOfGolden(item: {
-  portion?: string;
-  dishCount?: number;
-  dishSize?: string;
-}): number {
-  // `dishCount`/`dishSize`, not `count`/`size` — `goldenIngredients` renames
-  // them as it flattens. Reading the wrong names defaults silently to one
-  // medium serving, which scores every dish as average and looks like it works.
-  const count = item.dishCount ?? 1;
-  const size = LADDER[item.dishSize ?? "M"] ?? 1;
-  return count * size * (LADDER[item.portion ?? "M"] ?? 1);
-}
-
-/**
- * What the model said, in servings. Null when it answered on the ladder alone —
- * a cached answer from before grams were asked for, which is judged the old way
- * rather than scored against a number it never produced.
- */
-function servingsOfFound(found: {
-  grams?: number | null;
-  group: string;
-  servings?: number | null;
-}): number | null {
-  if (found.grams != null) return found.grams / (SERVING_GRAMS[found.group] ?? 100);
-  if (found.servings != null) return found.servings;
-  return null;
-}
-
-/**
- * Grams in one serving, mirroring `ServingWeight.defaultGrams` in Core.
- *
- * Spelled in the dataset's vocabulary as well as the app's — `refined_grain`
- * and `refined_grains` are the same food, and a missing key here would fall
- * back to 100 g and quietly halve a bowl of rice. `potatoes` and `sauce` have
- * no home in the app at all and are dropped by the taxonomy before they reach
- * this, but they are given weights so that a future mapping does not inherit
- * a silent default.
- */
-const SERVING_GRAMS: Record<string, number> = {
-  fish: 100,
-  white_meat: 100,
-  red_meat: 100,
-  processed_meat: 50,
-  egg: 50,
-  dairy: 200,
-  legumes: 150,
-  nuts: 30,
-  vegetables: 100,
-  fruit: 120,
-  healthy_fats: 30,
-  pastry: 60,
-  sweets: 30,
-  sofrito: 50,
-  olive_oil: 10,
-  sugary_drinks: 330,
-  coffee: 200,
-  tea: 200,
-  juice: 200,
-  plant_milk: 200,
-  smoothie: 250,
-  alcohol: 330,
-  other: 100,
-  // App spelling.
-  whole_grains: 150,
-  refined_grains: 150,
-  butter: 15,
-  // Dataset spelling for the same three.
-  whole_grain: 150,
-  refined_grain: 150,
-  butter_margarine_cream: 15,
-  // Unmapped in `taxonomy.ts`, weighted anyway so a later mapping starts right.
-  potatoes: 150,
-  sauce: 30,
-};

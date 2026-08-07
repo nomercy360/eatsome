@@ -5,20 +5,21 @@
     {
       "name": "whopper",
       "count": 1,
-      "size": "M",
       "ingredients": [
         {
           "name": "burger bun",
           "group": "refined_grain",
-          "portion": "M"
+          "weight_g": 90,
+          "weight_source": "annotated"
         },
         {
           "name": "beef patty",
           "group": "red_meat",
-          "portion": "M",
           "alternatives": [
             "processed_meat"
           ],
+          "weight_g": 90,
+          "weight_source": "annotated",
           "protein_g": 20
         }
       ]
@@ -26,12 +27,12 @@
     {
       "name": "french fries",
       "count": 1,
-      "size": "M",
       "ingredients": [
         {
           "name": "french fries",
           "group": "potatoes",
-          "portion": "M",
+          "weight_g": 110,
+          "weight_source": "annotated",
           "flags": [
             "fried"
           ]
@@ -41,15 +42,15 @@
     {
       "name": "chicken nuggets",
       "count": 4,
-      "size": "S",
       "ingredients": [
         {
           "name": "chicken nugget",
           "group": "white_meat",
-          "portion": "S",
           "alternatives": [
             "processed_meat"
           ],
+          "weight_g": 65,
+          "weight_source": "annotated",
           "flags": [
             "breaded",
             "fried"
@@ -61,29 +62,29 @@
     {
       "name": "ketchup",
       "count": 1,
-      "size": "S",
       "ingredients": [
         {
           "name": "ketchup",
           "group": "sauce",
-          "portion": "S"
+          "weight_g": 25,
+          "weight_source": "annotated"
         }
       ]
     },
     {
       "name": "iced tea",
       "count": 1,
-      "size": "M",
       "caffeine_mg": 25,
       "caffeine_note": "bottled Lipton green iced tea, far weaker than a brewed cup; the flat per-group table would derive 45 and be wrong",
       "ingredients": [
         {
           "name": "sweetened iced tea",
           "group": "sugary_drinks",
-          "portion": "M",
           "alternatives": [
             "tea"
-          ]
+          ],
+          "weight_g": 500,
+          "weight_source": "annotated"
         }
       ]
     }

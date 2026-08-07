@@ -5,17 +5,18 @@
     {
       "name": "shrimp spaghetti",
       "count": 1,
-      "size": "L",
       "ingredients": [
         {
           "name": "spaghetti",
           "group": "refined_grain",
-          "portion": "L"
+          "weight_g": 220,
+          "weight_source": "annotated"
         },
         {
           "name": "prawns",
           "group": "fish",
-          "portion": "M",
+          "weight_g": 40,
+          "weight_source": "annotated",
           "protein_g": 18
         }
       ]
@@ -23,17 +24,18 @@
     {
       "name": "rocket salad with melon",
       "count": 1,
-      "size": "M",
       "ingredients": [
         {
           "name": "rocket",
           "group": "vegetables",
-          "portion": "M"
+          "weight_g": 70,
+          "weight_source": "annotated"
         },
         {
           "name": "melon",
           "group": "fruit",
-          "portion": "S"
+          "weight_g": 200,
+          "weight_source": "annotated"
         }
       ]
     }

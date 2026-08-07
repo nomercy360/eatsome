@@ -5,22 +5,24 @@
     {
       "name": "bread with butter and jam",
       "count": 1,
-      "size": "M",
       "ingredients": [
         {
           "name": "white bread",
           "group": "refined_grain",
-          "portion": "M"
+          "weight_g": 35,
+          "weight_source": "annotated"
         },
         {
           "name": "butter",
           "group": "butter_margarine_cream",
-          "portion": "S"
+          "weight_g": 7,
+          "weight_source": "annotated"
         },
         {
           "name": "berry jam",
           "group": "sweets",
-          "portion": "S"
+          "weight_g": 20,
+          "weight_source": "annotated"
         }
       ]
     }

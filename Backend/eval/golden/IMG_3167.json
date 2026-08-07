@@ -5,49 +5,53 @@
     {
       "name": "tomato and za'atar bagel",
       "count": 1,
-      "size": "M",
       "ingredients": [
         {
           "name": "bagel",
           "group": "whole_grain",
-          "portion": "M",
           "alternatives": [
             "refined_grain"
-          ]
+          ],
+          "weight_g": 110,
+          "weight_source": "annotated"
         },
         {
           "name": "cream cheese",
           "group": "dairy",
-          "portion": "S"
+          "weight_g": 40,
+          "weight_source": "annotated"
         },
         {
           "name": "tomato",
           "group": "vegetables",
-          "portion": "M"
+          "weight_g": 120,
+          "weight_source": "annotated"
         },
         {
           "name": "olive oil in the za'atar",
           "group": "olive_oil",
-          "portion": "S"
+          "weight_g": 5,
+          "weight_source": "annotated"
         }
       ]
     },
     {
       "name": "pink latte",
       "count": 1,
-      "size": "M",
       "caffeine_mg": 63,
       "caffeine_note": "a latte however it is coloured is espresso-based; the pink is beetroot or berry, not the absence of coffee",
       "ingredients": [
         {
           "name": "espresso",
           "group": "coffee",
-          "portion": "S"
+          "weight_g": 40,
+          "weight_source": "annotated"
         },
         {
           "name": "steamed milk",
           "group": "dairy",
-          "portion": "M"
+          "weight_g": 210,
+          "weight_source": "annotated"
         }
       ]
     }

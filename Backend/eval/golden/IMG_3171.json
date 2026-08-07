@@ -5,7 +5,6 @@
     {
       "name": "cucumber kimbap",
       "count": 1,
-      "size": "M",
       "panel": {
         "calories": 211,
         "protein": null,
@@ -22,24 +21,26 @@
         {
           "name": "rice and seaweed roll",
           "group": "refined_grain",
-          "portion": "M"
+          "weight_g": 148,
+          "weight_source": "label"
         },
         {
           "name": "cucumber filling",
           "group": "vegetables",
-          "portion": "S"
+          "weight_g": 60,
+          "weight_source": "label"
         }
       ]
     },
     {
       "name": "ssamjang sachet",
       "count": 1,
-      "size": "S",
       "ingredients": [
         {
           "name": "ssamjang",
           "group": "sauce",
-          "portion": "S"
+          "weight_g": 10,
+          "weight_source": "annotated"
         }
       ]
     }

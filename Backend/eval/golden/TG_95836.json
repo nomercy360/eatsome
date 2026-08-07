@@ -5,12 +5,12 @@
     {
       "name": "lager beer",
       "count": 1,
-      "size": "M",
       "ingredients": [
         {
           "name": "lager",
           "group": "alcohol",
-          "portion": "M"
+          "weight_g": 330,
+          "weight_source": "annotated"
         }
       ]
     }

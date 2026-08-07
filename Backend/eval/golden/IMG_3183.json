@@ -5,24 +5,24 @@
     {
       "name": "beer",
       "count": 1,
-      "size": "M",
       "ingredients": [
         {
           "name": "beer",
           "group": "alcohol",
-          "portion": "M"
+          "weight_g": 400,
+          "weight_source": "annotated"
         }
       ]
     },
     {
       "name": "pickled cucumber",
       "count": 1,
-      "size": "S",
       "ingredients": [
         {
           "name": "pickled cucumber",
           "group": "vegetables",
-          "portion": "S"
+          "weight_g": 40,
+          "weight_source": "annotated"
         }
       ]
     }

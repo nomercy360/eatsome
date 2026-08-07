@@ -5,16 +5,16 @@
     {
       "name": "dry-cured duck breast",
       "count": 1,
-      "size": "S",
       "ingredients": [
         {
           "name": "dry-cured duck breast",
           "group": "processed_meat",
-          "portion": "S",
           "alternatives": [
             "red_meat",
             "white_meat"
-          ]
+          ],
+          "weight_g": 70,
+          "weight_source": "label"
         }
       ]
     }

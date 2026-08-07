@@ -5,12 +5,12 @@
     {
       "name": "marzipan sweets",
       "count": 5,
-      "size": "S",
       "ingredients": [
         {
           "name": "marzipan sweet shaped as fruit",
           "group": "sweets",
-          "portion": "S",
+          "weight_g": 175,
+          "weight_source": "annotated",
           "flags": [
             "added_sugar"
           ]

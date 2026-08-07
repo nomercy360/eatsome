@@ -1,6 +1,10 @@
-# eatsome eval dataset v2
+# eatsome eval dataset v3
 
-28 photos + golden annotations. Assembled 2026-08-05 from real logged meals.
+46 photos + golden annotations, assembled 2026-08-05 from real logged meals and
+re-annotated 2026-08-07 in absolute grams — the same quantity question the app
+asks from prompt v17 on. v2's quantity was the `count × size × portion` ladder;
+scoring a weighing prompt against it graded everything at half-serving
+resolution, which is exactly the blur the grams switch removed from the app.
 
 ## Structure
 
@@ -9,30 +13,63 @@
 
 ## Golden schema
 
-- `golden[]` — expected items: `name`, `group`, optional `alternatives`,
-  `measure` (`count` | `size` | `package`), `count` / `size` / `weight_g`,
-  optional `protein_g` (rough, for protein-sum eval), `flags` (`fried`, `breaded`),
-  `hidden` (not visible on photo — reachable only via user note / saved recipe)
-- `meal_status` — `eaten` | `ate_part` | `shared_plate` | `not_yet_eaten`
-- `dedup_note` — expected serving aggregation (N items of one group -> 1 serving + modifier)
-- `traps[]` — failure categories for the judge/agent to classify diffs against.
-  Do not invent new categories; extend this list deliberately.
+Types live in `../golden.ts`; this is the shape in prose.
 
-## Taxonomy prerequisites (add to config BEFORE running)
+- `dishes[]` — one entry per named thing on the tray. `name`, `count`
+  (servings present — a label on the weights, never a multiplier), optional
+  `panel` (figures printed on packaging), `ingredients[]`.
+- `ingredients[]` — `name`, `group`, optional `alternatives` (rivals the
+  dataset accepts as right answers), `weight_g`, `weight_source`, optional
+  `protein_g` (rough, for the protein-sum track), `flags`, `hidden` (not
+  visible on the photo — reachable only via user note / saved recipe).
+- `weight_g` — edible weight, ABSOLUTE: everything of that ingredient present,
+  across every serving in the photograph. Matches the app's definition, so
+  golden and model compare with no conversion.
+- `weight_source` — where the number came from, in descending order of trust:
+  - `label` — printed on the package (net weight, panel). A measurement;
+    graded tight (±10% / 10 g).
+  - `annotated` — the annotator's reading of the photograph against references
+    in frame. An estimate; graded ±40% / 20 g.
+  - `ladder` — mechanically derived from the retired v2 size annotation,
+    `count × size × portion × serving-grams`. Scaffolding, not a reading of
+    the photo; graded at the ladder's own resolution (±60% / 30 g).
+    `pnpm eval:coverage` counts these — they are the outstanding hand-pass
+    worklist. As of 2026-08-07 there are none: 174 annotated, 6 label.
+- `meal_status` — `eaten` | `ate_part` | `shared_plate` | `not_yet_eaten` |
+  `not_a_meal`
+- `user_note` — a line the person typed, sent on every track. Never the
+  hidden-item note (that one is generated from `hidden` flags for `--notes`
+  runs).
+- `traps[]` — failure categories for classifying diffs. Do not invent new
+  categories; extend the list deliberately.
 
-Groups referenced here that may not exist yet in the app schema:
-`potatoes`, `healthy_fats` (avocado, olives), `sauce`, `plant_milk`,
-`juice`, `smoothie`,
-flags `fried`/`breaded`/`raw_ingredient`/`added_sugar`/`opaque_packaging`,
-measure `package`, meal_status `not_yet_eaten` / `shared_plate` / `not_a_meal`.
-Running the eval without these yields schema errors, not model errors.
+## Annotation rules for weights
+
+- Weigh what is edible: no bones, shells, rind, pits, or snail shells.
+- The nearest place setting only, unless the case's `user_note` says the whole
+  table is theirs — then the table at served sizes.
+- A sealed package present at the meal weighs what it holds (the kimbap is the
+  label's 208 g); a bottle being poured from is scored as the pour, because
+  logging a 750 ml bottle for one glass is the `bottle_vs_glass_portion` trap.
+- Never fill `weight_g` by running a model over the photo and pasting its
+  answer. That makes the golden the model's own reading, and every later
+  prompt gets graded on agreement with that model's biases instead of with
+  the food.
+
+## Taxonomy notes
+
+The dataset speaks a richer vocabulary than the app on purpose (`potatoes`,
+`sauce`, flags, meal statuses); `../taxonomy.ts` declares every gap. A gap is
+reported, never scored as model error.
 
 ## Metrics (deterministic, no LLM judge needed)
 
-- group recall / precision vs golden (set comparison on `group`)
-- portion exact-match (count or size)
-- dedup violations (multiple counted servings of one group in one meal)
-- hidden-item recall only when user note is provided (separate track)
+- group recall / precision vs golden (set comparison on `group`, honouring the
+  golden's `alternatives`)
+- weight match: grams vs grams, summed per group, tolerance by `weight_source`
+- dish structure match (grouping, not names) and count match on counted dishes
+- panel transcription: wrong or invented figures on labelled items
+- hidden-item recall only when the note is provided (separate track)
 - protein MAE on items with `protein_g`
 
 ## Known trap census
@@ -46,7 +83,9 @@ juice_not_fruit, smoothie_vs_fruit_vs_juice, raw_vs_cooked, prep_photo_not_meal,
 opaque_packaging_no_hallucination, dessert_components_not_separate,
 chechil_looks_like_noodles, prosciutto_processed_not_red, two_person_split.
 
-Control case: IMG_3169 (dragon fruit). Any error there = pipeline broken.
+Control case: IMG_3169 (dragon fruit). Any error there = pipeline broken —
+including its weight: half a dragon fruit is ~150 g of flesh, and the ladder's
+derivation said 30 g, which is the entire argument for grams in one number.
 Behavioral cases (correct action, not just correct groups):
 IMG_3176 raw steaks -> must refuse to log as eaten;
 IMG_3177 wraps -> must flag unknown filling, not hallucinate;

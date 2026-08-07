@@ -5,33 +5,37 @@
     {
       "name": "caesar salad with chicken",
       "count": 1,
-      "size": "M",
       "ingredients": [
         {
           "name": "romaine and frisee",
           "group": "vegetables",
-          "portion": "M"
+          "weight_g": 80,
+          "weight_source": "annotated"
         },
         {
           "name": "chicken",
           "group": "white_meat",
-          "portion": "S",
+          "weight_g": 60,
+          "weight_source": "annotated",
           "protein_g": 14
         },
         {
           "name": "croutons",
           "group": "refined_grain",
-          "portion": "S"
+          "weight_g": 25,
+          "weight_source": "annotated"
         },
         {
           "name": "parmesan",
           "group": "dairy",
-          "portion": "S"
+          "weight_g": 10,
+          "weight_source": "annotated"
         },
         {
           "name": "caesar dressing",
           "group": "sauce",
-          "portion": "S"
+          "weight_g": 30,
+          "weight_source": "annotated"
         }
       ]
     }

@@ -5,12 +5,12 @@
     {
       "name": "mini waffles with chocolate",
       "count": 1,
-      "size": "M",
       "ingredients": [
         {
           "name": "mini waffles with chocolate",
           "group": "sweets",
-          "portion": "M"
+          "weight_g": 150,
+          "weight_source": "annotated"
         }
       ]
     }

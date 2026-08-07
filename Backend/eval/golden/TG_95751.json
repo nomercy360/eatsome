@@ -5,38 +5,43 @@
     {
       "name": "assorted sushi platter",
       "count": 1,
-      "size": "L",
       "ingredients": [
         {
           "name": "salmon, tuna, prawn and eel",
           "group": "fish",
-          "portion": "L",
+          "weight_g": 300,
+          "weight_source": "annotated",
           "protein_g": 30
         },
         {
           "name": "sushi rice",
           "group": "refined_grain",
-          "portion": "L"
+          "weight_g": 600,
+          "weight_source": "annotated"
         },
         {
           "name": "avocado",
           "group": "healthy_fats",
-          "portion": "S"
+          "weight_g": 60,
+          "weight_source": "annotated"
         },
         {
           "name": "cream cheese",
           "group": "dairy",
-          "portion": "S"
+          "weight_g": 80,
+          "weight_source": "annotated"
         },
         {
           "name": "cucumber and leaves",
           "group": "vegetables",
-          "portion": "S"
+          "weight_g": 60,
+          "weight_source": "annotated"
         },
         {
           "name": "eel and spicy mayo sauces",
           "group": "sauce",
-          "portion": "S"
+          "weight_g": 40,
+          "weight_source": "annotated"
         }
       ]
     }

@@ -111,6 +111,24 @@ describe("golden and schema speak the same language", () => {
     expect([...used].filter((s) => !prompt.includes(s) && !(s in UNMODELLED))).toEqual([]);
   });
 
+  it("every golden item carries a weight with a provenance", () => {
+    // The v5 golden answers in grams — the same unit the model is asked for —
+    // and an item without one falls out of the quantity metric silently, which
+    // reads as "covered" when it is not. Provenance is required with it: a
+    // weight that cannot say whether it was measured, estimated, or converted
+    // from the retired ladder cannot be graded with the right tolerance.
+    const unweighed = cases.flatMap((one) =>
+      goldenIngredients(one.dishes)
+        .filter(
+          (item) =>
+            typeof item.weight_g !== "number" ||
+            !["label", "annotated", "ladder"].includes(item.weight_source),
+        )
+        .map((item) => `${one.id}: ${item.name}`),
+    );
+    expect(unweighed).toEqual([]);
+  });
+
   it("declares nothing it does not need to", () => {
     // A declaration that has outlived its gap is worse than none: it is a
     // standing excuse for a signal the prompt may have started modelling again,

@@ -5,12 +5,12 @@
     {
       "name": "karaage",
       "count": 3,
-      "size": "S",
       "ingredients": [
         {
           "name": "fried chicken piece",
           "group": "white_meat",
-          "portion": "M",
+          "weight_g": 110,
+          "weight_source": "annotated",
           "flags": [
             "fried",
             "breaded"
@@ -22,36 +22,36 @@
     {
       "name": "shredded cabbage",
       "count": 1,
-      "size": "S",
       "ingredients": [
         {
           "name": "shredded cabbage",
           "group": "vegetables",
-          "portion": "S"
+          "weight_g": 60,
+          "weight_source": "annotated"
         }
       ]
     },
     {
       "name": "white rice",
       "count": 1,
-      "size": "M",
       "ingredients": [
         {
           "name": "white rice",
           "group": "refined_grain",
-          "portion": "M"
+          "weight_g": 180,
+          "weight_source": "annotated"
         }
       ]
     },
     {
       "name": "miso soup",
       "count": 1,
-      "size": "S",
       "ingredients": [
         {
           "name": "miso broth",
           "group": "legumes",
-          "portion": "S",
+          "weight_g": 150,
+          "weight_source": "annotated",
           "protein_g": 2
         }
       ]
@@ -59,12 +59,12 @@
     {
       "name": "yogurt cup",
       "count": 1,
-      "size": "S",
       "ingredients": [
         {
           "name": "yogurt",
           "group": "dairy",
-          "portion": "S",
+          "weight_g": 80,
+          "weight_source": "label",
           "protein_g": 3
         }
       ]
