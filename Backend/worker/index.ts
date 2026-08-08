@@ -20,6 +20,7 @@ import type { Env } from "./env";
 import { requireAccount, requireStableAccount } from "./lib/auth";
 import { HttpError } from "./lib/http-error";
 import { enforceRecognitionLimits, enforceSyncLimits } from "./lib/limits";
+import { privacyPage } from "./privacy";
 
 type AppContext = {
   Bindings: Env;
@@ -196,7 +197,12 @@ app.onError((error) => {
 });
 
 export default {
-  fetch: app.fetch,
+  // The policy is checked before the API, and before the auth middleware: it is
+  // a published document, and a published document behind a bearer token is not
+  // published. Everything else falls through to the `/api` router as before.
+  fetch(request, env, context) {
+    return privacyPage(request) ?? app.fetch(request, env, context);
+  },
   scheduled(_controller, env, context) {
     context.waitUntil(
       Promise.all([deleteOrphanMedia(env), deleteOrphanCorpus(env)]).then(([media, corpus]) => {
