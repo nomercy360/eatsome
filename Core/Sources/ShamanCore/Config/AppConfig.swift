@@ -29,6 +29,14 @@ public struct AppConfig: Codable, Sendable {
     /// no source row is the one thing it exists to prevent.
     public var nutrientsPerGram: FoodNutrientTable?
 
+    /// How much each food group moves a meal's olive rating. Absent means the
+    /// compiled weights, so a config file written before the rating existed —
+    /// including one already cached on a phone — keeps decoding and behaves
+    /// exactly as this build's defaults do.
+    public var olives: OliveConfiguration?
+
+    public var oliveConfiguration: OliveConfiguration { olives ?? OliveConfiguration() }
+
     public struct Recognition: Codable, Sendable {
         /// The OpenAI model. Named `model` because it was here first and remote
         /// config files in the wild still spell it that way.

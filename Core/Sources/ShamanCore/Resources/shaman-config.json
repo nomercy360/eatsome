@@ -14,6 +14,24 @@
   "geminiModel": "gemini-3.6-flash",
   "geminiThinkingLevel": "low"
  },
+ "olives": {
+  "weights": {
+   "fish": 1.0,
+   "legumes": 1.0,
+   "olive_oil": 0.8,
+   "vegetables": 0.7,
+   "nuts": 0.7,
+   "sofrito": 0.5,
+   "whole_grains": 0.5,
+   "fruit": 0.5,
+   "processed_meat": -1.0,
+   "pastry": -0.8,
+   "red_meat": -0.8,
+   "sugary_drinks": -0.8,
+   "sweets": -0.7,
+   "butter": -0.6
+  }
+ },
  "movements": [
   {
    "id": "squat",
