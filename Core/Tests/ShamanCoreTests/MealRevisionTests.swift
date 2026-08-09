@@ -139,12 +139,12 @@ struct MealRevisionTests {
         #expect(!MealRevisionPrompt.geminiResponseSchema.description.contains("additionalProperties"))
     }
 
-    @Test("A note reaches both providers in the same slot")
+    @Test("What the person said reaches both providers in the same slot")
     func noteTravelsWithThePhoto() throws {
         let note = "fried in butter, two eggs in the batter"
 
         let luna = LunaSession { "sk-test" }
-            .requestBody(imageData: Data([0xFF]), mimeType: "image/jpeg", note: note)
+            .requestBody(for: .photo(Data([0xFF]), said: note))
         let lunaInput = try #require(luna["input"] as? [[String: Any]])
         let lunaText = try #require(
             (lunaInput.last?["content"] as? [[String: Any]])?.first?["text"] as? String
@@ -153,12 +153,12 @@ struct MealRevisionTests {
         #expect(lunaText.contains("What the photo cannot show"))
 
         let gemini = GeminiSession { "test" }
-            .requestBody(imageData: Data([0xFF]), mimeType: "image/jpeg", note: note)
+            .requestBody(for: .photo(Data([0xFF]), said: note))
         let parts = try #require((gemini["contents"] as? [[String: Any]])?.first?["parts"] as? [[String: Any]])
         #expect((parts.first?["text"] as? String)?.contains(note) == true)
 
         // No note, no ceremony.
-        let plain = LunaSession { "sk-test" }.requestBody(imageData: Data([0xFF]), mimeType: "image/jpeg")
+        let plain = LunaSession { "sk-test" }.requestBody(for: .photo(Data([0xFF])))
         let plainInput = try #require(plain["input"] as? [[String: Any]])
         let plainText = try #require(
             (plainInput.last?["content"] as? [[String: Any]])?.first?["text"] as? String
@@ -221,10 +221,12 @@ struct MealRevisionTests {
         }
         struct Stub: MealRecognizer {
             let counter: Counter
-            func recognize(imageData: Data, mimeType: String, note: String?) async throws -> RecognitionArtifact {
+            func recognize(_ message: MealMessage) async throws -> RecognitionArtifact {
                 await counter.increment()
                 return RecognitionArtifact(
-                    recognition: MealRecognition(items: [], otherMealsVisible: false, notes: note),
+                    recognition: MealRecognition(
+                        items: [], otherMealsVisible: false, notes: message.trimmedText
+                    ),
                     rawModelJSON: "{}",
                     promptVersion: "stub"
                 )
@@ -239,10 +241,55 @@ struct MealRevisionTests {
         let caching = try CachingRecognizer(upstream: Stub(counter: counter), directory: directory)
         let photo = Data("pretend jpeg".utf8)
 
-        _ = try await caching.recognize(imageData: photo, mimeType: "image/jpeg", note: nil)
-        _ = try await caching.recognize(imageData: photo, mimeType: "image/jpeg", note: nil)
-        _ = try await caching.recognize(imageData: photo, mimeType: "image/jpeg", note: "fried in butter")
+        _ = try await caching.recognize(.photo(photo))
+        _ = try await caching.recognize(.photo(photo))
+        _ = try await caching.recognize(.photo(photo, said: "fried in butter"))
 
         #expect(await counter.calls == 2)
+
+        // And two different typed meals with no photograph at all are two
+        // questions, not one. Without the words in the key they would share an
+        // empty payload and the second would be served the first one's answer —
+        // silently, and with no photo to notice it by.
+        _ = try await caching.recognize(.words("leftover lentil soup, big bowl"))
+        _ = try await caching.recognize(.words("leftover lentil soup, big bowl"))
+        _ = try await caching.recognize(.words("hard-boiled egg, black coffee"))
+
+        #expect(await counter.calls == 4)
+    }
+
+    @Test("A message with neither words nor a photo never reaches a model")
+    func emptyMessageIsRefused() async {
+        // An empty prompt does not fail loudly; it returns a confident account
+        // of a meal nobody ate. Cheaper and truer to refuse it here.
+        await #expect(throws: MealRecognizerError.self) {
+            try await LunaSession { "sk-test" }.recognize(MealMessage())
+        }
+        await #expect(throws: MealRecognizerError.self) {
+            try await GeminiSession { "test" }.recognize(.words("   "))
+        }
+    }
+
+    @Test("Words with no photograph are framed as the whole meal, not as a caption")
+    func wordsWithoutAPhotograph() throws {
+        let said = "leftover lentil soup, big bowl"
+
+        let luna = LunaSession { "sk-test" }.requestBody(for: .words(said))
+        let input = try #require(luna["input"] as? [[String: Any]])
+        let content = try #require(input.last?["content"] as? [[String: Any]])
+        // No image part at all, rather than an empty one: a zero-length image is
+        // a decode error at the vendor, not an absent image.
+        #expect(content.count == 1)
+        let text = try #require(content.first?["text"] as? String)
+        #expect(text.contains(said))
+        #expect(!text.contains("What the photo cannot show"))
+        #expect(text.contains("in their own words"))
+
+        let gemini = GeminiSession { "test" }.requestBody(for: .words(said))
+        let parts = try #require(
+            (gemini["contents"] as? [[String: Any]])?.first?["parts"] as? [[String: Any]]
+        )
+        #expect(parts.count == 1)
+        #expect(parts.first?["inlineData"] == nil)
     }
 }

@@ -11,14 +11,14 @@ struct HistoryView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var shown = 14
-    @State private var capturing: DayLog?
+    @State private var openDay: DayLog?
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 LazyVStack(spacing: 14) {
                     ForEach(model.recentDays(shown)) { day in
-                        DayCard(day: day) { capturing = day }
+                        DayCard(day: day) { openDay = day }
                     }
 
                     Button("Show more") { shown += 14 }
@@ -36,8 +36,7 @@ struct HistoryView: View {
                         .font(WellieTheme.font(15, weight: .semibold))
                 }
             }
-            .navigationDestination(for: DayLog.self) { DayView(day: $0.start) }
-            .sheet(item: $capturing) { MealCaptureView(day: $0.start) }
+            .sheet(item: $openDay) { DaySheet(day: $0.start) }
         }
         .wellieScreen()
     }
@@ -46,13 +45,17 @@ struct HistoryView: View {
 private struct DayCard: View {
     @Environment(AppModel.self) private var model
     let day: DayLog
-    let onAdd: () -> Void
+    /// One destination for the whole card. The header and the "you can still
+    /// add it" row used to go to different places — a day view and a capture
+    /// sheet — and both are the day sheet now, which is where you both look at
+    /// a day and add to it.
+    let open: () -> Void
 
     private var meals: [MealEntry] { model.meals(on: day.start) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: meals.isEmpty ? 14 : 16) {
-            NavigationLink(value: day) {
+            Button(action: open) {
                 HStack(alignment: .center) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(DayFormat.title(day.start))
@@ -73,7 +76,7 @@ private struct DayCard: View {
             .buttonStyle(.plain)
 
             if meals.isEmpty {
-                Button(action: onAdd) {
+                Button(action: open) {
                     HStack(spacing: 12) {
                         Text("Remember what you ate? You can still add it.")
                             .font(WellieTheme.font(14.5, weight: .semibold))
@@ -99,7 +102,7 @@ private struct DayCard: View {
                 HStack(spacing: 9) {
                     ForEach(0..<4, id: \.self) { index in
                         if index < meals.count {
-                            NavigationLink { MealDetailView(meal: meals[index]) } label: {
+                            Button(action: open) {
                                 MealThumbnail(meal: meals[index], side: nil, radius: 16)
                                     .aspectRatio(1, contentMode: .fit)
                                     .frame(maxWidth: .infinity)
@@ -137,52 +140,5 @@ private struct DayCard: View {
     private var groups: [FoodGroup] {
         var seen = Set<FoodGroup>()
         return meals.flatMap(\.items).map(\.group).filter { seen.insert($0).inserted }
-    }
-}
-
-/// One earlier day, opened from a dot or a history card.
-struct DayView: View {
-    let day: Date
-
-    @Environment(AppModel.self) private var model
-    @State private var capturing = false
-
-    private var meals: [MealEntry] { model.meals(on: day) }
-
-    var body: some View {
-        ScrollView {
-            VStack(spacing: WellieTheme.cardSpacing) {
-                if meals.isEmpty {
-                    VStack(alignment: .leading, spacing: 14) {
-                        WellieSectionTitle(text: "Nothing logged")
-                        WellieProse("A gap is information too. If you remember what you ate, it still counts.")
-                        Button("Add a meal for this day") { capturing = true }
-                            .buttonStyle(WellieSecondaryButtonStyle())
-                    }
-                    .wellieCard()
-                } else {
-                    VStack(alignment: .leading, spacing: 14) {
-                        Text(Count.meals(meals.count))
-                            .font(WellieTheme.font(17, weight: .bold))
-                        ForEach(meals) { meal in
-                            NavigationLink { MealDetailView(meal: meal) } label: {
-                                MealRow(meal: meal)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .wellieCard()
-
-                    Button("Add another meal for this day") { capturing = true }
-                        .buttonStyle(WellieQuietButtonStyle())
-                }
-            }
-            .wellieColumn()
-        }
-        .background(WellieTheme.background)
-        .navigationTitle(DayFormat.title(day))
-        .navigationBarTitleDisplayMode(.inline)
-        .sheet(isPresented: $capturing) { MealCaptureView(day: day) }
-        .wellieScreen()
     }
 }

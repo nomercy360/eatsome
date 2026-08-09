@@ -32,6 +32,8 @@
 	<string>Import workouts, sleep, and weight to show your daily health overview.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>eatsome never writes to Health. It only reads workouts, sleep, and weight to show your daily overview.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Describe a meal out loud instead of typing it. Audio is transcribed to text as you speak and is not kept.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Pick a photo of a meal to log it.</string>
 	<key>UILaunchScreen</key>

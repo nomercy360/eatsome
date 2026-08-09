@@ -3,9 +3,19 @@ import SwiftUI
 
 /// How a stored meal is named in a list.
 enum MealDisplay {
-    /// The dish, not its parts. "Greek yoghurt" is what you logged; "Dairy ·
-    /// Fruit · Nuts" is what it counted as, and that belongs on the line below.
+    /// The dish, not its parts. "French toast" is what you logged; "bread" is
+    /// its first ingredient, and an ingredient label naming the card is how a
+    /// plate of french toast came to be titled "Bread". Dish names win when
+    /// recognition provided them; the label fallback stays for every meal
+    /// logged before dishes existed, which genuinely has no dish to name.
     static func title(_ meal: MealEntry) -> String {
+        let dishNames = (meal.storedDishes ?? [])
+            .map { $0.name.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        if let first = dishNames.first {
+            let title = first.capitalizedFirst
+            return dishNames.count > 1 ? "\(title) +\(dishNames.count - 1)" : title
+        }
         let labels = meal.items.compactMap(\.label).filter { !$0.isEmpty }
         if let first = labels.first { return first.capitalizedFirst }
         return uniqueGroups(meal).first?.shortName ?? "Meal"
@@ -24,12 +34,41 @@ enum MealDisplay {
     }
 
     static func partOfDay(_ meal: MealEntry, calendar: Calendar = .current) -> String {
-        switch calendar.component(.hour, from: Date(epochMillis: meal.eatenAt)) {
-        case ..<11: "Morning"
-        case ..<16: "Lunch"
-        case ..<21: "Evening"
-        default: "Late"
+        Daypart(at: meal.eatenAt, calendar: calendar).displayName
+    }
+
+    /// "Breakfast · 8:00" — the meal card's second line in the thread.
+    ///
+    /// The clock time is there because the thread's own timestamps are when you
+    /// *sent* the message, and those are routinely not when you ate: the whole
+    /// point of "half a kebab at 2 am" is that it is being logged later.
+    static func whenAndWhat(_ meal: MealEntry, calendar: Calendar = .current) -> String {
+        let time = Date(epochMillis: meal.eatenAt)
+            .formatted(.dateTime.hour(.defaultDigits(amPM: .omitted)).minute())
+        return "\(partOfDay(meal, calendar: calendar)) · \(time)"
+    }
+
+    /// What it counted for, as a phrase: "Eggs, dairy ×2, a sweet touch".
+    ///
+    /// Counted rather than deduplicated, because two dairy rows on one plate is
+    /// a fact about the plate — a glass of milk beside a yoghurt — and the line
+    /// under a meal card is the only place it is visible without opening it.
+    static func counted(_ meal: MealEntry) -> String {
+        var order: [FoodGroup] = []
+        var counts: [FoodGroup: Int] = [:]
+        for group in meal.items.map(\.group) {
+            if counts[group] == nil { order.append(group) }
+            counts[group, default: 0] += 1
         }
+        guard !order.isEmpty else { return "Nothing recognised" }
+
+        let parts = order.prefix(4).enumerated().map { index, group -> String in
+            let name = index == 0 ? group.shortName : group.sentenceName
+            let count = counts[group] ?? 1
+            return count > 1 ? "\(name) ×\(count)" : name
+        }
+        let phrase = parts.joined(separator: ", ")
+        return order.count > 4 ? "\(phrase) and more" : phrase
     }
 
     static func uniqueGroups(_ meal: MealEntry) -> [FoodGroup] {

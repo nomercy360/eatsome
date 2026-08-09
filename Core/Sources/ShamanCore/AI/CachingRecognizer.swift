@@ -35,12 +35,9 @@ public actor CachingRecognizer: MealRecognizer {
         return String(safe)
     }
 
-    public func recognize(
-        imageData: Data,
-        mimeType: String,
-        note: String? = nil
-    ) async throws -> RecognitionArtifact {
-        let key = cacheKey(for: imageData, note: note)
+    public func recognize(_ message: MealMessage) async throws -> RecognitionArtifact {
+        guard !message.isEmpty else { throw MealRecognizerError.emptyMessage }
+        let key = cacheKey(for: message)
 
         if let hit = memory[key] { return hit }
         if let onDisk = try? Data(contentsOf: fileURL(key)) {
@@ -62,24 +59,30 @@ public actor CachingRecognizer: MealRecognizer {
             }
         }
 
-        let fresh = try await upstream.recognize(imageData: imageData, mimeType: mimeType, note: note)
+        let fresh = try await upstream.recognize(message)
         memory[key] = fresh
         // A cache write failure must not lose a successful recognition.
         try? JSONEncoder().encode(fresh).write(to: fileURL(key), options: .atomic)
         return fresh
     }
 
-    public func cached(for imageData: Data, note: String? = nil) -> RecognitionArtifact? {
-        memory[cacheKey(for: imageData, note: note)]
+    public func cached(for message: MealMessage) -> RecognitionArtifact? {
+        memory[cacheKey(for: message)]
     }
 
-    /// The note is part of the request, so it is part of the key: adding "fried
-    /// in butter" to a photo you already submitted must ask again, not replay
-    /// the answer that missed the butter.
-    private func cacheKey(for imageData: Data, note: String?) -> String {
-        var payload = imageData
-        if let note = note?.trimmingCharacters(in: .whitespacesAndNewlines), !note.isEmpty {
-            payload.append(Data(note.utf8))
+    /// The words are part of the request, so they are part of the key: adding
+    /// "fried in butter" to a photo you already submitted must ask again, not
+    /// replay the answer that missed the butter.
+    ///
+    /// The separator is not decoration. Concatenating bytes and text directly
+    /// lets a photo whose trailing bytes happen to spell the next message's
+    /// first word collide with it — vanishingly unlikely, and a collision here
+    /// serves one meal's reading for another's, which is silent and unfixable.
+    private func cacheKey(for message: MealMessage) -> String {
+        var payload = message.imageData ?? Data()
+        if let said = message.trimmedText {
+            payload.append(Data([0]))
+            payload.append(Data(said.utf8))
         }
         let digest = ImageDigest.sha256(payload)
         return namespace.isEmpty ? digest : "\(digest)-\(namespace)"

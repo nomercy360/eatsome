@@ -10,7 +10,7 @@ struct GeminiSessionTests {
 
     @Test("Request carries the system prompt, the inline image, and a JSON schema")
     func requestShape() throws {
-        let body = session().requestBody(imageData: Data([0xFF, 0xD8, 0xFF]), mimeType: "image/jpeg")
+        let body = session().requestBody(for: .photo(Data([0xFF, 0xD8, 0xFF])))
 
         let instruction = try #require(body["systemInstruction"] as? [String: Any])
         let instructionParts = try #require(instruction["parts"] as? [[String: Any]])
@@ -106,7 +106,7 @@ struct GeminiSessionTests {
     func missingKey() async {
         let noKey = GeminiSession { nil }
         await #expect(throws: MealRecognizerError.self) {
-            try await noKey.recognize(imageData: Data([0x01]), mimeType: "image/jpeg")
+            try await noKey.recognize(.photo(Data([0x01])))
         }
     }
 
@@ -121,7 +121,7 @@ struct GeminiSessionTests {
         }
         struct Stub: MealRecognizer {
             let counter: Counter
-            func recognize(imageData: Data, mimeType: String, note: String?) async throws -> RecognitionArtifact {
+            func recognize(_ message: MealMessage) async throws -> RecognitionArtifact {
                 let call = await counter.increment()
                 return RecognitionArtifact(
                     recognition: MealRecognition(
@@ -148,9 +148,9 @@ struct GeminiSessionTests {
             upstream: Stub(counter: counter), directory: directory, namespace: "meal-v3/gemini-3.6-flash"
         )
 
-        _ = try await luna.recognize(imageData: photo, mimeType: "image/jpeg")
-        _ = try await luna.recognize(imageData: photo, mimeType: "image/jpeg")
-        _ = try await gemini.recognize(imageData: photo, mimeType: "image/jpeg")
+        _ = try await luna.recognize(.photo(photo))
+        _ = try await luna.recognize(.photo(photo))
+        _ = try await gemini.recognize(.photo(photo))
 
         #expect(await counter.calls == 2, "the second provider must not replay the first one's answer")
     }

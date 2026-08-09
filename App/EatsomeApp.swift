@@ -14,72 +14,32 @@ struct EatsomeApp: App {
     }
 }
 
+/// The app opens straight into the thread.
+///
+/// There is no tab bar any more, and no camera button in the middle of one. The
+/// composer is always on screen, so a tab whose whole job was to open a capture
+/// screen had nothing left to do — and `My week`, the only other destination,
+/// is a link in the header where the mock puts it. Two tabs to reach two
+/// screens was ceremony the moment logging stopped being a place you go.
 struct RootView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.scenePhase) private var scenePhase
 
-    @State private var tab: RootTab = .today
-    @State private var isCapturing = false
-
-    private enum RootTab: Hashable { case today, camera, week }
-
-    /// Camera is a button wearing a tab's clothes. Selecting it opens the capture
-    /// sheet and leaves `tab` where it was, so the bar never switches to a screen
-    /// that does not exist. A real middle tab is what buys the system tab bar —
-    /// glass, minimise-on-scroll, accessibility — instead of a floating button
-    /// drawn on top of it. The price is a flat unaccented icon, which is the
-    /// trade being made deliberately.
-    private var selection: Binding<RootTab> {
-        Binding(
-            get: { tab },
-            set: { next in
-                guard next != .camera else {
-                    isCapturing = true
-                    return
-                }
-                tab = next
-            }
-        )
-    }
-
     var body: some View {
-        // Four screens, each asking for exactly one thing, and every ask
-        // skippable. They explain before iOS does, so a refusal is a decision
-        // rather than permanent confusion.
+        // Four onboarding screens, each asking for exactly one thing, and every
+        // ask skippable. They explain before iOS does, so a refusal is a
+        // decision rather than permanent confusion.
         if model.hasOnboarded {
-            tabs
+            LogThreadView()
+                .tint(WellieTheme.blue)
+                .fontDesign(.rounded)
+                .onChange(of: scenePhase) { _, phase in
+                    guard phase == .active else { return }
+                    Task { await model.refreshHealth() }
+                }
         } else {
             OnboardingView()
                 .transition(.opacity)
-        }
-    }
-
-    private var tabs: some View {
-        TabView(selection: selection) {
-            TodayView()
-                .tag(RootTab.today)
-                .tabItem { Label("Today", systemImage: "house.fill") }
-
-            // Never rendered: the binding above intercepts the selection before
-            // this can become the active tab.
-            Color.clear
-                .tag(RootTab.camera)
-                .tabItem { Label("Camera", systemImage: "camera.fill") }
-
-            NavigationStack { MyWeekView() }
-                .tag(RootTab.week)
-                // The mock draws six dots in a 3×2 grid; SF Symbols has no
-                // circle.grid.3x2, and an invalid name renders as nothing at all.
-                .tabItem { Label("My week", systemImage: "circle.grid.3x3.fill") }
-        }
-        .tint(WellieTheme.blue)
-        .fontDesign(.rounded)
-        // Presented from the root so the sheet covers the tab bar whichever tab
-        // the tap came from.
-        .sheet(isPresented: $isCapturing) { MealCaptureView() }
-        .onChange(of: scenePhase) { _, phase in
-            guard phase == .active else { return }
-            Task { await model.refreshHealth() }
         }
     }
 }

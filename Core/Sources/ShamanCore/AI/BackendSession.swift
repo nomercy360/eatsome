@@ -39,17 +39,21 @@ public struct BackendSession: MealRecognizer, MealRefiner, Sendable {
         self.session = session
     }
 
-    public func recognize(
-        imageData: Data,
-        mimeType: String,
-        note: String? = nil
-    ) async throws -> RecognitionArtifact {
+    /// Words, a photograph, or both.
+    ///
+    /// The three image fields travel together or not at all — a `photoHash` with
+    /// no bytes fails the server's own integrity check, which compares the two.
+    /// The words go up as `said` rather than as the old `note`: the server is
+    /// what decides whether they are a caption on a picture or the entire
+    /// account of a meal, and it can only decide that if it knows which it got.
+    public func recognize(_ message: MealMessage) async throws -> RecognitionArtifact {
+        guard !message.isEmpty else { throw MealRecognizerError.emptyMessage }
         let input = RecognitionRequest(
             provider: configuration.provider?.rawValue,
-            photoHash: ImageDigest.sha256(imageData),
-            mimeType: mimeType,
-            imageBase64: imageData.base64EncodedString(),
-            note: note
+            photoHash: message.imageData.map { ImageDigest.sha256($0) },
+            mimeType: message.imageData == nil ? nil : message.mimeType,
+            imageBase64: message.imageData?.base64EncodedString(),
+            said: message.trimmedText
         )
         let envelope: RecognitionEnvelope = try await send(
             path: "recognitions",
@@ -98,6 +102,27 @@ public struct BackendSession: MealRecognizer, MealRefiner, Sendable {
         }
     }
 
+    /// A short-lived Soniox key, minted by the Worker.
+    ///
+    /// The phone never holds the real one. This is single-use and expires in
+    /// minutes, so a key lifted off a device is worth one dictation rather than
+    /// an account — which is the only reason live transcription can talk to the
+    /// vendor directly instead of streaming audio through our own server.
+    public func voiceKey() async throws -> VoiceKey {
+        try await send(path: "voice/key", method: "POST", body: EmptyBody())
+    }
+
+    /// The Worker re-spells Soniox's `api_key`/`expires_at` in this API's own
+    /// camelCase before it reaches the phone, so no vendor's field naming leaks
+    /// into the client.
+    public struct VoiceKey: Decodable, Sendable {
+        public let apiKey: String
+        /// ISO-8601, as the vendor writes it. Carried through untouched: a key
+        /// is only ever used immediately, so parsing it here would be a date
+        /// format to keep in step for no benefit.
+        public let expiresAt: String?
+    }
+
     public func deleteAccountData() async throws {
         let _: DeleteEnvelope = try await send(path: "account", method: "DELETE", body: EmptyBody())
     }
@@ -132,10 +157,14 @@ public struct BackendSession: MealRecognizer, MealRefiner, Sendable {
 
     private struct RecognitionRequest: Encodable {
         let provider: String?
-        let photoHash: String
-        let mimeType: String
-        let imageBase64: String
-        let note: String?
+        /// All three absent together on a message with no photograph. Swift
+        /// omits a nil rather than encoding null, which is what the server's
+        /// optional fields expect.
+        let photoHash: String?
+        let mimeType: String?
+        let imageBase64: String?
+        /// What the person typed or dictated.
+        let said: String?
     }
 
     private struct RefinementRequest: Encodable {

@@ -21,8 +21,6 @@ struct MealDetailView: View {
     @State private var openDish: MealDish?
     @State private var editing: EditingFood?
     @State private var showingDelete = false
-    @State private var showingRecipeName = false
-    @State private var recipeName = ""
     @State private var isRefining = false
     @State private var refineFailure: String?
     /// The dish a new ingredient is being named for, the words being typed for
@@ -135,13 +133,6 @@ struct MealDetailView: View {
             FixScreen(purpose: .add, text: $addText) {
                 Task { await addIngredient(to: target.dish) }
             }
-        }
-        .alert("Save as a dish", isPresented: $showingRecipeName) {
-            TextField("Lentil soup", text: $recipeName)
-            Button("Save") { saveAsRecipe() }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("Described once, it comes back complete — including what the camera can't see.")
         }
         .confirmationDialog("Remove this meal?", isPresented: $showingDelete, titleVisibility: .visible) {
             Button("Remove", role: .destructive) {
@@ -472,15 +463,14 @@ struct MealDetailView: View {
             }
             .padding(.vertical, 12)
 
-            WellieRowDivider()
-
-            Button {
-                recipeName = Recipe.suggestedName(for: draft.items)
-                showingRecipeName = true
-            } label: {
-                WellieChevronRow(title: "Save as a dish")
-            }
-            .buttonStyle(.plain)
+            // "Save as a dish" was here, and it is gone with the screen that
+            // listed them. What it existed for still happens, automatically:
+            // home cooking hides its ingredients, so you correct a dish once —
+            // the eggs in the French toast, the oil in the stew — and the next
+            // time you log it from a chip it comes back with those corrections,
+            // because the chip repeats the most recent logging rather than a
+            // separately curated recipe. Naming it a second time was a list to
+            // keep, and the log already knows.
         }
         .wellieListCard()
     }
@@ -505,13 +495,4 @@ struct MealDetailView: View {
         .background(WellieTheme.background)
     }
 
-    private func saveAsRecipe() {
-        let name = recipeName.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !name.isEmpty else { return }
-        Task {
-            await model.saveRecipe(
-                Recipe(name: name, items: draft.items, note: draft.note)
-            )
-        }
-    }
 }

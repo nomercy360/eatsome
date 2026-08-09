@@ -71,12 +71,9 @@ public struct GeminiSession: MealRecognizer, MealRefiner {
         self.session = session
     }
 
-    public func recognize(
-        imageData: Data,
-        mimeType: String,
-        note: String? = nil
-    ) async throws -> RecognitionArtifact {
-        let data = try await post(requestBody(imageData: imageData, mimeType: mimeType, note: note))
+    public func recognize(_ message: MealMessage) async throws -> RecognitionArtifact {
+        guard !message.isEmpty else { throw MealRecognizerError.emptyMessage }
+        let data = try await post(requestBody(for: message))
         return try Self.parse(data, promptVersion: configuration.promptVersion)
     }
 
@@ -114,7 +111,7 @@ public struct GeminiSession: MealRecognizer, MealRefiner {
         return data
     }
 
-    func requestBody(imageData: Data, mimeType: String, note: String? = nil) -> [String: Any] {
+    func requestBody(for message: MealMessage) -> [String: Any] {
         var generationConfig: [String: Any] = [
             "responseMimeType": "application/json",
             "responseSchema": Self.responseSchema
@@ -126,17 +123,19 @@ public struct GeminiSession: MealRecognizer, MealRefiner {
             generationConfig["mediaResolution"] = resolution
         }
 
+        // The image part is omitted entirely when there is none, never sent
+        // empty: a zero-length `inlineData` is a decode error at the vendor
+        // rather than an absent picture.
+        var parts: [[String: Any]] = [["text": MealPrompt.userMessage(for: message)]]
+        if let imageData = message.imageData {
+            parts.append([
+                "inlineData": ["mimeType": message.mimeType, "data": imageData.base64EncodedString()]
+            ])
+        }
+
         return [
             "systemInstruction": ["parts": [["text": configuration.systemPrompt]]],
-            "contents": [
-                [
-                    "role": "user",
-                    "parts": [
-                        ["text": MealPrompt.userMessage(note: note)],
-                        ["inlineData": ["mimeType": mimeType, "data": imageData.base64EncodedString()]]
-                    ]
-                ]
-            ],
+            "contents": [["role": "user", "parts": parts]],
             "generationConfig": generationConfig
         ]
     }

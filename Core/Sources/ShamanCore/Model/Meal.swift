@@ -87,6 +87,25 @@ public enum MealSource: String, Codable, Sendable {
     /// recipe entry is a repeat of something you already checked, and it is the
     /// only source that can carry ingredients no photograph could show.
     case recipe
+    /// Described in words — typed or dictated — with no photograph.
+    ///
+    /// Worth its own case rather than folding into `manual`: `manual` meant a
+    /// list assembled from pickers, with no model involved and no evidence
+    /// worth keeping. This is a recognition like any other, and the words that
+    /// produced it are on the message. When a photo *and* words arrived
+    /// together the source is `photo`, because the picture is the stronger
+    /// evidence and the words are the caption on it.
+    case text
+
+    /// An unknown value is a source written by a build newer than this one.
+    /// Falling back beats throwing, for the same reason `MealShare` does it: a
+    /// `MealEntry` that will not decode is a meal that silently vanishes from
+    /// the projection, and a wrong provenance label is a far smaller loss than
+    /// a missing meal.
+    public init(from decoder: any Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        self = MealSource(rawValue: raw) ?? .manual
+    }
 }
 
 /// How much of what is in the photograph you actually ate.
@@ -219,6 +238,13 @@ public struct MealEntry: Codable, Sendable, Hashable, Identifiable {
     /// When this is present, `items` is `dishes.flatMap(\.flattened())` and
     /// nothing else — `MealDish.flattened()` is the only thing that writes it.
     public var storedDishes: [MealDish]?
+    /// The message in the thread this meal was read from.
+    ///
+    /// Nil on everything logged before the thread existed, and on anything the
+    /// composer did not produce — which is why nothing may depend on it being
+    /// there. It is what glues a card under its own bubble even when three
+    /// messages are being read at once and finish out of order.
+    public var messageID: UUID?
 
     public init(
         id: UUID = UUIDv7.generate(),
@@ -232,7 +258,8 @@ public struct MealEntry: Codable, Sendable, Hashable, Identifiable {
         share: MealShare? = nil,
         wasCorrected: Bool = false,
         recipeID: UUID? = nil,
-        storedDishes: [MealDish]? = nil
+        storedDishes: [MealDish]? = nil,
+        messageID: UUID? = nil
     ) {
         self.id = id
         self.eatenAt = eatenAt
@@ -246,6 +273,7 @@ public struct MealEntry: Codable, Sendable, Hashable, Identifiable {
         self.wasCorrected = wasCorrected
         self.recipeID = recipeID
         self.storedDishes = storedDishes
+        self.messageID = messageID
     }
 
     public var eaten: MealShare { share ?? .whole }

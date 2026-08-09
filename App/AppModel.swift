@@ -28,6 +28,14 @@ final class AppModel {
     private(set) var hasAcceptedPhotoProcessing =
         UserDefaults.standard.string(forKey: "photoProcessingConsentVersion") == photoProcessingConsentVersion
 
+    /// Where each message in the thread has got to.
+    ///
+    /// Deliberately not persisted — see `LogMessageState`. Anything in flight
+    /// when the app was killed comes back as `sent`, which is the truth: it was
+    /// written down and it has not been read yet. `resumeUnreadMessages()` picks
+    /// those up on launch, so a message can never be stranded by a crash.
+    private(set) var messageStates: [UUID: LogMessageState] = [:]
+
     /// Which vendor recognizes photos on this device. Stored here rather than in
     /// the config file because it is a per-device experiment, not a policy: the
     /// point is to run both against your own plates and keep the better one.
@@ -84,6 +92,7 @@ final class AppModel {
 
         rebuildRecognizer()
         if hasAcceptedPhotoProcessing { syncMealEvents(loadedEvents) }
+        resumeUnreadMessages()
         await refreshHealth()
     }
 
@@ -150,36 +159,209 @@ final class AppModel {
         }
     }
 
-    // MARK: - Recipes
+    // MARK: - The thread
+    //
+    // Messages are a queue, not a form. Each one is written down the instant it
+    // is sent, then read independently and in parallel; order of completion does
+    // not matter, and nothing about the composer waits on any of it. A retry
+    // re-sends the message that already exists rather than asking anyone to type
+    // it again — which is the whole reason the message is a stored event and the
+    // meal is a separate one.
 
-    var recipes: [Recipe] { projection.recentRecipes }
-
-    /// Two keeps the manual route visible on the smallest supported phones.
-    /// The projection ranks by use and falls back to recency before a dish has
-    /// ever been reused.
-    var suggestedRecipes: [Recipe] { projection.suggestedRecipes(limit: 2) }
-
-    /// Counted from the log rather than kept as a tally, so deleting a meal
-    /// takes its use with it.
-    func timesLogged(_ recipe: Recipe) -> Int {
-        projection.timesLogged(recipeID: recipe.id)
+    /// Today's thread, oldest first.
+    var thread: [ThreadTurn] {
+        let calendar = Calendar.current
+        let start = calendar.startOfDay(for: Date()).epochMillis
+        return projection.thread(from: start, to: start + 86_400_000)
     }
 
-    func saveRecipe(_ recipe: Recipe) async {
-        var stamped = recipe
-        stamped.updatedAt = Date().epochMillis
-        await record(.recipeSaved(stamped))
+    func state(of message: LogMessage) -> LogMessageState {
+        if let known = messageStates[message.id] { return known }
+        // A meal already references it: this is a message from a previous
+        // session whose reading finished before the app was closed.
+        if let meal = projection.meal(forMessage: message.id) { return .logged(mealID: meal.id) }
+        return .sent
     }
 
-    func deleteRecipe(_ recipe: Recipe) async {
-        await record(.recipeDeleted(recipeID: recipe.id))
+    var isReadingAnything: Bool {
+        messageStates.values.contains { if case .reading = $0 { return true } else { return false } }
     }
 
-    /// Logging a recipe also bumps it to the top of the list: what you cooked
-    /// today is what you are most likely to cook again.
-    func logRecipe(_ recipe: Recipe, at date: Date, share: MealShare) async {
-        await logMeal(recipe.newMeal(eatenAt: date.epochMillis, share: share))
-        await saveRecipe(recipe)
+    /// Write the message down, then read it. In that order, always: the log
+    /// entry is what makes the thread survive being offline, being killed, or
+    /// the reading failing.
+    func send(said: String?, photo: Data? = nil) async {
+        let normalized = photo.flatMap(ModelInputImage.render)
+        let text = said?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let message = LogMessage(
+            said: (text?.isEmpty ?? true) ? nil : text,
+            photoHash: normalized.flatMap { PhotoStore.shared.store($0) }
+        )
+        guard !message.isEmpty else { return }
+
+        await record(.messageSent(message), occurredAt: message.sentAt)
+        read(message, bytes: normalized)
+    }
+
+    /// Log a repeat dish straight from a chip, with no model call.
+    ///
+    /// The ingredients and their weights are already known from the last time it
+    /// was logged, and asking a model to describe lentil soup again would spend
+    /// money to be told the same thing less reliably. It still goes through a
+    /// message, so the thread reads the same as any other entry.
+    func send(dish entry: DishLibrary.Entry) async {
+        let message = LogMessage(said: entry.name)
+        await record(.messageSent(message), occurredAt: message.sentAt)
+        let meal = entry.newMeal(
+            eatenAt: SpokenTime.eatenAt(in: entry.name, sentAt: message.sentAt),
+            messageID: message.id
+        )
+        await logMeal(meal)
+        messageStates[message.id] = .logged(mealID: meal.id)
+    }
+
+    /// The same send, for a day that is not today.
+    ///
+    /// Reached from the day sheet of an earlier day — the one thing a gap in the
+    /// log is still good for. The message is stamped on that day so the thread
+    /// keeps its own chronology, and a time named in the sentence still wins:
+    /// "9 pm" on Monday's sheet means Monday at nine.
+    func send(said: String, on day: Date, calendar: Calendar = .current) async {
+        let text = said.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        // Noon, so a message with no time in it lands inside the day it is
+        // being added to rather than at whatever hour it happens to be now.
+        let noon = calendar.date(bySettingHour: 12, minute: 0, second: 0, of: day) ?? day
+        let message = LogMessage(sentAt: noon.epochMillis, said: text)
+        await record(.messageSent(message), occurredAt: message.sentAt)
+        read(message, bytes: nil)
+    }
+
+    func retry(_ message: LogMessage) {
+        read(message, bytes: PhotoStore.shared.data(for: message.photoHash))
+    }
+
+    /// Anything written down but never read — the app was killed mid-flight, or
+    /// the send happened offline. Picked up on launch so a message cannot be
+    /// stranded by something that was not the person's doing.
+    private func resumeUnreadMessages() {
+        for message in projection.messages.values
+        where projection.meal(forMessage: message.id) == nil && messageStates[message.id] == nil {
+            read(message, bytes: PhotoStore.shared.data(for: message.photoHash))
+        }
+    }
+
+    private func read(_ message: LogMessage, bytes: Data?) {
+        if case .reading = messageStates[message.id] { return }
+        messageStates[message.id] = .reading
+        Task { await readNow(message, bytes: bytes) }
+    }
+
+    private func readNow(_ message: LogMessage, bytes: Data?) async {
+        do {
+            let artifact = try await recognize(
+                MealMessage(said: message.said, imageData: bytes)
+            )
+            let dishes = artifact.recognition.asMealDishes() ?? []
+            let items = dishes.isEmpty
+                ? artifact.recognition.asMealItems()
+                : dishes.flatMap { $0.flattened() }
+
+            let meal = MealEntry(
+                // The sentence may say when: "half a kebab at 2 am". Read in
+                // code rather than asked of the model — see `SpokenTime`.
+                eatenAt: SpokenTime.eatenAt(in: message.said, sentAt: message.sentAt),
+                items: items,
+                // A photo with a caption is still a photograph: the picture is
+                // the stronger evidence and the words are what it could not show.
+                source: bytes == nil ? .text : .photo,
+                photoHash: message.photoHash,
+                note: message.trimmedText,
+                recognitionEvidence: MealRecognitionEvidence(
+                    promptVersion: artifact.promptVersion,
+                    rawModelJSON: artifact.rawModelJSON,
+                    initialItems: artifact.recognition.asMealItems(),
+                    otherMealsVisible: artifact.recognition.otherMealsVisible
+                ),
+                storedDishes: dishes.isEmpty ? nil : dishes,
+                messageID: message.id
+            )
+            await logMeal(meal)
+            messageStates[message.id] = .logged(mealID: meal.id)
+        } catch {
+            messageStates[message.id] = .failed(reason: error.localizedDescription)
+        }
+    }
+
+    /// Answering the one question a card ever asks, in words.
+    ///
+    /// The same delta a fix is, applied straight to the saved meal — the meal
+    /// was never blocked on the answer, it was saved with the model's best guess
+    /// and marked as corrected once you touched it. Both representations are
+    /// rewritten together so the flat list and the dishes cannot disagree.
+    func refineMeal(_ meal: MealEntry, note: String) async {
+        let text = note.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        do {
+            let revision = try await refine(
+                imageData: PhotoStore.shared.data(for: meal.photoHash),
+                current: meal.items,
+                note: text
+            )
+            var revised = meal
+            revised.items = revision.applied(to: meal.items)
+            if let dishes = meal.storedDishes {
+                let regrouped = MealDish.regrouped(revised.items, keeping: dishes)
+                revised.storedDishes = regrouped
+                revised.items = regrouped.flatMap { $0.flattened() }
+            }
+            revised.note = text
+            await reviseMeal(revised)
+        } catch {
+            cloudError = error.localizedDescription
+        }
+    }
+
+    /// Removing a meal takes its bubble with it, so the thread never shows a
+    /// message with nothing under it and no way to get one.
+    func deleteTurn(_ turn: ThreadTurn) async {
+        if let meal = turn.meal { await deleteMeal(meal) }
+        if let message = turn.message {
+            messageStates.removeValue(forKey: message.id)
+            await record(.messageDeleted(messageID: message.id), occurredAt: message.sentAt)
+        }
+    }
+
+    /// The chips above the keyboard: what you are most likely about to type,
+    /// for this time of day, narrowed by what you have typed so far.
+    func dishSuggestions(typed: String = "", limit: Int = 3) -> [DishLibrary.Entry] {
+        DishLibrary.suggestions(in: projection.meals.values, typed: typed, limit: limit)
+    }
+
+    // MARK: - Olives
+
+    func olives(for meal: MealEntry) -> OliveRating {
+        OliveRating.forMeal(meal, configuration: config.oliveConfiguration)
+    }
+
+    /// The day so far, portion-weighted. Nil on a day with nothing logged —
+    /// which the pinned strip must draw differently from a three-olive day.
+    func olives(on day: Date = Date(), calendar: Calendar = .current) -> OliveRating? {
+        OliveRating.forDay(meals(on: day, calendar: calendar), configuration: config.oliveConfiguration)
+    }
+
+    // MARK: - Dishes
+    //
+    // `Recipe` and its two events are still decoded and replayed — the log is
+    // append-only and a build that could not read a `recipe_saved` line would
+    // drop it — but nothing writes one any more. Curating a list of dishes by
+    // hand was a job the log can do by itself: what you repeat, and how it came
+    // out the last time you corrected it, is already written down. See
+    // `DishLibrary`.
+
+    /// How many distinct dishes the log has seen, for the Workshop counters.
+    var knownDishCount: Int {
+        DishLibrary.entries(in: projection.meals.values).count
     }
 
     // MARK: - Reads
@@ -436,12 +618,20 @@ final class AppModel {
 
     // MARK: - Recognition
 
-    func recognize(imageData: Data, note: String?) async throws -> RecognitionArtifact {
+    /// Consent is required for anything that leaves the phone, not only for a
+    /// photograph.
+    ///
+    /// When logging was photo-first those were the same thing. They are not any
+    /// more: a typed meal goes to the same third-party provider, and gating only
+    /// the picture would mean the first thing a new user sends leaves the device
+    /// without ever having been mentioned. `SendConsentView` says both.
+    func recognize(_ message: MealMessage) async throws -> RecognitionArtifact {
         guard hasAcceptedPhotoProcessing else {
-            throw BackendError.invalidRequest("Agree to photo processing before sending a meal photo.")
+            throw BackendError.invalidRequest("Agree before a meal is sent to be read.")
         }
+        guard !message.isEmpty else { throw MealRecognizerError.emptyMessage }
         guard let recognizer else { throw MealRecognizerError.missingAPIKey }
-        return try await recognizer.recognize(imageData: imageData, mimeType: "image/jpeg", note: note)
+        return try await recognizer.recognize(message)
     }
 
     /// Not cached: a correction is a one-off, and its answer depends on a list
@@ -454,6 +644,12 @@ final class AppModel {
             current: current,
             note: note
         )
+    }
+
+    /// Where live dictation gets its short-lived key. Nil on a build with no
+    /// backend, which greys the mic rather than letting it fail after the tap.
+    var voiceKeySource: (any VoiceKeySource)? {
+        backend.map(BackendVoiceKeys.init(backend:))
     }
 
     func setBackendToken(_ token: String?) {

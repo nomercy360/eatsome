@@ -33,7 +33,10 @@ struct MyWeekView: View {
         .navigationTitle("My week")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showingMethod) { ScoreMethodView() }
-        .navigationDestination(item: $openDay) { DayView(day: $0.start) }
+        // A sheet rather than a push, matching `7f`: a day slides over whatever
+        // you were reading and swipes away again, which is what makes tapping a
+        // dot cheap enough to do idly.
+        .sheet(item: $openDay) { DaySheet(day: $0.start) }
         .wellieScreen()
     }
 

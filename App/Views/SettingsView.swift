@@ -207,12 +207,13 @@ struct SettingsView: View {
 
     private var listCard: some View {
         VStack(spacing: 0) {
-            NavigationLink { RecipesView() } label: {
-                WellieChevronRow(title: "My dishes", value: "\(model.recipes.count)")
-            }
-            .buttonStyle(.plain)
-
-            WellieRowDivider()
+            // "My dishes" is gone with the screen behind it. Dishes were never
+            // something anyone curated — the list existed so a home recipe could
+            // be described once — and the thread does that job from the log
+            // instead: what you repeat surfaces as a chip over the keyboard,
+            // ranked by how often and how recently you actually ate it. A
+            // screen for maintaining that by hand would be asking someone to
+            // keep a list the app can already read.
             WellieChevronRow(title: "Units", value: WeightFormat.unitName)
                 .foregroundStyle(WellieTheme.ink)
 
@@ -426,7 +427,7 @@ struct WorkshopView: View {
                         .font(WellieTheme.font(17, weight: .bold))
                     row("Config", model.configSource.rawValue)
                     row("Meals", "\(model.projection.meals.count)")
-                    row("Dishes", "\(model.recipes.count)")
+                    row("Dishes", "\(model.knownDishCount)")
                     row("Health workouts", "\(model.healthSnapshot.workouts.count)")
                     row("Sleep sessions", "\(model.healthSnapshot.sleep.count)")
                     row("Weight readings", "\(model.healthSnapshot.weights.count)")

@@ -33,6 +33,9 @@ targets:
           Photograph meals so eatsome can identify their food groups.
         NSPhotoLibraryUsageDescription: >-
           Pick a photo of a meal to log it.
+        NSMicrophoneUsageDescription: >-
+          Describe a meal out loud instead of typing it. Audio is transcribed to
+          text as you speak and is not kept.
         NSHealthShareUsageDescription: >-
           Import workouts, sleep, and weight to show your daily health overview.
         # Demanded by App Store validation whenever the HealthKit entitlement is

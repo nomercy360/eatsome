@@ -211,11 +211,55 @@ public struct MealRecognition: Codable, Sendable, Hashable {
     }
 }
 
+/// One thing to be read: words, a photograph, or both.
+///
+/// This replaced an image-and-an-optional-note signature when logging became a
+/// thread. The note was always framed as "what the photograph cannot show",
+/// which is the right framing for a caption and the wrong one for a message that
+/// *is* the whole meal — "leftover lentil soup, big bowl" is not a supplement to
+/// a picture, it is the picture's replacement. Both cases are the same act now:
+/// something arrives, it gets read.
+///
+/// Words are also the cheapest accuracy the app has, and always were. No vision
+/// model recovers the eggs in French toast, because they are not in the frame.
+public struct MealMessage: Sendable, Hashable {
+    /// What was typed or dictated.
+    public var said: String?
+    /// The photograph's bytes, when there was one.
+    public var imageData: Data?
+    public var mimeType: String
+
+    public init(said: String? = nil, imageData: Data? = nil, mimeType: String = "image/jpeg") {
+        self.said = said
+        self.imageData = imageData
+        self.mimeType = mimeType
+    }
+
+    public var hasImage: Bool { imageData != nil }
+
+    public var trimmedText: String? {
+        let text = said?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return (text?.isEmpty ?? true) ? nil : text
+    }
+
+    /// Nothing to read. Guarded at every boundary rather than trusted, because
+    /// the failure it prevents is buying a model call to describe an empty
+    /// plate — and getting a confident answer about one.
+    public var isEmpty: Bool { !hasImage && trimmedText == nil }
+
+    /// What a photograph-only message used to be, kept so the meaning of the
+    /// existing call sites is obvious at a glance.
+    public static func photo(_ data: Data, mimeType: String = "image/jpeg", said: String? = nil) -> MealMessage {
+        MealMessage(said: said, imageData: data, mimeType: mimeType)
+    }
+
+    public static func words(_ said: String) -> MealMessage {
+        MealMessage(said: said)
+    }
+}
+
 public protocol MealRecognizer: Sendable {
-    /// `note` is what the photograph cannot show, in the user's words — "fried
-    /// in butter, two eggs in the batter". It is the cheapest accuracy the app
-    /// has: no vision model recovers an ingredient that is not in the frame.
-    func recognize(imageData: Data, mimeType: String, note: String?) async throws -> RecognitionArtifact
+    func recognize(_ message: MealMessage) async throws -> RecognitionArtifact
 }
 
 /// Exact recognition evidence retained alongside the parsed result. This is
@@ -234,6 +278,10 @@ public struct RecognitionArtifact: Codable, Sendable, Hashable {
 
 public enum MealRecognizerError: Error, LocalizedError {
     case missingAPIKey
+    /// A message with neither words nor a photograph. Caught before the request
+    /// rather than after: an empty prompt does not return an error, it returns a
+    /// confident description of a meal nobody ate.
+    case emptyMessage
     case invalidEndpoint(String)
     case http(status: Int, message: String)
     case emptyResponse
@@ -244,6 +292,7 @@ public enum MealRecognizerError: Error, LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .missingAPIKey: "No API key for the selected model. Add one in Settings."
+        case .emptyMessage: "There was nothing to read — no words and no photo."
         case .invalidEndpoint(let detail): "That recognition endpoint is not a valid URL: \(detail)"
         case .http(let status, let message): "OpenAI returned \(status): \(message)"
         case .emptyResponse: "The model returned no output."
@@ -270,18 +319,38 @@ public enum MealPrompt {
     public static let everythingIsMine =
         "All the food in this photograph is mine, on every tray and plate. Include all of it."
 
-    /// The user's note, fenced and labelled so it reads as evidence about the
+    /// What to say when there is no photograph at all — the words are the whole
+    /// input, not a correction to something visible.
+    public static let fromWords = "Read this description of a meal."
+
+    /// The user's words, fenced and labelled so they read as evidence about the
     /// food rather than as further instructions.
-    public static func userMessage(note: String?) -> String {
-        guard let note = note?.trimmingCharacters(in: .whitespacesAndNewlines), !note.isEmpty else {
-            return user
+    ///
+    /// The label differs by case, and it matters. Beside a photograph the words
+    /// are what the camera missed and the picture stays the primary evidence;
+    /// without one they are the only evidence there is, and a prompt that still
+    /// called them "what the photo cannot show" would be describing a photo that
+    /// does not exist.
+    public static func userMessage(for message: MealMessage) -> String {
+        guard let said = message.trimmedText else {
+            return message.hasImage ? user : fromWords
+        }
+        guard message.hasImage else {
+            return """
+            \(fromWords)
+
+            What the person ate, in their own words:
+            \"\"\"
+            \(said)
+            \"\"\"
+            """
         }
         return """
         \(user)
 
         What the photo cannot show, from the person who ate it:
         \"\"\"
-        \(note)
+        \(said)
         \"\"\"
         """
     }

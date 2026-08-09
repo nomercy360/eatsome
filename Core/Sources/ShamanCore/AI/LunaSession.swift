@@ -59,12 +59,9 @@ public struct LunaSession: MealRecognizer, MealRefiner {
         self.apiKey = apiKey
     }
 
-    public func recognize(
-        imageData: Data,
-        mimeType: String,
-        note: String? = nil
-    ) async throws -> RecognitionArtifact {
-        let data = try await post(requestBody(imageData: imageData, mimeType: mimeType, note: note))
+    public func recognize(_ message: MealMessage) async throws -> RecognitionArtifact {
+        guard !message.isEmpty else { throw MealRecognizerError.emptyMessage }
+        let data = try await post(requestBody(for: message))
         return try Self.parse(data, promptVersion: configuration.promptVersion)
     }
 
@@ -98,8 +95,20 @@ public struct LunaSession: MealRecognizer, MealRefiner {
         return data
     }
 
-    func requestBody(imageData: Data, mimeType: String, note: String? = nil) -> [String: Any] {
-        let dataURL = "data:\(mimeType);base64,\(imageData.base64EncodedString())"
+    func requestBody(for message: MealMessage) -> [String: Any] {
+        // Omitted rather than sent empty, for the same reason Gemini's is: an
+        // `input_image` with no bytes is a vendor-side decode error, not a
+        // message without a picture.
+        var content: [[String: Any]] = [
+            ["type": "input_text", "text": MealPrompt.userMessage(for: message)]
+        ]
+        if let imageData = message.imageData {
+            content.append([
+                "type": "input_image",
+                "image_url": "data:\(message.mimeType);base64,\(imageData.base64EncodedString())",
+                "detail": configuration.imageDetail
+            ])
+        }
 
         var body: [String: Any] = [
             "model": configuration.model,
@@ -108,13 +117,7 @@ public struct LunaSession: MealRecognizer, MealRefiner {
                     "role": "system",
                     "content": [["type": "input_text", "text": configuration.systemPrompt]]
                 ],
-                [
-                    "role": "user",
-                    "content": [
-                        ["type": "input_text", "text": MealPrompt.userMessage(note: note)],
-                        ["type": "input_image", "image_url": dataURL, "detail": configuration.imageDetail]
-                    ]
-                ]
+                ["role": "user", "content": content]
             ],
             "text": [
                 "format": [

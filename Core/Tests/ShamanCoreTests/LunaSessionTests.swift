@@ -10,7 +10,7 @@ struct LunaSessionTests {
 
     @Test("Request targets Luna with a strict schema and an inline image")
     func requestShape() throws {
-        let body = session().requestBody(imageData: Data([0xFF, 0xD8, 0xFF]), mimeType: "image/jpeg")
+        let body = session().requestBody(for: .photo(Data([0xFF, 0xD8, 0xFF])))
 
         #expect(body["model"] as? String == "gpt-5.6-luna")
         #expect((body["reasoning"] as? [String: Any])?["effort"] as? String == "low")
@@ -86,22 +86,45 @@ struct LunaSessionTests {
 
     @Test("The generated prompt matches the file it came from")
     func promptMatchesItsSource() throws {
-        // The app, the proxy and the eval harness all read prompts/meal-v5.md.
+        // The app, the proxy and the eval harness all read the same prompt file.
         // Two copies of a prompt is how a pipeline ends up measuring one thing
         // and shipping another, so a copy that falls behind fails here.
-        let file = URL(fileURLWithPath: #filePath)
+        //
+        // The file is found rather than named: pinning the version by hand meant
+        // every bump edited this test, and a test you edit to make a change pass
+        // is a test that has stopped being a tripwire. Comparing against the
+        // newest prompt in the directory catches both halves of the mistake —
+        // editing the prompt without syncing, and adding a version without it.
+        let prompts = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
             .deletingLastPathComponent()
             .deletingLastPathComponent()
             .deletingLastPathComponent()
-            .appendingPathComponent("prompts/meal-v17.md")
-        let source = try String(contentsOf: file, encoding: .utf8)
+            .appendingPathComponent("prompts")
+
+        let versions = try FileManager.default
+            .contentsOfDirectory(atPath: prompts.path)
+            .compactMap { name -> (Int, String)? in
+                guard name.hasPrefix("meal-v"), name.hasSuffix(".md"),
+                      let number = Int(name.dropFirst("meal-v".count).dropLast(".md".count))
+                else { return nil }
+                return (number, name)
+            }
+            .sorted { $0.0 < $1.0 }
+
+        let newest = try #require(versions.last, "no prompts/meal-v*.md found")
+        let source = try String(
+            contentsOf: prompts.appendingPathComponent(newest.1), encoding: .utf8
+        )
 
         #expect(
             MealPrompt.system == source.trimmingCharacters(in: .whitespacesAndNewlines),
             "run: node scripts/sync-prompt.mjs"
         )
-        #expect(MealPrompt.version == "meal-v17-2026-08-07")
+        #expect(
+            MealPrompt.version.hasPrefix("meal-v\(newest.0)-"),
+            "the generated version names an older prompt than the newest on disk"
+        )
     }
 
     @Test("A well-formed response decodes")
@@ -215,7 +238,7 @@ struct LunaSessionTests {
     func missingKey() async {
         let noKey = LunaSession { nil }
         await #expect(throws: MealRecognizerError.self) {
-            try await noKey.recognize(imageData: Data([0x01]), mimeType: "image/jpeg")
+            try await noKey.recognize(.photo(Data([0x01])))
         }
     }
 
@@ -227,7 +250,7 @@ struct LunaSessionTests {
         }
         struct Stub: MealRecognizer {
             let counter: Counter
-            func recognize(imageData: Data, mimeType: String, note: String?) async throws -> RecognitionArtifact {
+            func recognize(_ message: MealMessage) async throws -> RecognitionArtifact {
                 await counter.increment()
                 let recognition = MealRecognition(
                     items: [.init(
@@ -255,9 +278,9 @@ struct LunaSessionTests {
         let caching = try CachingRecognizer(upstream: Stub(counter: counter), directory: directory)
         let photo = Data("pretend jpeg".utf8)
 
-        _ = try await caching.recognize(imageData: photo, mimeType: "image/jpeg")
-        _ = try await caching.recognize(imageData: photo, mimeType: "image/jpeg")
-        _ = try await caching.recognize(imageData: Data("a different photo".utf8), mimeType: "image/jpeg")
+        _ = try await caching.recognize(.photo(photo))
+        _ = try await caching.recognize(.photo(photo))
+        _ = try await caching.recognize(.photo(Data("a different photo".utf8)))
 
         #expect(await counter.calls == 2)
     }

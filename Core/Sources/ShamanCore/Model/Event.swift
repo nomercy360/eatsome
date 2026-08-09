@@ -40,6 +40,14 @@ public enum EventPayload: Sendable, Hashable {
     /// same way `mealRevised` supersedes a meal.
     case recipeSaved(Recipe)
     case recipeDeleted(recipeID: UUID)
+    /// Something you said, written down the moment you said it — before anyone
+    /// knows what it means. This is what makes the thread work offline and makes
+    /// a failed reading retryable rather than retypeable.
+    case messageSent(LogMessage)
+    /// Removing a message takes its bubble out of the thread. Written when a
+    /// meal is deleted from its card, so the thread does not keep a bubble with
+    /// nothing under it.
+    case messageDeleted(messageID: UUID)
 }
 
 // Hand-written coding rather than the synthesized `{"mealLogged":{"_0":...}}`
@@ -56,10 +64,13 @@ extension EventPayload: Codable {
         case habitsUpdated = "habits_updated"
         case recipeSaved = "recipe_saved"
         case recipeDeleted = "recipe_deleted"
+        case messageSent = "message_sent"
+        case messageDeleted = "message_deleted"
     }
 
     private struct MealRef: Codable { let mealID: UUID }
     private struct RecipeRef: Codable { let recipeID: UUID }
+    private struct MessageRef: Codable { let messageID: UUID }
 
     public init(from decoder: any Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -71,6 +82,9 @@ extension EventPayload: Codable {
         case .habitsUpdated: self = .habitsUpdated(try c.decode(DietHabits.self, forKey: .data))
         case .recipeSaved: self = .recipeSaved(try c.decode(Recipe.self, forKey: .data))
         case .recipeDeleted: self = .recipeDeleted(recipeID: try c.decode(RecipeRef.self, forKey: .data).recipeID)
+        case .messageSent: self = .messageSent(try c.decode(LogMessage.self, forKey: .data))
+        case .messageDeleted:
+            self = .messageDeleted(messageID: try c.decode(MessageRef.self, forKey: .data).messageID)
         }
     }
 
@@ -91,6 +105,11 @@ extension EventPayload: Codable {
             try c.encode(Kind.recipeSaved, forKey: .kind); try c.encode(r, forKey: .data)
         case .recipeDeleted(let id):
             try c.encode(Kind.recipeDeleted, forKey: .kind); try c.encode(RecipeRef(recipeID: id), forKey: .data)
+        case .messageSent(let m):
+            try c.encode(Kind.messageSent, forKey: .kind); try c.encode(m, forKey: .data)
+        case .messageDeleted(let id):
+            try c.encode(Kind.messageDeleted, forKey: .kind)
+            try c.encode(MessageRef(messageID: id), forKey: .data)
         }
     }
 }
@@ -104,6 +123,7 @@ public struct Projection: Sendable {
     public private(set) var sets: [SetRecord] = []
     public private(set) var habits = DietHabits()
     public private(set) var recipes: [UUID: Recipe] = [:]
+    public private(set) var messages: [UUID: LogMessage] = [:]
 
     public init() {}
 
@@ -120,7 +140,49 @@ public struct Projection: Sendable {
         case .habitsUpdated(let h): habits = h
         case .recipeSaved(let r): recipes[r.id] = r
         case .recipeDeleted(let id): recipes.removeValue(forKey: id)
+        case .messageSent(let m): messages[m.id] = m
+        case .messageDeleted(let id): messages.removeValue(forKey: id)
         }
+    }
+
+    /// The thread, oldest first — which is the order a chat reads in, and the
+    /// opposite of every other list in this app.
+    ///
+    /// One turn is one thing you said and whatever the app made of it. They are
+    /// kept together rather than sorted as two independent entries because
+    /// messages are read in parallel and finish in any order: sorting a card by
+    /// when it was *ready* would let breakfast's card land under the 11 am photo
+    /// simply because the photo was quicker. A turn is pinned to when its
+    /// message was sent, so the conversation reads in the order it was had.
+    ///
+    /// A meal with no message still gets a turn — a day logged by an older
+    /// build, or a meal added from the day sheet — because a meal that appears
+    /// in the score and nowhere in the thread is a meal you cannot correct.
+    public func thread(from start: EpochMillis, to end: EpochMillis) -> [ThreadTurn] {
+        var mealsByMessage: [UUID: MealEntry] = [:]
+        var orphans: [MealEntry] = []
+        for meal in meals.values {
+            if let messageID = meal.messageID {
+                mealsByMessage[messageID] = meal
+            } else if meal.eatenAt >= start, meal.eatenAt < end {
+                orphans.append(meal)
+            }
+        }
+
+        var turns = messages.values
+            .filter { $0.sentAt >= start && $0.sentAt < end }
+            .map { ThreadTurn(at: $0.sentAt, message: $0, meal: mealsByMessage[$0.id]) }
+
+        turns += orphans.map { ThreadTurn(at: $0.eatenAt, message: nil, meal: $0) }
+
+        return turns.sorted {
+            $0.at == $1.at ? $0.id.uuidString < $1.id.uuidString : $0.at < $1.at
+        }
+    }
+
+    /// The meal a message became, if it became one yet.
+    public func meal(forMessage id: UUID) -> MealEntry? {
+        meals.values.first { $0.messageID == id }
     }
 
     /// Most recently saved or used first — the dish you cooked yesterday is the
@@ -168,4 +230,28 @@ public struct Projection: Sendable {
         sets.filter { $0.finishedAt >= start && $0.finishedAt < end }
             .sorted { $0.finishedAt < $1.finishedAt }
     }
+}
+
+/// One exchange in the thread: what you said, and what the app made of it.
+///
+/// Either half can be missing. No meal yet means the message is still being
+/// read, or the reading failed; no message means the meal came from somewhere
+/// that was not the composer — an older build, or the day sheet.
+public struct ThreadTurn: Sendable, Hashable, Identifiable {
+    /// Where it sits. The message's send time when there is one — see
+    /// `Projection.thread(from:to:)` for why that rather than the meal's.
+    public let at: EpochMillis
+    public let message: LogMessage?
+    public let meal: MealEntry?
+
+    public init(at: EpochMillis, message: LogMessage?, meal: MealEntry?) {
+        self.at = at
+        self.message = message
+        self.meal = meal
+    }
+
+    /// The message's id when there is one, so a turn keeps its identity as the
+    /// meal underneath it arrives — a changed id would animate the whole row out
+    /// and back in at the moment the card appears.
+    public var id: UUID { message?.id ?? meal?.id ?? UUID() }
 }
