@@ -34,7 +34,8 @@ export const recognitions = sqliteTable(
   {
     id: text().primaryKey(),
     accountId: text("account_id").notNull(),
-    photoHash: text("photo_hash").notNull(),
+    /** Null for a meal that was described rather than photographed. */
+    photoHash: text("photo_hash"),
     inputFingerprint: text("input_fingerprint").notNull(),
     promptVersion: text("prompt_version").notNull(),
     model: text().notNull(),
@@ -56,7 +57,10 @@ export const recognitions = sqliteTable(
     index("recognitions_account_created_idx").on(table.accountId, table.createdAt),
     check("recognitions_result_json_check", sql`json_valid(${table.result})`),
     check("recognitions_raw_json_check", sql`json_valid(${table.rawModelJson})`),
-    check("recognitions_hash_check", sql`length(${table.photoHash}) = 64`),
+    check(
+      "recognitions_hash_check",
+      sql`${table.photoHash} IS NULL OR length(${table.photoHash}) = 64`,
+    ),
     check("recognitions_input_tokens_check", sql`${table.inputTokens} >= 0`),
     check("recognitions_output_tokens_check", sql`${table.outputTokens} >= 0`),
     check("recognitions_latency_check", sql`${table.latencyMs} >= 0`),

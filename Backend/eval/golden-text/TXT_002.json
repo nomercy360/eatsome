@@ -1,0 +1,75 @@
+{
+  "said": "3 french toasts (3 eggs, some milk, cinnamon, 1 spoon sugar, pinch of salt), also a glass of milk and 7 g creatine",
+  "derived_from": "IMG_3152",
+  "meal_status": "eaten",
+  "dishes": [
+    {
+      "name": "french toast",
+      "count": 3,
+      "ingredients": [
+        {
+          "name": "eggs in the batter",
+          "group": "egg",
+          "weight_g": 150,
+          "weight_source": "counted"
+        },
+        {
+          "name": "bread",
+          "group": "refined_grain",
+          "weight_g": 120,
+          "weight_source": "typical",
+          "weight_tolerance_g": 60
+        },
+        {
+          "name": "milk in the batter",
+          "group": "dairy",
+          "weight_g": 40,
+          "weight_source": "typical",
+          "weight_tolerance_g": 35
+        },
+        {
+          "name": "spoon of sugar",
+          "group": "sweets",
+          "weight_g": 12,
+          "weight_source": "counted",
+          "weight_tolerance_g": 8
+        },
+        {
+          "name": "fat it was fried in",
+          "group": "butter_margarine_cream",
+          "alternatives": ["olive_oil"],
+          "weight_g": 12,
+          "weight_source": "typical",
+          "weight_tolerance_g": 10
+        }
+      ]
+    },
+    {
+      "name": "glass of milk",
+      "count": 1,
+      "ingredients": [
+        {
+          "name": "milk",
+          "group": "dairy",
+          "weight_g": 240,
+          "weight_source": "typical",
+          "weight_tolerance_g": 80
+        }
+      ]
+    },
+    {
+      "name": "creatine",
+      "count": 1,
+      "ingredients": [
+        {
+          "name": "creatine powder",
+          "group": "other",
+          "weight_g": 7,
+          "weight_source": "stated"
+        }
+      ]
+    }
+  ],
+  "expected_forks": [["butter_margarine_cream", "olive_oil"]],
+  "traps": ["text_stated_figure", "text_counted_units", "text_fork_expected"]
+}

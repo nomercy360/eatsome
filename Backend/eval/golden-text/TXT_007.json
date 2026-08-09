@@ -1,0 +1,38 @@
+{
+  "said": "shoyu ramen",
+  "meal_status": "eaten",
+  "dishes": [
+    {
+      "name": "shoyu ramen",
+      "count": 1,
+      "ingredients": [
+        {
+          "name": "ramen noodles",
+          "group": "refined_grain",
+          "weight_g": 200,
+          "weight_source": "typical",
+          "weight_tolerance_g": 100
+        },
+        {
+          "name": "chashu it may have carried",
+          "group": "white_meat",
+          "alternatives": ["red_meat", "processed_meat"],
+          "weight_g": 40,
+          "weight_source": "typical",
+          "weight_tolerance_g": 40,
+          "hidden": true
+        },
+        {
+          "name": "egg it may have carried",
+          "group": "egg",
+          "weight_g": 50,
+          "weight_source": "typical",
+          "weight_tolerance_g": 50,
+          "hidden": true
+        }
+      ]
+    }
+  ],
+  "forbidden_groups": ["sugary_drinks", "alcohol", "coffee", "tea", "juice", "fruit"],
+  "traps": ["text_furnishing"]
+}

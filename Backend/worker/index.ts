@@ -20,6 +20,7 @@ import type { Env } from "./env";
 import { requireAccount, requireStableAccount } from "./lib/auth";
 import { HttpError } from "./lib/http-error";
 import { enforceRecognitionLimits, enforceSyncLimits } from "./lib/limits";
+import { mintTranscriptionKey } from "./lib/soniox";
 import { privacyPage } from "./privacy";
 
 type AppContext = {
@@ -136,6 +137,17 @@ app.post("/v1/refinements", zValidator("json", refinementRequestSchema), async (
   const result = await refineMealFromNote(c.env, accountId, c.req.valid("json"));
   c.header("Cache-Control", "no-store");
   return c.json(result, 201);
+});
+
+// A dictation is about to become a recognition, so it shares the recognition
+// rate limit. The key returned is single-use and dies in minutes; the real
+// Soniox key never leaves the server, and no audio passes through it either —
+// the device opens the transcription websocket itself.
+app.post("/v1/voice/key", async (c) => {
+  await enforceRecognitionLimits(c.env, c.req.raw);
+  const key = await mintTranscriptionKey(c.env);
+  c.header("Cache-Control", "no-store");
+  return c.json(key, 201);
 });
 
 app.post("/v1/events/batch", zValidator("json", ingestEventsRequestSchema), async (c) => {

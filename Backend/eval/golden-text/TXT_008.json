@@ -1,0 +1,39 @@
+{
+  "said": "two boiled eggs and a slice of whole grain toast with butter",
+  "meal_status": "eaten",
+  "dishes": [
+    {
+      "name": "boiled eggs",
+      "count": 2,
+      "ingredients": [
+        {
+          "name": "eggs",
+          "group": "egg",
+          "weight_g": 100,
+          "weight_source": "counted"
+        }
+      ]
+    },
+    {
+      "name": "whole grain toast with butter",
+      "count": 1,
+      "ingredients": [
+        {
+          "name": "slice of whole grain bread",
+          "group": "whole_grain",
+          "weight_g": 40,
+          "weight_source": "counted",
+          "weight_tolerance_g": 15
+        },
+        {
+          "name": "butter",
+          "group": "butter_margarine_cream",
+          "weight_g": 8,
+          "weight_source": "typical",
+          "weight_tolerance_g": 7
+        }
+      ]
+    }
+  ],
+  "traps": ["text_counted_units", "text_stated_fat_no_fork"]
+}

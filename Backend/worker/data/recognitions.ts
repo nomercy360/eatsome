@@ -21,13 +21,14 @@ export type RecognitionResponse = {
   promptVersion: string;
   model: string;
   providerRequestId: string | null;
-  photoKey: string;
+  /** Null when the meal was described rather than photographed. */
+  photoKey: string | null;
   cached: boolean;
 };
 
 function response(
   row: typeof recognitions.$inferSelect,
-  photoKey: string,
+  photoKey: string | null,
   cached: boolean,
 ): RecognitionResponse {
   return {
@@ -41,13 +42,28 @@ function response(
   };
 }
 
-async function inputFingerprint(
-  photoHash: string,
-  note: string | null | undefined,
-): Promise<string> {
-  const normalized = note?.trim();
-  if (!normalized) return photoHash;
-  return sha256Hex(new TextEncoder().encode(`${photoHash}\u0000${normalized}`));
+/**
+ * One fingerprint over everything the model was given, because the cache
+ * replays whatever this covers. A bare photograph keys on its own hash, exactly
+ * as every existing row does. As soon as any text is involved the fields are
+ * tagged and NUL-separated before hashing: "fried in butter" said and "fried in
+ * butter" noted are different questions about the same photo, and two typed
+ * meals with no photograph must never collide just because neither has a hash —
+ * that would silently serve one person's lentil soup as their oatmeal.
+ */
+export async function inputFingerprint(input: {
+  photoHash?: string | null;
+  note?: string | null;
+  said?: string | null;
+}): Promise<string> {
+  const photoHash = input.photoHash?.toLowerCase() ?? "";
+  const note = input.note?.trim() ?? "";
+  const said = input.said?.trim() ?? "";
+  if (photoHash && !note && !said) return photoHash;
+  const NUL = String.fromCharCode(0);
+  return sha256Hex(
+    new TextEncoder().encode(`photo:${photoHash}${NUL}note:${note}${NUL}said:${said}`),
+  );
 }
 
 export async function recognizeMeal(
@@ -55,16 +71,22 @@ export async function recognizeMeal(
   accountId: string,
   input: RecognitionRequest,
 ): Promise<RecognitionResponse> {
-  const bytes = decodeBase64Image(input.imageBase64);
-  const actualHash = await sha256Hex(bytes);
-  if (actualHash !== input.photoHash.toLowerCase()) {
-    throw new HttpError(400, "photoHash does not match the uploaded image bytes.");
+  if (input.imageBase64 && input.mimeType && input.photoHash) {
+    const bytes = decodeBase64Image(input.imageBase64);
+    const actualHash = await sha256Hex(bytes);
+    if (actualHash !== input.photoHash.toLowerCase()) {
+      throw new HttpError(400, "photoHash does not match the uploaded image bytes.");
+    }
+
+    // Storage is the first side effect. A provider failure or a cancelled
+    // confirm sheet still leaves the exact model input available for a re-run.
+    const media = await ensureMediaObject(env, accountId, actualHash, input.mimeType, bytes);
+    return recognizeInput(env, accountId, input, media.objectKey, false);
   }
 
-  // Storage is the first side effect. A provider failure or a cancelled confirm
-  // sheet still leaves the exact model input available for a later re-run.
-  const media = await ensureMediaObject(env, accountId, actualHash, input.mimeType, bytes);
-  return recognizeBytes(env, accountId, input, media.objectKey, false);
+  // A described meal: no bytes to decode, no hash to verify, nothing to put in
+  // R2. The words still cache, because they are what the fingerprint covers.
+  return recognizeInput(env, accountId, input, null, false);
 }
 
 export async function rerunRecognition(
@@ -75,7 +97,7 @@ export async function rerunRecognition(
 ): Promise<RecognitionResponse> {
   const stored = await getStoredMediaInput(env, accountId, photoHash);
   if (!stored) throw new HttpError(404, "Stored model input not found.");
-  return recognizeBytes(
+  return recognizeInput(
     env,
     accountId,
     {
@@ -90,17 +112,17 @@ export async function rerunRecognition(
   );
 }
 
-async function recognizeBytes(
+async function recognizeInput(
   env: Env,
   accountId: string,
   input: RecognitionRequest,
-  photoKey: string,
+  photoKey: string | null,
   refresh: boolean,
 ): Promise<RecognitionResponse> {
-  const actualHash = input.photoHash.toLowerCase();
+  const actualHash = input.photoHash?.toLowerCase() ?? null;
   const provider = resolveProvider(env, input.provider);
   const model = modelFor(env, provider);
-  const fingerprint = await inputFingerprint(actualHash, input.note);
+  const fingerprint = await inputFingerprint(input);
 
   const db = createDb(env.DB);
   // The model is part of the key, so asking the other provider about a photo

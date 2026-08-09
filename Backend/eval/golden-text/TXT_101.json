@@ -1,0 +1,48 @@
+{
+  "said": "half a margherita pizza and two glasses of red wine",
+  "meal_status": "eaten",
+  "holdout": true,
+  "dishes": [
+    {
+      "name": "margherita pizza",
+      "count": 1,
+      "ingredients": [
+        {
+          "name": "pizza base",
+          "group": "refined_grain",
+          "weight_g": 150,
+          "weight_source": "typical",
+          "weight_tolerance_g": 80
+        },
+        {
+          "name": "mozzarella",
+          "group": "dairy",
+          "weight_g": 60,
+          "weight_source": "typical",
+          "weight_tolerance_g": 40
+        },
+        {
+          "name": "tomato sauce",
+          "group": "sofrito",
+          "alternatives": ["vegetables", "sauce"],
+          "weight_g": 50,
+          "weight_source": "typical",
+          "weight_tolerance_g": 40
+        }
+      ]
+    },
+    {
+      "name": "red wine",
+      "count": 2,
+      "ingredients": [
+        {
+          "name": "red wine",
+          "group": "alcohol",
+          "weight_g": 250,
+          "weight_source": "counted"
+        }
+      ]
+    }
+  ],
+  "traps": ["text_fraction", "text_counted_units"]
+}

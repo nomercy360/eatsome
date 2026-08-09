@@ -1,0 +1,35 @@
+{
+  "said": "a snickers and a can of coke",
+  "meal_status": "eaten",
+  "dishes": [
+    {
+      "name": "snickers",
+      "count": 1,
+      "panel": null,
+      "ingredients": [
+        {
+          "name": "snickers bar",
+          "group": "sweets",
+          "weight_g": 50,
+          "weight_source": "typical",
+          "weight_tolerance_g": 15
+        }
+      ]
+    },
+    {
+      "name": "can of coke",
+      "count": 1,
+      "panel": null,
+      "ingredients": [
+        {
+          "name": "coke",
+          "group": "sugary_drinks",
+          "weight_g": 330,
+          "weight_source": "typical",
+          "weight_tolerance_g": 40
+        }
+      ]
+    }
+  ],
+  "traps": ["panel_from_memory", "text_named_product"]
+}

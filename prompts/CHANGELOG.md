@@ -7,6 +7,45 @@ anything.
 v9 through v16 shipped without entries. That is a gap in this file, not a run of
 versions that changed nothing.
 
+## meal-v18-2026-08-09
+
+The meal may now arrive as words — typed or dictated in the chat-first logging
+redesign — as a photograph, or as both, and v17 could not say what to do with
+words: every rule was written as if an image existed ("estimate weight against
+what is in the frame", "if you cannot read the panel, null").
+
+- **The opening no longer promises a photograph.** A new block names the three
+  arrivals and what each one licenses. Words alone are the entire input, and
+  the model is told not to furnish the meal — no implied drink, side or sauce,
+  because a described meal has no background to inspect. Words plus photograph
+  ranks the words above the model's own reading, which is the note rule
+  generalised. `other_meals_visible` is false when nothing could be skipped.
+- **Weight without a photograph is estimation, and the prompt says so.** The
+  design's claim has always been that a weight is observation — the model reads
+  the photograph — while calories are inference. A weight from "big bowl" is a
+  weaker claim than a weight from pixels, and pretending otherwise would be the
+  exact confident-looking-wrong-number failure this file exists to prevent. So
+  the words rank by what they actually say: a stated figure is transcribed
+  ("7 g of creatine" is 7), a count of a named thing weighs that many of it
+  ("3 french toasts"), and a vessel or size word is named as the weakest
+  evidence — a typical serving scaled by the person's own word, with no more
+  precision than the words contain. Weight stays permitted because a
+  description states an amount of food; calories stay banned because no
+  description of a plate states them.
+- **A quoted label is a panel; a remembered one is not.** "The label says 12 g
+  of protein per 100 g" is transcription at one remove and lands in `panel`
+  with `basis` from the person's words. Figures from memory of a recognised
+  product stay banned in both modes, and a named product's usual *size* is
+  carved out explicitly — "a can of Coke" weighs what a can holds, because that
+  is what the name means, not what a label prints.
+- **Evidence rules gained their words-mode half.** Cooking fat: a dish whose
+  name says how it was cooked carries its fat (fried rice was fried in
+  something). `pastry`: the person naming a bought product now counts as the
+  manufactured-item evidence a wrapper used to be.
+
+Bumping the version invalidates the recognition cache and moves every eval row,
+as any prompt change does. Not graded yet against the golden set.
+
 ## meal-v17-2026-08-07
 
 One quantity. v16 asked for `grams` and for `portion` and `size` alongside it,

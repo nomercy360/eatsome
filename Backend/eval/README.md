@@ -7,7 +7,14 @@ pnpm eval:coverage   # what the dataset asks for that the app cannot express
 pnpm eval            # candidates, three runs each, via promptfoo
 pnpm eval:ceiling    # the expensive tier — reference only, never gates
 pnpm eval:holdout    # the cases held back from prompt iteration
+pnpm eval:text       # the text track: described meals, no photographs
+pnpm eval:text:score # score the latest text artefact
 ```
+
+The text track (`golden-text/`, from prompt v18) grades meals that arrive as
+words. It is a separate track with its own dataset doc because weight from a
+description is a different claim than weight from a photograph, with different
+honest tolerances — see `golden-text/DATASET.md`.
 
 Keys come from the environment: `OPENAI_API_KEY`, `GEMINI_API_KEY`,
 `ANTHROPIC_API_KEY`, `QWEN_API_KEY`. Models that have no key are skipped.

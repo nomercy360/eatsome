@@ -1,0 +1,27 @@
+{
+  "said": "7 g creatine and 30 g whey protein in 300 ml water",
+  "meal_status": "eaten",
+  "dishes": [
+    {
+      "name": "protein shake with creatine",
+      "count": 1,
+      "ingredients": [
+        {
+          "name": "creatine powder",
+          "group": "other",
+          "weight_g": 7,
+          "weight_source": "stated"
+        },
+        {
+          "name": "whey protein powder",
+          "group": "dairy",
+          "alternatives": ["other"],
+          "weight_g": 30,
+          "weight_source": "stated"
+        }
+      ]
+    }
+  ],
+  "forbidden_groups": ["fruit", "sweets", "plant_milk"],
+  "traps": ["text_stated_figure", "text_furnishing"]
+}

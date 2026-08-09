@@ -3,3 +3,4 @@ GEMINI_API_KEY=replace-with-a-gemini-api-key
 EATSOME_API_TOKEN=replace-with-a-long-random-token
 ANTHROPIC_API_KEY=replace-with-an-anthropic-api-key
 QWEN_API_KEY=replace-with-a-dashscope-or-openrouter-key
+SONIOX_API_KEY=replace-with-a-soniox-api-key

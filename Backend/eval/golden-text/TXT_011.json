@@ -1,0 +1,78 @@
+{
+  "said": "bibimbap with a fried egg, side of kimchi, miso soup",
+  "meal_status": "eaten",
+  "dishes": [
+    {
+      "name": "bibimbap",
+      "count": 1,
+      "ingredients": [
+        {
+          "name": "rice",
+          "group": "refined_grain",
+          "weight_g": 250,
+          "weight_source": "typical",
+          "weight_tolerance_g": 120
+        },
+        {
+          "name": "vegetable toppings",
+          "group": "vegetables",
+          "weight_g": 120,
+          "weight_source": "typical",
+          "weight_tolerance_g": 80
+        },
+        {
+          "name": "fried egg",
+          "group": "egg",
+          "weight_g": 50,
+          "weight_source": "counted",
+          "weight_tolerance_g": 15
+        },
+        {
+          "name": "beef it usually carries",
+          "group": "red_meat",
+          "alternatives": ["white_meat"],
+          "weight_g": 60,
+          "weight_source": "typical",
+          "weight_tolerance_g": 60,
+          "hidden": true
+        },
+        {
+          "name": "oil the egg and toppings were fried in",
+          "group": "olive_oil",
+          "alternatives": ["butter_margarine_cream", "other"],
+          "weight_g": 10,
+          "weight_source": "typical",
+          "weight_tolerance_g": 9,
+          "hidden": true
+        }
+      ]
+    },
+    {
+      "name": "kimchi",
+      "count": 1,
+      "ingredients": [
+        {
+          "name": "kimchi",
+          "group": "vegetables",
+          "weight_g": 60,
+          "weight_source": "typical",
+          "weight_tolerance_g": 40
+        }
+      ]
+    },
+    {
+      "name": "miso soup",
+      "count": 1,
+      "ingredients": [
+        {
+          "name": "miso and tofu",
+          "group": "legumes",
+          "weight_g": 40,
+          "weight_source": "typical",
+          "weight_tolerance_g": 35
+        }
+      ]
+    }
+  ],
+  "traps": ["text_multi_dish", "miso_soup_decomposes"]
+}

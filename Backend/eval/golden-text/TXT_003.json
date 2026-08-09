@@ -1,0 +1,51 @@
+{
+  "said": "200 g grilled chicken breast, 150 g white rice, cucumber and tomato salad with olive oil",
+  "meal_status": "eaten",
+  "dishes": [
+    {
+      "name": "grilled chicken breast",
+      "count": 1,
+      "ingredients": [
+        {
+          "name": "chicken breast",
+          "group": "white_meat",
+          "weight_g": 200,
+          "weight_source": "stated"
+        }
+      ]
+    },
+    {
+      "name": "white rice",
+      "count": 1,
+      "ingredients": [
+        {
+          "name": "cooked white rice",
+          "group": "refined_grain",
+          "weight_g": 150,
+          "weight_source": "stated"
+        }
+      ]
+    },
+    {
+      "name": "cucumber and tomato salad",
+      "count": 1,
+      "ingredients": [
+        {
+          "name": "cucumber and tomato",
+          "group": "vegetables",
+          "weight_g": 150,
+          "weight_source": "typical",
+          "weight_tolerance_g": 90
+        },
+        {
+          "name": "olive oil dressing",
+          "group": "olive_oil",
+          "weight_g": 8,
+          "weight_source": "typical",
+          "weight_tolerance_g": 7
+        }
+      ]
+    }
+  ],
+  "traps": ["text_stated_figure"]
+}

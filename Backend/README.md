@@ -35,8 +35,9 @@ a scanner out. Which copy of it is `X-Device-Id`, and that is what selects the
 account owning all D1 and R2 data.
 
 ```text
-POST /api/v1/recognitions  proxy one image to OpenAI or Gemini; cache by account/photo/prompt/model
+POST /api/v1/recognitions  read a meal from a photo, the person's words, or both; cache by account/input/prompt/model
 POST /api/v1/recognitions/:sha/rerun  rerun from the model input already in R2
+POST /api/v1/voice/key     mint a single-use, short-lived Soniox transcription key
 POST /api/v1/recognitions/:sha/refine return a delta against the current list, using the R2 photo
 POST /api/v1/refinements    the same delta with no photo, for a meal typed in or never read
 POST /api/v1/events/batch  idempotently append up to 500 device events
@@ -47,6 +48,20 @@ POST /api/v1/corpus/items  attach a consented, privacy-filtered crop to a saved 
 DELETE /api/v1/corpus/consent  retroactively remove one device's corpus items
 DELETE /api/v1/account     erase the device's media, corpus provenance, and D1 data
 ```
+
+A recognition request is a photograph (`photoHash` + `mimeType` + `imageBase64`,
+together or not at all), the person's words (`said`), or both; a request with
+neither is a 400. `note` remains the photo-annotation field the refine and
+rerun paths use — `said` is the meal being described, `note` is a photograph
+being annotated, and the prompt frames them differently. The response's
+`photoKey` is null for a described meal, and the cache fingerprint covers the
+text, so two typed meals never replay each other's answer.
+
+`POST /api/v1/voice/key` returns `{ "apiKey", "expiresAt" }` (camelCase, like
+every response here): a single-use Soniox key, redeemable for 120 s, capped at
+a 300 s session. The device opens the transcription websocket itself; no audio
+passes through the Worker, and the real key never leaves it. Unset
+`SONIOX_API_KEY` is a 503 naming the variable.
 
 The recognition request contains `photoHash`, `mimeType`, `imageBase64`, optional `note`, and an
 optional provider override. The Worker verifies the hash and stores the exact model-input bytes in

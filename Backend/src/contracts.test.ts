@@ -149,6 +149,49 @@ describe("stored recognition input", () => {
     expect(input.note).toBe("fried in butter");
   });
 
+  it("accepts a meal that is only words", () => {
+    const input = recognitionRequestSchema.parse({
+      said: "leftover lentil soup, big bowl",
+    });
+    expect(input.said).toBe("leftover lentil soup, big bowl");
+    expect(input.photoHash).toBeUndefined();
+  });
+
+  it("accepts a photo with a caption and a note both", () => {
+    const input = recognitionRequestSchema.parse({
+      photoHash: "a".repeat(64),
+      mimeType: "image/jpeg",
+      imageBase64: "a".repeat(16),
+      said: "2 of this at 11 am",
+      note: "fried in butter",
+    });
+    expect(input.said).toBe("2 of this at 11 am");
+    expect(input.note).toBe("fried in butter");
+  });
+
+  it("rejects a request carrying neither photograph nor message", () => {
+    // An empty message must be a loud 400, not a model call about nothing.
+    expect(() => recognitionRequestSchema.parse({})).toThrow();
+    expect(() => recognitionRequestSchema.parse({ said: "   " })).toThrow();
+    expect(() => recognitionRequestSchema.parse({ note: "fried in butter" })).toThrow();
+  });
+
+  it("rejects part of an image rather than reading it as text-only", () => {
+    expect(() =>
+      recognitionRequestSchema.parse({
+        photoHash: "a".repeat(64),
+        said: "soup",
+      }),
+    ).toThrow();
+    expect(() =>
+      recognitionRequestSchema.parse({
+        mimeType: "image/jpeg",
+        imageBase64: "a".repeat(16),
+        said: "soup",
+      }),
+    ).toThrow();
+  });
+
   it("requires a separately hashed, privacy-filtered corpus crop", () => {
     const item = corpusItemRequestSchema.parse({
       mealId: "0198f222-aadb-7e00-8000-000000000002",
@@ -215,6 +258,43 @@ describe("event sync contract", () => {
       ],
     });
 
+    expect(request.events).toHaveLength(1);
+  });
+
+  it("accepts a meal logged in words, linked to its chat bubble", () => {
+    // `mealEventDataSchema` is strict, so a field the app writes and this
+    // schema does not name 400s every sync from that build — the same failure
+    // grams, servings and dish once had. `text` and `messageID` arrive with
+    // chat-first logging and must be named here before a device sends one.
+    const request = ingestEventsRequestSchema.parse({
+      deviceId: "iphone-owner",
+      events: [
+        {
+          id: "0198f222-aadb-7e00-8000-000000000004",
+          occurredAt: 1_754_300_000_000,
+          recordedAt: 1_754_300_001_000,
+          payload: {
+            kind: "meal_logged",
+            data: {
+              id: "0198f222-aadb-7e00-8000-000000000005",
+              eatenAt: 1_754_300_000_000,
+              items: [
+                {
+                  id: "0198f222-aadb-7e00-8000-000000000006",
+                  group: "legumes",
+                  portion: "medium",
+                  label: "lentil soup",
+                  grams: 400,
+                },
+              ],
+              source: "text",
+              messageID: "0198f222-aadb-7e00-8000-000000000007",
+              wasCorrected: false,
+            },
+          },
+        },
+      ],
+    });
     expect(request.events).toHaveLength(1);
   });
 });

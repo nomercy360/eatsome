@@ -42,7 +42,9 @@ export type RunRecord = {
    * case, not a track. Fingerprinting on `note` alone would file those rows
    * under `notes` and quietly drop them from the ordinary report.
    */
-  track?: "plain" | "notes";
+  track?: "plain" | "notes" | "text";
+  /** The described meal, on a text-track row. The entire model input. */
+  said?: string | null;
   run: number;
   ok: boolean;
   error?: string;
@@ -222,6 +224,32 @@ export async function recognizeOnce(
     outputTokens: result.outputTokens,
     inputVersion,
     imageHash: hash,
+  };
+}
+
+/**
+ * A described meal through the same provider code the proxy runs — no image
+ * part, and the user turn framed exactly as production frames it: the opening
+ * says there is no photograph, and the words are fenced as the person's own.
+ */
+export async function recognizeTextOnce(
+  provider: RecognitionProvider,
+  said: string,
+  model?: string,
+): Promise<{ raw: string; latencyMs: number; inputTokens: number; outputTokens: number }> {
+  const env = envFor(provider, model);
+  const spec = evalSpec();
+  const result = await requestMealRecognition(env, { said } as never, provider, {
+    ...spec,
+    userPrompt:
+      "Classify the meal described below. There is no photograph; the person's words are the entire input." +
+      `\n\nFrom the person who ate it:\n"""\n${said}\n"""`,
+  });
+  return {
+    raw: result.rawModelJson,
+    latencyMs: result.latencyMs,
+    inputTokens: result.inputTokens,
+    outputTokens: result.outputTokens,
   };
 }
 

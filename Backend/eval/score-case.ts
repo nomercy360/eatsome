@@ -101,8 +101,15 @@ const STRUCTURE_FLOOR = 0.67;
  *     tolerance set by each golden weight's provenance. `portionMatch` is
  *     renamed `weightMatch` because it measures a different thing; v6 and v7
  *     quantity numbers are not comparable.
+ *
+ * v8  the text track's provenance tiers — stated, counted, typical — join the
+ *     tolerance table, plus a per-item override for where a default misfits.
+ *     Photo runs grade exactly as v7 did: no photo golden uses the new tiers,
+ *     and the three existing tolerances are untouched. Bumped anyway because
+ *     the version's job is to say which ruler produced a number, and a ruler
+ *     that can grade a new kind of case is a different ruler.
  */
-export const SCORER_VERSION = "scorer-v7-2026-08-07";
+export const SCORER_VERSION = "scorer-v8-2026-08-09";
 
 /**
  * Milligrams per serving, for deriving what a drink implies.
@@ -214,9 +221,19 @@ export function scoreCase(golden: GoldenCase, raw: string, told = false): CaseSc
   // resolution, and pretending otherwise would fail models against a number
   // nobody measured. Grams summed across duplicate rows of a group on either
   // side, so four fruit rows against one platter row compare as totals.
-  const tolerance = (item: { weight_source: string }, want: number) => {
+  const tolerance = (
+    item: { weight_source: string; weight_tolerance_g?: number },
+    want: number,
+  ) => {
+    if (item.weight_tolerance_g != null) return item.weight_tolerance_g;
     if (item.weight_source === "label") return Math.max(10, want * 0.1);
     if (item.weight_source === "ladder") return Math.max(30, want * 0.6);
+    // The text tiers. A stated figure is transcription and near-misses are the
+    // failure; a counted one inherits the spread of real units; a typical one
+    // is a range, and the question is whether the size word moved the number.
+    if (item.weight_source === "stated") return Math.max(2, want * 0.1);
+    if (item.weight_source === "counted") return Math.max(10, want * 0.3);
+    if (item.weight_source === "typical") return Math.max(25, want * 0.5);
     return Math.max(20, want * 0.4);
   };
   const gramsOfActual = (group: string) =>

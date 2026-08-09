@@ -1,0 +1,33 @@
+{
+  "said": "small bowl of white rice and a big glass of orange juice",
+  "meal_status": "eaten",
+  "dishes": [
+    {
+      "name": "small bowl of white rice",
+      "count": 1,
+      "ingredients": [
+        {
+          "name": "cooked white rice",
+          "group": "refined_grain",
+          "weight_g": 130,
+          "weight_source": "typical",
+          "weight_tolerance_g": 60
+        }
+      ]
+    },
+    {
+      "name": "big glass of orange juice",
+      "count": 1,
+      "ingredients": [
+        {
+          "name": "orange juice",
+          "group": "juice",
+          "weight_g": 350,
+          "weight_source": "typical",
+          "weight_tolerance_g": 110
+        }
+      ]
+    }
+  ],
+  "traps": ["text_size_word"]
+}

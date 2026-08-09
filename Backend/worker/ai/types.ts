@@ -12,6 +12,9 @@ import type { MealRecognition } from "../../src/contracts";
 export type ProviderInput = {
   mimeType?: string;
   imageBase64?: string;
+  /** The person describing the meal — the whole input when there is no image. */
+  said?: string | null;
+  /** The person annotating a photograph: what it cannot show. */
   note?: string | null;
 };
 

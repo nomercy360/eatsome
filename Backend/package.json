@@ -26,6 +26,8 @@
     "eval:holdout": "EVAL_INCLUDE_HOLDOUT=1 promptfoo eval -c promptfooconfig.yaml --repeat 3",
     "eval:run": "tsx eval/run.ts",
     "eval:score": "tsx eval/score.ts",
+    "eval:text": "tsx eval/run-text.ts",
+    "eval:text:score": "tsx eval/score-text.ts",
     "eval:nutrients": "tsx eval/nutrients.ts"
   },
   "dependencies": {

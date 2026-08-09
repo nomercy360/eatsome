@@ -9,6 +9,8 @@ export type Env = {
   ANTHROPIC_API_KEY: string;
   QWEN_API_KEY: string;
   OPENROUTER_API_KEY: string;
+  /** Mints short-lived transcription keys; the real key never reaches a device. */
+  SONIOX_API_KEY: string;
   EATSOME_API_TOKEN: string;
   ACCOUNT_ID: string;
   OPENAI_RECOGNITION_MODEL: string;

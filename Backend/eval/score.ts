@@ -39,7 +39,7 @@ if (artefacts.length === 0) {
  * experiment's errors dragged its committed 10/28 to 0/28 while a Gemini
  * high-thinking pass inflated its cost, in a report that named neither.
  */
-function trackOf(row: RunRecord): "plain" | "notes" {
+function trackOf(row: RunRecord): "plain" | "notes" | "text" {
   return row.track ?? (row.note ? "notes" : "plain");
 }
 

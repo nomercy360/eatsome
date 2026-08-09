@@ -1,6 +1,11 @@
 import type { RecognitionProvider, RecognitionRequest } from "../../src/contracts";
 import { mealRecognitionJsonSchema, mealRecognitionSchema } from "../../src/contracts";
-import { MEAL_RECOGNITION_SYSTEM_PROMPT, MEAL_RECOGNITION_USER_PROMPT } from "./prompt";
+import {
+  MEAL_RECOGNITION_SYSTEM_PROMPT,
+  MEAL_RECOGNITION_TEXT_USER_PROMPT,
+  MEAL_RECOGNITION_USER_PROMPT,
+} from "./prompt";
+import { hasImage, type ProviderInput } from "./types";
 
 /**
  * What to ask for, separately from how to ask it.
@@ -22,14 +27,27 @@ export type RecognitionSpec = {
   schemaName: string;
 };
 
-export function productionSpec(note?: string | null): RecognitionSpec {
-  const trimmed = note?.trim();
-  const userPrompt = trimmed
-    ? `${MEAL_RECOGNITION_USER_PROMPT}\n\nWhat the photo cannot show, from the person who ate it:\n"""\n${trimmed}\n"""`
-    : MEAL_RECOGNITION_USER_PROMPT;
+export function productionSpec(input: ProviderInput = {}): RecognitionSpec {
+  const said = input.said?.trim();
+  const note = input.note?.trim();
+  // The opening line names what the model is reading. What the person said and
+  // what they noted are fenced separately because they are different kinds of
+  // evidence: `said` is the person describing the meal, the note is the person
+  // annotating a photograph they expect the model to read for itself.
+  const sections = [
+    hasImage(input) ? MEAL_RECOGNITION_USER_PROMPT : MEAL_RECOGNITION_TEXT_USER_PROMPT,
+  ];
+  if (said) sections.push(`From the person who ate it:\n"""\n${said}\n"""`);
+  if (note) {
+    sections.push(
+      hasImage(input)
+        ? `What the photo cannot show, from the person who ate it:\n"""\n${note}\n"""`
+        : `Added by the person afterwards:\n"""\n${note}\n"""`,
+    );
+  }
   return {
     systemPrompt: MEAL_RECOGNITION_SYSTEM_PROMPT,
-    userPrompt,
+    userPrompt: sections.join("\n\n"),
     jsonSchema: mealRecognitionJsonSchema(),
     schemaName: "meal_recognition",
   };

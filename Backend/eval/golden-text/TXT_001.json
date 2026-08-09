@@ -1,0 +1,38 @@
+{
+  "said": "leftover lentil soup, big bowl",
+  "meal_status": "eaten",
+  "dishes": [
+    {
+      "name": "lentil soup",
+      "count": 1,
+      "ingredients": [
+        {
+          "name": "lentils",
+          "group": "legumes",
+          "weight_g": 200,
+          "weight_source": "typical",
+          "weight_tolerance_g": 100
+        },
+        {
+          "name": "soup vegetables",
+          "group": "vegetables",
+          "weight_g": 120,
+          "weight_source": "typical",
+          "weight_tolerance_g": 80,
+          "hidden": true
+        },
+        {
+          "name": "oil it was cooked in",
+          "group": "olive_oil",
+          "alternatives": ["butter_margarine_cream"],
+          "weight_g": 10,
+          "weight_source": "typical",
+          "weight_tolerance_g": 8,
+          "hidden": true
+        }
+      ]
+    }
+  ],
+  "forbidden_groups": ["sugary_drinks", "alcohol", "coffee", "tea", "juice"],
+  "traps": ["text_size_word", "text_furnishing"]
+}

@@ -1,0 +1,40 @@
+{
+  "said": "grilled salmon, about 180 g, with a big green salad, olive oil dressing",
+  "meal_status": "eaten",
+  "holdout": true,
+  "dishes": [
+    {
+      "name": "grilled salmon",
+      "count": 1,
+      "ingredients": [
+        {
+          "name": "salmon",
+          "group": "fish",
+          "weight_g": 180,
+          "weight_source": "stated"
+        }
+      ]
+    },
+    {
+      "name": "green salad",
+      "count": 1,
+      "ingredients": [
+        {
+          "name": "salad leaves and vegetables",
+          "group": "vegetables",
+          "weight_g": 150,
+          "weight_source": "typical",
+          "weight_tolerance_g": 90
+        },
+        {
+          "name": "olive oil dressing",
+          "group": "olive_oil",
+          "weight_g": 10,
+          "weight_source": "typical",
+          "weight_tolerance_g": 8
+        }
+      ]
+    }
+  ],
+  "traps": ["text_stated_figure", "text_size_word", "text_stated_fat_no_fork"]
+}

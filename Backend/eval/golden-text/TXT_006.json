@@ -1,0 +1,38 @@
+{
+  "said": "meat curry with rice",
+  "meal_status": "eaten",
+  "dishes": [
+    {
+      "name": "meat curry with rice",
+      "count": 1,
+      "ingredients": [
+        {
+          "name": "curry meat",
+          "group": "red_meat",
+          "alternatives": ["white_meat"],
+          "weight_g": 150,
+          "weight_source": "typical",
+          "weight_tolerance_g": 80
+        },
+        {
+          "name": "curry sauce",
+          "group": "sauce",
+          "alternatives": ["sofrito", "vegetables"],
+          "weight_g": 120,
+          "weight_source": "typical",
+          "weight_tolerance_g": 100,
+          "hidden": true
+        },
+        {
+          "name": "cooked rice",
+          "group": "refined_grain",
+          "weight_g": 200,
+          "weight_source": "typical",
+          "weight_tolerance_g": 100
+        }
+      ]
+    }
+  ],
+  "expected_forks": [["red_meat", "white_meat"]],
+  "traps": ["text_fork_expected", "text_vague_group"]
+}

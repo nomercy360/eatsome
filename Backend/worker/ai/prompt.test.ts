@@ -4,14 +4,14 @@ import { describe, expect, it } from "vitest";
 import { MEAL_PROMPT_VERSION, MEAL_RECOGNITION_SYSTEM_PROMPT } from "./prompt";
 import { productionSpec } from "./spec";
 
-const promptFile = join(import.meta.dirname, "../../../prompts/meal-v17.md");
+const promptFile = join(import.meta.dirname, "../../../prompts/meal-v18.md");
 
 describe("meal recognition prompt", () => {
   it("matches the file it was generated from", () => {
     // The app and the proxy each used to hold their own copy, and within a day
     // the proxy was two rules behind while both reported the same version.
     expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toBe(readFileSync(promptFile, "utf8").trimEnd());
-    expect(MEAL_PROMPT_VERSION).toBe("meal-v17-2026-08-07");
+    expect(MEAL_PROMPT_VERSION).toBe("meal-v18-2026-08-09");
   });
 
   it("is the version the deployment stamps and keys its cache on", () => {
@@ -32,7 +32,7 @@ describe("meal recognition prompt", () => {
     // error, so the prompt now asks for one absolute number and promises, twice,
     // that nothing is applied on top of it.
     expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("It is ABSOLUTE");
-    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("across every serving in the photograph");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("across every serving present");
     expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("Nothing multiplies `grams`");
     expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("so do not divide by it either");
     // Two bananas and an apple are two dishes; a cut fruit plate is one.
@@ -93,9 +93,56 @@ describe("meal recognition prompt", () => {
     expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("the rest is theirs too");
   });
 
+  it("covers a meal that arrives as words, honestly about what that means", () => {
+    // v18's reason to exist. The weight rule is grounded differently per mode
+    // and says so: read off the frame with a photograph, read off the words
+    // without one — and the words rank, a stated figure above a count above a
+    // size word. What it never becomes is a licence to estimate nutrients.
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("typed or dictated");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("the words are the entire input");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("absent, not implied");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("A stated weight or volume is a fact");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("never rounded to a rounder number");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain(
+      "estimating from a description, not reading a photograph",
+    );
+    // Words about this meal beat pixels of it, in quantity and in content.
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("the words win");
+    // A typed meal skipped nothing.
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("`other_meals_visible` is false");
+    // A quoted label is transcription at one remove; a remembered one is not.
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("a printed fact relayed");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("a remembered one is fabrication");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("the sound of the description");
+  });
+
   it("fences a person's note in the same user turn as the photo", () => {
-    const prompt = productionSpec("  fried in butter  ").userPrompt;
+    const image = { mimeType: "image/jpeg", imageBase64: "aGVsbG8gdGhlcmUh" };
+    const prompt = productionSpec({ ...image, note: "  fried in butter  " }).userPrompt;
+    expect(prompt).toContain("What the photo cannot show");
     expect(prompt).toContain('"""\nfried in butter\n"""');
-    expect(productionSpec().userPrompt).not.toContain('"""');
+    expect(productionSpec(image).userPrompt).not.toContain('"""');
+  });
+
+  it("tells the model when the words are the entire input", () => {
+    const typed = productionSpec({ said: "leftover lentil soup, big bowl" });
+    expect(typed.userPrompt).toContain("There is no photograph");
+    expect(typed.userPrompt).toContain('"""\nleftover lentil soup, big bowl\n"""');
+    // A photographed meal keeps the camera opening; a caption rides along
+    // without changing what the model is told it is looking at.
+    const captioned = productionSpec({
+      mimeType: "image/jpeg",
+      imageBase64: "aGVsbG8gdGhlcmUh",
+      said: "2 of this at 11 am",
+    });
+    expect(captioned.userPrompt).toContain("closest to the camera");
+    expect(captioned.userPrompt).toContain('"""\n2 of this at 11 am\n"""');
+    expect(captioned.userPrompt).not.toContain("There is no photograph");
+  });
+
+  it("never claims a note is about a photograph that does not exist", () => {
+    const typed = productionSpec({ said: "porridge", note: "with honey" });
+    expect(typed.userPrompt).not.toContain("What the photo cannot show");
+    expect(typed.userPrompt).toContain('"""\nwith honey\n"""');
   });
 });

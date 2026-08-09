@@ -267,21 +267,58 @@ export function mealRecognitionJsonSchema(): Record<string, unknown> {
   return schema;
 }
 
-export const recognitionRequestSchema = z.strictObject({
-  // Absent means the server's default, so an older client keeps working.
-  provider: z.enum(recognitionProviders).optional(),
-  photoHash: sha256Schema,
-  mimeType: z.enum(["image/jpeg", "image/png", "image/webp"]),
-  imageBase64: z
-    .string()
-    .min(16)
-    .max(12_000_000)
-    .regex(/^[A-Za-z0-9+/]*={0,2}$/),
-  // The note changes the question, so it is part of the recognition cache
-  // fingerprint. "Fried in butter" must not replay the answer produced before
-  // the person supplied that fact.
-  note: z.string().max(2_000).nullable().optional(),
-});
+/**
+ * A logged meal arrives as a photograph, as the person's own words — typed or
+ * dictated — or as both at once, so the image is optional. It is three fields
+ * that only mean anything together, which is why they are optional as a unit:
+ * a request carrying some of them is malformed, not text-only.
+ *
+ * `said` is deliberately not `note`. The note is a supplement to a
+ * photograph — "what the photo cannot show", evidence attached to an image the
+ * model still reads for itself — while `said` IS the input: for a text-only
+ * meal it is everything the model has, and for a captioned photo it is the
+ * person describing the meal rather than annotating the reading. The prompt
+ * frames the two differently, and folding them into one field would either
+ * promote every note to a description or demote every description to a
+ * footnote. The client sends the words without knowing which they are —
+ * whether they caption an image is visible only here, where both fields meet.
+ */
+export const recognitionRequestSchema = z
+  .strictObject({
+    // Absent means the server's default, so an older client keeps working.
+    provider: z.enum(recognitionProviders).optional(),
+    photoHash: sha256Schema.optional(),
+    mimeType: z.enum(["image/jpeg", "image/png", "image/webp"]).optional(),
+    imageBase64: z
+      .string()
+      .min(16)
+      .max(12_000_000)
+      .regex(/^[A-Za-z0-9+/]*={0,2}$/)
+      .optional(),
+    /** What the person said about the meal — typed or dictated, in their words. */
+    said: z.string().max(2_000).nullable().optional(),
+    // The note changes the question, so it is part of the recognition cache
+    // fingerprint, and so is `said`. "Fried in butter" must not replay the
+    // answer produced before the person supplied that fact.
+    note: z.string().max(2_000).nullable().optional(),
+  })
+  .superRefine((request, context) => {
+    const image = [request.photoHash, request.mimeType, request.imageBase64];
+    const supplied = image.filter((field) => field !== undefined).length;
+    if (supplied !== 0 && supplied !== image.length) {
+      context.addIssue({
+        code: "custom",
+        message: "An image is photoHash, mimeType and imageBase64 together, or none of them.",
+      });
+    }
+    // An empty message must be a loud 400, not a model call about nothing.
+    if (supplied === 0 && !request.said?.trim()) {
+      context.addIssue({
+        code: "custom",
+        message: "A recognition needs a photograph or a message; this carries neither.",
+      });
+    }
+  });
 
 export type RecognitionRequest = z.infer<typeof recognitionRequestSchema>;
 
@@ -375,7 +412,9 @@ export const mealEventDataSchema = z.strictObject({
   id: z.string().uuid(),
   eatenAt: z.number().int().nonnegative(),
   items: z.array(mealItemSchema).max(64),
-  source: z.enum(["photo", "manual", "recipe"]),
+  // `text` is a meal described in words with no photograph. Words alongside a
+  // photo stay `photo`: the picture is the stronger evidence of what was there.
+  source: z.enum(["photo", "manual", "recipe", "text"]),
   // Absent on entries logged before the switch existed; those were scored whole.
   share: z.enum(["whole", "part"]).nullable().optional(),
   // What the photo could not show, in the person's own words. Natural-language
@@ -383,6 +422,10 @@ export const mealEventDataSchema = z.strictObject({
   // weekly failures than any diff of the JSON.
   note: z.string().max(2_000).nullable().optional(),
   recognitionRating: z.enum(["good", "bad"]).nullable().optional(),
+  // Links a meal card to the chat bubble it was parsed from. Accept, do not
+  // require: this is a strict object, and an unknown key here 400s every sync
+  // from a build that writes one — the grams/servings/dish failure again.
+  messageID: z.string().uuid().nullable().optional(),
   photoHash: sha256Schema.nullable().optional(),
   modelConfidence: z.number().min(0).max(1).nullable().optional(),
   recognitionEvidence: recognitionEvidenceSchema.nullable().optional(),

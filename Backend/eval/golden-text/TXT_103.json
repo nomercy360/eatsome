@@ -1,0 +1,29 @@
+{
+  "said": "13 g of peanut butter on half a slice of rye toast",
+  "meal_status": "eaten",
+  "holdout": true,
+  "dishes": [
+    {
+      "name": "rye toast with peanut butter",
+      "count": 1,
+      "ingredients": [
+        {
+          "name": "peanut butter",
+          "group": "nuts",
+          "alternatives": ["healthy_fats"],
+          "weight_g": 13,
+          "weight_source": "stated"
+        },
+        {
+          "name": "half a slice of rye bread",
+          "group": "whole_grain",
+          "alternatives": ["refined_grain"],
+          "weight_g": 20,
+          "weight_source": "counted",
+          "weight_tolerance_g": 10
+        }
+      ]
+    }
+  ],
+  "traps": ["text_stated_figure", "text_fraction"]
+}

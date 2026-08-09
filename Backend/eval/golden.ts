@@ -45,8 +45,28 @@ export type GoldenItem = {
    *   ladder    — mechanically derived from the retired count×size×portion
    *               annotation. Scaffolding awaiting a human pass; graded at the
    *               half-serving resolution the ladder actually had.
+   *
+   * The text track (`golden-text/`) grades words instead of pixels, and its
+   * provenance tiers mirror how much the words actually say — the same ranking
+   * prompt v18 gives the model:
+   *
+   *   stated    — the description states the figure ("7 g creatine"). A fact to
+   *               transcribe; graded tight, because rounding a stated number is
+   *               the failure this tier exists to catch.
+   *   counted   — a count of a named thing ("3 french toasts", "two eggs").
+   *               Count × a canonical unit weight; graded at the spread real
+   *               units have.
+   *   typical   — a vessel or size word ("big bowl"). The weakest evidence
+   *               there is, graded as a range: any plausible serving passes,
+   *               and the case is really asking whether the size word moved
+   *               the number at all.
    */
-  weight_source: "label" | "annotated" | "ladder";
+  weight_source: "label" | "annotated" | "ladder" | "stated" | "counted" | "typical";
+  /**
+   * Overrides the source-based tolerance where the default misfits — a spoon
+   * of sugar is `counted` but the count floor would swallow the whole figure.
+   */
+  weight_tolerance_g?: number;
   flags?: string[];
   /** Not visible in the photo: reachable only through the note or a recipe. */
   hidden?: boolean;

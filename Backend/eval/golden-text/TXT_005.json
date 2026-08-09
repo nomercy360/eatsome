@@ -1,0 +1,24 @@
+{
+  "said": "protein bar, the label says 20 g protein and 210 kcal per 60 g bar",
+  "meal_status": "eaten",
+  "dishes": [
+    {
+      "name": "protein bar",
+      "count": 1,
+      "panel": {
+        "protein": 20,
+        "calories": 210
+      },
+      "ingredients": [
+        {
+          "name": "protein bar",
+          "group": "sweets",
+          "alternatives": ["pastry", "other"],
+          "weight_g": 60,
+          "weight_source": "stated"
+        }
+      ]
+    }
+  ],
+  "traps": ["text_quoted_label"]
+}
