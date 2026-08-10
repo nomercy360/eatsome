@@ -133,9 +133,12 @@ export function privacyPage(request: Request): Response | null {
   return new Response(page, {
     headers: {
       "content-type": "text/html; charset=UTF-8",
-      // Public and stable, but short enough that a correction is live the same
-      // day it is deployed.
-      "cache-control": "public, max-age=3600",
+      // A minute, not an hour. At `max-age=3600` a deploy left edge caches
+      // serving the previous policy for up to an hour afterwards — one request
+      // in six, in the window where an App Review reviewer is the likeliest
+      // reader. This page is a few kilobytes off a Worker that is already
+      // running; there was never anything to save here.
+      "cache-control": "public, max-age=60",
     },
   });
 }
