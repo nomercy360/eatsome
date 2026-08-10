@@ -11,6 +11,7 @@ struct SettingsView: View {
 
     @State private var habits = DietHabits()
     @State private var versionTaps = 0
+    @State private var showingDiets = false
     @State private var showingWorkshop = false
     @State private var showingMethod = false
     @State private var showingPrivacy = false
@@ -19,6 +20,7 @@ struct SettingsView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: WellieTheme.cardSpacing) {
+                    dietCard
                     healthCard
                     habitsCard
                     proteinCard
@@ -37,6 +39,7 @@ struct SettingsView: View {
                 }
             }
             .navigationDestination(isPresented: $showingWorkshop) { WorkshopView() }
+            .navigationDestination(isPresented: $showingDiets) { DietPickerView() }
             .sheet(isPresented: $showingMethod) { ScoreMethodView() }
             .sheet(isPresented: $showingPrivacy) { PrivacyView() }
             .onAppear { habits = model.projection.habits }
@@ -104,29 +107,71 @@ struct SettingsView: View {
                 .foregroundStyle(WellieTheme.blue)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
-                .background(WellieTheme.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .background(WellieTheme.surface, in: RoundedRectangle(cornerRadius: WellieTheme.cardRadius, style: .continuous))
         }
         .buttonStyle(.plain)
     }
 
-    // MARK: - The two answers
+    // MARK: - What counts
 
-    private var habitsCard: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            WellieSectionTitle(text: "Your two answers", detail: "The parts a photo can't see")
-
-            Toggle("You cook with olive oil", isOn: $habits.oliveOilIsMainCulinaryFat)
-                .font(WellieTheme.font(15.5, weight: .semibold))
-            WellieRowDivider()
-            Toggle("You choose chicken and fish over red meat", isOn: $habits.prefersWhiteMeatOverRed)
-                .font(WellieTheme.font(15.5, weight: .semibold))
+    private var dietCard: some View {
+        Button { showingDiets = true } label: {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 8) {
+                    Text("What counts")
+                        .font(WellieTheme.font(17, weight: .bold))
+                        .foregroundStyle(WellieTheme.ink)
+                    Spacer(minLength: 8)
+                    Text(model.diet.name)
+                        .font(WellieTheme.font(15, weight: .semibold))
+                        .foregroundStyle(WellieTheme.blue)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(WellieTheme.faint)
+                }
+                WellieProse(
+                    "\(model.diet.ruleSummary). Switching re-scores your history — nothing is read again.",
+                    size: 14
+                )
+            }
+            .contentShape(Rectangle())
         }
-        .wellieCard()
-        .onChange(of: habits) { old, new in
-            // The initial load assigns into this state too; writing an event
-            // for that would append an identical line on every launch.
-            guard old != new else { return }
-            Task { await model.updateHabits(new) }
+        .buttonStyle(.plain)
+        .wellieCard(color: WellieTheme.ice)
+    }
+
+    // MARK: - The answers a photo can't give
+
+    /// Rendered from the active diet's own questions rather than from two
+    /// hardcoded booleans. A low-sugar week asks nothing here, and the card
+    /// disappears rather than showing two Mediterranean questions that score
+    /// nothing.
+    @ViewBuilder
+    private var habitsCard: some View {
+        let questions = model.diet.habits
+        if !questions.isEmpty {
+            VStack(alignment: .leading, spacing: 16) {
+                WellieSectionTitle(
+                    text: questions.count == 1 ? "Your answer" : "Your \(Count.spell(questions.count, capitalized: false)) answers",
+                    detail: "The parts a photo can't see"
+                )
+
+                ForEach(Array(questions.enumerated()), id: \.element.id) { index, question in
+                    if index > 0 { WellieRowDivider() }
+                    Toggle(question.question, isOn: Binding(
+                        get: { habits.answer(question) },
+                        set: { habits.set($0, for: question.id) }
+                    ))
+                    .font(WellieTheme.font(15.5, weight: .semibold))
+                }
+            }
+            .wellieCard()
+            .onChange(of: habits) { old, new in
+                // The initial load assigns into this state too; writing an event
+                // for that would append an identical line on every launch.
+                guard old != new else { return }
+                Task { await model.updateHabits(new) }
+            }
         }
     }
 
@@ -142,10 +187,20 @@ struct SettingsView: View {
                 }
             }
 
+            Toggle(isOn: Binding(
+                get: { model.hasProteinGoal },
+                set: { model.hasProteinGoal = $0 }
+            )) {
+                Text("Count it as a goal in your olives")
+                    .font(WellieTheme.font(15, weight: .semibold))
+            }
+            .disabled(model.proteinTarget == nil)
+
             WellieCaption(
                 """
                 Estimated from what's on your plate, so read the trend rather than the digit. \
-                It's the only thing here measured in grams.
+                It's the only thing here measured in grams, and the only rule that is estimated \
+                rather than counted — which is why it is off unless you ask for it.
                 """
             )
         }
@@ -180,11 +235,11 @@ struct SettingsView: View {
             .padding(.vertical, 15)
             .background(
                 isOn ? WellieTheme.blue : WellieTheme.well,
-                in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+                in: RoundedRectangle(cornerRadius: WellieTheme.cardRadius, style: .continuous)
             )
             .overlay {
                 if !isOn {
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    RoundedRectangle(cornerRadius: WellieTheme.cardRadius, style: .continuous)
                         .strokeBorder(WellieTheme.outline, lineWidth: 1.5)
                 }
             }
@@ -400,7 +455,7 @@ struct WorkshopView: View {
                         .submitLabel(.done)
                         .onSubmit(saveKey)
                         .padding(14)
-                        .background(WellieTheme.well, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .background(WellieTheme.well, in: RoundedRectangle(cornerRadius: WellieTheme.cardRadius, style: .continuous))
 
                     HStack {
                         Label(
@@ -421,6 +476,8 @@ struct WorkshopView: View {
                         .disabled(trimmedKey.isEmpty)
                 }
                 .wellieCard()
+
+                SignInWorkshopSection()
 
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Counters")

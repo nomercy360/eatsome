@@ -39,7 +39,7 @@ public enum Nutrition {
     ) -> NutrientTotal {
         items.reduce(into: NutrientTotal.zero) { total, item in
             let servings = item.effectiveServings(servingGrams: servingGrams)
-            let weight = item.grams ?? servings * (servingGrams[item.group.rawValue] ?? 100)
+            let weight = item.grams ?? servings * (item.group.value(in: servingGrams) ?? 100)
 
             if let named = foods?.nutrients(in: item) {
                 // Table sodium: the salt in the food, not the salt in the
@@ -53,7 +53,7 @@ public enum Nutrition {
             // `other` — contributes its protein estimate of zero and marks the
             // weight unresolved, rather than inventing an energy figure for
             // food nobody has identified.
-            let protein = (gramsPerServing[item.group.rawValue] ?? 0) * servings
+            let protein = (item.group.value(in: gramsPerServing) ?? 0) * servings
             guard let group = foods?.representative(of: item.group) else {
                 // Contributes no sodium at all, which is certainly less than
                 // the food contains — a floor, and the weakest kind.

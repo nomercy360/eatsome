@@ -39,7 +39,8 @@ struct VoiceComposer: View {
                         .font(.system(size: 15, weight: .bold))
                         .foregroundStyle(WellieTheme.body)
                         .frame(width: 38, height: 38)
-                        .background(WellieTheme.ice, in: Circle())
+                        .wellieHitTarget()
+                        .background(WellieTheme.ice, in: RoundedRectangle(cornerRadius: WellieTheme.controlRadius, style: .continuous))
                 }
                 .accessibilityLabel("Discard")
 
@@ -56,14 +57,14 @@ struct VoiceComposer: View {
                         .font(.system(size: 15, weight: .bold))
                         .foregroundStyle(WellieTheme.onAccent)
                         .frame(width: 38, height: 38)
-                        .background(canAccept ? WellieTheme.blue : WellieTheme.faint, in: Circle())
+                        .background(canAccept ? WellieTheme.blue : WellieTheme.faint, in: RoundedRectangle(cornerRadius: WellieTheme.controlRadius, style: .continuous))
                 }
                 .disabled(!canAccept)
                 .accessibilityLabel("Use these words")
             }
         }
         .padding(18)
-        .background(WellieTheme.surface, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .background(WellieTheme.surface, in: RoundedRectangle(cornerRadius: WellieTheme.cardRadius, style: .continuous))
         .padding(.horizontal, WellieTheme.screenInset)
         .padding(.vertical, 10)
     }
@@ -91,7 +92,7 @@ private struct Waveform: View {
     var body: some View {
         HStack(alignment: .center, spacing: 3) {
             ForEach(0..<bars, id: \.self) { index in
-                Capsule()
+                RoundedRectangle(cornerRadius: WellieTheme.chipRadius, style: .continuous)
                     .fill(WellieTheme.blue.opacity(0.35 + 0.65 * Double(height(index))))
                     .frame(width: 3, height: 4 + CGFloat(height(index)) * 22)
             }

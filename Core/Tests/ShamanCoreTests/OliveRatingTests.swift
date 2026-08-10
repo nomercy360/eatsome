@@ -102,14 +102,14 @@ struct OliveRatingTests {
             MealEntry.fixture(daysAgo: 0, [(.fish, .medium), (.legumes, .medium)]),
             MealEntry.fixture(daysAgo: 1, [(.pastry, .large)])
         ]
-        let before = MedasScorer(configuration: MedasConfiguration()).score(
+        let before = DietScorer(spec: DietPresets.mediterranean).score(
             meals: meals,
             habits: DietHabits(),
             windowEnd: MealEntry.referenceNow + 86_400_000
         )
         _ = meals.map { OliveRating.forMeal($0) }
         _ = OliveRating.forDay(meals)
-        let after = MedasScorer(configuration: MedasConfiguration()).score(
+        let after = DietScorer(spec: DietPresets.mediterranean).score(
             meals: meals,
             habits: DietHabits(),
             windowEnd: MealEntry.referenceNow + 86_400_000

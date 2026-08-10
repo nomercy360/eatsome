@@ -36,6 +36,15 @@ public enum EventPayload: Sendable, Hashable {
     case mealDeleted(mealID: UUID)
     case setCompleted(SetRecord)
     case habitsUpdated(DietHabits)
+    /// A diet the person owns, stored whole rather than as a delta against a
+    /// preset: a fork has to keep scoring what it scored on the day it was made,
+    /// and a preset is a compiled constant that may be retuned. Supersedes an
+    /// earlier `dietSaved` with the same spec id.
+    case dietSaved(DietSpec)
+    /// Which diet is scoring the week now. Its own event rather than a field on
+    /// the spec, because switching is a thing that happens at a moment and the
+    /// log is where moments go.
+    case dietSelected(dietID: String)
     /// Also the edit: a recipe saved under an existing id supersedes it, the
     /// same way `mealRevised` supersedes a meal.
     case recipeSaved(Recipe)
@@ -62,6 +71,8 @@ extension EventPayload: Codable {
         case mealDeleted = "meal_deleted"
         case setCompleted = "set_completed"
         case habitsUpdated = "habits_updated"
+        case dietSaved = "diet_saved"
+        case dietSelected = "diet_selected"
         case recipeSaved = "recipe_saved"
         case recipeDeleted = "recipe_deleted"
         case messageSent = "message_sent"
@@ -69,6 +80,7 @@ extension EventPayload: Codable {
     }
 
     private struct MealRef: Codable { let mealID: UUID }
+    private struct DietRef: Codable { let dietID: String }
     private struct RecipeRef: Codable { let recipeID: UUID }
     private struct MessageRef: Codable { let messageID: UUID }
 
@@ -80,6 +92,8 @@ extension EventPayload: Codable {
         case .mealDeleted: self = .mealDeleted(mealID: try c.decode(MealRef.self, forKey: .data).mealID)
         case .setCompleted: self = .setCompleted(try c.decode(SetRecord.self, forKey: .data))
         case .habitsUpdated: self = .habitsUpdated(try c.decode(DietHabits.self, forKey: .data))
+        case .dietSaved: self = .dietSaved(try c.decode(DietSpec.self, forKey: .data))
+        case .dietSelected: self = .dietSelected(dietID: try c.decode(DietRef.self, forKey: .data).dietID)
         case .recipeSaved: self = .recipeSaved(try c.decode(Recipe.self, forKey: .data))
         case .recipeDeleted: self = .recipeDeleted(recipeID: try c.decode(RecipeRef.self, forKey: .data).recipeID)
         case .messageSent: self = .messageSent(try c.decode(LogMessage.self, forKey: .data))
@@ -101,6 +115,11 @@ extension EventPayload: Codable {
             try c.encode(Kind.setCompleted, forKey: .kind); try c.encode(s, forKey: .data)
         case .habitsUpdated(let h):
             try c.encode(Kind.habitsUpdated, forKey: .kind); try c.encode(h, forKey: .data)
+        case .dietSaved(let spec):
+            try c.encode(Kind.dietSaved, forKey: .kind); try c.encode(spec, forKey: .data)
+        case .dietSelected(let id):
+            try c.encode(Kind.dietSelected, forKey: .kind)
+            try c.encode(DietRef(dietID: id), forKey: .data)
         case .recipeSaved(let r):
             try c.encode(Kind.recipeSaved, forKey: .kind); try c.encode(r, forKey: .data)
         case .recipeDeleted(let id):
@@ -122,6 +141,12 @@ public struct Projection: Sendable {
     public private(set) var meals: [UUID: MealEntry] = [:]
     public private(set) var sets: [SetRecord] = []
     public private(set) var habits = DietHabits()
+    /// Diets the person owns, by id. Presets are not in here — they are compiled
+    /// constants, and a copy of one in the log would freeze a retuning out.
+    public private(set) var savedDiets: [String: DietSpec] = [:]
+    /// Nil until somebody chooses, which is what makes "skip onboarding and you
+    /// get Mediterranean" a fact about the reader rather than a write on launch.
+    public private(set) var selectedDietID: String?
     public private(set) var recipes: [UUID: Recipe] = [:]
     public private(set) var messages: [UUID: LogMessage] = [:]
 
@@ -138,11 +163,35 @@ public struct Projection: Sendable {
         case .mealDeleted(let id): meals.removeValue(forKey: id)
         case .setCompleted(let s): sets.append(s)
         case .habitsUpdated(let h): habits = h
+        case .dietSaved(let spec): savedDiets[spec.id] = spec
+        case .dietSelected(let id): selectedDietID = id
         case .recipeSaved(let r): recipes[r.id] = r
         case .recipeDeleted(let id): recipes.removeValue(forKey: id)
         case .messageSent(let m): messages[m.id] = m
         case .messageDeleted(let id): messages.removeValue(forKey: id)
         }
+    }
+
+    /// The diet the week is scored against.
+    ///
+    /// A saved fork wins over a preset of the same id, so editing a preset —
+    /// which forks it — takes effect without the preset being touched. An id
+    /// that names neither falls back to Mediterranean rather than to nothing:
+    /// a build that has dropped a preset must still score the history, and an
+    /// unscored week looks exactly like a week nobody ate in.
+    public var diet: DietSpec {
+        guard let selectedDietID else { return DietPresets.default }
+        return savedDiets[selectedDietID]
+            ?? DietPresets.preset(id: selectedDietID)
+            ?? DietPresets.default
+    }
+
+    /// Everything offerable in the picker: the presets, then anything forked,
+    /// newest last so the list does not reorder under a finger.
+    public var availableDiets: [DietSpec] {
+        DietPresets.all + savedDiets.values
+            .filter { !DietPresets.isPreset($0.id) }
+            .sorted { $0.id < $1.id }
     }
 
     /// The thread, oldest first — which is the order a chat reads in, and the

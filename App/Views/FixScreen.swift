@@ -55,9 +55,9 @@ struct FixScreen: View {
                     .focused($isTyping)
                     .lineLimit(2...6)
                     .padding(14)
-                    .background(WellieTheme.well, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .background(WellieTheme.well, in: RoundedRectangle(cornerRadius: WellieTheme.cardRadius, style: .continuous))
                     .overlay {
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        RoundedRectangle(cornerRadius: WellieTheme.cardRadius, style: .continuous)
                             .stroke(isTyping ? WellieTheme.blue : .clear, lineWidth: 1.5)
                     }
                     .onSubmit(submit)

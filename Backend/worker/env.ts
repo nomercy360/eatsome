@@ -12,7 +12,19 @@ export type Env = {
   /** Mints short-lived transcription keys; the real key never reaches a device. */
   SONIOX_API_KEY: string;
   EATSOME_API_TOKEN: string;
+  /** `anonymous` means "partition by caller"; anything else pins the whole
+   *  deployment to one account and disables sign-in. */
   ACCOUNT_ID: string;
+  /**
+   * Every `aud` this deployment accepts in a Sign in with Apple token: the iOS
+   * bundle id, plus a Services ID if a web flow is ever added. Comma separated.
+   * Empty means Apple sign-in is refused with a 503 rather than accepted with
+   * no audience check — an unset allowlist that matched everything would take a
+   * token minted for a different app and treat its `sub` as one of our users.
+   */
+  APPLE_CLIENT_IDS: string;
+  /** The same, for Google's OAuth client ids. Empty until a client exists. */
+  GOOGLE_CLIENT_IDS: string;
   OPENAI_RECOGNITION_MODEL: string;
   GEMINI_RECOGNITION_MODEL: string;
   ANTHROPIC_RECOGNITION_MODEL: string;

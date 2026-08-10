@@ -77,10 +77,24 @@ struct LunaSessionTests {
         // avocado filed as produce, and hedging smuggled into the label.
         #expect(prompt.contains("mayonnaise"))
         #expect(prompt.contains("dressings"))
-        #expect(prompt.contains("`healthy_fats`, never fruit or"))
+        #expect(prompt.contains("`plant_fats`, never fruit or"))
+        // An unnamed frying oil goes to the commoner oil rather than to the one
+        // MEDAS awards a point for.
+        #expect(prompt.contains("`olive_oil` needs evidence that it was olive oil"))
+        #expect(prompt.contains("`vegetable_oil`"))
         #expect(prompt.contains("alcohol-free beer"))
         #expect(prompt.contains("is not a label"))
         #expect(!MealPrompt.jsonSchema.description.lowercased().contains("calorie"))
+
+        // And it names food rather than a diet. The reading has to be the same
+        // reading whichever diet is scoring the week, which it cannot be if the
+        // model was told what the week is being scored for. "Healthy" and
+        // "balanced" are verdicts too — a model told to look for healthy food
+        // finds it.
+        for verdict in ["mediterranean", "medas", "adherence", "healthy", "balanced"] {
+            #expect(!prompt.contains(verdict), "the prompt still says \(verdict)")
+        }
+        #expect(prompt.contains("the food groups it is made of"))
     }
 
 
@@ -189,14 +203,15 @@ struct LunaSessionTests {
             group: .refinedGrains, label: "white rice",
             alternatives: [.wholeGrains]
         )
-        // MEDAS scores no grain item at all, so this one is not worth a tap.
+        // MEDAS scores no grain rule at all, so this one is not worth a tap.
         #expect(rice.scoreCriticalAlternatives().isEmpty)
 
-        #expect(Medas.choiceChangesScore(.fish, .whiteMeat))
-        #expect(Medas.choiceChangesScore(.oliveOil, .butter))
-        #expect(!Medas.choiceChangesScore(.redMeat, .processedMeat))
-        #expect(!Medas.choiceChangesScore(.sweets, .pastry))
-        #expect(!Medas.choiceChangesScore(.fish, .fish))
+        let medas = DietPresets.mediterranean
+        #expect(medas.choiceChangesScore(.fish, .whiteMeat))
+        #expect(medas.choiceChangesScore(.oliveOil, .butter))
+        #expect(!medas.choiceChangesScore(.redMeat, .processedMeat))
+        #expect(!medas.choiceChangesScore(.sweets, .pastry))
+        #expect(!medas.choiceChangesScore(.fish, .fish))
     }
 
     @Test("Legacy confidence caches become the rivals the model never named")

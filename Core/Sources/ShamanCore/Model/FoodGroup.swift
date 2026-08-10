@@ -17,9 +17,12 @@ public enum FoodGroup: String, Codable, CaseIterable, Sendable, Hashable {
     /// Avocado, olives, seeds, tahini. Separate from fruit and vegetables
     /// because they are a fat source, and scoring an avocado as fruit both
     /// credits a fruit serving you did not eat and hides the fat you did.
-    /// MEDAS has no item for them, so they count nowhere — which is the honest
-    /// answer, and better than counting in the wrong place.
-    case healthyFats = "healthy_fats"
+    ///
+    /// Called `healthy_fats` until the taxonomy audit: that was a verdict rather
+    /// than a food, and a verdict is a thing only one diet holds — keto
+    /// disagrees with it about cream, and a group name is the wrong place to
+    /// have that argument. Same members, no opinion. Legacy lines still decode.
+    case plantFats = "plant_fats"
     case wholeGrains = "whole_grains"
     case refinedGrains = "refined_grains"
     case whiteMeat = "white_meat"
@@ -44,8 +47,25 @@ public enum FoodGroup: String, Codable, CaseIterable, Sendable, Hashable {
     case plantMilk = "plant_milk"
     case smoothie
     case butter
+    /// Seed and vegetable oils — sunflower, rapeseed, soybean, corn, the
+    /// unnamed frying oil behind most takeaway food.
+    ///
+    /// Added by the taxonomy audit, and it is the one addition: olive oil was
+    /// fine as a group, but being the *only* named oil meant every other oil
+    /// vanished into nothing at all. A diet that limits seed oils had no
+    /// evidence to rule on, and the olive-oil habit question ("is it your main
+    /// fat?") had evidence on one side only. One group, and the whole
+    /// clean-eating family becomes expressible.
+    case vegetableOil = "vegetable_oil"
     case alcohol
-    case sofrito
+    /// The cooked tomato-and-onion base most stews start with.
+    ///
+    /// Called `sofrito` until the taxonomy audit, where it was the clearest case
+    /// of a group that existed only because one screener asks for it — MEDAS
+    /// item 14. The food is real and worth recognising in any diet; the Spanish
+    /// name for it was the Mediterranean showing through the vocabulary. The
+    /// MEDAS preset maps it straight back.
+    case cookedTomatoSauce = "cooked_tomato_sauce"
     case other
 
     public var displayName: String {
@@ -56,7 +76,7 @@ public enum FoodGroup: String, Codable, CaseIterable, Sendable, Hashable {
         case .legumes: "Legumes"
         case .fish: "Fish & seafood"
         case .nuts: "Nuts"
-        case .healthyFats: "Avocado, olives & seeds"
+        case .plantFats: "Avocado, olives & seeds"
         case .wholeGrains: "Whole grains"
         case .refinedGrains: "Refined grains"
         case .whiteMeat: "White meat"
@@ -73,8 +93,9 @@ public enum FoodGroup: String, Codable, CaseIterable, Sendable, Hashable {
         case .plantMilk: "Plant milk"
         case .smoothie: "Smoothie"
         case .butter: "Butter / margarine / cream"
+        case .vegetableOil: "Vegetable & seed oil"
         case .alcohol: "Alcohol"
-        case .sofrito: "Sofrito"
+        case .cookedTomatoSauce: "Cooked tomato sauce"
         case .other: "Other"
         }
     }
@@ -96,7 +117,7 @@ public enum FoodGroup: String, Codable, CaseIterable, Sendable, Hashable {
         case .legumes: "Beans & lentils"
         case .fish: "Fish & seafood"
         case .nuts: "Nuts"
-        case .healthyFats: "Avocado, olives & seeds"
+        case .plantFats: "Avocado, olives & seeds"
         case .wholeGrains: "Wholegrain bread & pasta"
         case .refinedGrains: "Bread & pasta"
         case .whiteMeat: "Chicken & turkey"
@@ -113,8 +134,9 @@ public enum FoodGroup: String, Codable, CaseIterable, Sendable, Hashable {
         case .plantMilk: "Oat & soy milk"
         case .smoothie: "Smoothie"
         case .butter: "Butter & cream"
+        case .vegetableOil: "Sunflower & seed oil"
         case .alcohol: "Alcohol"
-        case .sofrito: "Tomato & onion base"
+        case .cookedTomatoSauce: "Tomato & onion base"
         case .other: "Something else"
         }
     }
@@ -133,7 +155,7 @@ public enum FoodGroup: String, Codable, CaseIterable, Sendable, Hashable {
         case .legumes: "Beans"
         case .fish: "Fish"
         case .nuts: "Nuts"
-        case .healthyFats: "Avocado & olives"
+        case .plantFats: "Avocado & olives"
         case .wholeGrains: "Whole grains"
         case .refinedGrains: "Bread & pasta"
         case .whiteMeat: "Chicken"
@@ -150,8 +172,9 @@ public enum FoodGroup: String, Codable, CaseIterable, Sendable, Hashable {
         case .plantMilk: "Plant milk"
         case .smoothie: "Smoothie"
         case .butter: "Butter"
+        case .vegetableOil: "Seed oil"
         case .alcohol: "Alcohol"
-        case .sofrito: "Tomato base"
+        case .cookedTomatoSauce: "Tomato base"
         case .other: "Something else"
         }
     }
@@ -160,6 +183,57 @@ public enum FoodGroup: String, Codable, CaseIterable, Sendable, Hashable {
     /// noun: "Looks like chicken and olive oil."
     public var sentenceName: String {
         shortName.lowercased()
+    }
+
+    /// What this group used to be called on disk.
+    ///
+    /// The taxonomy audit renamed two groups, and a rename is normally the one
+    /// thing this enum may not do: raw values are the on-disk format, and a
+    /// `MealItem` that will not decode is a meal that silently vanishes from the
+    /// projection. So the rename happens on the way *out* and the old spelling
+    /// still resolves on the way in — `events.jsonl` is untouched, every line
+    /// written before today still reads, and nothing has to be rewritten.
+    ///
+    /// The same aliases apply to the string-keyed tables in
+    /// `shaman-config.json`: a config file already cached on a phone keys
+    /// `sofrito` and `healthy_fats`, and it must keep working. See `value(in:)`.
+    static let legacyNames: [String: FoodGroup] = [
+        "sofrito": .cookedTomatoSauce,
+        "healthy_fats": .plantFats
+    ]
+
+    /// Every spelling this group answers to, current first. The lookup order in
+    /// `value(in:)`, and what a table-completeness test has to iterate.
+    public var storedNames: [String] {
+        [rawValue] + Self.legacyNames.filter { $0.value == self }.keys.sorted()
+    }
+
+    /// A group's entry in a table keyed by raw value, current spelling first.
+    ///
+    /// Every remote-config table — protein per serving, serving weights, olive
+    /// weights, the food table's group representatives — is `[String: T]`, and
+    /// a rename would otherwise silently drop a row into its default. Silently:
+    /// `sofrito` would stop weighing 50 g and start weighing 100 g, and nothing
+    /// on any screen would say so.
+    public func value<T>(in table: [String: T]) -> T? {
+        for name in storedNames {
+            if let hit = table[name] { return hit }
+        }
+        return nil
+    }
+
+    /// An unknown value is a group written by a build newer than this one, or
+    /// one of the two spellings the audit retired.
+    ///
+    /// `other` rather than a thrown error, for the reason `MealShare` and
+    /// `MealSource` give: a `MealEntry` that will not decode is a meal that
+    /// disappears from the score with no error anywhere, and a food filed under
+    /// "something else" is visibly wrong in a way a missing meal is not. It also
+    /// lands in `NutrientTotal.unresolvedGrams`, which every total has to
+    /// surface — so the loss is stated rather than absorbed.
+    public init(from decoder: any Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        self = FoodGroup(rawValue: raw) ?? FoodGroup.legacyNames[raw] ?? .other
     }
 
     /// Groups the model confuses often enough that they belong next to each
@@ -171,8 +245,11 @@ public enum FoodGroup: String, Codable, CaseIterable, Sendable, Hashable {
         case .redMeat, .processedMeat: [.redMeat, .processedMeat, .whiteMeat]
         case .wholeGrains, .refinedGrains: [.wholeGrains, .refinedGrains, .legumes]
         case .sweets, .pastry: [.sweets, .pastry]
-        case .oliveOil, .butter: [.oliveOil, .butter, .healthyFats]
-        case .fruit, .vegetables, .healthyFats: [.fruit, .vegetables, .healthyFats]
+        // Which fat a dish was cooked in is the hardest thing on this list to
+        // see, and now that seed oil has a group of its own it is also the
+        // question a clean-eating diet turns on — so it sits with the other two.
+        case .oliveOil, .butter, .vegetableOil: [.oliveOil, .vegetableOil, .butter]
+        case .fruit, .vegetables, .plantFats: [.fruit, .vegetables, .plantFats]
         // A dark drink in a mug is coffee or tea and a photo rarely settles it,
         // and juice, smoothie and a sweetened bottle are the same liquid to a
         // camera. Plant milk pairs with dairy, which is what it is mistaken for.

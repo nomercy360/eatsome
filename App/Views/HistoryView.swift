@@ -109,7 +109,7 @@ private struct DayCard: View {
                             }
                             .buttonStyle(.plain)
                         } else {
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            RoundedRectangle(cornerRadius: WellieTheme.cardRadius, style: .continuous)
                                 .fill(WellieTheme.well)
                                 .aspectRatio(1, contentMode: .fit)
                                 .frame(maxWidth: .infinity)

@@ -184,13 +184,29 @@ struct FoodNutrientTableTests {
         }
         #expect(foods.representative(of: .other) == nil, "`other` must stay unanswerable")
 
-        // Every key in the shipped table is a real group. `potatoes|potatoes`
+        // Every key in the shipped table is reachable. `potatoes|potatoes`
         // shipped once and could never match anything, being filed under a food
         // group that does not exist.
-        let known = Set(FoodGroup.allCases.map(\.rawValue))
+        //
+        // Reachable, not current: the table deliberately carries both spellings
+        // of the two groups the taxonomy audit renamed, because this file is
+        // fetched from one URL by builds of every age and an older one looks up
+        // `sofrito`. `storedNames` is the whole of what "reachable" means.
+        let known = Set(FoodGroup.allCases.flatMap(\.storedNames))
         for key in foods.foods.keys {
             let group = String(key.split(separator: "|")[0])
             #expect(known.contains(group), "\(key) is filed under no FoodGroup")
+        }
+
+        // And the legacy spellings are there on purpose rather than by
+        // omission: a build that has never heard of the new names must still
+        // find a serving weight and a composition row, or it silently falls
+        // back to 100 g and no energy figure at all.
+        for group in [FoodGroup.cookedTomatoSauce, .plantFats] {
+            for name in group.storedNames {
+                #expect(foods.groups[name] != nil, "\(name) has no representative for older builds")
+            }
+            #expect(group.storedNames.count == 2, "\(group.rawValue) should carry exactly one old name")
         }
     }
 }

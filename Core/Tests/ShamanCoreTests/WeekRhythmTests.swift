@@ -115,43 +115,72 @@ struct WeekRhythmTests {
     }
 }
 
-@Suite("MEDAS copy")
-struct MedasCopyTests {
-    private func item(id: Int, passed: Bool, observed: Double, target: Double, upper: Bool = false)
-        -> MedasResult.ItemResult
-    {
-        .init(id: id, title: "", passed: passed, observed: observed, target: target, isUpperBound: upper)
+@Suite("Diet copy")
+struct DietCopyTests {
+    private func goal(
+        _ id: String,
+        _ shape: DietGoal.Shape,
+        passed: Bool,
+        observed: Double,
+        plainTitle: String? = nil
+    ) -> DietResult.GoalResult {
+        .init(id: id, title: "", plainTitle: plainTitle, shape: shape,
+              passed: passed, observed: observed, target: shape.target)
     }
 
-    @Test("Every scored item has a plain title")
-    func everyItemIsNamed() {
-        for medas in Medas.items {
-            let plain = MedasCopy.plainTitle(medas.id)
-            #expect(!plain.isEmpty)
-            #expect(plain != medas.title, "item \(medas.id) still uses the screener's phrasing")
+    @Test("Every rule in every shipped diet has a plain title, hand-written or not")
+    func everyRuleIsNamed() {
+        for spec in DietPresets.all {
+            for rule in spec.goals {
+                let plain = DietCopy.plainTitle(rule, in: spec)
+                #expect(!plain.isEmpty, "\(spec.id)/\(rule.id) has no sentence")
+                #expect(plain != rule.title, "\(spec.id)/\(rule.id) still uses the screener's phrasing")
+            }
         }
     }
 
-    @Test("Advice counts what is actually left")
+    /// The property the old per-item-id switch could not have: a rule nobody
+    /// wrote copy for still reads as a sentence rather than as a threshold.
+    @Test("A rule invented in the editor gets a sentence too")
+    func inventedRulesReadAsEnglish() {
+        let built = DietGoal(id: "x", title: "Fish ≥ 5 servings/week",
+                             shape: .weeklyAtLeast([.fish], 5.0))
+        #expect(DietCopy.plainTitle(built) == "Fish, five a week")
+        #expect(DietCopy.plainTitle(DietGoal(id: "y", title: "", shape: .dailyAtLeastGrams(.protein, 90)))
+            == "Protein, 90 g a day")
+    }
+
+    @Test("Advice counts what is actually left, in helpings you could carry")
     func adviceCountsTheShortfall() {
-        #expect(MedasCopy.advice(for: item(id: 10, passed: false, observed: 1, target: 3))
-            == "Two more meals with fish would clear it.")
-        #expect(MedasCopy.advice(for: item(id: 10, passed: false, observed: 2.4, target: 3))
-            == "One more meal with fish would clear it.")
+        #expect(DietCopy.advice(for: goal("a", .weeklyAtLeast([.fish], 3), passed: false, observed: 1))
+            == "Two more meals with fish this week.")
+        #expect(DietCopy.advice(for: goal("a", .weeklyAtLeast([.fish], 3), passed: false, observed: 2.4))
+            == "One more meal with fish this week.")
+        #expect(DietCopy.advice(for: goal("b", .dailyAtLeast([.vegetables], 2), passed: false, observed: 1))
+            == "One more plate with something green on it.")
+        // Groups nobody wrote a helping for still get a countable one.
+        #expect(DietCopy.advice(for: goal("c", .weeklyAtLeast([.tea], 4), passed: false, observed: 1))
+            == "Three more servings of tea this week.")
     }
 
-    /// Nothing is owed on an item you already hold, and an upper bound is not a
+    /// Nothing is owed on a rule you already hold, and an upper bound is not a
     /// task — the week screen files those under "you're keeping these low".
-    @Test("Met items and upper bounds get no advice")
+    @Test("Met rules, upper bounds and habits get no advice")
     func noAdviceWhereNothingIsOwed() {
-        #expect(MedasCopy.advice(for: item(id: 10, passed: true, observed: 3, target: 3)) == nil)
-        #expect(MedasCopy.advice(for: item(id: 11, passed: false, observed: 4, target: 3, upper: true)) == nil)
+        #expect(DietCopy.advice(for: goal("a", .weeklyAtLeast([.fish], 3), passed: true, observed: 3)) == nil)
+        #expect(DietCopy.advice(for: goal("b", .weeklyBelow([.sweets], 3), passed: false, observed: 4)) == nil)
+        #expect(DietCopy.advice(for: goal("c", .habit("h"), passed: false, observed: 0)) == nil)
     }
 
-    @Test("Daily items measure in days when a day count is supplied")
-    func dailyItemsMeasureInDays() {
-        let fruit = item(id: 4, passed: false, observed: 1.7, target: 3)
-        #expect(MedasCopy.measure(for: fruit, daysMet: 4, windowDays: 7).text == "4 of 7 days")
-        #expect(MedasCopy.measure(for: fruit, daysMet: nil, windowDays: 7).text == "1.7 of 3")
+    @Test("Daily rules measure in days when a day count is supplied")
+    func dailyRulesMeasureInDays() {
+        let fruit = goal("d", .dailyAtLeast([.fruit], 3), passed: false, observed: 1.7)
+        #expect(DietCopy.measure(for: fruit, daysMet: 4, windowDays: 7).text == "4 of 7 days")
+        #expect(DietCopy.measure(for: fruit, daysMet: nil, windowDays: 7).text == "1.7 of 3")
+
+        // A per-meal rule measures in meals, because days are not what it is
+        // about — that is the whole reason the shape exists.
+        let eachMeal = goal("e", .eachMeal([.vegetables]), passed: false, observed: 0.5)
+        #expect(DietCopy.measure(for: eachMeal, daysMet: nil, windowDays: 7).text == "50% of meals")
     }
 }

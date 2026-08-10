@@ -60,12 +60,21 @@ public struct MealRecognition: Codable, Sendable, Hashable {
             self.grams = grams
         }
 
-        /// The alternatives that would move the MEDAS score differently than the
-        /// chosen group — the only ones worth interrupting you for. Chicken read
-        /// as pork is one of these. White rice read as brown rice is not: no
-        /// MEDAS item scores grains at all, so the distinction costs nothing.
-        public func scoreCriticalAlternatives(excludedItems: Set<Int> = []) -> [FoodGroup] {
-            alternatives.filter { Medas.choiceChangesScore(group, $0, excludedItems: excludedItems) }
+        /// The alternatives that would move the score differently than the
+        /// chosen group — the only ones worth interrupting you for.
+        ///
+        /// Computed against whichever diet is active, which is where the diet
+        /// engine pays for itself twice: under MEDAS, chicken read as pork is
+        /// one of these and white rice read as brown is not, because no MEDAS
+        /// rule scores grains at all. Switch to low-sugar and the app stops
+        /// asking "fish or chicken?" and starts asking "juice or smoothie?" —
+        /// no new code, because the question was always "does this change what
+        /// the week scores", and the week is now scored by the person's diet.
+        public func scoreCriticalAlternatives(diet: DietSpec = DietPresets.default) -> [FoodGroup] {
+            alternatives.filter { candidate in
+                diet.choiceChangesScore(group, candidate)
+                    || diet.choiceChangesNutrients(group, candidate, grams: grams)
+            }
         }
     }
 

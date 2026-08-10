@@ -25,13 +25,21 @@ const table: Record<string, Mapping> = {
   whole_grain: { kind: "renamed", group: "whole_grains" },
   butter_margarine_cream: { kind: "renamed", group: "butter" },
 
+  // The taxonomy audit renamed two groups the app had named after one diet's
+  // opinion rather than after food. The golden set was annotated under the old
+  // vocabulary and is not rewritten — a dataset that moves when the app moves
+  // has stopped being a fixed point — so the old names resolve here, silently,
+  // which is exactly what `renamed` is for.
+  sofrito: { kind: "renamed", group: "cooked_tomato_sauce" },
+  healthy_fats: { kind: "renamed", group: "plant_fats" },
+
   potatoes: {
     kind: "unmapped",
     why: "Not vegetables in MEDAS terms — counting them there would credit an item 3 serving for chips. Needs its own group or an explicit decision to score them nowhere.",
   },
   sauce: {
     kind: "unmapped",
-    why: "The prompt deliberately routes sauces to what they are made of — mayonnaise to butter, oil dressings to olive_oil, tomato to sofrito, yoghurt to dairy. The dataset keeps `sauce` as a category, so these items disagree by design rather than by error.",
+    why: "The prompt deliberately routes sauces to what they are made of — mayonnaise to butter, oil dressings to olive_oil or vegetable_oil, cooked tomato to cooked_tomato_sauce, yoghurt to dairy. The dataset keeps `sauce` as a category, so these items disagree by design rather than by error.",
   },
 };
 // `juice`, `smoothie` and `plant_milk` were unmapped here until the app grew

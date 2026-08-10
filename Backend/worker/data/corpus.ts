@@ -3,6 +3,7 @@ import { decodeBase64Image, sha256Hex } from "../ai/image";
 import type { Env } from "../env";
 import { HttpError } from "../lib/http-error";
 import { deleteAccountMedia } from "./media";
+import { deleteTablesData } from "./tables";
 
 export function corpusKey(corpusHash: string): string {
   return `corpus/${corpusHash}.jpg`;
@@ -189,20 +190,67 @@ export async function optOutCorpus(
   return { items: rows.results.length, objects };
 }
 
-/** Device-account erasure, including both R2 lifecycles and all owned D1 rows. */
+/**
+ * Erasure, including both R2 lifecycles and all owned D1 rows.
+ *
+ * Every partition, not just the one this request wrote under. "Delete my data"
+ * from a signed-in phone has to mean the account, or it deletes what that phone
+ * happens to have written today and reports success for the rest — which was a
+ * true answer while a device was an account, and stopped being one the moment
+ * two devices could share one.
+ *
+ * The identity rows go too, and last. Leaving `identities` behind would resolve
+ * a later sign-in to an account whose data is gone but whose id is the same,
+ * which is a deleted account quietly coming back as an empty one; the person
+ * asked to be forgotten, so the next sign-in should be a first sign-in.
+ */
 export async function deleteAccountData(
   env: Env,
-  accountId: string,
+  partitions: string[],
 ): Promise<{ mediaObjects: number; corpusItems: number; corpusObjects: number }> {
-  const corpus = await optOutCorpus(env, accountId);
-  const mediaObjects = await deleteAccountMedia(env, accountId);
+  let items = 0;
+  let objects = 0;
+  let mediaObjects = 0;
+  // Shared copies are still the person's data: every table post they authored
+  // goes too, photo bytes first. See `deleteTablesData` for the argument.
+  await deleteTablesData(env, partitions);
+  for (const partition of partitions) {
+    const corpus = await optOutCorpus(env, partition);
+    items += corpus.items;
+    objects += corpus.objects;
+    mediaObjects += await deleteAccountMedia(env, partition);
+  }
+
+  const placeholders = partitions.map(() => "?").join(", ");
   await env.DB.batch([
-    env.DB.prepare("DELETE FROM meal_evals WHERE account_id = ?").bind(accountId),
-    env.DB.prepare("DELETE FROM meal_media WHERE account_id = ?").bind(accountId),
-    env.DB.prepare("DELETE FROM recognitions WHERE account_id = ?").bind(accountId),
-    env.DB.prepare("DELETE FROM media_objects WHERE account_id = ?").bind(accountId),
-    env.DB.prepare("DELETE FROM events WHERE account_id = ?").bind(accountId),
-    env.DB.prepare("DELETE FROM corpus_consents WHERE account_id = ?").bind(accountId),
+    env.DB.prepare(`DELETE FROM meal_evals WHERE account_id IN (${placeholders})`).bind(
+      ...partitions,
+    ),
+    env.DB.prepare(`DELETE FROM meal_media WHERE account_id IN (${placeholders})`).bind(
+      ...partitions,
+    ),
+    env.DB.prepare(`DELETE FROM recognitions WHERE account_id IN (${placeholders})`).bind(
+      ...partitions,
+    ),
+    env.DB.prepare(`DELETE FROM media_objects WHERE account_id IN (${placeholders})`).bind(
+      ...partitions,
+    ),
+    env.DB.prepare(`DELETE FROM events WHERE account_id IN (${placeholders})`).bind(...partitions),
+    env.DB.prepare(`DELETE FROM corpus_consents WHERE account_id IN (${placeholders})`).bind(
+      ...partitions,
+    ),
+    // Order matters against the foreign keys: sessions, links and identities
+    // all point at `accounts`, so the account row can only go last.
+    env.DB.prepare(`DELETE FROM sessions WHERE account_id IN (${placeholders})`).bind(
+      ...partitions,
+    ),
+    env.DB.prepare(`DELETE FROM account_partitions WHERE account_id IN (${placeholders})`).bind(
+      ...partitions,
+    ),
+    env.DB.prepare(`DELETE FROM identities WHERE account_id IN (${placeholders})`).bind(
+      ...partitions,
+    ),
+    env.DB.prepare(`DELETE FROM accounts WHERE id IN (${placeholders})`).bind(...partitions),
   ]);
-  return { mediaObjects, corpusItems: corpus.items, corpusObjects: corpus.objects };
+  return { mediaObjects, corpusItems: items, corpusObjects: objects };
 }

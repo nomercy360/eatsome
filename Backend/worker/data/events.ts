@@ -1,4 +1,4 @@
-import { and, asc, eq, gt, or } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, or } from "drizzle-orm";
 import { type IngestEventsRequest, mealEventDataSchema } from "../../src/contracts";
 import { createDb } from "../db/client";
 import { events, mealEvals } from "../db/schema";
@@ -105,9 +105,24 @@ export async function ingestEvents(
   return { accepted: input.events.length, inserted, replayed: input.events.length - inserted };
 }
 
+/**
+ * Everything the caller may read, oldest first, across every partition their
+ * account owns.
+ *
+ * Two devices on one account is a concatenate-and-filter, not a merge. Both
+ * streams are append-only and the cursor is `(recordedAt, id)` — a total order
+ * over the union, because `recordedAt` is server-visible EpochMillis and the id
+ * is a UUIDv7 that breaks ties the same way on every page. The client sorts by
+ * `occurredAt` for display and does not care what order it received them in, so
+ * there is no reconciliation step and nothing to get wrong at a page boundary.
+ *
+ * `partitions` rather than one `accountId`: a partition is a fact about where a
+ * row was written and never changes, so the union grows only when the account
+ * adopts another device. See `data/accounts.ts`.
+ */
 export async function listEvents(
   database: D1Database,
-  accountId: string,
+  partitions: string[],
   cursorValue: string | undefined,
   limit: number,
 ) {
@@ -119,10 +134,14 @@ export async function listEvents(
         and(eq(events.recordedAt, cursor.recordedAt), gt(events.id, cursor.id)),
       )
     : undefined;
+  // One partition stays a single-value IN, which SQLite plans against
+  // `events_account_cursor_idx` exactly as the old equality did.
+  const scope =
+    partitions.length === 1
+      ? eq(events.accountId, partitions[0] as string)
+      : inArray(events.accountId, partitions);
   const rows = await db.query.events.findMany({
-    where: cursorCondition
-      ? and(eq(events.accountId, accountId), cursorCondition)
-      : eq(events.accountId, accountId),
+    where: cursorCondition ? and(scope, cursorCondition) : scope,
     orderBy: [asc(events.recordedAt), asc(events.id)],
     limit,
   });

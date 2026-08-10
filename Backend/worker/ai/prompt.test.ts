@@ -2,16 +2,18 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { MEAL_PROMPT_VERSION, MEAL_RECOGNITION_SYSTEM_PROMPT } from "./prompt";
+import { MEAL_REVISION_SYSTEM_PROMPT } from "./revision.generated";
 import { productionSpec } from "./spec";
 
-const promptFile = join(import.meta.dirname, "../../../prompts/meal-v18.md");
+const promptFile = join(import.meta.dirname, "../../../prompts/meal-v19.md");
+const revisionFile = join(import.meta.dirname, "../../../prompts/revision-v2.md");
 
 describe("meal recognition prompt", () => {
   it("matches the file it was generated from", () => {
     // The app and the proxy each used to hold their own copy, and within a day
     // the proxy was two rules behind while both reported the same version.
     expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toBe(readFileSync(promptFile, "utf8").trimEnd());
-    expect(MEAL_PROMPT_VERSION).toBe("meal-v18-2026-08-09");
+    expect(MEAL_PROMPT_VERSION).toBe("meal-v19-2026-08-10");
   });
 
   it("is the version the deployment stamps and keys its cache on", () => {
@@ -116,6 +118,45 @@ describe("meal recognition prompt", () => {
     expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("the sound of the description");
   });
 
+  it("names food and not a diet", () => {
+    // v18 opened "You classify a meal into ... Mediterranean-diet food groups
+    // for a MEDAS adherence tracker", which put one diet's purpose in front of
+    // a model whose whole job is to report what is on the plate. The diet is
+    // chosen by the person and applied afterwards, and switching it must not
+    // change a single reading — which it cannot, if the reading never knew.
+    //
+    // Nor does the framing get swapped for a friendlier one: "healthy",
+    // "balanced" and "clean" are verdicts too, and a model told it is looking
+    // for healthy food finds it.
+    for (const verdict of [
+      "Mediterranean",
+      "MEDAS",
+      "adherence",
+      "healthy",
+      "balanced",
+      "clean eating",
+    ]) {
+      expect(MEAL_RECOGNITION_SYSTEM_PROMPT).not.toContain(verdict);
+    }
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("the food groups it is made of");
+  });
+
+  it("routes an unnamed cooking oil to the commoner oil, not to olive", () => {
+    // Olive oil is a MEDAS point, and until the taxonomy had a second oil the
+    // prompt's only home for an invisible frying fat was `olive_oil` — which
+    // inflated that point for everybody who eats food fried by somebody else.
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("`vegetable_oil`");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain(
+      "`olive_oil` needs evidence that it was olive oil",
+    );
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("a guess dressed as a reading");
+    // And the two renamed groups are spelled the way the schema spells them.
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("`plant_fats`");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("`cooked_tomato_sauce`");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).not.toContain("sofrito");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).not.toContain("healthy_fats");
+  });
+
   it("fences a person's note in the same user turn as the photo", () => {
     const image = { mimeType: "image/jpeg", imageBase64: "aGVsbG8gdGhlcmUh" };
     const prompt = productionSpec({ ...image, note: "  fried in butter  " }).userPrompt;
@@ -144,5 +185,27 @@ describe("meal recognition prompt", () => {
     const typed = productionSpec({ said: "porridge", note: "with honey" });
     expect(typed.userPrompt).not.toContain("What the photo cannot show");
     expect(typed.userPrompt).toContain('"""\nwith honey\n"""');
+  });
+});
+
+describe("meal revision prompt", () => {
+  it("matches the file it was generated from", () => {
+    // It was a string literal here and a second one in MealRevision.swift, and
+    // by the time anyone compared them they differed in three rules while both
+    // claimed to be the same instructions — a model told two different things
+    // about the same food, with nothing anywhere saying so. One file, two
+    // generated copies, exactly like the recognition prompt.
+    expect(MEAL_REVISION_SYSTEM_PROMPT).toBe(readFileSync(revisionFile, "utf8").trimEnd());
+  });
+
+  it("speaks the same taxonomy the recognition prompt does", () => {
+    // The rename has to reach both or a correction re-files food the reading
+    // had already filed correctly.
+    expect(MEAL_REVISION_SYSTEM_PROMPT).toContain("`plant_fats`");
+    expect(MEAL_REVISION_SYSTEM_PROMPT).toContain("`vegetable_oil`");
+    expect(MEAL_REVISION_SYSTEM_PROMPT).not.toContain("healthy_fats");
+    expect(MEAL_REVISION_SYSTEM_PROMPT).not.toContain("sofrito");
+    // And it still refuses the numbers the reading refuses.
+    expect(MEAL_REVISION_SYSTEM_PROMPT).toContain("Weight is the only number");
   });
 });

@@ -15,6 +15,15 @@
   },
   "vars": {
     "ACCOUNT_ID": "anonymous",
+    // The `aud` of a Sign in with Apple token from a native app is the bundle
+    // id. A vars entry rather than a secret: it is printed in every App Store
+    // listing, and a value nobody can keep secret should not be stored as if
+    // they could.
+    "APPLE_CLIENT_IDS": "app.shaman.tracker",
+    // Empty on purpose. Google's server half is implemented and its client half
+    // is not, so a sign-in attempt should fail as unconfigured rather than
+    // succeed against an audience list nobody set.
+    "GOOGLE_CLIENT_IDS": "",
     "RECOGNITION_PROVIDER": "gemini",
     "OPENAI_RECOGNITION_MODEL": "gpt-5.6-luna",
     "GEMINI_RECOGNITION_MODEL": "gemini-3.6-flash",
@@ -22,7 +31,7 @@
     "QWEN_RECOGNITION_MODEL": "qwen3.7-flash",
     "QWEN_BASE_URL": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
     "OPENAI_IMAGE_DETAIL": "high",
-    "MEAL_PROMPT_VERSION": "meal-v18-2026-08-09",
+    "MEAL_PROMPT_VERSION": "meal-v19-2026-08-10",
     "RECOGNITIONS_PER_DAY": "400",
     "RECOGNITIONS_PER_DEVICE_PER_DAY": "40"
   },

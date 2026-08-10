@@ -35,8 +35,13 @@ struct LogThreadView: View {
     /// Held while the consent screen is up, so agreeing sends the thing that
     /// prompted it rather than making anyone type it twice.
     @State private var awaitingConsent: Outgoing?
+    @State private var openTable: TableSummary?
+    @State private var showingTables = false
+    @State private var showingWeek = false
     @State private var voice = VoiceDictation()
     @FocusState private var isTyping: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     private struct Outgoing {
         var said: String?
@@ -48,25 +53,37 @@ struct LogThreadView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
+                // The road to your tables: one slim row, always in the same
+                // place, and absent entirely when there are none.
+                TablesRow { table in
+                    leave { if let table { openTable = table } else { showingTables = true } }
+                }
                 if !model.mealsToday().isEmpty { pinnedStrip }
                 thread
             }
             .background(WellieTheme.background)
-            .navigationTitle("eatsome")
+            .navigationTitle("Today")
             .navigationBarTitleDisplayMode(.inline)
             .safeAreaInset(edge: .bottom) { composer }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button { showingSettings = true } label: { Image(systemName: "gearshape") }
+                    Button { leave { showingSettings = true } } label: { Image(systemName: "gearshape") }
                         .accessibilityLabel("Settings")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink { MyWeekView() } label: {
+                    // A Button and a destination rather than a NavigationLink,
+                    // because a link has no moment to run anything before it
+                    // pushes and the keyboard has to be let go of first — see
+                    // `leave()`.
+                    Button { leave { showingWeek = true } } label: {
                         Text("My week").font(WellieTheme.font(16, weight: .semibold))
                     }
                 }
             }
             .sheet(isPresented: $showingSettings) { SettingsView() }
+            .navigationDestination(isPresented: $showingWeek) { MyWeekView() }
+            .navigationDestination(isPresented: $showingTables) { TablesListView() }
+            .navigationDestination(item: $openTable) { TableFeedView(table: $0) }
             .sheet(isPresented: $showingDay) { DaySheet(day: Date()) }
             .sheet(isPresented: $showingCamera) { CameraPhotoPicker { attach($0) } }
             .sheet(item: $openMeal) { meal in
@@ -116,15 +133,24 @@ struct LogThreadView: View {
     private var pinnedStrip: some View {
         let meals = model.mealsToday()
         return Button { showingDay = true } label: {
-            HStack(spacing: 12) {
+            // Side by side normally; stacked once the type is large enough that
+            // the olives would squeeze the sentence to one character per line,
+            // which is exactly what it did at AX-XXL.
+            let layout = typeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+                : AnyLayout(HStackLayout(spacing: 12))
+            layout {
                 Text("Today so far · \(Count.meals(meals.count).lowercased())")
                     .font(WellieTheme.font(14, weight: .semibold))
                     .foregroundStyle(WellieTheme.body)
-                Spacer(minLength: 8)
-                if let olives = model.olives() { OliveRow(olives: olives.olives) }
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(WellieTheme.faint)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                HStack(spacing: 12) {
+                    if let olives = model.olives() { OliveRow(olives: olives.olives) }
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(WellieTheme.faint)
+                }
             }
             .padding(.horizontal, WellieTheme.screenInset)
             .padding(.vertical, 11)
@@ -139,33 +165,42 @@ struct LogThreadView: View {
 
     // MARK: - The thread
 
+    /// Screen `10a`. The day renders as a document rather than a conversation —
+    /// see `DayTimeline` for why the ordering changes and what stays.
+    ///
+    /// `TurnRow`, `MessageBubble` and `ThreadMealCard` are still here and still
+    /// compile: they are the `7c` chat rendering, and `10b`/`10c` are two more
+    /// ways to draw the same day that the redesign puts alongside this one. The
+    /// day page is one `switch` away from being switchable, and deleting the
+    /// only alternative before the other two exist would make that harder rather
+    /// than simpler.
     private var thread: some View {
         ScrollViewReader { scroller in
             ScrollView {
-                LazyVStack(spacing: 14) {
+                LazyVStack(spacing: 0) {
                     if turns.isEmpty {
                         FirstOpenHint().padding(.top, 24)
                     } else {
-                        Text("Today")
-                            .font(WellieTheme.font(12.5, weight: .semibold))
-                            .foregroundStyle(WellieTheme.muted)
-                            .padding(.horizontal, 11)
-                            .padding(.vertical, 5)
-                            .background(WellieTheme.ice, in: Capsule())
-                            .padding(.top, 8)
-
-                        ForEach(turns) { turn in
-                            TurnRow(turn: turn, state: state(of: turn)) { openMeal = turn.meal }
-                                retry: { if let message = turn.message { model.retry(message) } }
-                                delete: { Task { await model.deleteTurn(turn) } }
-                        }
+                        DayTimeline(
+                            turns: turns,
+                            state: state(of:),
+                            open: { openMeal = $0 },
+                            retry: { model.retry($0) },
+                            delete: { turn in Task { await model.deleteTurn(turn) } }
+                        )
+                        .padding(.top, 6)
                     }
-                    // Anchored so a new message scrolls the thread rather than
-                    // the last card, which would leave the bubble half off-screen.
+                    // Anchored so a new message scrolls the day rather than the
+                    // last entry, which would leave it half off-screen.
                     Color.clear.frame(height: 1).id(Self.bottom)
                 }
-                .padding(.horizontal, WellieTheme.screenInset)
                 .padding(.bottom, 10)
+                // Empty space below the last meal is most of this screen, and
+                // it has to be tappable or the gesture below only works on the
+                // entries themselves.
+                .frame(maxWidth: .infinity, minHeight: 320, alignment: .top)
+                .contentShape(Rectangle())
+                .simultaneousGesture(TapGesture().onEnded { isTyping = false })
             }
             .scrollDismissesKeyboard(.interactively)
             .onChange(of: turns.count) { _, _ in scrollToBottom(scroller) }
@@ -174,10 +209,32 @@ struct LogThreadView: View {
         }
     }
 
+    /// Leave the day for another screen, keyboard first.
+    ///
+    /// The composer lives in a `safeAreaInset` on the navigation root, so it —
+    /// and its `@FocusState` — survive a push. Go to My week mid-sentence and
+    /// focus is still true when you come back, so the keyboard returns; and the
+    /// only way out was `scrollDismissesKeyboard(.interactively)`, which needs a
+    /// scroll *drag*. On a day with three meals the timeline does not fill the
+    /// screen, so there is nothing to drag, and the keyboard could not be
+    /// dismissed at all.
+    ///
+    /// Two fixes, because either alone leaves a hole: focus is dropped before
+    /// any navigation, and a tap anywhere on the day dismisses it — the same
+    /// gesture the meal detail screen has always had. The draft is untouched;
+    /// only the keyboard goes.
+    private func leave(_ action: @escaping () -> Void) {
+        isTyping = false
+        action()
+    }
+
     private static let bottom = "thread-bottom"
 
     private func scrollToBottom(_ scroller: ScrollViewProxy) {
-        withAnimation(.easeOut(duration: 0.25)) {
+        // `withAnimation(nil)` is the documented way to say "jump"; a
+        // zero-duration curve still schedules a transaction, and a person who
+        // asked for less motion should get none rather than a fast one.
+        withAnimation(WellieMotion.scroll(reduceMotion)) {
             scroller.scrollTo(Self.bottom, anchor: .bottom)
         }
     }
@@ -217,7 +274,7 @@ struct LogThreadView: View {
                     .resizable()
                     .scaledToFill()
                     .frame(width: 46, height: 46)
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: WellieTheme.cardRadius, style: .continuous))
             }
             Text("Add a note, or just send it.")
                 .font(WellieTheme.font(13.5, weight: .medium))
@@ -286,9 +343,9 @@ struct LogThreadView: View {
                 .lineLimit(1...5)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 9)
-                .background(WellieTheme.surface, in: Capsule())
+                .background(WellieTheme.surface, in: RoundedRectangle(cornerRadius: WellieTheme.chipRadius, style: .continuous))
                 .overlay {
-                    Capsule().strokeBorder(
+                    RoundedRectangle(cornerRadius: WellieTheme.chipRadius, style: .continuous).strokeBorder(
                         isTyping ? WellieTheme.blue : WellieTheme.outline, lineWidth: 1.5
                     )
                 }
@@ -311,7 +368,8 @@ struct LogThreadView: View {
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(voice.isAvailable ? WellieTheme.blue : WellieTheme.faint)
                     .frame(width: 36, height: 36)
-                    .background(WellieTheme.ice, in: Circle())
+                    .background(WellieTheme.ice, in: RoundedRectangle(cornerRadius: WellieTheme.controlRadius, style: .continuous))
+                    .wellieHitTarget()
             }
             .disabled(!voice.isAvailable)
             .accessibilityLabel("Say what you ate")
@@ -319,9 +377,10 @@ struct LogThreadView: View {
             Button(action: sendDraft) {
                 Image(systemName: "arrow.up")
                     .font(.system(size: 17, weight: .bold))
-                    .foregroundStyle(WellieTheme.onAccent)
+                    .foregroundStyle(WellieTheme.onInk)
                     .frame(width: 36, height: 36)
-                    .background(WellieTheme.blue, in: Circle())
+                    .background(WellieTheme.inkSurface, in: RoundedRectangle(cornerRadius: WellieTheme.controlRadius, style: .continuous))
+                    .wellieHitTarget()
             }
             .accessibilityLabel("Send")
         }
@@ -432,21 +491,26 @@ private struct MessageBubble: View {
                             .resizable()
                             .scaledToFill()
                             .frame(maxWidth: 230, maxHeight: 230)
-                            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                            .clipShape(RoundedRectangle(cornerRadius: WellieTheme.photoRadius, style: .continuous))
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("View the photo full screen")
                 }
                 if let said = message.trimmedText {
+                    // Ink, not blue, and this is the one place in the app that
+                    // gets it. `9d`: one dark object per exchange. Blue was
+                    // spent here *and* on every primary button, which made a
+                    // day of messages compete with the thing you are meant to
+                    // tap; ink says "you said this" and nothing else does.
                     Text(said)
                         .font(WellieTheme.font(16, weight: .medium))
-                        .foregroundStyle(WellieTheme.onAccent)
-                        .padding(.horizontal, 15)
-                        .padding(.vertical, 11)
+                        .foregroundStyle(WellieTheme.onInk)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
                         .frame(maxWidth: 280, alignment: .leading)
                         .background(
-                            WellieTheme.blue,
-                            in: RoundedRectangle(cornerRadius: 22, style: .continuous)
+                            WellieTheme.inkSurface,
+                            in: RoundedRectangle(cornerRadius: WellieTheme.cardRadius, style: .continuous)
                         )
                 }
             }
@@ -532,7 +596,7 @@ private struct ReadingPill: View {
         }
         .padding(.horizontal, 15)
         .padding(.vertical, 11)
-        .background(WellieTheme.surface, in: Capsule())
+        .background(WellieTheme.surface, in: RoundedRectangle(cornerRadius: WellieTheme.chipRadius, style: .continuous))
         .onAppear {
             withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) { phase = 1 }
         }
@@ -595,18 +659,23 @@ private struct ThreadMealCard: View {
     /// State 4, and the only one that ever asks. At most one per meal: a card
     /// that raises three questions is a form, and this is a thread.
     private var ambiguity: (item: MealItem, rivals: [FoodGroup])? {
-        let excluded = model.config.medas.excludedItems
+        // Which fork is worth raising is a question about the active diet, so
+        // the question changes when the diet does: a vegetarian is not asked
+        // whether the meat was pork or chicken, because the promise is broken
+        // either way and the answer changes nothing they are being told.
+        let diet = model.diet
         guard let item = meal.items.first(where: {
-            !$0.scoreCriticalAlternatives(excludedItems: excluded).isEmpty
+            !$0.scoreCriticalAlternatives(under: diet).isEmpty
         }) else { return nil }
-        return (item, item.scoreCriticalAlternatives(excludedItems: excluded))
+        return (item, item.scoreCriticalAlternatives(under: diet))
     }
 }
 
 private extension MealItem {
-    func scoreCriticalAlternatives(excludedItems: Set<Int>) -> [FoodGroup] {
-        (modelAlternatives ?? []).filter {
-            Medas.choiceChangesScore(group, $0, excludedItems: excludedItems)
+    func scoreCriticalAlternatives(under diet: DietSpec) -> [FoodGroup] {
+        (modelAlternatives ?? []).filter { candidate in
+            diet.choiceChangesScore(group, candidate)
+                || diet.choiceChangesNutrients(group, candidate, grams: grams)
         }
     }
 }
@@ -643,7 +712,7 @@ private struct NeedsYouPill: View {
                             .foregroundStyle(WellieTheme.attention)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 7)
-                            .background(WellieTheme.surface, in: Capsule())
+                            .background(WellieTheme.surface, in: RoundedRectangle(cornerRadius: WellieTheme.chipRadius, style: .continuous))
                     }
                     .buttonStyle(.plain)
                 }
@@ -654,7 +723,7 @@ private struct NeedsYouPill: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             WellieTheme.attentionSurface,
-            in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+            in: RoundedRectangle(cornerRadius: WellieTheme.cardRadius, style: .continuous)
         )
     }
 
@@ -712,7 +781,7 @@ private struct FailedPill: View {
                 .foregroundStyle(WellieTheme.blue)
         }
         .padding(14)
-        .background(WellieTheme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .background(WellieTheme.surface, in: RoundedRectangle(cornerRadius: WellieTheme.cardRadius, style: .continuous))
         .padding(.trailing, 24)
     }
 }
@@ -738,7 +807,7 @@ private struct FirstOpenHint: View {
         }
         .padding(17)
         .frame(maxWidth: 320, alignment: .leading)
-        .background(WellieTheme.surface, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .background(WellieTheme.surface, in: RoundedRectangle(cornerRadius: WellieTheme.cardRadius, style: .continuous))
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 

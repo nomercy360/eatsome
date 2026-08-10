@@ -37,15 +37,35 @@ async function findMedia(
   accountId: string,
   photoHash: string,
 ): Promise<MediaObject | null> {
+  return findMediaIn(database, [accountId], photoHash);
+}
+
+/**
+ * The same lookup across every partition an account owns.
+ *
+ * Multi-device sync hands the second phone a meal whose photograph was uploaded
+ * by the first, under the first device's partition. Without this the events
+ * arrive and every picture in the history 404s, which reads as data loss.
+ * `stored_at` still gates it, so a reserved-but-unwritten row is invisible
+ * exactly as before.
+ */
+async function findMediaIn(
+  database: D1Database,
+  partitions: string[],
+  photoHash: string,
+): Promise<MediaObject | null> {
+  const placeholders = partitions.map(() => "?").join(", ");
   return database
     .prepare(
       `SELECT account_id AS accountId, photo_hash AS photoHash, object_key AS objectKey,
               mime_type AS mimeType, byte_size AS byteSize, created_at AS createdAt,
               stored_at AS storedAt
          FROM media_objects
-        WHERE account_id = ? AND photo_hash = ?`,
+        WHERE account_id IN (${placeholders}) AND photo_hash = ?
+        ORDER BY stored_at IS NULL, created_at
+        LIMIT 1`,
     )
-    .bind(accountId, photoHash)
+    .bind(...partitions, photoHash)
     .first<MediaObject>();
 }
 
@@ -107,10 +127,10 @@ export async function ensureMediaObject(
 
 export async function getMediaObject(
   env: Env,
-  accountId: string,
+  partitions: string[],
   photoHash: string,
 ): Promise<R2ObjectBody | null> {
-  const media = await findMedia(env.DB, accountId, photoHash);
+  const media = await findMediaIn(env.DB, partitions, photoHash);
   if (!media?.storedAt) return null;
   return env.MEDIA.get(media.objectKey);
 }

@@ -11,7 +11,13 @@ import UIKit
 /// The local copy drives the meal UI. The same model-input render may also live
 /// in private R2 so failed inference and explicit re-runs do not ask the phone
 /// to upload it again; it is never a public image URL.
-struct PhotoStore {
+/// `@unchecked Sendable` for exactly one reason: `NSCache` is documented as
+/// thread-safe — "You can add, remove, and query items in the cache from
+/// different threads without having to lock the cache yourself" — but it is not
+/// marked `Sendable`, and every other stored property here is a `let`. The
+/// checker cannot see the guarantee, so it is asserted here with its source
+/// rather than worked around with an actor this type does not need.
+struct PhotoStore: @unchecked Sendable {
     static let shared = PhotoStore()
 
     /// Long enough to fill a detail view on any phone, small enough that a year
@@ -20,6 +26,16 @@ struct PhotoStore {
     private let quality: CGFloat = 0.72
 
     private let directory: URL?
+
+    /// Decoded images, held in memory.
+    ///
+    /// `image(for:)` is called from a view body, so it runs on every render of
+    /// every row that has a photograph — a day with four photographed meals was
+    /// reading four files off disk and decoding four JPEGs each time the
+    /// composer's text changed. `NSCache` because it is the one cache iOS will
+    /// empty for us under pressure rather than letting a long day of logging
+    /// grow without a ceiling.
+    private let decoded = NSCache<NSString, UIImage>()
 
     private init() {
         directory = (try? EventLog.defaultURL())?
@@ -42,7 +58,28 @@ struct PhotoStore {
     }
 
     func image(for hash: String?) -> UIImage? {
-        data(for: hash).flatMap(UIImage.init(data:))
+        guard let hash else { return nil }
+        if let hit = decoded.object(forKey: hash as NSString) { return hit }
+        guard let image = data(for: hash).flatMap(UIImage.init(data:)) else { return nil }
+        decoded.setObject(image, forKey: hash as NSString)
+        return image
+    }
+
+    /// A thumbnail at the size it will actually be drawn.
+    ///
+    /// The timeline draws a 56 pt square and the share sheet a 52 pt one, and
+    /// both were being handed a 1280 px decode. `preparingThumbnail(of:)` does
+    /// the downsample in ImageIO rather than by drawing the full bitmap first,
+    /// which is the difference that matters when a day has six of them.
+    func thumbnail(for hash: String?, side: CGFloat, scale: CGFloat = 3) -> UIImage? {
+        guard let hash else { return nil }
+        let key = "\(hash)@\(Int(side))" as NSString
+        if let hit = decoded.object(forKey: key) { return hit }
+        guard let full = image(for: hash) else { return nil }
+        let pixels = CGSize(width: side * scale, height: side * scale)
+        guard let small = full.preparingThumbnail(of: pixels) else { return full }
+        decoded.setObject(small, forKey: key)
+        return small
     }
 
     /// The stored bytes themselves, for a correction that wants the model to
@@ -54,6 +91,7 @@ struct PhotoStore {
 
     func remove(_ hash: String?) {
         guard let hash, let url = url(for: hash) else { return }
+        decoded.removeObject(forKey: hash as NSString)
         try? FileManager.default.removeItem(at: url)
     }
 

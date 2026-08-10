@@ -51,6 +51,10 @@ final class AppModel {
     var activeModel: String { config.model(for: provider) }
 
     private static let providerDefaultsKey = "recognitionProvider"
+    /// Not a secret and not proof of anything — it is shown in the workshop so
+    /// two devices can be seen landing on the same account. The session token
+    /// that actually proves it lives in the Keychain.
+    private static let accountIDDefaultsKey = "signedInAccountID"
     private static let onboardedKey = "hasCompletedOnboarding"
     private let keychain = KeychainStore()
     private var log: EventLog?
@@ -89,6 +93,7 @@ final class AppModel {
         proteinIntent = UserDefaults.standard.string(forKey: Self.proteinIntentKey)
             .flatMap(Protein.Intent.init(rawValue:))
             ?? .active
+        hasProteinGoal = UserDefaults.standard.bool(forKey: Self.proteinGoalKey)
 
         rebuildRecognizer()
         if hasAcceptedPhotoProcessing { syncMealEvents(loadedEvents) }
@@ -366,16 +371,71 @@ final class AppModel {
 
     // MARK: - Reads
 
-    func adherence(endingAt end: Date = Date(), calendar: Calendar = .current) -> MedasResult {
+    /// The diet the week is scored against, with the protein target folded in.
+    ///
+    /// Read rather than stored, which is what makes switching instant: the diet
+    /// changes and the whole history re-scores off the same meals, because no
+    /// score was ever written down.
+    var diet: DietSpec {
+        projection.diet.withProteinTarget(hasProteinGoal ? proteinTarget : nil)
+    }
+
+    func adherence(endingAt end: Date = Date(), calendar: Calendar = .current) -> DietResult {
+        score(with: diet, endingAt: end, calendar: calendar)
+    }
+
+    /// The same week under a diet that is not the active one — what the editor
+    /// shows under "last week would score 4 of 5 on this plan" before anything
+    /// is saved. It costs one pass over seven days of meals and no model call
+    /// at all, which is the point worth making in the UI.
+    func score(
+        with spec: DietSpec,
+        endingAt end: Date = Date(),
+        calendar: Calendar = .current
+    ) -> DietResult {
         // The window ends at the start of tomorrow so today counts in full.
         let end = calendar.startOfDay(for: end).addingTimeInterval(86_400).epochMillis
         let start = end - EpochMillis(config.medas.windowDays) * 86_400_000
-        return MedasScorer(configuration: config.medas).score(
+        return DietScorer(spec: spec, configuration: config.medas).score(
             meals: projection.meals(from: start, to: end),
             habits: projection.habits,
             windowEnd: end,
+            calendar: calendar,
+            servingGrams: ServingWeight.defaultGrams,
+            proteinPerServing: config.proteinTable,
+            foods: config.nutrientsPerGram
+        )
+    }
+
+    /// How long a constraint has been kept, over the whole log rather than the
+    /// window — "kept 34 days" is the number somebody who does not eat meat
+    /// actually wants, and it is not a fact about the last seven.
+    func daysKept(_ constraint: DietConstraint, endingAt end: Date = Date(),
+                  calendar: Calendar = .current) -> Int {
+        DietStreak.daysKept(
+            constraint,
+            meals: Array(projection.meals.values),
+            endingAt: calendar.startOfDay(for: end).addingTimeInterval(86_400).epochMillis,
             calendar: calendar
         )
+    }
+
+    // MARK: - Choosing a diet
+
+    func selectDiet(_ spec: DietSpec) async {
+        // A preset is a compiled constant and is not copied into the log — only
+        // the choice is. A fork is the person's own and is stored whole.
+        if !DietPresets.isPreset(spec.id) {
+            await record(.dietSaved(spec))
+        }
+        await record(.dietSelected(dietID: spec.id))
+    }
+
+    func saveDiet(_ spec: DietSpec) async {
+        await record(.dietSaved(spec))
+        if projection.selectedDietID != spec.id {
+            await record(.dietSelected(dietID: spec.id))
+        }
     }
 
     func mealsToday(calendar: Calendar = .current) -> [MealEntry] {
@@ -480,6 +540,18 @@ final class AppModel {
 
     /// Per device, like the recognition provider: this is a training decision,
     /// not a property of the food.
+    /// Whether the protein target is a goal in the diet or just a figure on the
+    /// day sheet.
+    ///
+    /// Off unless somebody said yes in onboarding or settings. A target nobody
+    /// asked for that quietly costs a rule is a diet the app chose for them, and
+    /// the whole change here is that it stopped doing that.
+    var hasProteinGoal: Bool = false {
+        didSet { UserDefaults.standard.set(hasProteinGoal, forKey: Self.proteinGoalKey) }
+    }
+
+    static let proteinGoalKey = "proteinIsAGoal"
+
     var proteinIntent: Protein.Intent = .active {
         didSet { UserDefaults.standard.set(proteinIntent.rawValue, forKey: Self.proteinIntentKey) }
     }
@@ -658,6 +730,143 @@ final class AppModel {
         if token?.isEmpty == false, hasAcceptedPhotoProcessing { syncMealEvents(loadedEvents) }
     }
 
+    /// The whole client half of accounts, until tables give it a surface.
+    ///
+    /// The token is opaque and the app never reads it; it goes in the Keychain
+    /// beside the device id and onto every later request. Passing nil signs out.
+    func setSessionToken(_ token: String?) {
+        try? keychain.set(token, for: .sessionToken)
+        rebuildRecognizer()
+    }
+
+    var signedInAccountID: String? {
+        UserDefaults.standard.string(forKey: Self.accountIDDefaultsKey)
+    }
+
+    func rememberAccountID(_ accountId: String?) {
+        UserDefaults.standard.set(accountId, forKey: Self.accountIDDefaultsKey)
+    }
+
+    // MARK: - Tables
+
+    /// Every table, refreshed on open.
+    ///
+    /// Polling, not push — APNs is not built, and the contract is honest about
+    /// what that costs: every response carries `asOf`, the moment the server
+    /// counted, so a badge can be drawn as the snapshot it is. A count with no
+    /// time on it is a number pretending to be live.
+    private(set) var tables: [TableSummary] = []
+    /// When the server last counted. Nil before the first successful poll —
+    /// which is a different fact from "no tables", and the row must not draw
+    /// them the same way.
+    private(set) var tablesAsOf: EpochMillis?
+    private(set) var tablesError: String?
+
+    /// The one table the day page's slim row names. The loudest — most unread —
+    /// then the most recently posted in, so a quiet table cannot sit in front
+    /// of one with something new in it.
+    var loudestTable: TableSummary? {
+        tables.max {
+            $0.unreadCount == $1.unreadCount
+                ? ($0.latest?.createdAt ?? 0) < ($1.latest?.createdAt ?? 0)
+                : $0.unreadCount < $1.unreadCount
+        }
+    }
+
+    var totalUnread: Int { tables.reduce(0) { $0 + $1.unreadCount } }
+
+    func refreshTables(calendar: Calendar = .current) async {
+        guard let backend else { return }
+        // The server cannot know where this phone's midnight is, so "cooked
+        // today" is counted from a boundary this side supplies — exactly how
+        // the scorer takes `windowEnd`.
+        let since = calendar.startOfDay(for: Date()).epochMillis
+        do {
+            let response = try await backend.tables(since: since)
+            tables = response.tables
+            tablesAsOf = response.asOf
+            tablesError = nil
+        } catch {
+            // A failed poll leaves the last snapshot on screen rather than
+            // blanking it: an empty list would say "you are in no tables",
+            // which is a claim, where a stale one says only that it is stale.
+            tablesError = error.localizedDescription
+        }
+    }
+
+    func markTableRead(_ table: TableSummary, upTo seq: Int) async {
+        guard let backend, seq > table.myLastReadSeq else { return }
+        try? await backend.markRead(seq: seq, in: table.id)
+        await refreshTables()
+    }
+
+    enum TablesError: LocalizedError {
+        case noBackend
+        var errorDescription: String? {
+            "eatsome cannot reach its backend. Add an access token in the workshop."
+        }
+    }
+
+    func createTable(named name: String, as displayName: String) async throws {
+        guard let backend else { throw TablesError.noBackend }
+        _ = try await backend.createTable(.init(name: name, displayName: displayName))
+        await refreshTables()
+    }
+
+    func joinTable(code: String, as displayName: String) async throws {
+        guard let backend else { throw TablesError.noBackend }
+        _ = try await backend.joinTable(.init(code: code, displayName: displayName))
+        await refreshTables()
+    }
+
+    /// The redaction happens here, once, at the moment of the tap — see
+    /// `MealEntry.shareable(showingIngredients:)`. Nothing downstream re-derives
+    /// it, because the post is a copy rather than a reference into the log.
+    func share(
+        _ meal: MealEntry,
+        to table: TableSummary,
+        caption: String,
+        showingIngredients: Bool
+    ) async throws {
+        guard let backend else { throw TablesError.noBackend }
+        let trimmed = caption.trimmingCharacters(in: .whitespaces)
+        _ = try await backend.post(
+            .share(
+                id: UUIDv7.generate().uuidString,
+                mealId: meal.id.uuidString,
+                dishName: MealDisplay.title(meal),
+                caption: trimmed.isEmpty ? nil : trimmed,
+                ingredients: meal.shareable(showingIngredients: showingIngredients),
+                photoHash: meal.photoHash
+            ),
+            to: table.id
+        )
+        await refreshTables()
+    }
+
+    /// A friend's dish, saved into your own log as your own meal.
+    ///
+    /// A new `MealEntry` with a new id, not a copy of theirs: it is now
+    /// something you ate, it scores against *your* diet, and you can correct it
+    /// in words like anything else. `source` is `.recipe` because that is what
+    /// it is — a repeat of something already checked by somebody — and the note
+    /// records where it came from so the provenance survives a correction.
+    func saveSharedDish(_ post: TablePost, ingredients: [PostIngredient]) async {
+        let items = ingredients.map {
+            MealItem(group: $0.group, label: $0.label, dish: post.dishName, grams: $0.grams)
+        }
+        let meal = MealEntry(
+            eatenAt: Date().epochMillis,
+            items: items,
+            source: .recipe,
+            note: "Saved from \(post.authorName)'s \(post.dishName ?? "dish")",
+            wasCorrected: false
+        )
+        await logMeal(meal)
+    }
+
+    var currentBackend: BackendSession? { backend }
+
     func setProvider(_ provider: RecognitionProvider) {
         guard provider != self.provider else { return }
         self.provider = provider
@@ -679,6 +888,7 @@ final class AppModel {
             baseURL: baseURL,
             token: token,
             deviceID: deviceID,
+            sessionToken: (try? keychain.get(.sessionToken)) ?? nil,
             provider: provider
         ))
         backend = session

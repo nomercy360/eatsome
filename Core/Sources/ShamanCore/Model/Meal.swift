@@ -311,16 +311,3 @@ public struct MealEntry: Codable, Sendable, Hashable, Identifiable {
         return order.map { (name: $0, items: grouped[$0] ?? []) }
     }
 }
-
-/// One-off answers that a photo cannot establish. MEDAS item 1 ("is olive oil
-/// your main culinary fat") and item 13 ("do you prefer white meat to red") are
-/// habits, not events.
-public struct DietHabits: Codable, Sendable, Hashable {
-    public var oliveOilIsMainCulinaryFat: Bool
-    public var prefersWhiteMeatOverRed: Bool
-
-    public init(oliveOilIsMainCulinaryFat: Bool = true, prefersWhiteMeatOverRed: Bool = true) {
-        self.oliveOilIsMainCulinaryFat = oliveOilIsMainCulinaryFat
-        self.prefersWhiteMeatOverRed = prefersWhiteMeatOverRed
-    }
-}

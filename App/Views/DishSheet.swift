@@ -175,7 +175,7 @@ struct DishSheet: View {
         }
         .padding(.vertical, 13)
         .padding(.horizontal, 16)
-        .background(WellieTheme.well, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .background(WellieTheme.well, in: RoundedRectangle(cornerRadius: WellieTheme.cardRadius, style: .continuous))
     }
 
     /// Minus, the number, plus — one control rather than a label and a stepper
@@ -192,7 +192,7 @@ struct DishSheet: View {
         }
         .padding(.horizontal, 4)
         .padding(.vertical, 4)
-        .background(WellieTheme.background, in: Capsule())
+        .background(WellieTheme.background, in: RoundedRectangle(cornerRadius: WellieTheme.chipRadius, style: .continuous))
         .overlay(Capsule().stroke(WellieTheme.ice, lineWidth: 1))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("How many, \(count)")

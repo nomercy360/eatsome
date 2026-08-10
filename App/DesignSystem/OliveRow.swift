@@ -19,12 +19,17 @@ import SwiftUI
 /// progress bar with segments to complete.
 struct OliveRow: View {
     let olives: Int
+    /// Scales with the reader's text size. The olives are the score — the one
+    /// figure the whole screen is for — and a 16 pt row beside 40 pt type reads
+    /// as a decoration rather than as the answer.
+    @ScaledMetric(relativeTo: .body) private var scale: CGFloat = 1
     var size: CGFloat = 16
     /// Proportional by default, so changing a size never leaves the row too
     /// tight or too loose and every use stays in the same rhythm.
     var spacing: CGFloat?
 
-    private var gap: CGFloat { spacing ?? size * 0.34 }
+    private var scaled: CGFloat { size * scale }
+    private var gap: CGFloat { spacing ?? scaled * 0.34 }
 
     /// How much of the drawing survives in an unfilled slot. Low enough to be
     /// clearly unearned, high enough that five empties still read as a row of
@@ -35,7 +40,7 @@ struct OliveRow: View {
         HStack(spacing: gap) {
             ForEach(1...OliveRating.range.upperBound, id: \.self) { step in
                 OliveMark()
-                    .frame(width: size, height: size)
+                    .frame(width: scaled, height: scaled)
                     .opacity(step <= olives ? 1 : Self.ghost)
             }
         }
@@ -51,7 +56,10 @@ struct OliveRow: View {
 /// stopped reading as an olive at all. A flat shape is crisp at every size the
 /// row is drawn at, needs no @2x/@3x renders, and the unfilled state really is
 /// the same drawing at low opacity, as the row above promises.
-private struct OliveMark: View {
+/// Internal rather than private: an olive is also a reaction at a table, where
+/// it is one mark rather than a row of five — the same drawing, a different
+/// count.
+struct OliveMark: View {
     var body: some View {
         GeometryReader { proxy in
             let w = proxy.size.width

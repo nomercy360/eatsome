@@ -16,6 +16,12 @@ enum MealDisplay {
             let title = first.capitalizedFirst
             return dishNames.count > 1 ? "\(title) +\(dishNames.count - 1)" : title
         }
+        // Then the dish an item was recognised under. `storedDishes` is nil on
+        // everything logged before dishes existed and on anything assembled by
+        // hand, but the rows themselves often still carry the name — and "Pork
+        // rice bowl" is what the person ate, where "Pork" is one row of it.
+        let dishes = meal.items.compactMap(\.dish).filter { !$0.isEmpty }
+        if let first = dishes.first { return first.capitalizedFirst }
         let labels = meal.items.compactMap(\.label).filter { !$0.isEmpty }
         if let first = labels.first { return first.capitalizedFirst }
         return uniqueGroups(meal).first?.shortName ?? "Meal"
@@ -184,24 +190,6 @@ struct Delta {
     let caption: String
 }
 
-/// Small numbers are words in this app's sentences — "Three meals", "Six of the
-/// last seven days" — because a digit mid-sentence reads as data and the point
-/// of the sentence is that it is not.
-enum Count {
-    static func spell(_ value: Int, capitalized: Bool = true) -> String {
-        // Up to fourteen, because the score is out of fourteen items — thirteen
-        // once wine is off — and "Six of 13 habits held" is a sentence with a
-        // spreadsheet in the middle of it.
-        let words = ["Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven",
-                     "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen"]
-        guard value >= 0, value < words.count else { return "\(value)" }
-        return capitalized ? words[value] : words[value].lowercased()
-    }
-
-    static func meals(_ value: Int) -> String {
-        value == 1 ? "One meal" : "\(spell(value)) meals"
-    }
-}
 
 enum DayFormat {
     /// "Today", "Yesterday", then "Monday 3" the way the history screen labels

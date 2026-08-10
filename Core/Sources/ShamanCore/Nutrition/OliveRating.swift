@@ -74,7 +74,7 @@ public struct OliveConfiguration: Codable, Sendable, Hashable {
         FoodGroup.oliveOil.rawValue: 0.8,
         FoodGroup.vegetables.rawValue: 0.7,
         FoodGroup.nuts.rawValue: 0.7,
-        FoodGroup.sofrito.rawValue: 0.5,
+        FoodGroup.cookedTomatoSauce.rawValue: 0.5,
         FoodGroup.wholeGrains.rawValue: 0.5,
         FoodGroup.fruit.rawValue: 0.5,
 
@@ -87,7 +87,7 @@ public struct OliveConfiguration: Codable, Sendable, Hashable {
     ]
 
     public func weight(for group: FoodGroup) -> Double {
-        weights[group.rawValue] ?? 0
+        group.value(in: weights) ?? 0
     }
 }
 

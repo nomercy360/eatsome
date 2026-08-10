@@ -39,6 +39,14 @@ export async function tokensMatch(provided: string, expected: string): Promise<b
  * would make the id itself trustworthy. Ordering matters: quota keyed on
  * something forgeable is a fairness mechanism, and the global ceiling is the
  * only thing that bounds the bill.
+ *
+ * Signing in adds the proof beside this rather than on top of it. A verified
+ * session resolves to an `acct:` partition and can read every device partition
+ * the account has adopted (`data/accounts.ts`); a bare device id still resolves
+ * to itself and reads only what it wrote, because a forgeable header must not
+ * start unlocking rows it never wrote. Nothing retroactively claims that the
+ * old `device:` rows were proved — they were not, and the merge is careful to
+ * leave them saying exactly what they said.
  */
 export function accountForDevice(request: Request): string {
   const device = request.headers.get("X-Device-Id")?.trim();
@@ -55,15 +63,20 @@ export function requireStableAccount(accountId: string): string {
   return accountId;
 }
 
-export async function requireAccount(
+/**
+ * The token says "this is the app", and nothing more than that.
+ *
+ * Who the caller is comes afterwards, from `resolvePrincipal`: the device id
+ * says which copy of the app, and a session token says which person. Splitting
+ * the two apart is what lets a signed-in request keep the same shared-token
+ * gate as every other one.
+ */
+export async function requireAppToken(
   authorizationHeader: string | undefined,
   env: Env,
-  request?: Request,
-): Promise<string> {
+): Promise<void> {
   const token = bearerToken(authorizationHeader);
   if (!token || !(await tokensMatch(token, env.EATSOME_API_TOKEN))) {
     throw new HttpError(401, "A valid bearer token is required.");
   }
-  // The token says "this is the app". The device id says which copy of it.
-  return env.ACCOUNT_ID === "anonymous" && request ? accountForDevice(request) : env.ACCOUNT_ID;
 }

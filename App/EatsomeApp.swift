@@ -5,6 +5,21 @@ import SwiftUI
 struct EatsomeApp: App {
     @State private var model = AppModel()
 
+    init() {
+        // The identity is Space Grotesk and IBM Plex Mono, bundled. If either
+        // ever falls out of the target's resources, `UIFont(name:)` returns nil
+        // and SwiftUI quietly renders the system face instead — no crash, no
+        // warning, and every size and weight in `WellieTheme` still tuned for a
+        // typeface that is not on screen. That is the same shape of failure as
+        // the month the Gemini schema stopped emitting weights: everything
+        // works, and everything is wrong. So it is loud in development and
+        // survivable in production, where a fallback face beats a crash.
+        assert(
+            WellieTheme.fontsAreInstalled,
+            "Space Grotesk / IBM Plex Mono are missing from the bundle — check UIAppFonts in project.yml and re-run scripts/bootstrap.sh"
+        )
+    }
+
     var body: some Scene {
         WindowGroup {
             RootView()
@@ -32,10 +47,13 @@ struct RootView: View {
         if model.hasOnboarded {
             LogThreadView()
                 .tint(WellieTheme.blue)
-                .fontDesign(.rounded)
                 .onChange(of: scenePhase) { _, phase in
                     guard phase == .active else { return }
                     Task { await model.refreshHealth() }
+                    // Polling on open, which is the whole of the freshness
+                    // story until push exists. Every table response says when
+                    // the server counted, so the row can draw its own age.
+                    Task { await model.refreshTables() }
                 }
         } else {
             OnboardingView()

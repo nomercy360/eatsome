@@ -72,13 +72,15 @@ public struct FoodNutrientTable: Codable, Sendable, Equatable {
     /// fuzzy matching unusable here.
     public func food(for label: String, group: FoodGroup) -> Food? {
         for candidate in FoodLabel.candidates(for: label) {
-            if let hit = foods["\(group.rawValue)|\(candidate)"] { return hit }
+            for name in group.storedNames {
+                if let hit = foods["\(name)|\(candidate)"] { return hit }
+            }
         }
         return nil
     }
 
     /// The stand-in for a food group, or nil for a group with no honest answer.
-    public func representative(of group: FoodGroup) -> Food? { groups[group.rawValue] }
+    public func representative(of group: FoodGroup) -> Food? { group.value(in: groups) }
 
     /// Everything known about a weighed, labelled item, or nil when the food is
     /// not in the table — nil means "ask the group", never zero. A miss has to

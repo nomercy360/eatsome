@@ -21,6 +21,14 @@ public struct KeychainStore: Sendable {
         case geminiAPIKey = "gemini.api_key"
         case backendAPIToken = "backend.api_token"
         case deviceID = "backend.device_id"
+        /// Opaque, server-minted, and the only thing that proves who you are.
+        ///
+        /// Deliberately beside the device id rather than replacing it: the id
+        /// still names this install's own partition, and the two answer
+        /// different questions — which copy of the app, and which person. It
+        /// lives here for the same reason the device id does, so a reinstall
+        /// that restores the Keychain stays signed in.
+        case sessionToken = "backend.session_token"
     }
 
     public func set(_ value: String?, for key: Key) throws {

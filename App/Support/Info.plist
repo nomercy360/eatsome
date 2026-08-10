@@ -36,6 +36,13 @@
 	<string>Describe a meal out loud instead of typing it. Audio is transcribed to text as you speak and is not kept.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Pick a photo of a meal to log it.</string>
+	<key>UIAppFonts</key>
+	<array>
+		<string>SpaceGrotesk-Regular.ttf</string>
+		<string>SpaceGrotesk-Medium.ttf</string>
+		<string>SpaceGrotesk-Bold.ttf</string>
+		<string>IBMPlexMono-Medium.ttf</string>
+	</array>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UISupportedInterfaceOrientations</key>

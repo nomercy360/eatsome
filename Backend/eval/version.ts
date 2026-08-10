@@ -21,8 +21,8 @@
  *
  * Versions are immutable; a fix is a new file.
  */
-export const EVAL_PROMPT_FILE = process.env.EVAL_PROMPT ?? "meal-v18.md";
-export const EVAL_PROMPT_VERSION = process.env.EVAL_PROMPT_ID ?? "meal-v18-2026-08-09";
+export const EVAL_PROMPT_FILE = process.env.EVAL_PROMPT ?? "meal-v19.md";
+export const EVAL_PROMPT_VERSION = process.env.EVAL_PROMPT_ID ?? "meal-v19-2026-08-10";
 
 /**
  * The visible boundary the models are shown: orientation baked in, longest edge

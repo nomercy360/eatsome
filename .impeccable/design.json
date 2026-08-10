@@ -1,0 +1,161 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-10T01:20:00Z",
+  "title": "Design System: eatsome",
+  "extensions": {
+    "colorMeta": {
+      "signal-blue": {
+        "role": "primary",
+        "displayName": "Signal Blue",
+        "canonical": "#2E5BFF",
+        "tonalRamp": ["#050C33", "#0B1A5C", "#122A8C", "#1B3DBD", "#2E5BFF", "#5C81FF", "#8CA6FF", "#C4D0FF"]
+      },
+      "brine-olive": {
+        "role": "secondary",
+        "displayName": "Brine Olive",
+        "canonical": "#7D9455",
+        "tonalRamp": ["#1E240F", "#33401C", "#4B5B2B", "#64783D", "#7D9455", "#9BB374", "#BACE9B", "#DCE7C7"]
+      },
+      "heart": {
+        "role": "tertiary",
+        "displayName": "Heart Red",
+        "canonical": "#E0525B",
+        "tonalRamp": ["#2C0B0E", "#4E1519", "#742126", "#9C3138", "#C24149", "#E0525B", "#F08A90", "#F9C7CA"]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#0A0F1E",
+        "tonalRamp": ["#0A0F1E", "#1B2436", "#33405A", "#4C5F7A", "#667085", "#98A2B3", "#C9D2DC", "#EDF2F8"]
+      },
+      "ice": {
+        "role": "neutral",
+        "displayName": "Ice",
+        "canonical": "#F4F7FA",
+        "tonalRamp": ["#0B0F16", "#141A23", "#22303F", "#3C4E63", "#6B7D93", "#A8B6C6", "#DCE4EC", "#F4F7FA"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "The welcome screen only." },
+      "headline": { "displayName": "Headline", "purpose": "An onboarding question; a dish name on a gallery page." },
+      "title": { "displayName": "Title", "purpose": "Dish names on the timeline, card headings, the primary button." },
+      "body": { "displayName": "Body", "purpose": "Running prose and message text." },
+      "label": { "displayName": "Margin", "purpose": "Uppercased mono for every timestamp, count, food group and provenance note. Never carries a sentence." }
+    },
+    "shadows": [],
+    "motion": [
+      { "name": "press", "value": "easeOut 120ms, scale 0.985, opacity 0.8", "purpose": "The only button feedback. No lift, no shadow." },
+      { "name": "step", "value": "snappy 280ms", "purpose": "Advancing an onboarding step." },
+      { "name": "scroll-to-new", "value": "easeOut 250ms", "purpose": "Scrolling the day to a newly logged meal." }
+    ],
+    "breakpoints": [
+      { "name": "iphone", "value": "393pt" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one touchable thing on a screen. Full width, Signal Blue, no shadow.",
+      "html": "<button class=\"ds-btn-primary\">Continue</button>",
+      "css": ".ds-btn-primary { background:#2E5BFF; color:#fff; font-family:'Space Grotesk',system-ui,sans-serif; font-size:17.5px; font-weight:700; border:none; border-radius:8px; padding:17px 24px; width:100%; transition:transform .12s ease-out, opacity .12s ease-out; } .ds-btn-primary:hover { opacity:.9; } .ds-btn-primary:active { transform:scale(.985); opacity:.8; } .ds-btn-primary:focus-visible { outline:2px solid #2E5BFF; outline-offset:2px; }"
+    },
+    {
+      "name": "Ink Send Button",
+      "kind": "button",
+      "refersTo": "button-ink",
+      "description": "The one dark object in an exchange. Its foreground is a matched token, never a hardcoded white.",
+      "html": "<button class=\"ds-btn-ink\" aria-label=\"Send\"><svg viewBox=\"0 0 24 24\" width=\"15\" height=\"15\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 19V5M5 12l7-7 7 7\"/></svg></button>",
+      "css": ".ds-btn-ink { background:#0A0F1E; color:#fff; border:none; border-radius:8px; width:34px; height:34px; display:inline-flex; align-items:center; justify-content:center; transition:transform .12s ease-out; } .ds-btn-ink:active { transform:scale(.985); } .ds-btn-ink:focus-visible { outline:2px solid #2E5BFF; outline-offset:2px; }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "White on white, edged by a hairline. Never lifted by a shadow.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-title\">Fish or seafood</div><div class=\"ds-meta\">2 of 3</div></div>",
+      "css": ".ds-card { background:#fff; border:1px solid rgba(10,15,30,.10); border-radius:10px; padding:18px; font-family:'Space Grotesk',system-ui,sans-serif; } .ds-card-title { color:#0A0F1E; font-size:15.5px; font-weight:600; } .ds-meta { font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:9.5px; font-weight:500; letter-spacing:.6px; text-transform:uppercase; color:#667085; margin-top:4px; }"
+    },
+    {
+      "name": "Composer Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Always on screen. Focus turns the stroke Signal Blue; there is no glow.",
+      "html": "<input class=\"ds-input\" placeholder=\"What did you eat?\" />",
+      "css": ".ds-input { background:#fff; color:#0A0F1E; font-family:'Space Grotesk',system-ui,sans-serif; font-size:16px; font-weight:500; border:1.5px solid rgba(10,15,30,.16); border-radius:6px; padding:9px 14px; width:100%; box-sizing:border-box; } .ds-input::placeholder { color:#98A2B3; } .ds-input:focus { outline:none; border-color:#2E5BFF; }"
+    },
+    {
+      "name": "Ingredient Chip",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Outline only, no fill. Carries a shared ingredient and its weight.",
+      "html": "<span class=\"ds-chip\">custard · 40 g</span>",
+      "css": ".ds-chip { display:inline-block; font-family:'Space Grotesk',system-ui,sans-serif; font-size:13px; font-weight:500; color:#4C5F7A; border:1px solid rgba(10,15,30,.10); border-radius:6px; padding:6px 10px; }"
+    },
+    {
+      "name": "Square Avatar",
+      "kind": "custom",
+      "refersTo": "avatar",
+      "description": "Square, not round. A column of circles reads as a contact list; squares sit in the grid the photos do.",
+      "html": "<span class=\"ds-avatar\">S</span>",
+      "css": ".ds-avatar { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:6px; background:#F4F7FA; border:1px solid rgba(10,15,30,.10); color:#4C5F7A; font-family:'Space Grotesk',system-ui,sans-serif; font-size:12px; font-weight:700; }"
+    },
+    {
+      "name": "Olive Row",
+      "kind": "custom",
+      "refersTo": "olive-row",
+      "description": "The score, and the only chart in the app. Five steps because a 3.4 would claim a resolution nothing in the pipeline has.",
+      "html": "<span class=\"ds-olives\" role=\"img\" aria-label=\"Four of five olives\"><svg viewBox=\"0 0 14 14\" width=\"16\" height=\"16\"><ellipse cx=\"7\" cy=\"7.6\" rx=\"5.7\" ry=\"5.2\" fill=\"#7D9455\"/></svg><svg viewBox=\"0 0 14 14\" width=\"16\" height=\"16\"><ellipse cx=\"7\" cy=\"7.6\" rx=\"5.7\" ry=\"5.2\" fill=\"#7D9455\"/></svg><svg viewBox=\"0 0 14 14\" width=\"16\" height=\"16\"><ellipse cx=\"7\" cy=\"7.6\" rx=\"5.7\" ry=\"5.2\" fill=\"#7D9455\"/></svg><svg viewBox=\"0 0 14 14\" width=\"16\" height=\"16\"><ellipse cx=\"7\" cy=\"7.6\" rx=\"5.7\" ry=\"5.2\" fill=\"#7D9455\"/></svg><svg class=\"ds-olive-ghost\" viewBox=\"0 0 14 14\" width=\"16\" height=\"16\"><ellipse cx=\"7\" cy=\"7.6\" rx=\"5.7\" ry=\"5.2\" fill=\"#7D9455\"/></svg></span>",
+      "css": ".ds-olives { display:inline-flex; gap:5px; align-items:center; } .ds-olive-ghost { opacity:.17; }"
+    },
+    {
+      "name": "Timeline Entry",
+      "kind": "custom",
+      "refersTo": "time-rail",
+      "description": "A time in the gutter, a dot on the rail, the meal to the right. Ordered by when it was eaten; the margin admits when it was written.",
+      "html": "<div class=\"ds-entry\"><span class=\"ds-entry-time\">8:12</span><span class=\"ds-entry-rail\"><i class=\"ds-entry-dot\"></i></span><span class=\"ds-entry-body\"><span class=\"ds-entry-title\">Oatmeal with pear</span><span class=\"ds-entry-meta\">Whole grains, fruit, nuts</span><span class=\"ds-entry-meta ds-entry-faint\">Logged 19:02</span></span></div>",
+      "css": ".ds-entry { display:flex; align-items:flex-start; font-family:'Space Grotesk',system-ui,sans-serif; } .ds-entry-time { width:46px; flex:none; text-align:right; font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:10px; letter-spacing:.6px; text-transform:uppercase; color:#667085; padding-top:2px; } .ds-entry-rail { width:20px; flex:none; display:flex; justify-content:center; position:relative; align-self:stretch; } .ds-entry-rail::before { content:''; position:absolute; top:0; bottom:-18px; width:1px; background:rgba(10,15,30,.10); } .ds-entry-dot { position:relative; width:7px; height:7px; border-radius:50%; background:#0A0F1E; margin-top:5px; } .ds-entry-body { display:flex; flex-direction:column; gap:3px; } .ds-entry-title { color:#0A0F1E; font-size:16.5px; font-weight:700; } .ds-entry-meta { font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:9.5px; font-weight:500; letter-spacing:.6px; text-transform:uppercase; color:#667085; } .ds-entry-faint { color:#98A2B3; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Field Notebook",
+    "overview": "A day in eatsome is a record you keep, not a feed you consume. The day page is a time rail with entries hanging off it, dated and ordered by when the food was eaten rather than when it was written down — so a day typed up at bedtime still reads as the day you had, with one small margin note admitting when it was written. Everything about the surface follows from that: white paper, hairline rules, measurements set in the margin, and prose reserved for what the app actually observed.\n\nThe system is flat by construction. There is no shadow anywhere in it. Cards are white on white, separated by a single hairline, because a screen of them should read as a page of entries rather than a stack of floating objects. Colour is almost absent: one blue that marks the single thing you are meant to touch, one olive that belongs to the score and to nothing else, and a warm red spent entirely on a reaction. Everything else is ink, grey, or paper.\n\nThe binding anti-reference is the calorie tracker. No ring charts, no macro donuts, no red/amber/green judgement, no streak flames, no big number in a circle. The product exists as a rejection of that genre and the surface has to say so before a word is read.",
+    "keyCharacteristics": [
+      "Flat to the point of doctrine; a hairline does every job a shadow would",
+      "Two typefaces with a semantic split, never a decorative one",
+      "Radii live in a 6–10 px band and never become a pill",
+      "One accent, one score colour, one warm colour, and no fourth",
+      "Photographs run to the edge of the screen; the interface recedes around them",
+      "Dark mode is a real appearance, not an inversion"
+    ],
+    "rules": [
+      { "name": "The One Signal Rule", "body": "Signal Blue marks the single most touchable thing on a screen. If two elements are blue, one of them is wrong.", "section": "colors" },
+      { "name": "The Olive Is Not A Status Rule", "body": "Brine Olive belongs to the score. It never becomes a generic success green, and no other colour ever stands in for an olive.", "section": "colors" },
+      { "name": "The Matched Pair Rule", "body": "Any fill that inverts between appearances carries its own foreground token. A hardcoded white on an adaptive fill is a bug — it put white text on a white button and made every sent message invisible in dark mode.", "section": "colors" },
+      { "name": "The Margin Rule", "body": "IBM Plex Mono, uppercased, means this is data about the thing. Space Grotesk means this is the thing. Mono never carries a sentence; prose never carries a measurement.", "section": "typography" },
+      { "name": "The Spelled Number Rule", "body": "Numbers small enough to say out loud are spelled as words inside a sentence and printed as digits inside a measure. A digit mid-sentence reads as data, and the point of the sentence is that it is not.", "section": "typography" },
+      { "name": "The Flat Page Rule", "body": "No shadow anywhere. If something needs to separate from what is behind it, it gets a hairline or a tonal step. If it needs to separate from both, the layout is wrong.", "section": "elevation" },
+      { "name": "The No Pill Rule", "body": "No Capsule, no Circle on a control, no cornerRadius above 10. The previous direction ran 12–28 and reads as a different app.", "section": "shapes" }
+    ],
+    "dos": [
+      "Do separate surfaces with the 1 px hairline at rgba(10,15,30,.10) and a tonal step from #FFFFFF to #F4F7FA.",
+      "Do set every timestamp, count, food-group list and provenance note in uppercased IBM Plex Mono at 9.5–10 px with +0.6 tracking.",
+      "Do give any adaptive fill its own matched foreground token.",
+      "Do keep radii between 6 and 10 px, and square avatars and icon buttons.",
+      "Do run photographs full-bleed in a feed and square them to 8 px in a card.",
+      "Do state a figure's own limits where it is drawn — ≥ on salt, an AS OF age on a polled count, 'logged 19:02' on a backdated meal.",
+      "Do spell small numbers as words in prose and print them as digits in a measure."
+    ],
+    "donts": [
+      "Don't add a shadow. Anywhere. The system has none by design.",
+      "Don't use Capsule(), Circle() on a control, or a radius above 10 px.",
+      "Don't use .fontDesign(.rounded) or the system rounded face — it is the previous identity and overrides the bundled one on every Text that did not ask.",
+      "Don't put a second blue element on a screen that already has its one touchable thing in Signal Blue.",
+      "Don't use Brine Olive as a success colour or substitute another colour for an olive.",
+      "Don't draw a ring chart, macro donut, streak counter, or red/amber/green scale. The calorie tracker is the anti-reference.",
+      "Don't hardcode Color.white as a foreground on any fill that adapts between light and dark.",
+      "Don't let ink become a second dark object in an exchange — one per exchange is what keeps a busy day readable."
+    ]
+  }
+}

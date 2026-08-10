@@ -10,6 +10,98 @@ import {
 } from "drizzle-orm/sqlite-core";
 import type { LoggedEventInput, MealRecognitionPayload } from "../../src/contracts";
 
+/**
+ * One person's account. Its `id` is itself a partition key — the same kind of
+ * string as `device:<uuid>` — so an account is a place rows can be written,
+ * not a level of indirection above one.
+ *
+ * That is what keeps the merge below from ever touching a stored row.
+ */
+export const accounts = sqliteTable("accounts", {
+  /** `acct:<uuidv7>`, and it appears verbatim in `events.account_id`. */
+  id: text().primaryKey(),
+  createdAt: integer("created_at").notNull(),
+});
+
+/**
+ * Provider plus subject, resolved to an account. Two rows per person is the
+ * normal case rather than a conflict: Apple and Google both issue a `sub` for
+ * the same human, and both should land on the same account.
+ *
+ * The subject is the only claim stored. An email is a label a provider will
+ * happily move between accounts — Apple's private relay addresses change, and
+ * Google's are reassignable within a workspace — so identifying on one is how a
+ * stranger inherits somebody's history.
+ */
+export const identities = sqliteTable(
+  "identities",
+  {
+    provider: text().notNull(),
+    subject: text().notNull(),
+    accountId: text("account_id")
+      .notNull()
+      .references(() => accounts.id),
+    /** Recorded once, at first sign-in, for support. Never used to identify. */
+    email: text(),
+    emailVerified: integer("email_verified", { mode: "boolean" }).notNull().default(false),
+    createdAt: integer("created_at").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.provider, table.subject] }),
+    index("identities_account_idx").on(table.accountId),
+  ],
+);
+
+/**
+ * The merge, and the whole of it: a device partition adopted by an account.
+ *
+ * Every row already written carries the partition it was written under, and
+ * nothing here changes that. Reading as an account means reading the union of
+ * its own partition and every device partition linked to it, which is why the
+ * merge is one INSERT rather than an UPDATE across four tables — see the long
+ * argument in `data/accounts.ts`.
+ *
+ * `partition_id` is the primary key, not `(partition_id, account_id)`. A device
+ * belongs to exactly one account forever; the first sign-in wins, and a later
+ * one against a different identity is reported as a conflict rather than
+ * quietly moving history off the first account.
+ */
+export const accountPartitions = sqliteTable(
+  "account_partitions",
+  {
+    /** `device:<uuid>`. Never an `ip:` key — those are refused before here. */
+    partitionId: text("partition_id").primaryKey(),
+    accountId: text("account_id")
+      .notNull()
+      .references(() => accounts.id),
+    linkedAt: integer("linked_at").notNull(),
+  },
+  (table) => [index("account_partitions_account_idx").on(table.accountId)],
+);
+
+/**
+ * What the phone sends instead of re-proving its identity on every request.
+ *
+ * Apple's identity token lives about ten minutes and cannot be refreshed
+ * without another Face ID prompt, so it is a sign-in credential and not a
+ * session credential. Only the SHA-256 of the token is stored: a leaked
+ * database dump is then a list of hashes rather than a set of working logins.
+ */
+export const sessions = sqliteTable(
+  "sessions",
+  {
+    tokenHash: text("token_hash").primaryKey(),
+    accountId: text("account_id")
+      .notNull()
+      .references(() => accounts.id),
+    /** Which phone holds it, so one device can be signed out on its own. */
+    deviceId: text("device_id").notNull(),
+    createdAt: integer("created_at").notNull(),
+    expiresAt: integer("expires_at").notNull(),
+  },
+  (table) => [index("sessions_account_idx").on(table.accountId, table.expiresAt)],
+);
+
 export const events = sqliteTable(
   "events",
   {
@@ -154,6 +246,90 @@ export const corpusConsents = sqliteTable("corpus_consents", {
   policyVersion: text("policy_version").notNull(),
   updatedAt: integer("updated_at").notNull(),
 });
+
+/**
+ * Tables — a small group feed of shared meals. See `migrations/0008_tables.sql`
+ * for the load-bearing decisions; the short form: members are public as a
+ * per-table `member_id` and a typed display name, never as a partition string;
+ * posts are copies redacted at share time; `seq` is the server-assigned order.
+ */
+export const socialTables = sqliteTable(
+  "tables",
+  {
+    id: text().primaryKey(),
+    name: text().notNull(),
+    creatorAccount: text("creator_account").notNull(),
+    inviteCode: text("invite_code").notNull(),
+    createdAt: integer("created_at").notNull(),
+  },
+  (table) => [uniqueIndex("tables_invite_idx").on(table.inviteCode)],
+);
+
+export const tableMembers = sqliteTable(
+  "table_members",
+  {
+    tableId: text("table_id").notNull(),
+    accountId: text("account_id").notNull(),
+    memberId: text("member_id").notNull(),
+    displayName: text("display_name").notNull(),
+    role: text().notNull(),
+    joinedAt: integer("joined_at").notNull(),
+    lastReadSeq: integer("last_read_seq").notNull().default(0),
+  },
+  (table) => [
+    primaryKey({ columns: [table.tableId, table.accountId] }),
+    uniqueIndex("table_members_member_idx").on(table.tableId, table.memberId),
+    index("table_members_account_idx").on(table.accountId),
+    check("table_members_role_check", sql`${table.role} IN ('creator', 'member')`),
+  ],
+);
+
+export const tablePosts = sqliteTable(
+  "table_posts",
+  {
+    id: text().primaryKey(),
+    tableId: text("table_id").notNull(),
+    seq: integer().notNull(),
+    authorAccount: text("author_account").notNull(),
+    authorMemberId: text("author_member_id").notNull(),
+    /** Denormalized on purpose: a post is an utterance, and it keeps saying who
+     *  said it even after they leave the table. */
+    authorName: text("author_name").notNull(),
+    kind: text().notNull(),
+    replyToPostId: text("reply_to_post_id"),
+    mealId: text("meal_id"),
+    dishName: text("dish_name"),
+    body: text(),
+    ingredientsJson: text("ingredients_json"),
+    photoObjectKey: text("photo_object_key"),
+    photoMime: text("photo_mime"),
+    createdAt: integer("created_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("table_posts_seq_idx").on(table.tableId, table.seq),
+    index("table_posts_author_idx").on(table.authorAccount),
+    check("table_posts_kind_check", sql`${table.kind} IN ('share', 'message')`),
+    check(
+      "table_posts_ingredients_check",
+      sql`${table.ingredientsJson} IS NULL OR json_valid(${table.ingredientsJson})`,
+    ),
+  ],
+);
+
+export const tableReactions = sqliteTable(
+  "table_reactions",
+  {
+    postId: text("post_id").notNull(),
+    accountId: text("account_id").notNull(),
+    kind: text().notNull(),
+    createdAt: integer("created_at").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.postId, table.accountId, table.kind] }),
+    index("table_reactions_account_idx").on(table.accountId),
+    check("table_reactions_kind_check", sql`${table.kind} IN ('olive', 'heart')`),
+  ],
+);
 
 export const mealEvals = sqliteTable(
   "meal_evals",

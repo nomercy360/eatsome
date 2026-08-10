@@ -21,6 +21,7 @@ struct MealDetailView: View {
     @State private var openDish: MealDish?
     @State private var editing: EditingFood?
     @State private var showingDelete = false
+    @State private var showingTableShare = false
     @State private var isRefining = false
     @State private var refineFailure: String?
     /// The dish a new ingredient is being named for, the words being typed for
@@ -55,6 +56,7 @@ struct MealDetailView: View {
                 sentenceCard
                 nutrientCard
                 shareCard
+                tableShareCard
                 noteCard
                 factsCard
 
@@ -86,6 +88,7 @@ struct MealDetailView: View {
         // Only once something has actually moved. Comparing the whole entry
         // rather than tracking a flag means undoing an edit hides it again.
         .safeAreaInset(edge: .bottom) { if draft != meal { saveBar } }
+        .sheet(isPresented: $showingTableShare) { ShareToTableSheet(meal: meal) }
         .sheet(item: $editing) { target in
             if let index = draft.items.firstIndex(where: { $0.id == target.id }) {
                 FoodEditSheet(
@@ -308,6 +311,32 @@ struct MealDetailView: View {
     /// The same one question as the capture screen, worded identically. Two
     /// screens asking the same thing in different words is how a person comes
     /// to believe they are two different things.
+    /// Sharing this meal with friends, and only when there are friends to share
+    /// it with. `shareCard` above is a different question with an unfortunately
+    /// similar name — that one asks how much of the plate was yours.
+    ///
+    /// Absent when you are in no tables, for the same reason the row on the day
+    /// page is: a button offering to share with nobody is an advert.
+    @ViewBuilder
+    private var tableShareCard: some View {
+        if !model.tables.isEmpty {
+            Button { showingTableShare = true } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.system(size: 15, weight: .semibold))
+                    Text("Share with a table")
+                        .font(WellieTheme.font(15.5, weight: .bold))
+                    Spacer(minLength: 8)
+                    WellieMeta("Your olives stay yours")
+                }
+                .foregroundStyle(WellieTheme.blue)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .wellieCard()
+        }
+    }
+
     private var shareCard: some View {
         VStack(alignment: .leading, spacing: 10) {
             VStack(alignment: .leading, spacing: 3) {
@@ -339,7 +368,7 @@ struct MealDetailView: View {
             .focused($isTyping)
             .lineLimit(1...5)
             .padding(14)
-            .background(WellieTheme.well, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .background(WellieTheme.well, in: RoundedRectangle(cornerRadius: WellieTheme.cardRadius, style: .continuous))
 
             if hasNewNote {
                 Button {

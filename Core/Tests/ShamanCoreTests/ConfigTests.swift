@@ -16,7 +16,6 @@ struct ConfigTests {
         #expect(config.recognition.model == "gpt-5.6-luna")
         #expect(config.lunaConfiguration.systemPrompt == MealPrompt.system)
         #expect(config.medas.windowDays == 7)
-        #expect(config.medas.excludedItems == [8])
 
         // Prompt version carries the model, so eval rows from two providers
         // answering the same prompt never pool into one bucket.

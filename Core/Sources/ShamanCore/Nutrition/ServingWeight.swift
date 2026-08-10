@@ -36,12 +36,13 @@ public enum ServingWeight {
         FoodGroup.refinedGrains.rawValue: 150,
         FoodGroup.vegetables.rawValue: 100,
         FoodGroup.fruit.rawValue: 120,
-        FoodGroup.healthyFats.rawValue: 30,
+        FoodGroup.plantFats.rawValue: 30,
         FoodGroup.pastry.rawValue: 60,
         FoodGroup.sweets.rawValue: 30,
-        FoodGroup.sofrito.rawValue: 50,
+        FoodGroup.cookedTomatoSauce.rawValue: 50,
         FoodGroup.butter.rawValue: 15,
         FoodGroup.oliveOil.rawValue: 10,
+        FoodGroup.vegetableOil.rawValue: 10,
         FoodGroup.sugaryDrinks.rawValue: 330,
         FoodGroup.coffee.rawValue: 200,
         FoodGroup.tea.rawValue: 200,
@@ -67,7 +68,7 @@ public enum ServingWeight {
         of group: FoodGroup,
         table: [String: Double] = defaultGrams
     ) -> Double {
-        let perServing = table[group.rawValue] ?? 100
+        let perServing = group.value(in: table) ?? 100
         guard perServing > 0 else { return 0 }
         return grams / perServing
     }

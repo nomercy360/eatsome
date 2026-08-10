@@ -11,6 +11,10 @@ public struct BackendSession: MealRecognizer, MealRefiner, Sendable {
         public var baseURL: URL
         public var token: String
         public var deviceID: String
+        /// Present once somebody has signed in. Its absence is not an error:
+        /// the app works anonymously and always has, and the device id alone
+        /// still reaches this install's own data.
+        public var sessionToken: String?
         public var provider: RecognitionProvider?
         public var timeout: TimeInterval
 
@@ -18,12 +22,14 @@ public struct BackendSession: MealRecognizer, MealRefiner, Sendable {
             baseURL: URL,
             token: String,
             deviceID: String,
+            sessionToken: String? = nil,
             provider: RecognitionProvider? = nil,
             timeout: TimeInterval = 60
         ) {
             self.baseURL = baseURL
             self.token = token
             self.deviceID = deviceID
+            self.sessionToken = sessionToken
             self.provider = provider
             self.timeout = timeout
         }
@@ -123,8 +129,161 @@ public struct BackendSession: MealRecognizer, MealRefiner, Sendable {
         public let expiresAt: String?
     }
 
+    /// Trade a provider's identity token for a session, and hand this device's
+    /// anonymous history to the account behind it.
+    ///
+    /// The `nonce` is the *raw* value this sign-in generated, never the hash
+    /// that went to Apple. The server does the hashing and compares, so a
+    /// client that sends the hash by mistake fails rather than passing a check
+    /// that was doing nothing.
+    ///
+    /// One thing here is permanent: if `merge.adopted` comes back true, this
+    /// device's pre-sign-in meals now belong to that account and there is no
+    /// way to take them back. A `conflict` means the phone had already been
+    /// claimed by a different account — nothing moved, and the old history is
+    /// still where it was rather than silently gone.
+    public func signIn(
+        provider: IdentityProvider,
+        identityToken: String,
+        nonce: String?
+    ) async throws -> SignInResult {
+        try await send(
+            path: "auth/sessions",
+            method: "POST",
+            body: SignInBody(
+                provider: provider.rawValue,
+                identityToken: identityToken,
+                nonce: nonce
+            )
+        )
+    }
+
+    /// Sign this device out. Not an un-merge: the adopted history stays with
+    /// the account, because signing out of a phone is not asking for that.
+    public func signOut() async throws {
+        let _: SignOutEnvelope = try await send(
+            path: "auth/sessions",
+            method: "DELETE",
+            body: EmptyBody()
+        )
+    }
+
     public func deleteAccountData() async throws {
         let _: DeleteEnvelope = try await send(path: "account", method: "DELETE", body: EmptyBody())
+    }
+
+    // MARK: - Tables
+
+    /// Every table you are in, with its badge.
+    ///
+    /// `since` is the caller's own local start-of-day in epoch millis, because
+    /// the server has no idea where this phone's midnight is — the same reason
+    /// the diet scorer takes `windowEnd` from its caller. Omit it and
+    /// `cookedToday` comes back nil rather than counted against a UTC day
+    /// nobody lives in.
+    public func tables(since: EpochMillis? = nil) async throws -> TablesListResponse {
+        try await get(path: "tables", query: since.map { [URLQueryItem(name: "since", value: "\($0)")] } ?? [])
+    }
+
+    public func feed(
+        tableID: String,
+        cursor: Int? = nil,
+        limit: Int? = nil
+    ) async throws -> TableFeedResponse {
+        var query: [URLQueryItem] = []
+        if let cursor { query.append(URLQueryItem(name: "cursor", value: "\(cursor)")) }
+        if let limit { query.append(URLQueryItem(name: "limit", value: "\(limit)")) }
+        return try await get(path: "tables/\(tableID)/feed", query: query)
+    }
+
+    public func createTable(_ request: CreateTableRequest) async throws -> TableSummary {
+        try await send(path: "tables", method: "POST", body: request)
+    }
+
+    public func joinTable(_ request: JoinTableRequest) async throws -> TableSummary {
+        try await send(path: "tables/join", method: "POST", body: request)
+    }
+
+    public func post(_ request: CreatePostRequest, to tableID: String) async throws -> TablePost {
+        try await send(path: "tables/\(tableID)/posts", method: "POST", body: request)
+    }
+
+    /// Idempotent both ways, which is what makes it safe to draw the new state
+    /// before the call returns and to retry without checking.
+    public func react(
+        postID: String,
+        kind: TableReaction,
+        on: Bool,
+        in tableID: String
+    ) async throws {
+        struct Body: Encodable { let postId: String; let kind: String; let on: Bool }
+        let _: EmptyResponse = try await send(
+            path: "tables/\(tableID)/reactions",
+            method: "PUT",
+            body: Body(postId: postID, kind: kind.rawValue, on: on)
+        )
+    }
+
+    /// The top `seq` actually rendered. Monotonic server-side, so a phone that
+    /// was offline cannot un-read what another device already saw.
+    public func markRead(seq: Int, in tableID: String) async throws {
+        struct Body: Encodable { let seq: Int }
+        let _: EmptyResponse = try await send(
+            path: "tables/\(tableID)/read",
+            method: "PUT",
+            body: Body(seq: seq)
+        )
+    }
+
+    /// The bytes of a shared photograph, membership-gated by the server.
+    /// `TablePost.hasPhoto` says whether it is worth asking.
+    public func tablePhoto(postID: String, in tableID: String) async throws -> Data {
+        try await bytes(path: "tables/\(tableID)/media/\(postID)")
+    }
+
+    private struct EmptyResponse: Decodable {
+        init(from decoder: any Decoder) throws {}
+    }
+
+    private func get<Output: Decodable>(path: String, query: [URLQueryItem] = []) async throws -> Output {
+        let data = try await bytes(path: path, query: query)
+        do {
+            return try decoder.decode(Output.self, from: data)
+        } catch {
+            throw BackendError.decoding(String(describing: error))
+        }
+    }
+
+    /// Query items go through `URLComponents` rather than into the path.
+    /// `URL.appending(path:)` treats its whole argument as one path component
+    /// and percent-encodes the `?`, so a hand-built query string arrives as a
+    /// literal path segment — the request succeeds against a route that ignores
+    /// it and quietly comes back unfiltered, which for `since` would mean
+    /// `cookedToday` counted against nothing at all.
+    private func bytes(path: String, query: [URLQueryItem] = []) async throws -> Data {
+        var components = URLComponents(
+            url: configuration.baseURL.appending(path: path),
+            resolvingAgainstBaseURL: false
+        )
+        if !query.isEmpty { components?.queryItems = query }
+        guard let endpoint = components?.url else { throw BackendError.emptyResponse }
+        var request = URLRequest(url: endpoint)
+        request.httpMethod = "GET"
+        request.timeoutInterval = configuration.timeout
+        request.setValue("Bearer \(configuration.token)", forHTTPHeaderField: "Authorization")
+        request.setValue(configuration.deviceID, forHTTPHeaderField: "X-Device-Id")
+        if let session = configuration.sessionToken, !session.isEmpty {
+            request.setValue(session, forHTTPHeaderField: "X-Session-Token")
+        }
+
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw BackendError.emptyResponse }
+        guard (200..<300).contains(http.statusCode) else {
+            let message = (try? decoder.decode(ErrorEnvelope.self, from: data).error)
+                ?? HTTPURLResponse.localizedString(forStatusCode: http.statusCode)
+            throw BackendError.http(status: http.statusCode, message: message)
+        }
+        return data
     }
 
     private func send<Body: Encodable, Output: Decodable>(
@@ -138,6 +297,13 @@ public struct BackendSession: MealRecognizer, MealRefiner, Sendable {
         request.timeoutInterval = configuration.timeout
         request.setValue("Bearer \(configuration.token)", forHTTPHeaderField: "Authorization")
         request.setValue(configuration.deviceID, forHTTPHeaderField: "X-Device-Id")
+        // Separate from Authorization, which carries the shared build token and
+        // says only "this is the app". Two different claims, two different
+        // headers: folding them together would mean one of them could not be
+        // absent, and the anonymous path needs exactly that.
+        if let session = configuration.sessionToken, !session.isEmpty {
+            request.setValue(session, forHTTPHeaderField: "X-Session-Token")
+        }
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         if method != "DELETE" { request.httpBody = try encoder.encode(body) }
 
@@ -154,6 +320,13 @@ public struct BackendSession: MealRecognizer, MealRefiner, Sendable {
             throw BackendError.decoding(String(describing: error))
         }
     }
+
+    private struct SignInBody: Encodable {
+        let provider: String
+        let identityToken: String
+        let nonce: String?
+    }
+    private struct SignOutEnvelope: Decodable { let revoked: Int }
 
     private struct RecognitionRequest: Encodable {
         let provider: String?
@@ -197,6 +370,57 @@ public struct BackendSession: MealRecognizer, MealRefiner, Sendable {
     }
     private struct ErrorEnvelope: Decodable { let error: String }
     private struct EmptyBody: Encodable {}
+}
+
+public enum IdentityProvider: String, Sendable, CaseIterable {
+    case apple
+    case google
+}
+
+/// What the server says came of a sign-in.
+///
+/// `merge` is the part worth showing a human. Nothing about this app's history
+/// moves — the server reads the union of the partitions an account owns rather
+/// than rewriting rows — so `adopted` means "this phone's earlier meals are now
+/// also the account's", and `conflict` means the phone was already claimed and
+/// they stayed where they were.
+public struct SignInResult: Decodable, Sendable {
+    public struct Merge: Decodable, Sendable {
+        public let partition: String
+        public let adopted: Bool
+        /// `linked_to_another_account`, or nil. A string rather than an enum:
+        /// a server that grows a new reason must not fail to decode on an old
+        /// build, and this one is shown, not switched on.
+        public let conflict: String?
+    }
+
+    public let accountId: String
+    public let sessionToken: String
+    public let expiresAt: EpochMillis
+    public let accountCreated: Bool
+    public let merge: Merge
+}
+
+/// The client half of the replay check.
+///
+/// A raw random value stays on the phone and its SHA-256 goes to the provider,
+/// which echoes the hash into the identity token. The server hashes the raw
+/// value we send it and compares. Sending the raw nonce to the provider instead
+/// would work identically and put the secret in one more place for no gain.
+public enum SignInNonce {
+    public struct Pair: Sendable {
+        /// Goes to the server, alongside the identity token.
+        public let raw: String
+        /// Goes to Apple, in the authorization request.
+        public let hashed: String
+    }
+
+    public static func generate() -> Pair {
+        var bytes = [UInt8](repeating: 0, count: 32)
+        for index in bytes.indices { bytes[index] = UInt8.random(in: 0...255) }
+        let raw = bytes.map { String(format: "%02x", $0) }.joined()
+        return Pair(raw: raw, hashed: ImageDigest.sha256(Data(raw.utf8)))
+    }
 }
 
 public enum BackendError: Error, LocalizedError, Sendable {

@@ -66,7 +66,7 @@ Anything that touches a framework goes in `App/`. HealthKit is isolated in
 - **A total is only allowed when every food group can answer.** That is the
   condition the paragraph above turns on, so it is a test rather than a
   convention: `FoodNutrientTableTests.everyGroupHasARepresentative` requires a
-  sourced `GROUP_REPRESENTATIVE` row for all 26 groups but `other`. `other` has
+  sourced `GROUP_REPRESENTATIVE` row for all 27 groups but `other`. `other` has
   none on purpose — it is the bucket for food that was not recognised, and a
   figure for it would be invented rather than estimated. Its weight lands in
   `NutrientTotal.unresolvedGrams`, which every screen showing a total must
@@ -174,23 +174,91 @@ Anything that touches a framework goes in `App/`. HealthKit is isolated in
   `item.portion.servings` directly into a score — four fruit rows on one platter
   are one plate of fruit. `MealItem.effectiveServings()` is the one place that
   decides which of `grams`, `servings` and `portion` is authoritative.
+- **A diet is data, and the engine never mentions the Mediterranean.**
+  `DietSpec` is name + goals + constraints + habits; presets ship as specs and a
+  custom diet forks one. Because no score is ever stored, switching re-scores
+  the whole history instantly and re-reads no photograph — one parse, many
+  verdicts. `MEDAS` is now `DietPresets.mediterranean` and scores exactly what
+  it always scored; `DietTests` keeps every assertion that was written against
+  the old `MedasScorer` for precisely that reason.
+
+- **Goals average; constraints are kept or broken, and the type says which.**
+  `DietSpec.goals` and `DietSpec.constraints` are separate arrays rather than a
+  flag, so nothing can average an exclusion. "4.5 olives, but there was chicken
+  stock in the soup" is the case the split exists for: an average is the
+  instrument that would lose the second half. A broken constraint names the
+  meal and the day. `never` is its own shape because `dailyBelow(groups, 0)` is
+  strictly-less-than and can never pass — exclusion had no expression at all.
+
+- **Only a published instrument may claim to be one.** `DietSpec.instrument` is
+  what draws the validated badge and what gates `meetsGoodAdherence`, not the
+  name — a fork drops it, and `ScoreMethodView` stops describing PREDIMED for a
+  diet that is not it.
+
+- **Two food groups were renamed, and both spellings still resolve.**
+  `sofrito` → `cooked_tomato_sauce` and `healthy_fats` → `plant_fats`, because
+  both named one diet's opinion rather than a food. The raw value moved, so new
+  writes use the new spelling; `FoodGroup.init(from:)` and `FoodGroup.value(in:)`
+  make the old one keep resolving, for events *and* for the string-keyed tables.
+  That second half is the load-bearing one: `shaman-config.json` is fetched from
+  one URL by builds of every age, a missed key there is a wrong number with no
+  error anywhere, and so the generated table deliberately carries both spellings
+  (`LEGACY_GROUP_NAMES` in `build-food-table.py`). `vegetable_oil` is the one
+  addition — without it every non-olive oil vanished into nothing, and an
+  invisible frying fat was guessed as olive oil, which inflated MEDAS item 2.
+
+- **Which ambiguity earns a tap is a question about the active diet.**
+  `DietSpec.choiceChangesScore` replaces `Medas.choiceChangesScore`, so a
+  low-sugar week stops being asked "fish or chicken?" and starts being asked
+  "juice or smoothie?" with no new code. Nutrient rules are deliberately *not*
+  in the footprint: a footprint is a property of a group and a protein target is
+  a property of a quantity, so folding it in would make nearly every pair
+  distinct and saturate the one-question budget. `choiceChangesNutrients` is the
+  quantity-aware test, at a call site that has the grams.
+
 - **Thresholds and prompts belong in `shaman-config.json`,** not in Swift
   literals, so they can change without a rebuild.
 - **Three names per food group, and they are not interchangeable.**
   `displayName` is the screener's vocabulary and belongs next to a score or in
   an eval; `plainName` is the picker row; `shortName` is a chip and the middle
-  of a sentence. Raw values are the on-disk format and never move. The same
-  split applies to the fourteen items: `MedasItem.title` states the rule,
-  `MedasCopy.plainTitle` says it out loud.
+  of a sentence. Raw values are the on-disk format and move only under the
+  both-spellings discipline above — twice ever, and never silently. The same
+  split applies to the rules: `DietGoal.title` states the rule in the
+  screener's own words, `DietCopy.plainTitle` says it out loud — generated from
+  the rule's template, so a rule somebody built in the editor reads as a
+  sentence rather than as a threshold.
 - **Sentences, not forms.** The recognised meal is one tappable sentence
   (`FoodSentence`), and at most one ambiguity is ever raised as a question.
   Saving is never blocked on answering it — an ignored question is itself
   recorded, because uncorrected model output is evidence.
 
+- **The identity is Space Grotesk, and it ships in the bundle.** `9d` in the
+  redesign doc is the whole system: Space Grotesk 400–700 for anything a person
+  reads, IBM Plex Mono uppercased for meta, radii 6–10 and never a pill, square
+  avatars, white surfaces separated by hairlines rather than lifted by shadows,
+  photos full-bleed and squared to 8 only inside a card. Both faces are OFL/SIL
+  and bundled under `App/Resources/Fonts` with their licences, declared in
+  `UIAppFonts` in `project.yml` — a font fetched at runtime is a first launch
+  that renders in the wrong typeface on a bad connection. `WellieTheme.font`
+  falls back to the system face and `EatsomeApp.init` asserts
+  `fontsAreInstalled`, because a missing resource otherwise renders silently in
+  SF with every metric here still tuned for a different face.
+
+- **Ink is reserved for sent text.** One dark object per exchange, and it is the
+  bubble in `LogThreadView`. Avatars, captions and photo posts stay light
+  grayscale, which is what lets twenty messages in a day read as a gallery
+  rather than as a wall. Blue was previously spent both here and on every
+  primary button, so a day of messages competed with the thing you were meant
+  to tap.
+
 ## Screens
 
 The UI implements the approved redesign in the `Eatsome mobile app redesign`
-Claude Design project, screen for screen: `2a` onboarding, `1b`/`2b` Today,
+Claude Design project, plus the two settings screens and the onboarding flow
+from `Diet Engine Research` — `A` the "What counts" diet picker and `B` the diet
+editor, both in `App/Views/DietView.swift`. Screen for screen: `2a` onboarding
+(now four questions and then food — no camera or Health pre-ask, both deferred
+to the moment they are needed), `1b`/`2b` Today,
 `2c` My week, `3a`/`3c` the camera chooser, `2d` reading and failure, `1b Add
 meal` the result, `2e` meal detail, `2f` history, `2g` dishes, `2h` add by
 hand, `2i` settings. Screen ids appear in the doc comment of each view; if you

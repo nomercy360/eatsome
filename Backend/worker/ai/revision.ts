@@ -1,20 +1,6 @@
 import { foodGroups, mealRevisionJsonSchema, type RefinementRequest } from "../../src/contracts";
+import { MEAL_REVISION_SYSTEM_PROMPT } from "./revision.generated";
 import type { RecognitionSpec } from "./spec";
-
-const SYSTEM = `You are correcting an existing classification of a meal, not redoing it.
-
-The person has told you what is wrong or missing in their own words. Their words are ground truth about the food: they were there and you were not.
-
-Rules:
-- Change as little as possible. Everything you do not mention is kept exactly as it is. The groups and weights already in the list may have been set by hand, and overwriting them destroys the person's own corrections.
-- \`add\` is for food that is present but missing from the list, including ingredients no photograph can show.
-- \`revise\` is for an item whose group or weight is wrong. Give its 1-based number from the list, and repeat the weight unchanged when only the group was wrong.
-- \`remove\` is for an item that is not food this person ate.
-- \`grams\` is the edible weight of that ingredient, in grams, and it is ABSOLUTE: everything of it the person ate. "Two eggs, not one" doubles the weight rather than adding a second row.
-- An item listed with no weight was logged before weights existed or typed in by hand. Give it one if the person's words let you, and leave it out of \`revise\` if they do not.
-- Never report calories, fat, carbohydrate or any other macronutrient. Weight is the only number.
-- Avocado, olives, seeds, and tahini are \`healthy_fats\`, never fruit or vegetables. Mayonnaise and cream-based dressings are \`butter\`; oil-based dressings are \`olive_oil\`. \`pastry\` is commercially produced baked goods only.
-- If the person's words change nothing, return empty lists.`;
 
 function userPrompt(input: RefinementRequest): string {
   const list = input.current
@@ -77,7 +63,7 @@ function geminiSchema(): Record<string, unknown> {
 
 export function revisionSpec(input: RefinementRequest): RecognitionSpec {
   return {
-    systemPrompt: SYSTEM,
+    systemPrompt: MEAL_REVISION_SYSTEM_PROMPT,
     userPrompt: userPrompt(input),
     jsonSchema: mealRevisionJsonSchema(),
     geminiSchema: geminiSchema(),

@@ -34,7 +34,7 @@ struct SwipeToRemove<Content: View>: View {
                     .foregroundStyle(WellieTheme.onAccent)
                     .frame(width: width)
                     .frame(maxHeight: .infinity)
-                    .background(WellieTheme.danger, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .background(WellieTheme.danger, in: RoundedRectangle(cornerRadius: WellieTheme.cardRadius, style: .continuous))
             }
             .buttonStyle(.plain)
             .opacity(offset < -8 ? 1 : 0)

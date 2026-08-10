@@ -138,11 +138,31 @@ REQUIRED = ("protein", "fat", "carbohydrate", "kcal", "sodium")
 # lookup can ever match: `potatoes|potatoes` shipped that way and sat in the
 # config as dead weight, unreachable and indistinguishable from a working row.
 # A typo here is now a build failure.
+# What two of the groups above were called before the taxonomy audit, and why
+# the table still answers to both.
+#
+# This file is fetched at launch from one URL by builds of every age. A build
+# that has never heard of `cooked_tomato_sauce` looks its rows up under
+# `sofrito`, finds nothing, and falls back — silently, to a 100 g serving and no
+# energy figure at all. That is the same failure class as the month the Gemini
+# schema quietly stopped emitting weights: everything still parses, and every
+# number is wrong.
+#
+# So the generated table carries both spellings for as long as a build that
+# knows only the old one might still fetch it. It costs seven duplicated rows in
+# a file nobody reads by hand, and it is the reason the rename can happen at all
+# without a flag day.
+LEGACY_GROUP_NAMES: dict[str, tuple[str, ...]] = {
+    "cooked_tomato_sauce": ("sofrito",),
+    "plant_fats": ("healthy_fats",),
+}
+
 FOOD_GROUPS = {
-    "olive_oil", "vegetables", "fruit", "legumes", "fish", "nuts", "healthy_fats",
-    "whole_grains", "refined_grains", "white_meat", "red_meat", "processed_meat",
-    "dairy", "egg", "sweets", "pastry", "sugary_drinks", "coffee", "tea", "juice",
-    "plant_milk", "smoothie", "butter", "alcohol", "sofrito", "other",
+    "olive_oil", "vegetable_oil", "vegetables", "fruit", "legumes", "fish", "nuts",
+    "plant_fats", "whole_grains", "refined_grains", "white_meat", "red_meat",
+    "processed_meat", "dairy", "egg", "sweets", "pastry", "sugary_drinks", "coffee",
+    "tea", "juice", "plant_milk", "smoothie", "butter", "alcohol",
+    "cooked_tomato_sauce", "other",
 }
 
 # `alias` is what a model writes in `label`, normalised the way the client
@@ -192,10 +212,22 @@ CURATION: list[tuple[str, str, str, str]] = [
     ("butter", "butter", "sr", "173410"),
     ("mayonnaise", "butter", "sr", "171009"),
     ("olive oil", "olive_oil", "sr", "171413"),
-    ("cooking oil", "olive_oil", "sr", "171413"),
-    ("avocado", "healthy_fats", "sr", "171705"),
-    ("olives", "healthy_fats", "sr", "169094"),
-    ("sesame seeds", "healthy_fats", "sr", "170150"),
+    # "cooking oil" is the label a model writes when it can see a sheen and
+    # cannot see the bottle. It used to resolve to olive oil, which was the
+    # taxonomy answering a question it had not been asked; with a seed-oil group
+    # in the table the honest home for an unnamed frying oil is the generic one.
+    ("cooking oil", "vegetable_oil", "sr", "171411"),
+    ("vegetable oil", "vegetable_oil", "sr", "171411"),
+    ("sunflower oil", "vegetable_oil", "sr", "171025"),
+    ("rapeseed oil", "vegetable_oil", "sr", "172336"),
+    ("canola oil", "vegetable_oil", "sr", "172336"),
+    ("soybean oil", "vegetable_oil", "sr", "171411"),
+    ("seed oil", "vegetable_oil", "sr", "171411"),
+    ("frying oil", "vegetable_oil", "sr", "171411"),
+    ("sesame oil", "vegetable_oil", "sr", "171015"),
+    ("avocado", "plant_fats", "sr", "171705"),
+    ("olives", "plant_fats", "sr", "169094"),
+    ("sesame seeds", "plant_fats", "sr", "170150"),
     ("almonds", "nuts", "sr", "170567"),
     # --- produce ----------------------------------------------------------
     ("cucumber", "vegetables", "sr", "168409"),
@@ -235,8 +267,8 @@ CURATION: list[tuple[str, str, str, str]] = [
     # rows in two thousand; this section is what actually moves it, because
     # labels are Zipf-distributed and the head is exactly where the ambiguity
     # that defeats mechanical resolution lives.
-    ("tomato sauce", "sofrito", "sr", "170054"),
-    ("tomato onion curry", "sofrito", "sr", "170056"),
+    ("tomato sauce", "cooked_tomato_sauce", "sr", "170054"),
+    ("tomato onion curry", "cooked_tomato_sauce", "sr", "170056"),
     ("flatbread", "refined_grains", "sr", "167535"),
     ("flour tortilla", "refined_grains", "sr", "167535"),
     ("tortilla", "refined_grains", "sr", "167535"),
@@ -270,7 +302,7 @@ CURATION: list[tuple[str, str, str, str]] = [
     ("sweetcorn", "vegetables", "sr", "169998"),
     ("cherry tomato", "vegetables", "sr", "170457"),
     ("eggplant", "vegetables", "sr", "169229"),
-    ("guacamole", "healthy_fats", "sr", "171706"),
+    ("guacamole", "plant_fats", "sr", "171706"),
     ("raspberries", "fruit", "sr", "167755"),
     ("grapes", "fruit", "sr", "174683"),
     ("sour cream", "dairy", "sr", "171257"),
@@ -289,7 +321,7 @@ CURATION: list[tuple[str, str, str, str]] = [
     ("squid", "fish", "sr", "171982"),
     ("salmon", "fish", "sr", "172000"),
     ("tuna", "fish", "sr", "173706"),
-    ("ketchup", "sofrito", "sr", "168556"),
+    ("ketchup", "cooked_tomato_sauce", "sr", "168556"),
     ("jam", "sweets", "sr", "169641"),
     ("berry jam", "sweets", "sr", "169641"),
     ("fruit jam", "sweets", "sr", "169641"),
@@ -385,12 +417,18 @@ CURATION: list[tuple[str, str, str, str]] = [
 GROUP_REPRESENTATIVE: list[tuple[str, str, str]] = [
     # (app food group, source, source row id)
     ("olive_oil", "sr", "171413"),        # Oil, olive, salad or cooking
+    # Soybean, because it is the highest-volume vegetable oil in the world and
+    # the one behind most food fried by somebody else. Every oil in this group
+    # is within a rounding error of 884 kcal and 100 g of fat per 100 g, so the
+    # choice of row is close to inert — which is the point: the group exists to
+    # be countable, not to be precise about which seed it came from.
+    ("vegetable_oil", "sr", "171411"),    # Oil, soybean, salad or cooking
     ("butter", "sr", "173410"),           # Butter, salted
     ("vegetables", "sr", "170142"),       # Vegetables, mixed, frozen, cooked, boiled
     ("fruit", "sr", "171688"),            # Apples, raw, with skin
     ("legumes", "sr", "173799"),          # Chickpeas, mature seeds, cooked, boiled
     ("nuts", "sr", "170567"),             # Nuts, almonds
-    ("healthy_fats", "sr", "171705"),     # Avocados, raw, all commercial varieties
+    ("plant_fats", "sr", "171705"),     # Avocados, raw, all commercial varieties
     ("whole_grains", "sr", "172688"),     # Bread, whole-wheat, commercially prepared
     ("refined_grains", "sr", "168878"),   # Rice, white, long-grain, cooked
     # Cod rather than salmon: the fish group is mostly white fish by weight, and
@@ -412,7 +450,7 @@ GROUP_REPRESENTATIVE: list[tuple[str, str, str]] = [
     ("juice", "sr", "169100"),            # Orange juice, chilled
     ("plant_milk", "sr", "175218"),       # SILK Plain, soymilk
     ("smoothie", "sr", "167795"),         # Fruit juice smoothie, MIGHTY MANGO
-    ("sofrito", "sr", "170054"),          # Tomato products, canned, sauce
+    ("cooked_tomato_sauce", "sr", "170054"),  # Tomato products, canned, sauce
     # Beer, for the same reason `ServingWeight` weighs a beer: it is what people
     # photograph. It is also the row where the Atwater check has to be skipped,
     # because 43 kcal of beer is mostly ethanol and ethanol is in none of the
@@ -502,8 +540,8 @@ PLAUSIBLE: dict[str, tuple[float, float]] = {
     "vegetables": (0, 12), "fruit": (0, 8), "fish": (5, 45), "white_meat": (10, 45),
     "red_meat": (10, 45), "legumes": (1, 30), "refined_grains": (1, 20),
     "dairy": (0, 40), "sweets": (0, 25), "alcohol": (0, 3), "nuts": (5, 40),
-    "processed_meat": (5, 45), "egg": (5, 20), "healthy_fats": (0, 30),
-    "butter": (0, 10), "olive_oil": (0, 2),
+    "processed_meat": (5, 45), "egg": (5, 20), "plant_fats": (0, 30),
+    "butter": (0, 10), "olive_oil": (0, 2), "vegetable_oil": (0, 2),
 }
 
 # The same idea for energy, and group-independent because the physics is. Pure
@@ -814,6 +852,8 @@ def main() -> None:
         entry = resolve(source, row_id, group, f"group {group}", chosen=True)
         if entry is not None:
             groups[group] = entry
+            for legacy in LEGACY_GROUP_NAMES.get(group, ()):
+                groups[legacy] = entry
     covered = set(groups) | {"other"}
     for group in sorted(FOOD_GROUPS - covered):
         missing.append(f"group {group} has no representative row")
@@ -827,10 +867,11 @@ def main() -> None:
         entry = resolve(source, row_id, group, f"{alias!r}", chosen=curated)
         if entry is None:
             continue
-        key = f"{group}|{normalise(alias)}"
-        if key in foods and not curated and foods[key]["per100g"] != entry["per100g"]:
-            missing.append(f"duplicate alias {key} disagrees")
-        foods[key] = {**entry, "curated": curated}
+        for name in (group, *LEGACY_GROUP_NAMES.get(group, ())):
+            key = f"{name}|{normalise(alias)}"
+            if key in foods and not curated and foods[key]["per100g"] != entry["per100g"]:
+                missing.append(f"duplicate alias {key} disagrees")
+            foods[key] = {**entry, "curated": curated}
 
     if missing:
         # Hard failure. A row that silently defaults is how a table stops being

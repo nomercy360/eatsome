@@ -7,7 +7,7 @@ export const foodGroups = [
   "legumes",
   "fish",
   "nuts",
-  "healthy_fats",
+  "plant_fats",
   "whole_grains",
   "refined_grains",
   "white_meat",
@@ -24,10 +24,36 @@ export const foodGroups = [
   "plant_milk",
   "smoothie",
   "butter",
+  "vegetable_oil",
   "alcohol",
-  "sofrito",
+  "cooked_tomato_sauce",
   "other",
 ] as const;
+
+/**
+ * What a food group used to be called on disk.
+ *
+ * The taxonomy audit renamed two groups — `sofrito` became
+ * `cooked_tomato_sauce`, `healthy_fats` became `plant_fats` — because both
+ * carried one diet's opinion in the name rather than describing food. Nothing
+ * rewrites `events.jsonl`, so a phone syncing a two-year-old log still sends
+ * the old spelling, and the server has to keep understanding it.
+ *
+ * Only the paths that receive *stored* data alias. What a model returns does
+ * not: a model still answering `sofrito` after the prompt stopped asking for it
+ * is a fault worth seeing, and silently accepting it is how a stale prompt
+ * survives a deploy.
+ */
+export const legacyFoodGroups: Record<string, (typeof foodGroups)[number]> = {
+  sofrito: "cooked_tomato_sauce",
+  healthy_fats: "plant_fats",
+};
+
+export const storedFoodGroup = z.preprocess(
+  (value) =>
+    typeof value === "string" && value in legacyFoodGroups ? legacyFoodGroups[value] : value,
+  z.enum(foodGroups),
+);
 
 /**
  * Stored only. No prompt asks for one and no schema the model sees carries one
@@ -334,7 +360,7 @@ export const rerunRecognitionRequestSchema = z.strictObject({
 export type RerunRecognitionRequest = z.infer<typeof rerunRecognitionRequestSchema>;
 
 export const refinementItemSchema = z.strictObject({
-  group: z.enum(foodGroups),
+  group: storedFoodGroup,
   // Nullable here and nowhere else in the recognition path: this is the list as
   // it stands on the person's phone, and a meal logged before grams — or added
   // by hand — genuinely has no weight to send. The prompt says so in words when
@@ -381,14 +407,14 @@ export function mealRevisionJsonSchema(): Record<string, unknown> {
 
 export const mealItemSchema = z.strictObject({
   id: z.string().uuid(),
-  group: z.enum(foodGroups),
+  group: storedFoodGroup,
   // Stored, not requested. `portion` stays required because it is on every line
   // of every `events.jsonl` ever written and the log is append-only — v17 stops
   // asking a model for one, it does not rewrite history. New items carry the
   // schema default and score off `grams`.
   portion: z.enum(portions),
   label: z.string().max(200).nullable().optional(),
-  modelAlternatives: z.array(z.enum(foodGroups)).nullable().optional(),
+  modelAlternatives: z.array(storedFoodGroup).nullable().optional(),
   // Events written before the alternatives contract still sync from devices
   // that have them in their append-only log. Accept, do not require.
   modelConfidence: z.number().min(0).max(1).nullable().optional(),
@@ -491,3 +517,227 @@ export const corpusItemRequestSchema = z.strictObject({
 export type CorpusItemRequest = z.infer<typeof corpusItemRequestSchema>;
 
 export const mealDeleteDataSchema = z.strictObject({ mealID: z.string().uuid() });
+
+// ---------------------------------------------------------------------------
+// Tables — your log, with friends in it.
+//
+// A post is a *copy* made at share time, never a reference into the sharer's
+// log. The share sheet promises two things at the moment of the tap — "your
+// olives never travel", and "what's in it" travels only if you switch it on —
+// and a reference would have to re-derive both on every read, forever, against
+// a `MealEntry` that keeps growing fields. A copy is a closed set: the three
+// ingredient fields below and nothing else can ever leak, because nothing else
+// is stored. The cost is drift — fix the meal later and the card your friends
+// replied to stays as it was — and that is the correct behaviour for an
+// utterance: a chat message does not rewrite itself after someone answers it.
+// `mealId` stays on the post as provenance, not as a pointer to resolve.
+//
+// Account ids never appear in anything another member can read. Before real
+// sign-in, an accountId IS the device id, and the device id is the only thing
+// partitioning private logs — showing it to a tablemate would hand them the
+// key to your entire log. Members are named by a per-table `memberId` minted
+// at join, and by the display name they typed.
+// ---------------------------------------------------------------------------
+
+export const tableRoles = ["creator", "member"] as const;
+export const postKinds = ["share", "message"] as const;
+export const reactionKinds = ["olive", "heart"] as const;
+
+/** Six friends is the design's whole point; 271 members is the anti-goal. */
+export const TABLE_MAX_MEMBERS = 12;
+export const TABLE_MAX_MEMBERSHIPS_PER_ACCOUNT = 32;
+
+/** What the person is called at this table. Typed at join, because there is no
+ *  profile to read it from yet — when sign-in lands it can prefill, and being
+ *  per-membership means nobody has to build a profile system first. */
+export const tableDisplayNameSchema = z.string().trim().min(1).max(40);
+export const tableTitleSchema = z.string().trim().min(1).max(60);
+
+/**
+ * The whole redaction, as a schema: what one shared ingredient is allowed to
+ * say. Group, weight, label — the same three fields `refinementItemSchema`
+ * sends, because both describe food as it stands on a phone. No portion, no
+ * alternatives, no evidence, and nothing derived: a friend's card answers
+ * "what's in it", not "how did they do".
+ */
+export const postIngredientSchema = z.strictObject({
+  group: z.enum(foodGroups),
+  grams: z.number().min(0).max(20_000).nullable(),
+  label: z.string().max(200).nullable(),
+});
+
+export const createTableRequestSchema = z.strictObject({
+  /** Client-generated UUIDv7, so a retried create is the same table. */
+  id: z.string().uuid(),
+  name: tableTitleSchema,
+  displayName: tableDisplayNameSchema,
+});
+
+export const joinTableRequestSchema = z.strictObject({
+  code: z.string().trim().min(6).max(20),
+  displayName: tableDisplayNameSchema,
+});
+
+/**
+ * One feed, two kinds of row. A `share` is a meal card: dish name, optional
+ * photo, optional ingredients, optional caption. A `message` is words — the
+ * composer at the bottom of the feed, and every reply. Replies are messages
+ * with `replyToPostId` set, so threading is one nullable column rather than a
+ * second table with its own pagination.
+ *
+ * A share names a photo by `photoHash` only. The tables API accepts no image
+ * bytes at all — the server copies the already-stored recognition upload into
+ * a table-owned object — so the one route where bytes enter R2 stays the
+ * recognition path, with its limits and its consent story.
+ */
+export const createPostRequestSchema = z.discriminatedUnion("kind", [
+  z.strictObject({
+    /** Client-generated UUIDv7; a retried send is one post, not two. */
+    id: z.string().uuid(),
+    kind: z.literal("share"),
+    /** Provenance. Which meal this was shared from; never resolved on read. */
+    mealId: z.string().uuid(),
+    dishName: z.string().trim().min(1).max(120),
+    caption: z.string().max(2_000).nullable(),
+    /** Null when "Show what's in it" was left off — absence is the redaction. */
+    ingredients: z.array(postIngredientSchema).max(24).nullable(),
+    /** Must already exist under the caller's own media; null for a text meal. */
+    photoHash: sha256Schema.nullable(),
+  }),
+  z.strictObject({
+    id: z.string().uuid(),
+    kind: z.literal("message"),
+    text: z.string().trim().min(1).max(2_000),
+    /** A reply, when set. Must name a post in the same table. */
+    replyToPostId: z.string().uuid().nullable(),
+  }),
+]);
+
+export type CreatePostRequest = z.infer<typeof createPostRequestSchema>;
+
+export const reactionRequestSchema = z.strictObject({
+  postId: z.string().uuid(),
+  kind: z.enum(reactionKinds),
+  /** Toggling is idempotent both ways; a double-tap is one state, not an error. */
+  on: z.boolean(),
+});
+
+/** Advances monotonically; sending an old seq cannot un-read anything. */
+export const markReadRequestSchema = z.strictObject({
+  seq: z.number().int().min(0),
+});
+
+export const tablesListQuerySchema = z.strictObject({
+  /**
+   * The caller's local start-of-day, in epoch millis, for "3 cooked today".
+   * The server has no idea where the phone's midnight is — the caller supplies
+   * the boundary, exactly as the diet scorer takes `windowEnd`. Absent means
+   * `cookedToday` comes back null rather than counted against a made-up UTC day.
+   */
+  since: z.coerce.number().int().nonnegative().optional(),
+});
+
+export const tableFeedQuerySchema = z.strictObject({
+  /** Seq of the oldest row already held; the page returns strictly older rows. */
+  cursor: z.coerce.number().int().min(0).optional(),
+  limit: z.coerce.number().int().min(1).max(200).default(100),
+  since: z.coerce.number().int().nonnegative().optional(),
+});
+
+// --- Response shapes. Types rather than schemas: the server builds them, the
+// --- Swift client mirrors them, and nothing needs to validate them twice.
+
+export type TableMember = {
+  /** Per-table public identity. Stable across renames; never the account id. */
+  memberId: string;
+  displayName: string;
+  role: (typeof tableRoles)[number];
+  isMe: boolean;
+};
+
+export type PostReactions = {
+  kind: (typeof reactionKinds)[number];
+  count: number;
+  mine: boolean;
+};
+
+export type TablePost = {
+  id: string;
+  /** Server-assigned, per-table, monotonic. The feed's one total order — no
+   *  device clock is trusted to sort someone else's dinner. */
+  seq: number;
+  kind: (typeof postKinds)[number];
+  authorMemberId: string;
+  authorName: string;
+  mine: boolean;
+  createdAt: number;
+  /** share rows */
+  mealId: string | null;
+  dishName: string | null;
+  caption: string | null;
+  ingredients: z.infer<typeof postIngredientSchema>[] | null;
+  /** True when GET /v1/tables/:id/media/:postId will stream a photo. */
+  hasPhoto: boolean;
+  /** message rows */
+  text: string | null;
+  replyToPostId: string | null;
+  reactions: PostReactions[];
+};
+
+export type TableSummary = {
+  id: string;
+  name: string;
+  members: TableMember[];
+  /** Any member may invite — a table is a group of friends, not an org. */
+  inviteCode: string;
+  /** Rows past the caller's read cursor, counted by the server against the
+   *  same snapshot as everything else in the response. Never computed
+   *  client-side from a partial page — that is how a badge undercounts while
+   *  looking exact. */
+  unreadCount: number;
+  latestSeq: number;
+  myLastReadSeq: number;
+  /** Distinct members who shared a meal since the caller's `since` boundary;
+   *  null when the caller did not say where their day starts. */
+  cookedToday: number | null;
+  /** "Marta: recipe?? they look unreal" — for the slim row under the day. */
+  latest: { authorName: string; text: string; createdAt: number } | null;
+};
+
+/**
+ * Every tables response carries `asOf` — the moment the server counted. The
+ * badge is a snapshot with a lag by construction (polling on open), and a
+ * snapshot that states its time can be rendered as stale; one that does not is
+ * a number pretending to be live. Same allergy, same cure, as `≥` on salt.
+ */
+export type TablesListResponse = { tables: TableSummary[]; asOf: number };
+
+export type TableFeedResponse = {
+  table: TableSummary;
+  /** Newest first, `nextCursor` walks older. A reply whose parent fell off the
+   *  page renders as a plain message until the parent is fetched. */
+  posts: TablePost[];
+  nextCursor: number | null;
+  asOf: number;
+};
+
+export const identityProviders = ["apple", "google"] as const;
+
+/**
+ * What a phone posts to trade a provider's identity token for a session.
+ *
+ * The token is bounded at 8 KB because Apple's is roughly 1 KB and Google's
+ * with a full profile is under 2 — anything an order of magnitude past that is
+ * not a JWT and should be refused before it reaches a base64 decoder.
+ *
+ * `nonce` is the raw value the client generated for this sign-in, never the
+ * hash it handed the provider. The server does the hashing, so a client that
+ * sends the hash by mistake fails the check rather than passing it vacuously.
+ */
+export const signInRequestSchema = z.strictObject({
+  provider: z.enum(identityProviders),
+  identityToken: z.string().min(16).max(8192),
+  nonce: z.string().min(8).max(200).optional(),
+});
+
+export type SignInRequest = z.infer<typeof signInRequestSchema>;
