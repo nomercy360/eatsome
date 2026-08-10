@@ -168,7 +168,7 @@ if [[ "$UPLOAD" == true ]]; then
   # distribute new builds" switched on, a processed build reaches nobody until
   # it is attached to one — which is how build 35 sat VALID and unseen while
   # this script reported success.
-  echo "==> Assign to internal testers"
+  echo "==> Assign to testers"
   if [[ -z "${ASC_ISSUER_ID:-}" || -z "${ASC_KEY_ID:-}" ]]; then
     echo "    skipped: need ASC_KEY_ID and ASC_ISSUER_ID to reach the API."
     echo "    Write the issuer UUID to $ASC_ISSUER_FILE, then re-run:"
