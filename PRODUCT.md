@@ -107,8 +107,11 @@ tables with posts, replies, reactions and shared photos; Sign in with Apple.
   today requires a backend token baked in at build time and has no store
   presence, pricing, or account-recovery story. Nothing downstream may assume a
   public release date or a business model.
-- **Sign-in has no user-facing purpose yet.** It exists so a table can have
-  members and is deliberately hidden in the developer workshop until it does.
+- **Sign-in is optional and gates nothing.** It exists so a week can follow
+  somebody to a second phone and so a table can tell one member from another.
+  The app has always worked signed out and still does — the device is the
+  account until a person says otherwise, and nothing in the product may become
+  a wall in front of logging a meal.
 - **Push notifications** are not built. Table badges are polled on open and every
   response states when the server counted it.
 - **Macro targets beyond protein.** Energy, carbohydrate and fat are computed and

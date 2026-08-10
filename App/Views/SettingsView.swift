@@ -21,6 +21,7 @@ struct SettingsView: View {
             ScrollView {
                 VStack(spacing: WellieTheme.cardSpacing) {
                     dietCard
+                    AccountCard()
                     healthCard
                     habitsCard
                     proteinCard
@@ -476,8 +477,6 @@ struct WorkshopView: View {
                         .disabled(trimmedKey.isEmpty)
                 }
                 .wellieCard()
-
-                SignInWorkshopSection()
 
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Counters")

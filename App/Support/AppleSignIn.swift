@@ -1,7 +1,6 @@
 import AuthenticationServices
 import Foundation
 import ShamanCore
-import UIKit
 
 /// Sign in with Apple, and nothing else.
 ///
@@ -16,8 +15,14 @@ import UIKit
 /// minutes and cannot be refreshed without another Face ID prompt, so it is a
 /// sign-in credential, not a session credential; what gets kept in the Keychain
 /// is the opaque session token the server mints in exchange for it.
+///
+/// It presents nothing itself. `SignInWithAppleButton` owns the controller and
+/// the sheet, and this type owns the only thing the button cannot: the nonce,
+/// whose hashed half goes to Apple on the request and whose raw half has to
+/// survive until the result comes back. Splitting those across two objects is
+/// how a binding stops binding anything.
 @MainActor
-final class AppleSignIn: NSObject {
+final class AppleSignIn {
     struct Credential: Sendable {
         let identityToken: String
         /// Raw, not hashed. The hash went to Apple; the server hashes this and
@@ -40,76 +45,45 @@ final class AppleSignIn: NSObject {
         }
     }
 
-    private var continuation: CheckedContinuation<Credential, Error>?
     private var nonce: SignInNonce.Pair?
 
-    func authorize() async throws -> Credential {
-        // One at a time. A second prompt while the first is open would take
-        // over the continuation and strand the first caller forever.
-        if continuation != nil { throw Failure.underlying("A sign-in is already in progress.") }
+    // MARK: - Driving Apple's own button
 
+    /// Configure a request `SignInWithAppleButton` will perform itself.
+    ///
+    /// The button owns its controller, so the delegate path above never runs
+    /// for it — but the nonce still has to be generated here, because the raw
+    /// half must survive until `credential(from:)` reads it back. Building the
+    /// request anywhere else would mean the value sent to Apple and the value
+    /// sent to the server came from two different places, which is exactly the
+    /// binding the nonce exists to make.
+    func prepare(_ request: ASAuthorizationAppleIDRequest) {
         let pair = SignInNonce.generate()
         nonce = pair
-
-        let request = ASAuthorizationAppleIDProvider().createRequest()
         // Name and email are requested because Apple only ever offers them on
         // the very first authorization for an app — ask later and the answer is
-        // permanently nil. Nothing here stores either: the server keeps the
-        // `sub` and, for support, the email off the token. They are asked for
-        // so that the option is not thrown away.
+        // permanently nil.
         request.requestedScopes = [.fullName, .email]
         request.nonce = pair.hashed
+    }
 
-        return try await withCheckedThrowingContinuation { continuation in
-            self.continuation = continuation
-            let controller = ASAuthorizationController(authorizationRequests: [request])
-            controller.delegate = self
-            controller.presentationContextProvider = self
-            controller.performRequests()
+    /// Read the button's result back into the same `Credential` the delegate
+    /// path produces, so the caller has one shape to handle.
+    func credential(from result: Result<ASAuthorization, any Error>) throws -> Credential {
+        defer { nonce = nil }
+        switch result {
+        case .success(let authorization):
+            let apple = authorization.credential as? ASAuthorizationAppleIDCredential
+            guard
+                let token = apple?.identityToken.flatMap({ String(data: $0, encoding: .utf8) }),
+                let nonce
+            else { throw Failure.noIdentityToken }
+            return Credential(identityToken: token, nonce: nonce.raw)
+        case .failure(let error):
+            throw (error as? ASAuthorizationError)?.code == .canceled
+                ? Failure.cancelled
+                : Failure.underlying(error.localizedDescription)
         }
     }
 
-    private func finish(_ result: Result<Credential, Error>) {
-        let pending = continuation
-        continuation = nil
-        nonce = nil
-        pending?.resume(with: result)
-    }
-}
-
-extension AppleSignIn: ASAuthorizationControllerDelegate {
-    nonisolated func authorizationController(
-        controller: ASAuthorizationController,
-        didCompleteWithAuthorization authorization: ASAuthorization
-    ) {
-        let credential = authorization.credential as? ASAuthorizationAppleIDCredential
-        let token = credential?.identityToken.flatMap { String(data: $0, encoding: .utf8) }
-        Task { @MainActor in
-            guard let token, let nonce = self.nonce else {
-                return self.finish(.failure(Failure.noIdentityToken))
-            }
-            self.finish(.success(Credential(identityToken: token, nonce: nonce.raw)))
-        }
-    }
-
-    nonisolated func authorizationController(
-        controller: ASAuthorizationController,
-        didCompleteWithError error: Error
-    ) {
-        let cancelled = (error as? ASAuthorizationError)?.code == .canceled
-        Task { @MainActor in
-            self.finish(.failure(cancelled ? Failure.cancelled : Failure.underlying(error.localizedDescription)))
-        }
-    }
-}
-
-extension AppleSignIn: ASAuthorizationControllerPresentationContextProviding {
-    nonisolated func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
-        MainActor.assumeIsolated {
-            let scene = UIApplication.shared.connectedScenes
-                .compactMap { $0 as? UIWindowScene }
-                .first { $0.activationState == .foregroundActive }
-            return scene?.keyWindow ?? ASPresentationAnchor()
-        }
-    }
 }
