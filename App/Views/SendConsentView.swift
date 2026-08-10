@@ -40,10 +40,10 @@ struct SendConsentView: View {
                             )
                         }
                         point(
-                            "Kept to this phone",
+                            "Kept to your account",
                             """
-                            Anything stored is filed under this install's own id, so no other \
-                            tester's app can reach it.
+                            Anything stored is filed under your signed-in account. The shared app \
+                            credential cannot reach it.
                             """
                         )
                         point(

@@ -11,9 +11,8 @@ public struct BackendSession: MealRecognizer, MealRefiner, Sendable {
         public var baseURL: URL
         public var token: String
         public var deviceID: String
-        /// Present once somebody has signed in. Its absence is not an error:
-        /// the app works anonymously and always has, and the device id alone
-        /// still reaches this install's own data.
+        /// Required for every production data request. The shared bearer token
+        /// identifies the build; only this token identifies the person.
         public var sessionToken: String?
         public var provider: RecognitionProvider?
         public var timeout: TimeInterval
@@ -96,15 +95,36 @@ public struct BackendSession: MealRecognizer, MealRefiner, Sendable {
         return envelope.revision
     }
 
-    /// Idempotently project local meal events into the backend. Sending the
-    /// whole local meal history at launch repairs any write that previously
+    /// Idempotently copy the local append-only log into the backend. Sending the
+    /// whole history at launch repairs any write that previously
     /// lost its network race; batches stay within the Worker's 500-event cap.
-    public func syncMealEvents(_ events: [LoggedEvent]) async throws {
-        let meals = events.filter(\.payload.isMealEvent)
-        for start in stride(from: 0, to: meals.count, by: 500) {
-            let end = min(start + 500, meals.count)
-            let batch = EventBatch(deviceId: configuration.deviceID, events: Array(meals[start..<end]))
+    public func syncEvents(_ events: [LoggedEvent]) async throws {
+        for start in stride(from: 0, to: events.count, by: 500) {
+            let end = min(start + 500, events.count)
+            let batch = EventBatch(
+                deviceId: configuration.deviceID,
+                events: events[start..<end].map(EventInput.init)
+            )
             let _: SyncEnvelope = try await send(path: "events/batch", method: "POST", body: batch)
+        }
+    }
+
+    /// Pull the account union, following the Worker's stable `(recordedAt,id)`
+    /// cursor until the final short page. Unknown fields such as
+    /// `sourceDeviceId` are deliberately ignored by `LoggedEvent` decoding.
+    public func events() async throws -> [LoggedEvent] {
+        var result: [LoggedEvent] = []
+        var cursor: String?
+        while true {
+            var query = [URLQueryItem(name: "limit", value: "500")]
+            if let cursor { query.append(URLQueryItem(name: "cursor", value: cursor)) }
+            let page: EventListEnvelope = try await get(path: "events", query: query)
+            result.append(contentsOf: page.events)
+            guard page.events.count == 500,
+                  let next = page.nextCursor,
+                  next != cursor
+            else { return result }
+            cursor = next
         }
     }
 
@@ -154,7 +174,8 @@ public struct BackendSession: MealRecognizer, MealRefiner, Sendable {
                 provider: provider.rawValue,
                 identityToken: identityToken,
                 nonce: nonce
-            )
+            ),
+            includeSession: false
         )
     }
 
@@ -289,7 +310,8 @@ public struct BackendSession: MealRecognizer, MealRefiner, Sendable {
     private func send<Body: Encodable, Output: Decodable>(
         path: String,
         method: String,
-        body: Body
+        body: Body,
+        includeSession: Bool = true
     ) async throws -> Output {
         let endpoint = configuration.baseURL.appending(path: path)
         var request = URLRequest(url: endpoint)
@@ -298,10 +320,9 @@ public struct BackendSession: MealRecognizer, MealRefiner, Sendable {
         request.setValue("Bearer \(configuration.token)", forHTTPHeaderField: "Authorization")
         request.setValue(configuration.deviceID, forHTTPHeaderField: "X-Device-Id")
         // Separate from Authorization, which carries the shared build token and
-        // says only "this is the app". Two different claims, two different
-        // headers: folding them together would mean one of them could not be
-        // absent, and the anonymous path needs exactly that.
-        if let session = configuration.sessionToken, !session.isEmpty {
+        // says only "this is the app". Sign-in intentionally omits a stale
+        // session so an expired credential cannot prevent recovery.
+        if includeSession, let session = configuration.sessionToken, !session.isEmpty {
             request.setValue(session, forHTTPHeaderField: "X-Session-Token")
         }
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -361,8 +382,29 @@ public struct BackendSession: MealRecognizer, MealRefiner, Sendable {
         let promptVersion: String
     }
     private struct RevisionEnvelope: Decodable { let revision: MealRevision }
-    private struct EventBatch: Encodable { let deviceId: String; let events: [LoggedEvent] }
+    /// The list endpoint adds `sourceDeviceId`, but the ingest contract accepts
+    /// only the canonical event. Re-uploading a pulled union is safe and
+    /// idempotent as long as that read-only provenance field is stripped here.
+    private struct EventInput: Encodable {
+        let event: LoggedEvent
+        init(_ event: LoggedEvent) { self.event = event }
+
+        private enum CodingKeys: String, CodingKey { case id, occurredAt, recordedAt, payload }
+
+        func encode(to encoder: any Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(event.id, forKey: .id)
+            try container.encode(event.occurredAt, forKey: .occurredAt)
+            try container.encode(event.recordedAt, forKey: .recordedAt)
+            try container.encode(event.payload, forKey: .payload)
+        }
+    }
+    private struct EventBatch: Encodable { let deviceId: String; let events: [EventInput] }
     private struct SyncEnvelope: Decodable { let accepted: Int; let inserted: Int; let replayed: Int }
+    private struct EventListEnvelope: Decodable {
+        let events: [LoggedEvent]
+        let nextCursor: String?
+    }
     private struct DeleteEnvelope: Decodable {
         let mediaObjects: Int
         let corpusItems: Int
@@ -435,15 +477,6 @@ public enum BackendError: Error, LocalizedError, Sendable {
         case .emptyResponse: "The eatsome service returned no response."
         case .http(_, let message): message
         case .decoding(let detail): "Could not read the eatsome service response: \(detail)"
-        }
-    }
-}
-
-private extension EventPayload {
-    var isMealEvent: Bool {
-        switch self {
-        case .mealLogged, .mealRevised, .mealDeleted: true
-        default: false
         }
     }
 }

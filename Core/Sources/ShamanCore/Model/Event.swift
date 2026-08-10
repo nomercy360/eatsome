@@ -15,17 +15,23 @@ public struct LoggedEvent: Codable, Sendable, Hashable, Identifiable {
     /// When we wrote it down. Differs from `occurredAt` when you log lunch at 9pm.
     public let recordedAt: EpochMillis
     public let payload: EventPayload
+    /// Present only on an event pulled from the account API. Keeping the
+    /// origin in the JSONL means a remote, unfinished chat bubble never becomes
+    /// this phone's recognition work after the next launch.
+    public let sourceDeviceId: String?
 
     public init(
         id: UUID = UUIDv7.generate(),
         occurredAt: EpochMillis,
         recordedAt: EpochMillis = Date().epochMillis,
-        payload: EventPayload
+        payload: EventPayload,
+        sourceDeviceId: String? = nil
     ) {
         self.id = id
         self.occurredAt = occurredAt
         self.recordedAt = recordedAt
         self.payload = payload
+        self.sourceDeviceId = sourceDeviceId
     }
 }
 

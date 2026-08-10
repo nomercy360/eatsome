@@ -297,6 +297,75 @@ describe("event sync contract", () => {
     });
     expect(request.events).toHaveLength(1);
   });
+
+  it("accepts every field the Swift meal log currently writes", () => {
+    const request = ingestEventsRequestSchema.parse({
+      deviceId: "iphone-owner",
+      events: [
+        {
+          id: "0198f222-aadb-7e00-8000-000000000008",
+          occurredAt: 1_754_300_000_000,
+          recordedAt: 1_754_300_001_000,
+          payload: {
+            kind: "meal_logged",
+            data: {
+              id: "0198f222-aadb-7e00-8000-000000000009",
+              eatenAt: 1_754_300_000_000,
+              items: [
+                {
+                  id: "0198f222-aadb-7e00-8000-000000000010",
+                  group: "fruit",
+                  portion: "medium",
+                  dish: "Fruit plate",
+                  grams: 80,
+                },
+              ],
+              source: "recipe",
+              share: "taste",
+              recipeID: "0198f222-aadb-7e00-8000-000000000011",
+              storedDishes: [
+                {
+                  id: "0198f222-aadb-7e00-8000-000000000012",
+                  name: "",
+                  count: 1,
+                  size: "medium",
+                  panel: { protein: 1, net_g: 80 },
+                  items: [
+                    {
+                      id: "0198f222-aadb-7e00-8000-000000000010",
+                      group: "fruit",
+                      portion: "medium",
+                      grams: 80,
+                    },
+                  ],
+                },
+              ],
+              wasCorrected: false,
+            },
+          },
+        },
+      ],
+    });
+    expect(request.events[0]?.payload.data.share).toBe("taste");
+  });
+
+  it("accepts the rest of the append-only log, not only meals", () => {
+    for (const kind of ["diet_saved", "diet_selected", "message_sent", "message_deleted"]) {
+      expect(
+        ingestEventsRequestSchema.safeParse({
+          deviceId: "iphone-owner",
+          events: [
+            {
+              id: "0198f222-aadb-7e00-8000-000000000013",
+              occurredAt: 1,
+              recordedAt: 2,
+              payload: { kind, data: {} },
+            },
+          ],
+        }).success,
+      ).toBe(true);
+    }
+  });
 });
 
 describe("a panel is only usable with its unit", () => {

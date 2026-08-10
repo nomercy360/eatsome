@@ -4,7 +4,7 @@ import Foundation
 ///
 /// This is deliberately not SwiftData. The requirement is an append-only log,
 /// and a file of JSON lines *is* one — no schema migrations to maintain, and
-/// syncing it to a server later is `cat` plus a sort by UUIDv7. A read model is
+/// syncing it to a server is idempotent concatenation plus recorded-time replay. A read model is
 /// a fold over the file (`Projection`), which at personal-tracker volumes costs
 /// single-digit milliseconds on launch.
 public actor EventLog {
@@ -56,7 +56,14 @@ public actor EventLog {
                 skipped += 1
             }
         }
-        events.sort { $0.occurredAt < $1.occurredAt }
+        // Replay mutations in the order they were written, not the time the
+        // meal happened. A correction logged at 9 pm for lunch must supersede
+        // the lunch event even after another device's stream is appended.
+        events = events.enumerated().sorted { lhs, rhs in
+            lhs.element.recordedAt == rhs.element.recordedAt
+                ? lhs.offset < rhs.offset
+                : lhs.element.recordedAt < rhs.element.recordedAt
+        }.map(\.element)
         return (events, skipped)
     }
 

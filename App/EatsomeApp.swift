@@ -41,10 +41,18 @@ struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
-        // Four onboarding screens, each asking for exactly one thing, and every
-        // ask skippable. They explain before iOS does, so a refusal is a
-        // decision rather than permanent confusion.
-        if model.hasOnboarded {
+        if !model.hasBootstrapped {
+            ProgressView()
+                .tint(WellieTheme.blue)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(WellieTheme.ice.ignoresSafeArea())
+        } else if !model.isSignedIn {
+            SignInGateView()
+                .transition(.opacity)
+        // Onboarding follows identity. This is what makes an upgraded install
+        // with an existing local log stop at Apple sign-in before any backend
+        // work can resume under a shared credential.
+        } else if model.hasOnboarded {
             LogThreadView()
                 .tint(WellieTheme.blue)
                 .onChange(of: scenePhase) { _, phase in
@@ -53,7 +61,7 @@ struct RootView: View {
                     // Polling on open, which is the whole of the freshness
                     // story until push exists. Every table response says when
                     // the server counted, so the row can draw its own age.
-                    Task { await model.refreshTables() }
+                    Task { await model.synchronizeAccount() }
                 }
         } else {
             OnboardingView()

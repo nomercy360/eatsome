@@ -105,13 +105,14 @@ tables with posts, replies, reactions and shared photos; Sign in with Apple.
 
 - **Distribution.** The intent is a broad consumer App Store app, but the app
   today requires a backend token baked in at build time and has no store
-  presence, pricing, or account-recovery story. Nothing downstream may assume a
+  presence or pricing. Nothing downstream may assume a
   public release date or a business model.
-- **Sign-in is optional and gates nothing.** It exists so a week can follow
-  somebody to a second phone and so a table can tell one member from another.
-  The app has always worked signed out and still does — the device is the
-  account until a person says otherwise, and nothing in the product may become
-  a wall in front of logging a meal.
+- **Sign-in is required.** Sign in with Apple is the production identity
+  boundary, shown before onboarding or an existing local log. The shared build
+  token can start the identity exchange but cannot access meals, recognition,
+  voice, or tables by itself. A week follows the signed-in account to another
+  phone; local history remains on disk after sign-out but stays locked until an
+  account is authenticated again.
 - **Push notifications** are not built. Table badges are polled on open and every
   response states when the server counted it.
 - **Macro targets beyond protein.** Energy, carbohydrate and fat are computed and

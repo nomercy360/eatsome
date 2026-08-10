@@ -19,7 +19,12 @@ import {
   tablesListQuerySchema,
 } from "../src/contracts";
 import { apiKeyFor, keyVariableFor, modelFor, resolveProvider } from "./ai/recognize";
-import { deleteExpiredSessions, resolvePrincipal, revokeSession, signIn } from "./data/accounts";
+import {
+  deleteExpiredSessions,
+  requireAuthenticatedPrincipal,
+  revokeSession,
+  signIn,
+} from "./data/accounts";
 import { addCorpusItem, deleteAccountData, deleteOrphanCorpus, optOutCorpus } from "./data/corpus";
 import { ingestEvents, listEvents, listMealEvals } from "./data/events";
 import { deleteOrphanMedia, getMediaObject } from "./data/media";
@@ -61,7 +66,11 @@ export const app = new Hono<AppContext>().basePath("/api");
 app.use("*", async (c, next) => {
   if (c.req.path === "/api/health") return next();
   await requireAppToken(c.req.header("Authorization"), c.env);
-  const principal = await resolvePrincipal(c.env, c.req.raw);
+  // The identity exchange cannot already require the identity it is creating.
+  // It still requires the shared build token above, plus a provider-signed
+  // Apple token in the route itself.
+  if (c.req.method === "POST" && c.req.path === "/api/v1/auth/sessions") return next();
+  const principal = await requireAuthenticatedPrincipal(c.env, c.req.raw);
   c.set("accountId", principal.accountId);
   c.set("partitions", principal.partitions);
   return next();

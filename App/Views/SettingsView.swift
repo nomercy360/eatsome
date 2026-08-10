@@ -360,7 +360,7 @@ struct PrivacyView: View {
                         Text("You stay in control")
                             .font(WellieTheme.font(17, weight: .bold))
                         WellieProse(
-                            "Delete all cloud data to remove this development account's stored photos, meal events, recognition results and research-corpus consent. Local meals stay on this phone.",
+                            "Delete all cloud data to remove your account's stored photos, meal events, recognition results, table content and research-corpus consent. Local meals stay on this phone, and eatsome returns to Apple sign-in.",
                             size: 15
                         )
                         Button("Delete all cloud data", role: .destructive) {
@@ -399,7 +399,7 @@ struct PrivacyView: View {
                 }
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("This removes the server copies for this development account and withdraws photo-processing consent. It cannot be undone.")
+                Text("This deletes the account's server data and sessions, withdraws photo-processing consent, and returns this phone to Apple sign-in. It cannot be undone.")
             }
             .background(WellieTheme.background)
             .navigationTitle("Your photos and data")

@@ -54,7 +54,7 @@ struct LogThreadView: View {
         NavigationStack {
             VStack(spacing: 0) {
                 // The road to your tables: one slim row, always in the same
-                // place, and absent entirely when there are none.
+                // place. With none yet, it is how the first one is reached.
                 TablesRow { table in
                     leave { if let table { openTable = table } else { showingTables = true } }
                 }

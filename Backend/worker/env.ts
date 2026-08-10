@@ -12,8 +12,8 @@ export type Env = {
   /** Mints short-lived transcription keys; the real key never reaches a device. */
   SONIOX_API_KEY: string;
   EATSOME_API_TOKEN: string;
-  /** `anonymous` means "partition by caller"; anything else pins the whole
-   *  deployment to one account and disables sign-in. */
+  /** `anonymous` enables session-backed multi-account production; anything
+   *  else pins the deployment to one configured partition and disables sign-in. */
   ACCOUNT_ID: string;
   /**
    * Every `aud` this deployment accepts in a Sign in with Apple token: the iOS

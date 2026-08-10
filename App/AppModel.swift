@@ -27,6 +27,15 @@ final class AppModel {
     private(set) var isDeletingCloudData = false
     private(set) var hasAcceptedPhotoProcessing =
         UserDefaults.standard.string(forKey: "photoProcessingConsentVersion") == photoProcessingConsentVersion
+    /// RootView waits for this before deciding whether to show identity,
+    /// onboarding, or the thread. Without it an existing valid Keychain session
+    /// flashes the sign-in wall while launch is still reading credentials.
+    private(set) var hasBootstrapped = false
+    /// Production is account-only. The bundled bearer credential identifies an
+    /// app build; a Keychain session plus its account id identifies the person.
+    private(set) var isSignedIn = false
+    private(set) var signedInAccountID =
+        UserDefaults.standard.string(forKey: "signedInAccountID")
 
     /// Where each message in the thread has got to.
     ///
@@ -46,7 +55,7 @@ final class AppModel {
     /// to the build, silently.
     private(set) var provider: RecognitionProvider = .gemini
 
-    var hasBackendAccess: Bool { backendToken != nil }
+    var hasBackendAccess: Bool { backendBaseURL != nil && backendToken != nil }
 
     var activeModel: String { config.model(for: provider) }
 
@@ -62,6 +71,12 @@ final class AppModel {
     private var recognizer: (any MealRecognizer)?
     private var refiner: (any MealRefiner)?
     private var backend: BackendSession?
+    private var hasSessionToken = false
+    private var isSynchronizingAccount = false
+    /// Only messages written on this install may be resumed. Pulling an unread
+    /// bubble from another phone must not run recognition twice and create a
+    /// second meal for the same sentence.
+    private var locallyRecordedMessageIDs: Set<UUID> = []
 
     /// Point this at a JSON file in a bucket to retune thresholds and the
     /// recognition prompt without a TestFlight round trip. nil until you have
@@ -69,11 +84,17 @@ final class AppModel {
     private let configURL: URL? = nil
 
     func bootstrap() async {
+        defer { hasBootstrapped = true }
         do {
             let log = try EventLog(url: try EventLog.defaultURL())
             self.log = log
             let (events, skipped) = try await log.load()
             loadedEvents = events
+            locallyRecordedMessageIDs = Set(events.compactMap { event in
+                guard event.sourceDeviceId == nil else { return nil }
+                if case .messageSent(let message) = event.payload { return message.id }
+                return nil
+            })
             projection = Projection(replaying: events)
             skippedLogLines = skipped
         } catch {
@@ -95,9 +116,25 @@ final class AppModel {
             ?? .active
         hasProteinGoal = UserDefaults.standard.bool(forKey: Self.proteinGoalKey)
 
+        hasSessionToken = ((try? keychain.get(.sessionToken)) ?? nil)?.isEmpty == false
+        // An interrupted credential write is not half a sign-in. Normalize the
+        // pair so the root cannot enter the app with identity metadata but no
+        // proof, or carry an unreachable session nobody can revoke.
+        if signedInAccountID == nil || !hasSessionToken {
+            // Keep an existing account binding across an ordinary sign-out so
+            // a different Apple identity cannot inherit this phone's log.
+            clearAccountSession(forgetAccount: signedInAccountID == nil)
+        } else {
+            isSignedIn = true
+        }
         rebuildRecognizer()
-        if hasAcceptedPhotoProcessing { syncMealEvents(loadedEvents) }
-        resumeUnreadMessages()
+        if isSignedIn {
+            await synchronizeAccountHistory()
+            if isSignedIn {
+                resumeUnreadMessages()
+                await refreshTables()
+            }
+        }
         await refreshHealth()
     }
 
@@ -112,7 +149,10 @@ final class AppModel {
             loadError = "Could not write to the log: \(error.localizedDescription)"
         }
         loadedEvents.append(event)
-        syncMealEvents([event])
+        if case .messageSent(let message) = payload {
+            locallyRecordedMessageIDs.insert(message.id)
+        }
+        syncEvents([event])
     }
 
     func logMeal(_ meal: MealEntry) async {
@@ -144,7 +184,7 @@ final class AppModel {
     func acceptPhotoProcessing() {
         hasAcceptedPhotoProcessing = true
         UserDefaults.standard.set(photoProcessingConsentVersion, forKey: "photoProcessingConsentVersion")
-        syncMealEvents(loadedEvents)
+        resumeUnreadMessages()
     }
 
     func revokePhotoProcessingAndDeleteCloudData() async {
@@ -159,6 +199,7 @@ final class AppModel {
             try await backend.deleteAccountData()
             hasAcceptedPhotoProcessing = false
             UserDefaults.standard.removeObject(forKey: "photoProcessingConsentVersion")
+            clearAccountSession(forgetAccount: true)
         } catch {
             cloudError = error.localizedDescription
         }
@@ -251,7 +292,9 @@ final class AppModel {
     /// stranded by something that was not the person's doing.
     private func resumeUnreadMessages() {
         for message in projection.messages.values
-        where projection.meal(forMessage: message.id) == nil && messageStates[message.id] == nil {
+        where locallyRecordedMessageIDs.contains(message.id)
+            && projection.meal(forMessage: message.id) == nil
+            && messageStates[message.id] == nil {
             read(message, bytes: PhotoStore.shared.data(for: message.photoHash))
         }
     }
@@ -294,6 +337,7 @@ final class AppModel {
             await logMeal(meal)
             messageStates[message.id] = .logged(mealID: meal.id)
         } catch {
+            handleAccountError(error, prefix: "Reading meal")
             messageStates[message.id] = .failed(reason: error.localizedDescription)
         }
     }
@@ -727,24 +771,72 @@ final class AppModel {
     func setBackendToken(_ token: String?) {
         try? keychain.set(token, for: .backendAPIToken)
         rebuildRecognizer()
-        if token?.isEmpty == false, hasAcceptedPhotoProcessing { syncMealEvents(loadedEvents) }
+        if token?.isEmpty == false, isSignedIn { syncEvents(loadedEvents) }
     }
 
-    /// The whole client half of accounts, until tables give it a surface.
-    ///
-    /// The token is opaque and the app never reads it; it goes in the Keychain
-    /// beside the device id and onto every later request. Passing nil signs out.
+    /// Persist the opaque proof and update the observable root gate. Kept as two
+    /// setters so a Keychain failure can never be hidden by UserDefaults alone;
+    /// normal UI uses `activateAccount` to write the pair and start repair.
     func setSessionToken(_ token: String?) {
-        try? keychain.set(token, for: .sessionToken)
+        do {
+            try keychain.set(token, for: .sessionToken)
+            hasSessionToken = token?.isEmpty == false
+        } catch {
+            hasSessionToken = false
+            cloudError = "Could not save your sign-in: \(error.localizedDescription)"
+        }
+        isSignedIn = hasSessionToken && signedInAccountID != nil
         rebuildRecognizer()
     }
 
-    var signedInAccountID: String? {
-        UserDefaults.standard.string(forKey: Self.accountIDDefaultsKey)
+    func rememberAccountID(_ accountId: String?) {
+        signedInAccountID = accountId
+        if let accountId {
+            UserDefaults.standard.set(accountId, forKey: Self.accountIDDefaultsKey)
+        } else {
+            UserDefaults.standard.removeObject(forKey: Self.accountIDDefaultsKey)
+        }
+        isSignedIn = hasSessionToken && accountId != nil
     }
 
-    func rememberAccountID(_ accountId: String?) {
-        UserDefaults.standard.set(accountId, forKey: Self.accountIDDefaultsKey)
+    /// Make the new identity the only production principal, then repair both
+    /// directions before showing account-backed surfaces.
+    func activateAccount(_ result: SignInResult) async {
+        if let bound = signedInAccountID, bound != result.accountId {
+            cloudError = "This phone's local meal log belongs to a different Apple account. Sign in with that account to open it."
+            return
+        }
+        setSessionToken(result.sessionToken)
+        rememberAccountID(result.accountId)
+        await synchronizeAccountHistory()
+        guard isSignedIn else { return }
+        resumeUnreadMessages()
+        await refreshTables()
+    }
+
+    /// Signing out is local even if the revocation request cannot reach the
+    /// server. Retaining a dead or unreachable token traps the app behind 401s;
+    /// the server session expires independently and can be revoked next time.
+    func signOut() async {
+        do {
+            try await backend?.signOut()
+        } catch {
+            cloudError = "Sign out: \(error.localizedDescription)"
+        }
+        clearAccountSession()
+    }
+
+    private func clearAccountSession(forgetAccount: Bool = false) {
+        try? keychain.set(nil, for: .sessionToken)
+        hasSessionToken = false
+        if forgetAccount {
+            signedInAccountID = nil
+            UserDefaults.standard.removeObject(forKey: Self.accountIDDefaultsKey)
+        }
+        isSignedIn = false
+        tables = []
+        tablesAsOf = nil
+        rebuildRecognizer()
     }
 
     // MARK: - Tables
@@ -791,6 +883,7 @@ final class AppModel {
             // blanking it: an empty list would say "you are in no tables",
             // which is a claim, where a stale one says only that it is stale.
             tablesError = error.localizedDescription
+            handleAccountError(error, prefix: "Tables")
         }
     }
 
@@ -924,15 +1017,59 @@ final class AppModel {
         }
     }
 
-    private func syncMealEvents(_ events: [LoggedEvent]) {
-        guard hasAcceptedPhotoProcessing, let backend, !events.isEmpty else { return }
+    /// Push a write without delaying the local append. The account session, not
+    /// the shared app credential or device id, is the production boundary.
+    private func syncEvents(_ events: [LoggedEvent]) {
+        guard isSignedIn, let backend, !events.isEmpty else { return }
         Task {
             do {
-                try await backend.syncMealEvents(events)
+                try await backend.syncEvents(events)
                 cloudError = nil
             } catch {
-                cloudError = "Cloud sync: \(error.localizedDescription)"
+                handleAccountError(error, prefix: "Cloud sync")
             }
+        }
+    }
+
+    /// Repair both halves of the append-only account log. Upload first so this
+    /// install's pre-account history is part of the union the following GET
+    /// returns; then append only missing ids locally and replay the total order.
+    func synchronizeAccount() async {
+        await synchronizeAccountHistory()
+        if isSignedIn { await refreshTables() }
+    }
+
+    private func synchronizeAccountHistory() async {
+        guard isSignedIn, !isSynchronizingAccount, let backend else { return }
+        isSynchronizingAccount = true
+        defer { isSynchronizingAccount = false }
+        do {
+            if !loadedEvents.isEmpty { try await backend.syncEvents(loadedEvents) }
+            let remote = try await backend.events()
+            let existing = Set(loadedEvents.map(\.id))
+            let missing = remote.filter { !existing.contains($0.id) }
+            if !missing.isEmpty {
+                try await log?.append(missing)
+                loadedEvents.append(contentsOf: missing)
+                loadedEvents = loadedEvents.enumerated().sorted { lhs, rhs in
+                    lhs.element.recordedAt == rhs.element.recordedAt
+                        ? lhs.offset < rhs.offset
+                        : lhs.element.recordedAt < rhs.element.recordedAt
+                }.map(\.element)
+                projection = Projection(replaying: loadedEvents)
+            }
+            cloudError = nil
+        } catch {
+            handleAccountError(error, prefix: "Cloud sync")
+        }
+    }
+
+    private func handleAccountError(_ error: any Error, prefix: String) {
+        if case BackendError.http(let status, _) = error, status == 401 {
+            cloudError = "Your sign-in expired. Sign in with Apple again."
+            clearAccountSession()
+        } else {
+            cloudError = "\(prefix): \(error.localizedDescription)"
         }
     }
 }

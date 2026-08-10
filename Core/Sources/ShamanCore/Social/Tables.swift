@@ -6,10 +6,10 @@ import Foundation
 /// of that contract are load-bearing on this side too, and both are the kind a
 /// client can quietly break:
 ///
-/// - **No account id ever crosses a table.** Before sign-in an account id *is*
-///   the device id, and the device id is the only thing partitioning private
-///   logs — putting one in a row a tablemate can read would hand them the key
-///   to somebody's entire history. Members are named by a per-table `memberId`
+/// - **No account id ever crosses a table.** It is the server-side key to a
+///   person's private partition; putting one in a row a tablemate can read
+///   would expose an identifier that has no social purpose. Members are named
+///   by a per-table `memberId`
 ///   and the name they typed, and there is deliberately nowhere in these types
 ///   to put an account id.
 /// - **A post is a copy, not a reference.** What was shared is what these types

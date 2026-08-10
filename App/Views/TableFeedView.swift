@@ -22,6 +22,7 @@ struct TableFeedView: View {
     @State private var replyTo: TablePost?
     @State private var loadError: String?
     @State private var openPost: TablePost?
+    @State private var sending = false
     @FocusState private var isTyping: Bool
 
     var body: some View {
@@ -110,6 +111,14 @@ struct TableFeedView: View {
 
     private var composer: some View {
         VStack(spacing: 0) {
+            if let loadError {
+                Text(loadError)
+                    .font(WellieTheme.font(12.5, weight: .medium))
+                    .foregroundStyle(WellieTheme.attention)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, WellieTheme.screenInset)
+                    .padding(.vertical, 7)
+            }
             if let replyTo {
                 HStack(spacing: 8) {
                     WellieMeta("Replying to \(replyTo.authorName)")
@@ -158,20 +167,35 @@ struct TableFeedView: View {
         .background(.bar)
     }
 
-    private var canSend: Bool { !draft.trimmingCharacters(in: .whitespaces).isEmpty }
+    private var canSend: Bool {
+        !sending && !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
 
     private func send() {
-        let text = draft.trimmingCharacters(in: .whitespaces)
+        let original = draft
+        let text = original.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
         let parent = replyTo?.id
-        draft = ""
-        replyTo = nil
+        sending = true
+        loadError = nil
         Task {
-            try? await model.currentBackend?.post(
-                .message(id: UUIDv7.generate().uuidString, text: text, replyToPostId: parent),
-                to: table.id
-            )
-            await load()
+            defer { sending = false }
+            do {
+                guard let backend = model.currentBackend else { throw AppModel.TablesError.noBackend }
+                _ = try await backend.post(
+                    .message(id: UUIDv7.generate().uuidString, text: text, replyToPostId: parent),
+                    to: table.id
+                )
+                // Keep anything typed while the request was in flight. Only
+                // clear the exact draft and reply that actually reached the
+                // server.
+                if draft == original { draft = "" }
+                if replyTo?.id == parent { replyTo = nil }
+                await load()
+            } catch {
+                // The draft remains in place, visible and retryable.
+                loadError = "Could not send: \(error.localizedDescription)"
+            }
         }
     }
 

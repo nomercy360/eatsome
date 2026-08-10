@@ -10,49 +10,60 @@ import SwiftUI
 /// which is the constraint the whole social surface is built under: the day is
 /// yours, and the friends live one tap off it.
 ///
-/// Absent entirely when you are in no tables. A row saying "no tables yet" is
-/// an advert on a screen about your lunch.
+/// With no tables it is the one road to creating or joining the first one. The
+/// actions live in the list, so hiding this row would make those actions
+/// unreachable until after they had somehow already succeeded.
 struct TablesRow: View {
     @Environment(AppModel.self) private var model
 
     let open: (TableSummary?) -> Void
 
     var body: some View {
-        if let table = model.loudestTable {
-            Button { open(model.tables.count == 1 ? table : nil) } label: {
-                HStack(spacing: 10) {
+        let table = model.loudestTable
+        Button { open(model.tables.count == 1 ? table : nil) } label: {
+            HStack(spacing: 10) {
+                if let table {
                     avatars(of: table)
-
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(title(table))
-                            .font(WellieTheme.font(14, weight: .bold))
-                            .foregroundStyle(WellieTheme.ink)
-                            .lineLimit(1)
-                        if let preview = table.previewLine {
-                            Text(preview)
-                                .font(WellieTheme.font(12.5, weight: .medium))
-                                .foregroundStyle(WellieTheme.muted)
-                                .lineLimit(1)
-                        }
-                    }
-
-                    Spacer(minLength: 8)
-
-                    if model.totalUnread > 0 { badge }
-
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(WellieTheme.faint)
+                } else {
+                    Image(systemName: "person.2")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(WellieTheme.blue)
+                        .frame(width: 22, height: 22)
                 }
-                .padding(.horizontal, WellieTheme.screenInset)
-                .padding(.vertical, 9)
-                .contentShape(Rectangle())
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(table.map(title) ?? "Tables")
+                        .font(WellieTheme.font(14, weight: .bold))
+                        .foregroundStyle(WellieTheme.ink)
+                        .lineLimit(1)
+                    if let preview = table?.previewLine {
+                        Text(preview)
+                            .font(WellieTheme.font(12.5, weight: .medium))
+                            .foregroundStyle(WellieTheme.muted)
+                            .lineLimit(1)
+                    } else if table == nil {
+                        Text("Create one or join with a code")
+                            .font(WellieTheme.font(12.5, weight: .medium))
+                            .foregroundStyle(WellieTheme.muted)
+                    }
+                }
+
+                Spacer(minLength: 8)
+
+                if model.totalUnread > 0 { badge }
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(WellieTheme.faint)
             }
-            .buttonStyle(.plain)
-            .background(WellieTheme.background)
-            .overlay(alignment: .bottom) {
-                Rectangle().fill(WellieTheme.hairline).frame(height: 0.5)
-            }
+            .padding(.horizontal, WellieTheme.screenInset)
+            .padding(.vertical, 9)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .background(WellieTheme.background)
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(WellieTheme.hairline).frame(height: 0.5)
         }
     }
 
@@ -99,8 +110,8 @@ struct TablesRow: View {
     }
 }
 
-/// Screen `10d`. The plain list, reached only when there is more than one
-/// table — ordered by unread, then by the last thing posted.
+/// Screen `10d`. The plain list and the create/join entrance — ordered by
+/// unread, then by the last thing posted.
 struct TablesListView: View {
     @Environment(AppModel.self) private var model
 

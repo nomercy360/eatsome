@@ -5,9 +5,9 @@ import SwiftUI
 /// Screen set `2a`. The whole flow is the diet setup; everything else is
 /// deferred until the moment it is actually needed.
 ///
-/// Four questions, two permissions, and then food. No account — identity
-/// appears only when somebody joins a table. No notification ask — that happens
-/// on the first "Needs you". No tour. Skip all of it and you land on
+/// Four questions, two permissions, and then food. Identity is established by
+/// the app gate before this setup begins. No notification ask — that happens on
+/// the first "Needs you". No tour. Skip all of it and you land on
 /// Mediterranean with no protein target, because the app has to work on its
 /// defaults or the defaults are wrong.
 ///
@@ -103,7 +103,7 @@ struct OnboardingView: View {
                     .buttonStyle(WelliePrimaryButtonStyle())
                 Button("I've used eatsome before") { model.completeOnboarding() }
                     .buttonStyle(WellieQuietButtonStyle())
-                Text("Photos stay yours · No account needed")
+                Text("Your account keeps your history private")
                     .font(WellieTheme.metaFont(9.5))
                     .tracking(0.6)
                     .textCase(.uppercase)

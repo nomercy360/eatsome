@@ -357,6 +357,26 @@ export async function resolvePrincipal(env: Env, request: Request): Promise<Prin
   };
 }
 
+/**
+ * Resolve the production data principal.
+ *
+ * The shared bearer token identifies a build, never a person. Production is
+ * therefore session-only: a copied app token plus a guessed device id cannot
+ * read, write, recognize, transcribe, or use tables. Pinned personal/eval
+ * deployments keep their configured partition because they have no account
+ * system to sign in to.
+ */
+export async function requireAuthenticatedPrincipal(
+  env: Env,
+  request: Request,
+): Promise<Principal> {
+  const principal = await resolvePrincipal(env, request);
+  if (env.ACCOUNT_ID === "anonymous" && !principal.signedIn) {
+    throw new HttpError(401, "Sign in with Apple to use eatsome.");
+  }
+  return principal;
+}
+
 /** Sign out this device. Other devices keep their sessions, and the partition
  *  link is untouched — signing out is not un-merging. */
 export async function revokeSession(env: Env, request: Request): Promise<{ revoked: number }> {

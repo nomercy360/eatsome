@@ -14,7 +14,7 @@
  */
 
 /** The one date on the page, so it cannot drift between the two mentions. */
-const UPDATED = "8 August 2026";
+const UPDATED = "10 August 2026";
 const CONTACT = "maximkadocnikov@gmail.com";
 
 const page = `<!doctype html>
@@ -48,11 +48,11 @@ const page = `<!doctype html>
   <p class="updated">Last updated ${UPDATED}. eatsome is a beta distributed through TestFlight.</p>
 
   <section>
-    <h2>There is no account</h2>
-    <p>eatsome never asks for a name, an email address or a password, and it has no sign-in.
-    On first launch the app generates a random identifier for the installation. That identifier is
-    what keeps your meals and photographs apart from anyone else's, and it is the only thing the
-    backend knows about you.</p>
+    <h2>Your account</h2>
+    <p>eatsome requires Sign in with Apple. It receives Apple's account-specific identifier and, only
+    if you choose to share it, your email address. It does not receive or store your Apple password.
+    The app also generates a random identifier for the installation so existing history on that phone
+    can be joined to your account. A shared app credential cannot access account data by itself.</p>
   </section>
 
   <section>
@@ -62,7 +62,7 @@ const page = `<!doctype html>
       eatsome's private Cloudflare R2 bucket, so a failed reading or a retry does not need a second
       upload. The bucket is not public.</li>
       <li><strong>Your meal log.</strong> Meals, corrections and the answers you give are appended to a
-      log on the device and synced to eatsome's backend under your installation identifier. The log is
+      log on the device and synced to eatsome's backend under your account. The log is
       append-only: a correction is a new entry rather than an edit.</li>
       <li><strong>Recognition results.</strong> What the model returned for a photograph is kept so a
       reading can be explained and compared later.</li>
@@ -71,10 +71,11 @@ const page = `<!doctype html>
 
   <section>
     <h2>Photographs and AI recognition</h2>
-    <p>Before the first photograph ever leaves the device, the app shows a consent screen that names
-    the AI provider that will process it. Nothing is uploaded until you agree. The photograph is sent
-    to that provider for one purpose: identifying the foods on the plate and estimating what they
-    weigh. eatsome does not add your photographs to its research corpus unless you separately opt in.</p>
+    <p>Before the first meal description or photograph leaves the device, the app shows a consent
+    screen that names the AI provider that will process it. Nothing is sent for recognition until you
+    agree. Typed or dictated words, and any photograph you attach, are sent for one purpose:
+    identifying the foods and estimating what they weigh. eatsome does not add your photographs to
+    its research corpus unless you separately opt in.</p>
     <p>The providers used for recognition are Google (Gemini) and OpenAI, depending on the build.
     Hosting, storage and the database are Cloudflare. No one else receives your data.</p>
   </section>
@@ -98,9 +99,10 @@ const page = `<!doctype html>
     <h2>Deleting your data</h2>
     <p>Deleting a meal removes its entry and, when no other meal refers to the same photograph, the
     cloud copy of the photograph too. Settings → Privacy → <em>Delete all cloud data</em> erases the
-    stored photographs, meal events, recognition results and research-corpus consent held for your
-    installation, and withdraws consent for photo processing. Deleting the app removes everything held
-    on the device.</p>
+    stored photographs, meal events, recognition results, table content, account identities, sessions
+    and research-corpus consent held for your account, and withdraws consent for photo processing.
+    The local meal log remains on the phone but is locked until you authenticate an account again.
+    Signing out removes this phone's local account session.</p>
   </section>
 
   <section>

@@ -26,12 +26,11 @@ export async function tokensMatch(provided: string, expected: string): Promise<b
 }
 
 /**
- * Who this request belongs to, when nobody logs in.
+ * The legacy device partition an identity exchange may adopt.
  *
- * With no accounts, the device is the account: it generates an id once, keeps it
- * in the Keychain, and sends it on every call. Everything already partitions by
- * `accountId` — events, evals, recognitions — so anonymous multi-user is that
- * one substitution rather than a new column anywhere.
+ * Builds before required Apple sign-in wrote under a random id kept in the
+ * Keychain. Sign-in still resolves that partition so an upgraded phone's
+ * history can join the verified account without rewriting stored rows.
  *
  * This is a partition, not a proof. A header can say anything, so it separates
  * honest callers from each other and does nothing against someone who wants in;
@@ -40,12 +39,14 @@ export async function tokensMatch(provided: string, expected: string): Promise<b
  * something forgeable is a fairness mechanism, and the global ceiling is the
  * only thing that bounds the bill.
  *
- * Signing in adds the proof beside this rather than on top of it. A verified
+ * This is never sufficient authorization for production data routes; the API
+ * middleware requires a verified session. Signing in adds the proof beside
+ * this rather than on top of it. A verified
  * session resolves to an `acct:` partition and can read every device partition
  * the account has adopted (`data/accounts.ts`); a bare device id still resolves
  * to itself and reads only what it wrote, because a forgeable header must not
  * start unlocking rows it never wrote. Nothing retroactively claims that the
- * old `device:` rows were proved — they were not, and the merge is careful to
+ * legacy `device:` rows were proved — they were not, and the merge is careful to
  * leave them saying exactly what they said.
  */
 export function accountForDevice(request: Request): string {

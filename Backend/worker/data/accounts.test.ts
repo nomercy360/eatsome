@@ -34,7 +34,8 @@ vi.mock("../lib/identity-token", async (importOriginal) => {
   };
 });
 
-const { partitionsFor, resolvePrincipal, revokeSession, signIn } = await import("./accounts");
+const { partitionsFor, requireAuthenticatedPrincipal, resolvePrincipal, revokeSession, signIn } =
+  await import("./accounts");
 
 type Bound = {
   run(): Promise<{ meta: { changes: number } }>;
@@ -323,6 +324,20 @@ describe("account merge", () => {
     });
   });
 
+  it("does not accept the shared app credential as production identity", async () => {
+    await expect(requireAuthenticatedPrincipal(env, requestFrom(PHONE))).rejects.toMatchObject({
+      status: 401,
+    });
+
+    const session = await signIn(env, requestFrom(PHONE), {
+      provider: "apple",
+      identityToken: "apple-subject-1",
+    });
+    await expect(
+      requireAuthenticatedPrincipal(env, requestFrom(PHONE, session.sessionToken)),
+    ).resolves.toMatchObject({ accountId: session.accountId, signedIn: true });
+  });
+
   it("stores a session's digest and never the token", async () => {
     const session = await signIn(env, requestFrom(PHONE), {
       provider: "apple",
@@ -366,6 +381,9 @@ describe("account merge", () => {
       accountId: "solo",
       partitions: ["solo"],
       signedIn: false,
+    });
+    await expect(requireAuthenticatedPrincipal(pinned, requestFrom(PHONE))).resolves.toMatchObject({
+      accountId: "solo",
     });
   });
 });

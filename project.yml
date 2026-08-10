@@ -58,19 +58,17 @@ targets:
         ITSAppUsesNonExemptEncryption: false
         EatsomeAPIBaseURL: https://eatsome-api.peatch.workers.dev/api/v1
         # Supplied as an xcodebuild setting by release-testflight.sh. It says
-        # "this is the app", not "this is you": testers are separated by the
-        # device id the app generates, and everyone on the build shares this
-        # value. App Attest is what replaces it before a public release.
+        # "this is the app", not "this is you": everyone on the build shares
+        # this value, and production data routes additionally require the
+        # Apple-backed session. App Attest can later replace the build token.
         EatsomeAPIToken: $(EATSOME_API_TOKEN)
     entitlements:
       path: App/Support/eatsome.entitlements
       properties:
         com.apple.developer.healthkit: true
         com.apple.developer.healthkit.access: []
-        # Sign in with Apple. The account it creates has no visible surface
-        # until tables ship — the control is in the workshop, five taps down
-        # from the version row — but the entitlement has to be on the profile
-        # before any of it can be exercised on a device.
+        # Sign in with Apple is the production account boundary and the first
+        # screen after launch when no valid session is stored.
         com.apple.developer.applesignin:
           - Default
     settings:

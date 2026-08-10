@@ -79,8 +79,12 @@ export const eventKinds = [
   "meal_deleted",
   "set_completed",
   "habits_updated",
+  "diet_saved",
+  "diet_selected",
   "recipe_saved",
   "recipe_deleted",
+  "message_sent",
+  "message_deleted",
 ] as const;
 
 export const sha256Schema = z
@@ -434,6 +438,35 @@ export const recognitionEvidenceSchema = z.strictObject({
   otherMealsVisible: z.boolean(),
 });
 
+// The model-facing dish schema above is not the shape Swift stores in the
+// append-only log. Stored dishes carry stable ids, the legacy size, and
+// flattened MealItems so an older build can still score the same meal.
+const storedNutritionPanelSchema = z.strictObject({
+  protein: z.number().min(0).max(500).nullable().optional(),
+  calories: z.number().min(0).max(5_000).nullable().optional(),
+  fat: z.number().min(0).max(500).nullable().optional(),
+  carbohydrate: z.number().min(0).max(1_000).nullable().optional(),
+  salt: z.number().min(0).max(100).nullable().optional(),
+  sodium: z.number().min(0).max(100).nullable().optional(),
+  caffeine: z.number().min(0).max(2_000).nullable().optional(),
+  // Stored Swift history uses a String so an older/newer printed basis must
+  // round-trip even when the current recognition prompt does not emit it.
+  basis: z.string().max(64).nullable().optional(),
+  net_ml: z.number().min(0).max(10_000).nullable().optional(),
+  net_g: z.number().min(0).max(10_000).nullable().optional(),
+});
+
+const storedMealDishSchema = z.strictObject({
+  id: z.string().uuid(),
+  // Empty is the intentional bucket for an ingredient added by correction
+  // when assigning it to a named dish would be a guess.
+  name: z.string().max(120),
+  count: z.number().int().min(1).max(24),
+  size: z.enum(portions),
+  panel: storedNutritionPanelSchema.nullable().optional(),
+  items: z.array(mealItemSchema).max(64),
+});
+
 export const mealEventDataSchema = z.strictObject({
   id: z.string().uuid(),
   eatenAt: z.number().int().nonnegative(),
@@ -442,7 +475,7 @@ export const mealEventDataSchema = z.strictObject({
   // photo stay `photo`: the picture is the stronger evidence of what was there.
   source: z.enum(["photo", "manual", "recipe", "text"]),
   // Absent on entries logged before the switch existed; those were scored whole.
-  share: z.enum(["whole", "part"]).nullable().optional(),
+  share: z.enum(["whole", "part", "taste"]).nullable().optional(),
   // What the photo could not show, in the person's own words. Natural-language
   // labelling of exactly what recognition missed — a better input for clustering
   // weekly failures than any diff of the JSON.
@@ -456,6 +489,8 @@ export const mealEventDataSchema = z.strictObject({
   modelConfidence: z.number().min(0).max(1).nullable().optional(),
   recognitionEvidence: recognitionEvidenceSchema.nullable().optional(),
   wasCorrected: z.boolean(),
+  recipeID: z.string().uuid().nullable().optional(),
+  storedDishes: z.array(storedMealDishSchema).max(16).nullable().optional(),
 });
 
 export const loggedEventSchema = z.strictObject({

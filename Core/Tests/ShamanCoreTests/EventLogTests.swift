@@ -175,6 +175,35 @@ struct EventLogTests {
         #expect(try await log.projection().meals.isEmpty)
     }
 
+    @Test("Replay uses write order when two devices append out of file order")
+    func replayUsesRecordedOrder() async throws {
+        let url = temporaryURL()
+        let log = try EventLog(url: url)
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let meal = MealEntry.fixture(daysAgo: 1, [(.whiteMeat, .medium)])
+        var revised = meal
+        revised.items = [MealItem(group: .fish)]
+        revised.wasCorrected = true
+
+        // A pulled remote correction can be appended before an older local
+        // event during repair. recordedAt, not JSONL position or eatenAt, is
+        // the total order for folding the union.
+        try await log.append(LoggedEvent(
+            occurredAt: meal.eatenAt,
+            recordedAt: 300,
+            payload: .mealRevised(revised)
+        ))
+        try await log.append(LoggedEvent(
+            occurredAt: meal.eatenAt,
+            recordedAt: 200,
+            payload: .mealLogged(meal)
+        ))
+
+        let projection = try await log.projection()
+        #expect(projection.meals[meal.id]?.items.first?.group == .fish)
+    }
+
     @Test("A corrupt line costs one record, not the file")
     func corruptLineIsSkipped() async throws {
         let url = temporaryURL()

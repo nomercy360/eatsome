@@ -44,6 +44,10 @@ final class VoiceDictation {
     private var settled = ""
     private var startedAt: Date?
     private var ticker: Task<Void, Never>?
+    /// Invalidated by cancel/accept. Permission and key requests cannot be
+    /// cancelled at the system boundary, so every continuation checks this
+    /// identity before it is allowed to open audio or a socket.
+    private var takeID: UUID?
 
     /// Soniox's own realtime model, and the raw format its docs name for PCM:
     /// signed 16-bit little-endian, one channel.
@@ -63,6 +67,8 @@ final class VoiceDictation {
         levels = []
         elapsed = 0
         isRecording = true
+        let take = UUID()
+        takeID = take
         startedAt = Date()
         ticker = Task { [weak self] in
             while !Task.isCancelled {
@@ -76,15 +82,19 @@ final class VoiceDictation {
             do {
                 // Asked before the key is bought. A refusal after minting one
                 // would spend a request to record nothing.
-                guard await Self.microphoneIsAllowed() else {
+                let allowed = await Self.microphoneIsAllowed()
+                guard self.takeID == take, self.isRecording else { return }
+                guard allowed else {
                     self.error = "eatsome needs the microphone to hear you. You can turn it on in Settings."
                     stop()
                     return
                 }
                 let key = try await keySource.temporaryKey()
+                guard self.takeID == take, self.isRecording else { return }
                 try openSocket(with: key)
                 try startCapture()
             } catch {
+                guard self.takeID == take else { return }
                 self.error = error.localizedDescription
                 stop()
             }
@@ -115,6 +125,7 @@ final class VoiceDictation {
     }
 
     private func stop() {
+        takeID = nil
         isRecording = false
         startedAt = nil
         ticker?.cancel()
