@@ -188,7 +188,6 @@ struct LogThreadView: View {
                             retry: { model.retry($0) },
                             delete: { turn in Task { await model.deleteTurn(turn) } }
                         )
-                        .padding(.top, 6)
                     }
                     // Anchored so a new message scrolls the day rather than the
                     // last entry, which would leave it half off-screen.

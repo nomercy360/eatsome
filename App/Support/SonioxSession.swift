@@ -120,10 +120,11 @@ final class VoiceDictation {
         ticker?.cancel()
         ticker = nil
 
-        if engine.isRunning {
-            engine.inputNode.removeTap(onBus: 0)
-            engine.stop()
-        }
+        // Unconditionally, not `if engine.isRunning`. A take that failed before
+        // `engine.start()` left its tap installed, and the next one crashed on
+        // the duplicate. Removing a tap that was never installed is a no-op.
+        engine.inputNode.removeTap(onBus: 0)
+        if engine.isRunning { engine.stop() }
         // An empty frame is how Soniox is told the audio has ended; closing the
         // socket outright would drop whatever is still being finalized.
         socket?.send(.string("")) { _ in }
@@ -223,13 +224,44 @@ final class VoiceDictation {
 
     // MARK: - The microphone
 
+    /// Open the microphone.
+    ///
+    /// Two of the three guards here exist because `AVAudioEngine` reports these
+    /// failures as Objective-C exceptions, which a Swift `throws` cannot catch:
+    /// they terminate the process with nothing on screen and nothing in the
+    /// composer's error line. The app was exiting silently on the second tap of
+    /// the mic, and this is why.
     private func startCapture() throws {
         let session = AVAudioSession.sharedInstance()
-        try session.setCategory(.record, mode: .measurement, options: .duckOthers)
+        // `.record` with `.duckOthers`: ducking belongs to the playback
+        // categories, and passing it here is a parameter error rather than a
+        // no-op.
+        try session.setCategory(.record, mode: .measurement)
         try session.setActive(true)
 
         let input = engine.inputNode
+
+        // 1. A tap left over from a take that never started.
+        //
+        // `stop()` only pulled the tap when the engine was *running*, and the
+        // engine is not running if `start()` threw between installing the tap
+        // and starting it — a failed key mint, a refused socket. The tap then
+        // survived, and the next `installTap` on the same bus raised
+        // "required condition is false: nullptr == Tap()" and killed the app.
+        // Removing unconditionally is safe: removing a tap that is not there
+        // does nothing.
+        input.removeTap(onBus: 0)
+
+        // 2. A route that is not ready yet.
+        //
+        // `outputFormat(forBus:)` answers 0 Hz when no input is available —
+        // a call in progress, a headset mid-handshake — and installing a tap
+        // with a zero sample rate raises rather than returning an error.
         let format = input.outputFormat(forBus: 0)
+        guard format.sampleRate > 0, format.channelCount > 0 else {
+            throw VoiceError.microphoneUnavailable
+        }
+
         guard let target = AVAudioFormat(
             commonFormat: .pcmFormatInt16,
             sampleRate: Self.sampleRate,

@@ -44,6 +44,7 @@ struct DayTimeline: View {
                 TimelineEntry(
                     entry: entry,
                     gapAbove: index == 0 ? 0 : gap(from: rows[index - 1], to: entry),
+                    isFirst: index == 0,
                     open: open,
                     retry: retry,
                     delete: delete
@@ -51,7 +52,17 @@ struct DayTimeline: View {
             }
             nowMarker
         }
+        .padding(.top, Self.leadIn)
     }
+
+    /// Air above the first entry.
+    ///
+    /// The first row's `gapAbove` is zero — there is nothing above it to be
+    /// spaced from — so without this the time, the dot and the dish name sat
+    /// flush against the header's hairline, and the rail appeared to start
+    /// mid-stroke. A day should open with a breath before the first thing that
+    /// happened in it.
+    static let leadIn: CGFloat = 18
 
     // MARK: - Order
 
@@ -164,6 +175,9 @@ private struct TimelineEntry: View {
 
     let entry: DayTimeline.Entry
     let gapAbove: CGFloat
+    /// The first entry draws no rail above its dot: a line running up out of
+    /// the first meal of the day points at nothing.
+    var isFirst = false
     let open: (MealEntry) -> Void
     let retry: (LogMessage) -> Void
     let delete: (ThreadTurn) -> Void
@@ -233,6 +247,7 @@ private struct TimelineEntry: View {
             Rectangle()
                 .fill(WellieTheme.hairline)
                 .frame(width: 1, height: gapAbove + 7)
+                .opacity(isFirst ? 0 : 1)
 
             dot
 
