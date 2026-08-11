@@ -1,10 +1,9 @@
 import Foundation
 
-/// One local day of the rolling window, as the seven dots draw it.
+/// One local day in history.
 ///
-/// `servings` holds what the scorer would count — capped per group and scaled
-/// by how much of each plate you ate — so a day summary and the week score
-/// never disagree about the same food.
+/// `servings` holds per-group quantities capped per meal and scaled by how much
+/// of each plate was eaten.
 public struct DayLog: Sendable, Hashable, Identifiable {
     /// Days since the Unix epoch in the local calendar. Stable and orderable,
     /// and safe as a `ForEach` id in a way a `Date` is not.
@@ -27,24 +26,20 @@ public struct DayLog: Sendable, Hashable, Identifiable {
     /// How full the dot is drawn, 0…1.
     ///
     /// This measures logging, not eating well, and that split is deliberate:
-    /// the dots say how much of the week the app actually saw, and the sentence
-    /// above them does the judging. A dot that dimmed because you ate badly
-    /// would turn a week's record into a week's report card.
+    /// the dots say how much of the day the app actually saw. A dot that dimmed
+    /// because of what you ate would turn a record into a report card.
     public var fill: Double {
         guard mealCount > 0 else { return 0 }
         return min(1, Double(mealCount) / 3.0)
     }
 }
 
-/// The seven dots, and the per-day arithmetic the week screen needs that a
-/// single rolling average cannot answer — "fruit, three a day: 4 of 7 days"
-/// is a count of days, not a mean.
+/// Per-day arithmetic for history screens.
 public enum WeekRhythm {
     /// Oldest first, always exactly `days` entries: a day with nothing logged
     /// is a dot that has to be drawn, not a row that is missing.
     ///
-    /// `windowEnd` is exclusive and is the same boundary the scorer is given,
-    /// so the last entry is today.
+    /// `windowEnd` is exclusive, so the last entry is today.
     public static func days(
         meals: [MealEntry],
         endingAt windowEnd: EpochMillis,
@@ -74,14 +69,7 @@ public enum WeekRhythm {
         }
     }
 
-    /// Days in the window on which a daily lower-bound item was actually met.
-    public static func daysMeeting(_ groups: [FoodGroup], atLeast target: Double, in days: [DayLog]) -> Int {
-        days.count { day in
-            groups.reduce(0) { $0 + day.servings(of: $1) } >= target
-        }
-    }
-
-    /// Local day number, matching the key `MedasScorer` counts logged days by.
+    /// Local day number used as the stable history key.
     private static func dayIndex(of date: Date, calendar: Calendar) -> Int {
         Int(calendar.startOfDay(for: date).timeIntervalSince1970 / 86_400)
     }

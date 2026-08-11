@@ -2,24 +2,16 @@ import Foundation
 
 /// One to five olives per meal, computed from what is already known.
 ///
-/// Every food group has a direction in the Mediterranean pattern, and a plate is
-/// the sum of those directions weighted by how much of each is on it. Nothing new
-/// is measured and nothing new is asked of a model: this is a second reading of
-/// the same items MEDAS already scores.
+/// Every configured food group has a direction, and a plate is the sum of those
+/// directions weighted by how much of each is on it. Nothing new is measured and
+/// nothing new is asked of a model.
 ///
 /// Deliberately coarse. The data cannot tell grilled from fried, poached from
 /// deep-fried, or a dressing from a drizzle, so five steps is all the precision
 /// that is honest — a plate rated 3.4 out of 5 would be claiming a resolution
 /// nothing in the pipeline has.
 ///
-/// Two rules it exists under, both load-bearing:
-///
-/// - **It never feeds back into MEDAS.** MEDAS is the source of truth for the
-///   week; the olives are how a single meal answers back at the moment it is
-///   logged. A rating that quietly moved the weekly score would make the same
-///   food count twice, and the screener would stop being the validated
-///   instrument it is.
-/// - **One olive is a treat, never a fail.** An almond croissant is one olive and
+/// One rule is load-bearing: **one olive is a treat, never a fail.** An almond croissant is one olive and
 ///   the words next to it say "a treat — it happens". The app is additive; a
 ///   scale whose bottom end is a reprimand is not.
 public struct OliveRating: Sendable, Hashable {
@@ -44,8 +36,7 @@ public struct OliveRating: Sendable, Hashable {
 
 /// How much each group moves a plate, and in which direction.
 ///
-/// Positive groups are the ones the Mediterranean pattern is built on; negative
-/// ones are what it is built away from. Everything unnamed is neutral and does
+/// Positive groups lift the plate rating; negative ones lower it. Everything unnamed is neutral and does
 /// nothing at all — which is most of the table, and deliberately so: coffee,
 /// eggs, rice and chicken have no business nudging a rating in either direction.
 ///
@@ -62,9 +53,8 @@ public struct OliveConfiguration: Codable, Sendable, Hashable {
     }
 
     /// Hand-set, and the values are relative rather than measured — there is no
-    /// ground truth for "how Mediterranean is this plate", only the pattern's own
-    /// account of itself. Fish, legumes and olive oil carry the most because they
-    /// are what the pattern is actually about; whole grains carry least among the
+    /// ground truth for a plate rating, only the configured pattern's own account
+    /// of itself. Fish, legumes and olive oil carry the most; whole grains carry least among the
     /// positives because refined and whole grains look identical in a photograph
     /// often enough that a confident weight would be spending confidence the
     /// recognition does not have.
@@ -205,13 +195,13 @@ extension OliveRating {
 
         switch olives {
         case 5:
-            return "\(named(positives)) — about as Mediterranean as a plate gets."
+            return "\(named(positives)) — about as strong as a plate gets."
         case 4:
             return positives.isEmpty
                 ? "A good plate."
                 : "\(named(positives)) — a good plate."
         case 3 where positives.isEmpty && negatives.isEmpty:
-            return "Nothing here moves your week either way."
+            return "This meal sits in the middle."
         case 3:
             return negatives.isEmpty
                 ? "\(named(positives)) — a fair plate."

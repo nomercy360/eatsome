@@ -95,14 +95,14 @@ struct FoodNutrientTableTests {
     }
 
     @Test("An unweighed item never reaches the food table")
-    func portionsStillScoreOnTheGroup() {
+    func portionsStillUseTheGroup() {
         // A meal logged before grams has no weight to multiply, so the food
         // table has nothing to say and must not guess.
         let old = MealItem(group: .refinedGrains, portion: .large, label: "spaghetti")
         #expect(Protein.grams(in: [old], foods: table()) == Protein.grams(in: [old]))
 
-        // Energy still resolves, via the serving weight the MEDAS scorer already
-        // uses: two servings of refined grains is 300 g, and the group row is a
+        // Energy still resolves via the serving weight: two servings of refined
+        // grains is 300 g, and the group row is a
         // rice figure. A meal from before weights is coarse, not absent.
         let total = Nutrition.total(in: [old], foods: table())
         #expect(total.nutrients.kcal == 390)

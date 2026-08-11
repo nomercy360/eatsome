@@ -21,15 +21,15 @@ struct ProteinTests {
         #expect(Protein.grams(in: shared) == 13)
     }
 
-    @Test("The MEDAS per-meal cap does not apply to protein")
-    func capIsForScoringOnly() {
-        // Four fillets on one platter score as one plate of fish, but you still
+    @Test("The summary per-meal cap does not apply to protein")
+    func capIsForPlateSummaryOnly() {
+        // Four fillets on one platter read as one plate of fish, but you still
         // ate four fillets' worth of protein.
         let platter = MealEntry.fixture(
             daysAgo: 0,
             Array(repeating: (FoodGroup.fish, Portion.medium), count: 4)
         )
-        #expect(platter.servings(of: .fish) == MealScoring.perMealGroupCap)
+        #expect(platter.servings(of: .fish) == MealPortions.perMealGroupCap)
         #expect(Protein.grams(in: platter) == 88)
     }
 
@@ -260,21 +260,13 @@ struct ProteinTests {
         #expect(described.effectiveServings() == 0.5)
 
         // Every line in the log written before grams existed still decodes and
-        // still scores exactly as it did.
+        // still reads exactly as it did.
         let legacy = try? JSONDecoder().decode(
             MealItem.self,
             from: Data(#"{"id":"\#(UUID().uuidString)","group":"fish","portion":"large"}"#.utf8)
         )
         #expect(legacy?.grams == nil)
         #expect(legacy?.effectiveServings() == 2.0)
-    }
-
-    @Test("The daily target follows body weight and intent")
-    func target() {
-        #expect(Protein.dailyTarget(weightKilograms: 79.4, intent: .building) == 159)
-        #expect(Protein.dailyTarget(weightKilograms: 79.4, intent: .active) == 127)
-        #expect(Protein.dailyTarget(weightKilograms: 79.4, intent: .maintain) == 95)
-        #expect(Protein.Intent.building.gramsPerKilogram == 2.0)
     }
 
     @Test("Every food group has a value, and the fats have none")
@@ -312,7 +304,7 @@ struct ProteinTests {
     func panelOverridesPerNutrient() throws {
         // Energy used to be forbidden anywhere in this codebase, on the grounds
         // that only packaged food carries a label and a total built from the
-        // packaged fraction of a diet looks exactly like a total. What retired
+        // packaged fraction of a meal looks exactly like a total. What retired
         // that rule is `FoodNutrientTable`: energy is now derived for every food
         // from a published row and an observed weight, the same way protein
         // always was, so the baseline is complete and the total is a total.
@@ -407,21 +399,4 @@ struct ProteinTests {
         #expect(Nutrition.total(in: [can, bowl]).saltIsFloor)
     }
 
-    @Test("Salt is a ceiling and the rest are not")
-    func dailyTargetsFollowTheBody() {
-        // 70 kg, active: 1.6 g of protein a kilogram and 35 kcal a kilogram.
-        let targets = DailyTargets.forBody(weightKilograms: 70, intent: .active)
-        #expect(targets.protein == 112)
-        #expect(targets.kcal == 2450)
-        // Fat is 35% of energy, which is a Mediterranean figure rather than a
-        // guideline one: PREDIMED's arms ran 39-42% and beat the low-fat control.
-        #expect(targets.fat == 95)
-        // Carbohydrate is whatever energy is left once those two are set:
-        // 2450 - 448 from protein - 855 from fat, over 4.
-        #expect(targets.carbohydrate == 287)
-        // Salt does not scale with the body, because the evidence behind it is
-        // about blood pressure rather than size.
-        #expect(targets.salt == 5)
-        #expect(DailyTargets.forBody(weightKilograms: 100, intent: .active).salt == 5)
-    }
 }

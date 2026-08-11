@@ -45,7 +45,7 @@ describe("meal recognition prompt", () => {
   it("asks for exactly one quantity", () => {
     // v16 asked for grams AND a coarse portion AND a dish size, then had to
     // rank them: grams win, which made the other two tokens spent on an answer
-    // nothing read and a chip in the UI that changed no score. Worse, one line
+    // nothing read and a chip in the UI that changed no quantity. Worse, one line
     // of v16 still said "Report food GROUPS and coarse PORTIONS only. Never
     // estimate calories, grams, or macronutrients" — a v10 rule that outlived
     // its prompt and sat eleven lines under the rule demanding a weight.
@@ -118,13 +118,9 @@ describe("meal recognition prompt", () => {
     expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("the sound of the description");
   });
 
-  it("names food and not a diet", () => {
-    // v18 opened "You classify a meal into ... Mediterranean-diet food groups
-    // for a MEDAS adherence tracker", which put one diet's purpose in front of
-    // a model whose whole job is to report what is on the plate. The diet is
-    // chosen by the person and applied afterwards, and switching it must not
-    // change a single reading — which it cannot, if the reading never knew.
-    //
+  it("names food without steering the verdict", () => {
+    // The recognition model reports what is on the plate. It must not be
+    // steered toward a named eating pattern or a weekly outcome.
     // Nor does the framing get swapped for a friendlier one: "healthy",
     // "balanced" and "clean" are verdicts too, and a model told it is looking
     // for healthy food finds it.
@@ -142,9 +138,8 @@ describe("meal recognition prompt", () => {
   });
 
   it("routes an unnamed cooking oil to the commoner oil, not to olive", () => {
-    // Olive oil is a MEDAS point, and until the taxonomy had a second oil the
-    // prompt's only home for an invisible frying fat was `olive_oil` — which
-    // inflated that point for everybody who eats food fried by somebody else.
+    // Until the taxonomy had a second oil, the prompt's only home for an
+    // invisible frying fat was `olive_oil`.
     expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("`vegetable_oil`");
     expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain(
       "`olive_oil` needs evidence that it was olive oil",

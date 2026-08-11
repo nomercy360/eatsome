@@ -226,6 +226,31 @@ struct EventLogTests {
         #expect(skipped == 1)
     }
 
+    @Test("Retired settings are ignored during an upgrade")
+    func retiredSettingsAreIgnored() async throws {
+        let url = temporaryURL()
+        let log = try EventLog(url: url)
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let retiredLines = [
+            #"{"id":"00000000-0000-4000-8000-000000000001","occurredAt":1,"recordedAt":1,"payload":{"kind":"habits_updated","data":{}}}"#,
+            #"{"id":"00000000-0000-4000-8000-000000000002","occurredAt":2,"recordedAt":2,"payload":{"kind":"diet_saved","data":{}}}"#,
+            #"{"id":"00000000-0000-4000-8000-000000000003","occurredAt":3,"recordedAt":3,"payload":{"kind":"diet_selected","data":{}}}"#
+        ]
+        try retiredLines.joined(separator: "\n").appending("\n").write(
+            to: url,
+            atomically: false,
+            encoding: .utf8
+        )
+
+        let meal = MealEntry.fixture(daysAgo: 1, [(.legumes, .medium)])
+        try await log.append(LoggedEvent(occurredAt: meal.eatenAt, payload: .mealLogged(meal)))
+
+        let (events, skipped) = try await log.load()
+        #expect(events.count == 1)
+        #expect(skipped == 0)
+    }
+
     @Test("Events sort by time, and UUIDv7 carries the timestamp")
     func uuidV7IsTimeOrdered() {
         let earlier = UUIDv7.generate(at: 1_700_000_000_000)

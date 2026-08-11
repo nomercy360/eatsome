@@ -1,4 +1,4 @@
-import { and, asc, eq, gt, inArray, or } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, notInArray, or } from "drizzle-orm";
 import { type IngestEventsRequest, mealEventDataSchema } from "../../src/contracts";
 import { createDb } from "../db/client";
 import { events, mealEvals } from "../db/schema";
@@ -140,8 +140,14 @@ export async function listEvents(
     partitions.length === 1
       ? eq(events.accountId, partitions[0] as string)
       : inArray(events.accountId, partitions);
+  // Old builds could persist selection/editor events. They no longer belong to
+  // the public event contract, so keep them out of account-history pages too.
+  const publicScope = and(
+    scope,
+    notInArray(events.kind, ["habits_updated", "diet_saved", "diet_selected"]),
+  );
   const rows = await db.query.events.findMany({
-    where: cursorCondition ? and(scope, cursorCondition) : scope,
+    where: cursorCondition ? and(publicScope, cursorCondition) : publicScope,
     orderBy: [asc(events.recordedAt), asc(events.id)],
     limit,
   });

@@ -24,18 +24,32 @@ targets:
       path: App/Support/Info.plist
       properties:
         CFBundleDisplayName: eatsome
+        # Table invites use an app-owned deep link. This works immediately on
+        # installed builds; a future universal-link domain can route into the
+        # same parser without changing the invite code itself.
+        CFBundleURLTypes:
+          - CFBundleURLName: me.eatso.table-invite
+            CFBundleURLSchemes:
+              - eatsome
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UILaunchScreen: {}
-        # The identity is Space Grotesk, so it ships with the app rather than
-        # being asked for at runtime — a font fetched over the network is a
-        # first launch that renders in the wrong typeface on a bad connection.
-        # Both faces are OFL/SIL licensed and the licences ship beside them.
+        # The identity is Sora, so it ships with the app rather than being asked
+        # for at runtime — a font fetched over the network is a first launch
+        # that renders in the wrong typeface on a bad connection. OFL/SIL, and
+        # the licence ships beside it as Sora-OFL.txt.
+        #
+        # Five static cuts rather than the upstream `Sora[wght].ttf`: iOS
+        # registers a variable font at its default instance only, so a bundled
+        # variable file would render every weight in the app at 400 while
+        # `UIFont(name:)` still answered — the silent kind of wrong. They are
+        # generated from the variable original with `scripts/build-fonts.py`.
         UIAppFonts:
-          - SpaceGrotesk-Regular.ttf
-          - SpaceGrotesk-Medium.ttf
-          - SpaceGrotesk-Bold.ttf
-          - IBMPlexMono-Medium.ttf
+          - Sora-Regular.ttf
+          - Sora-Medium.ttf
+          - Sora-SemiBold.ttf
+          - Sora-Bold.ttf
+          - Sora-ExtraBold.ttf
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         NSCameraUsageDescription: >-
@@ -46,13 +60,14 @@ targets:
           Describe a meal out loud instead of typing it. Audio is transcribed to
           text as you speak and is not kept.
         NSHealthShareUsageDescription: >-
-          Import workouts, sleep, and weight to show your daily health overview.
+          Read age, sex reference, height, weight, body fat, energy, workouts,
+          and sleep to fill your daily energy and macro reference and health overview.
         # Demanded by App Store validation whenever the HealthKit entitlement is
         # present, even though nothing here writes. Says so plainly rather than
         # inventing a use.
         NSHealthUpdateUsageDescription: >-
-          eatsome never writes to Health. It only reads workouts, sleep, and
-          weight to show your daily overview.
+          eatsome never writes to Health. It only reads your body profile,
+          energy, workouts, and sleep for a daily reference and overview.
         # HTTPS only, which is exempt. Without this, App Store Connect asks the
         # export-compliance question on every single TestFlight build.
         ITSAppUsesNonExemptEncryption: false

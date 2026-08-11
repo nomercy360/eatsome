@@ -199,7 +199,7 @@ public struct BackendSession: MealRecognizer, MealRefiner, Sendable {
     ///
     /// `since` is the caller's own local start-of-day in epoch millis, because
     /// the server has no idea where this phone's midnight is — the same reason
-    /// the diet scorer takes `windowEnd` from its caller. Omit it and
+    /// the server has no reliable local-day boundary. Omit it and
     /// `cookedToday` comes back nil rather than counted against a UTC day
     /// nobody lives in.
     public func tables(since: EpochMillis? = nil) async throws -> TablesListResponse {
@@ -218,15 +218,62 @@ public struct BackendSession: MealRecognizer, MealRefiner, Sendable {
     }
 
     public func createTable(_ request: CreateTableRequest) async throws -> TableSummary {
-        try await send(path: "tables", method: "POST", body: request)
+        do {
+            return try await send(path: "tables", method: "POST", body: request)
+        } catch BackendError.http(let status, _) where status == 400 {
+            // Rolling deployment safety: the previous API used a strict object
+            // and rejects the new visibility field. Retrying the same UUID with
+            // its legacy shape keeps Create working on a phone installed before
+            // the Worker update; the current API accepts only the first call.
+            struct LegacyRequest: Encodable {
+                let id: String
+                let name: String
+                let displayName: String
+            }
+            return try await send(
+                path: "tables",
+                method: "POST",
+                body: LegacyRequest(id: request.id, name: request.name, displayName: request.displayName)
+            )
+        }
     }
 
     public func joinTable(_ request: JoinTableRequest) async throws -> TableSummary {
         try await send(path: "tables/join", method: "POST", body: request)
     }
 
+    public func rotateTableInvite(
+        tableID: String
+    ) async throws -> (inviteCode: String, inviteExpiresAt: EpochMillis?) {
+        struct Response: Decodable {
+            let inviteCode: String
+            let inviteExpiresAt: EpochMillis?
+        }
+        let response: Response = try await send(
+            path: "tables/\(tableID)/invite",
+            method: "POST",
+            body: EmptyBody()
+        )
+        return (response.inviteCode, response.inviteExpiresAt)
+    }
+
     public func post(_ request: CreatePostRequest, to tableID: String) async throws -> TablePost {
         try await send(path: "tables/\(tableID)/posts", method: "POST", body: request)
+    }
+
+    public func updateTableNote(
+        postID: String,
+        note: String?,
+        in tableID: String
+    ) async throws -> String? {
+        struct Body: Encodable { let note: String? }
+        struct Response: Decodable { let note: String? }
+        let response: Response = try await send(
+            path: "tables/\(tableID)/posts/\(postID)/note",
+            method: "PUT",
+            body: Body(note: note)
+        )
+        return response.note
     }
 
     /// Idempotent both ways, which is what makes it safe to draw the new state

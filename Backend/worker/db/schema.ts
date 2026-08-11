@@ -260,6 +260,7 @@ export const socialTables = sqliteTable(
     name: text().notNull(),
     creatorAccount: text("creator_account").notNull(),
     inviteCode: text("invite_code").notNull(),
+    inviteExpiresAt: integer("invite_expires_at").notNull(),
     createdAt: integer("created_at").notNull(),
   },
   (table) => [uniqueIndex("tables_invite_idx").on(table.inviteCode)],
@@ -275,6 +276,9 @@ export const tableMembers = sqliteTable(
     role: text().notNull(),
     joinedAt: integer("joined_at").notNull(),
     lastReadSeq: integer("last_read_seq").notNull().default(0),
+    showPhotos: integer("show_photos", { mode: "boolean" }).notNull().default(true),
+    showNutrition: integer("show_nutrition", { mode: "boolean" }).notNull().default(false),
+    showBodyGoals: integer("show_body_goals", { mode: "boolean" }).notNull().default(false),
   },
   (table) => [
     primaryKey({ columns: [table.tableId, table.accountId] }),

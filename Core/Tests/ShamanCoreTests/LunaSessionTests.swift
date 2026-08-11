@@ -78,19 +78,17 @@ struct LunaSessionTests {
         #expect(prompt.contains("mayonnaise"))
         #expect(prompt.contains("dressings"))
         #expect(prompt.contains("`plant_fats`, never fruit or"))
-        // An unnamed frying oil goes to the commoner oil rather than to the one
-        // MEDAS awards a point for.
+        // An unnamed frying oil goes to the commoner oil rather than guessing
+        // that olive oil was used.
         #expect(prompt.contains("`olive_oil` needs evidence that it was olive oil"))
         #expect(prompt.contains("`vegetable_oil`"))
         #expect(prompt.contains("alcohol-free beer"))
         #expect(prompt.contains("is not a label"))
         #expect(!MealPrompt.jsonSchema.description.lowercased().contains("calorie"))
 
-        // And it names food rather than a diet. The reading has to be the same
-        // reading whichever diet is scoring the week, which it cannot be if the
-        // model was told what the week is being scored for. "Healthy" and
-        // "balanced" are verdicts too — a model told to look for healthy food
-        // finds it.
+        // It names food without turning the recognition response into a health
+        // verdict. "Healthy" and "balanced" are verdicts too — a model told to
+        // look for healthy food finds it.
         for verdict in ["mediterranean", "medas", "adherence", "healthy", "balanced"] {
             #expect(!prompt.contains(verdict), "the prompt still says \(verdict)")
         }
@@ -170,7 +168,7 @@ struct LunaSessionTests {
         #expect(mealItems[0].modelAlternatives == [.whiteMeat])
     }
 
-    @Test("An answer cached under an older prompt still scores what it scored")
+    @Test("An answer cached under an older prompt keeps its original portions")
     func parsesPreGramsAnswer() throws {
         // v16 and earlier returned a portion and no weight. Those cache files
         // outlive the prompt that bought them, and throwing them away would cost
@@ -187,31 +185,6 @@ struct LunaSessionTests {
         #expect(recognition.items[0].grams == nil)
         #expect(recognition.items[0].servings == Portion.large.servings)
         #expect(recognition.asMealItems()[0].effectiveServings() == Portion.large.servings)
-    }
-
-    @Test("Only alternatives that would move the score are worth confirming")
-    func scoreCriticalAlternatives() {
-        let meat = MealRecognition.Item(
-            group: .whiteMeat, label: "minced meat topping",
-            alternatives: [.redMeat, .processedMeat]
-        )
-        // Red and processed meat both count against item 5; white meat counts
-        // against nothing. Both rivals change the week.
-        #expect(meat.scoreCriticalAlternatives() == [.redMeat, .processedMeat])
-
-        let rice = MealRecognition.Item(
-            group: .refinedGrains, label: "white rice",
-            alternatives: [.wholeGrains]
-        )
-        // MEDAS scores no grain rule at all, so this one is not worth a tap.
-        #expect(rice.scoreCriticalAlternatives().isEmpty)
-
-        let medas = DietPresets.mediterranean
-        #expect(medas.choiceChangesScore(.fish, .whiteMeat))
-        #expect(medas.choiceChangesScore(.oliveOil, .butter))
-        #expect(!medas.choiceChangesScore(.redMeat, .processedMeat))
-        #expect(!medas.choiceChangesScore(.sweets, .pastry))
-        #expect(!medas.choiceChangesScore(.fish, .fish))
     }
 
     @Test("Legacy confidence caches become the rivals the model never named")

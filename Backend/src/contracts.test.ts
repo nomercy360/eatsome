@@ -127,7 +127,7 @@ describe("meal refinement contract", () => {
 
   it("revises a weight, which is the correction that used to do nothing", () => {
     // A revise carrying a portion could not move a weighed item: grams win in
-    // `effectiveServings`, so the delta applied and changed no score.
+    // `effectiveServings`, so the delta applied and changed no quantity.
     const revision = mealRevisionSchema.parse({
       add: [],
       revise: [{ index: 1, group: "egg", grams: 100 }],
@@ -350,7 +350,7 @@ describe("event sync contract", () => {
   });
 
   it("accepts the rest of the append-only log, not only meals", () => {
-    for (const kind of ["diet_saved", "diet_selected", "message_sent", "message_deleted"]) {
+    for (const kind of ["message_sent", "message_deleted"]) {
       expect(
         ingestEventsRequestSchema.safeParse({
           deviceId: "iphone-owner",
@@ -364,6 +364,24 @@ describe("event sync contract", () => {
           ],
         }).success,
       ).toBe(true);
+    }
+  });
+
+  it("rejects retired settings events", () => {
+    for (const kind of ["habits_updated", "diet_saved", "diet_selected"]) {
+      expect(
+        ingestEventsRequestSchema.safeParse({
+          deviceId: "iphone-owner",
+          events: [
+            {
+              id: "0198f222-aadb-7e00-8000-000000000013",
+              occurredAt: 1,
+              recordedAt: 2,
+              payload: { kind, data: {} },
+            },
+          ],
+        }).success,
+      ).toBe(false);
     }
   });
 });

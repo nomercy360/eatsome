@@ -9,22 +9,18 @@ struct SettingsView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
 
-    @State private var habits = DietHabits()
     @State private var versionTaps = 0
-    @State private var showingDiets = false
     @State private var showingWorkshop = false
-    @State private var showingMethod = false
     @State private var showingPrivacy = false
+    @State private var showingNutritionProfile = false
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: WellieTheme.cardSpacing) {
-                    dietCard
                     AccountCard()
                     healthCard
-                    habitsCard
-                    proteinCard
+                    dailyReferenceCard
                     listCard
                     version
                 }
@@ -40,10 +36,8 @@ struct SettingsView: View {
                 }
             }
             .navigationDestination(isPresented: $showingWorkshop) { WorkshopView() }
-            .navigationDestination(isPresented: $showingDiets) { DietPickerView() }
-            .sheet(isPresented: $showingMethod) { ScoreMethodView() }
             .sheet(isPresented: $showingPrivacy) { PrivacyView() }
-            .onAppear { habits = model.projection.habits }
+            .sheet(isPresented: $showingNutritionProfile) { NutritionProfileSettingsView() }
         }
         .wellieScreen()
     }
@@ -89,7 +83,7 @@ struct SettingsView: View {
 
     private var healthLine: String {
         guard model.hasRequestedHealthAccess else {
-            return "Sleep, workouts and weight can appear on Today. Read only — eatsome never changes Health data."
+            return "Health can fill age, height, weight, body fat and activity, and show sleep and workouts. Read only — eatsome never changes Health data."
         }
         let checked = model.healthLastRefreshedAt
             .map { "Last checked at \($0.formatted(date: .omitted, time: .shortened))." } ?? ""
@@ -98,7 +92,7 @@ struct SettingsView: View {
         let caveat = model.healthIsEmpty
             ? " Nothing has come back yet — either nothing is recorded, or access was declined."
             : ""
-        return "Reading sleep, workouts and weight. \(checked) eatsome never changes Health data.\(caveat)"
+        return "Reading body profile, energy, sleep and workouts. \(checked) eatsome never changes Health data.\(caveat)"
     }
 
     private func inlineButton(_ title: String, action: @escaping () -> Void) -> some View {
@@ -113,27 +107,35 @@ struct SettingsView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: - What counts
+    // MARK: - Daily reference
 
-    private var dietCard: some View {
-        Button { showingDiets = true } label: {
-            VStack(alignment: .leading, spacing: 10) {
+    private var dailyReferenceCard: some View {
+        Button { showingNutritionProfile = true } label: {
+            VStack(alignment: .leading, spacing: 13) {
                 HStack(spacing: 8) {
-                    Text("What counts")
+                    Text("Daily reference")
                         .font(WellieTheme.font(17, weight: .bold))
                         .foregroundStyle(WellieTheme.ink)
                     Spacer(minLength: 8)
-                    Text(model.diet.name)
-                        .font(WellieTheme.font(15, weight: .semibold))
-                        .foregroundStyle(WellieTheme.blue)
                     Image(systemName: "chevron.right")
                         .font(.system(size: 12, weight: .bold))
                         .foregroundStyle(WellieTheme.faint)
                 }
-                WellieProse(
-                    "\(model.diet.ruleSummary). Switching re-scores your history — nothing is read again.",
-                    size: 14
-                )
+
+                if let targets = model.dailyTargets {
+                    Text("~\(Int(targets.kcal)) kcal · \(Int(targets.protein)) g protein")
+                        .font(WellieTheme.font(20, weight: .bold))
+                        .foregroundStyle(WellieTheme.ink)
+                    HStack(spacing: 7) {
+                        WellieChip(text: "Carbs \(range(targets.carbohydrateRange)) g", style: .outline, size: 12.5)
+                        WellieChip(text: "Fat \(range(targets.fatRange)) g", style: .outline, size: 12.5)
+                    }
+                    WellieCaption(
+                        "\(model.nutritionProfile.goal?.displayName ?? "Personal") · maintenance ~\(Int(targets.maintenanceKcal)) kcal"
+                    )
+                } else {
+                    WellieProse("Add age, height, weight, activity and a goal to calculate it.", size: 14)
+                }
             }
             .contentShape(Rectangle())
         }
@@ -141,122 +143,8 @@ struct SettingsView: View {
         .wellieCard(color: WellieTheme.ice)
     }
 
-    // MARK: - The answers a photo can't give
-
-    /// Rendered from the active diet's own questions rather than from two
-    /// hardcoded booleans. A low-sugar week asks nothing here, and the card
-    /// disappears rather than showing two Mediterranean questions that score
-    /// nothing.
-    @ViewBuilder
-    private var habitsCard: some View {
-        let questions = model.diet.habits
-        if !questions.isEmpty {
-            VStack(alignment: .leading, spacing: 16) {
-                WellieSectionTitle(
-                    text: questions.count == 1 ? "Your answer" : "Your \(Count.spell(questions.count, capitalized: false)) answers",
-                    detail: "The parts a photo can't see"
-                )
-
-                ForEach(Array(questions.enumerated()), id: \.element.id) { index, question in
-                    if index > 0 { WellieRowDivider() }
-                    Toggle(question.question, isOn: Binding(
-                        get: { habits.answer(question) },
-                        set: { habits.set($0, for: question.id) }
-                    ))
-                    .font(WellieTheme.font(15.5, weight: .semibold))
-                }
-            }
-            .wellieCard()
-            .onChange(of: habits) { old, new in
-                // The initial load assigns into this state too; writing an event
-                // for that would append an identical line on every launch.
-                guard old != new else { return }
-                Task { await model.updateHabits(new) }
-            }
-        }
-    }
-
-    // MARK: - Protein
-
-    private var proteinCard: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            WellieSectionTitle(text: "Protein", detail: proteinDetail)
-
-            VStack(spacing: 9) {
-                ForEach(Protein.Intent.allCases, id: \.self) { intent in
-                    intentRow(intent)
-                }
-            }
-
-            Toggle(isOn: Binding(
-                get: { model.hasProteinGoal },
-                set: { model.hasProteinGoal = $0 }
-            )) {
-                Text("Count it as a goal in your olives")
-                    .font(WellieTheme.font(15, weight: .semibold))
-            }
-            .disabled(model.proteinTarget == nil)
-
-            WellieCaption(
-                """
-                Estimated from what's on your plate, so read the trend rather than the digit. \
-                It's the only thing here measured in grams, and the only rule that is estimated \
-                rather than counted — which is why it is off unless you ask for it.
-                """
-            )
-        }
-        .wellieCard()
-    }
-
-    private var proteinDetail: String {
-        guard let target = model.proteinTarget else {
-            return "Health has no weight yet, so there is no daily number."
-        }
-        return "\(Int(target)) g a day, from your weight in Health"
-    }
-
-    private func intentRow(_ intent: Protein.Intent) -> some View {
-        let isOn = model.proteinIntent == intent
-        return Button { model.proteinIntent = intent } label: {
-            HStack(spacing: 12) {
-                if isOn {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(WellieTheme.onAccent)
-                }
-                Text(intentName(intent))
-                    .font(WellieTheme.font(15.5, weight: isOn ? .bold : .semibold))
-                    .foregroundStyle(isOn ? WellieTheme.onAccent : WellieTheme.body)
-                Spacer(minLength: 8)
-                Text("\(intent.gramsPerKilogram.formatted(.number.precision(.fractionLength(1)))) g/kg")
-                    .font(.system(size: 11.5, weight: .medium, design: .monospaced))
-                    .foregroundStyle(isOn ? WellieTheme.onAccent.opacity(0.7) : WellieTheme.faint)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 15)
-            .background(
-                isOn ? WellieTheme.blue : WellieTheme.well,
-                in: RoundedRectangle(cornerRadius: WellieTheme.cardRadius, style: .continuous)
-            )
-            .overlay {
-                if !isOn {
-                    RoundedRectangle(cornerRadius: WellieTheme.cardRadius, style: .continuous)
-                        .strokeBorder(WellieTheme.outline, lineWidth: 1.5)
-                }
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-    }
-
-    /// The stored names are training vocabulary; these are what a person would
-    /// say they were doing.
-    private func intentName(_ intent: Protein.Intent) -> String {
-        switch intent {
-        case .maintain: "Staying as I am"
-        case .active: "Active"
-        case .building: "Building muscle"
-        }
+    private func range(_ range: ClosedRange<Double>) -> String {
+        "\(Int(range.lowerBound))–\(Int(range.upperBound))"
     }
 
     // MARK: - The rest
@@ -272,12 +160,6 @@ struct SettingsView: View {
             // keep a list the app can already read.
             WellieChevronRow(title: "Units", value: WeightFormat.unitName)
                 .foregroundStyle(WellieTheme.ink)
-
-            WellieRowDivider()
-            Button { showingMethod = true } label: {
-                WellieChevronRow(title: "How the score works")
-            }
-            .buttonStyle(.plain)
 
             WellieRowDivider()
             Button { showingPrivacy = true } label: {
@@ -381,8 +263,10 @@ struct PrivacyView: View {
                             .font(WellieTheme.font(17, weight: .bold))
                         WellieProse(
                             """
-                            Sleep, workouts and weight are read when the app opens and are never copied \
-                            into the log or written back. iOS does not tell an app whether a refused read \
+                            Age, sex reference, height, weight, body fat, energy, sleep and workouts are \
+                            read when the app opens and are never copied into the meal log or written back. \
+                            Your goal and any manually entered profile fields stay on this device. iOS does \
+                            not tell an app whether a refused read \
                             and an empty store are the same thing, so eatsome says both rather than \
                             guessing.
                             """,

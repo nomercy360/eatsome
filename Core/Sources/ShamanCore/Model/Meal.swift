@@ -6,10 +6,10 @@ public struct MealItem: Codable, Sendable, Hashable, Identifiable {
     /// How much of it there was, coarsely. Nothing sets this any more — no model
     /// is asked for one and no screen offers one — but it stays required and
     /// stays stored, because it is on every line of `events.jsonl` written
-    /// before v17 and the log is append-only. New items take `.medium` and score
-    /// off `grams`; old ones score off this, exactly as they always did.
+    /// before v17 and the log is append-only. New items take `.medium` and use
+    /// `grams`; old ones use this, exactly as they always did.
     public var portion: Portion
-    /// Free text from the model ("grilled sardines"). Never scored — it exists
+    /// Free text from the model ("grilled sardines"). Never quantified — it exists
     /// so the correction sheet can show you what the model thought it saw.
     public var label: String?
     /// The other groups the model said this could have been. Nil for manual
@@ -33,7 +33,7 @@ public struct MealItem: Codable, Sendable, Hashable, Identifiable {
     /// a required field would stop the whole log decoding.
     public var grams: Double?
 
-    /// The number that scores. One place, so no caller has to remember which of
+    /// The effective serving count. One place, so no caller has to remember which of
     /// the three fields is authoritative.
     ///
     /// Grams win when they exist: they are the closest thing to an observation,
@@ -110,9 +110,9 @@ public enum MealSource: String, Codable, Sendable {
 
 /// How much of what is in the photograph you actually ate.
 ///
-/// A platter of fruit, a shared mezze, a week's batch cooking: the camera sees
-/// the dish, not the serving. Without this, every communal plate inflates the
-/// week, and it inflates it worst exactly where portion estimates are already
+/// A platter of fruit, a shared mezze, a batch of cooking: the camera sees the
+/// dish, not the serving. Without this, every communal plate inflates the
+/// quantities, and it does so worst exactly where portion estimates are already
 /// biased — the larger the pile, the more the model overreads it.
 public enum MealShare: String, Codable, Sendable, CaseIterable {
     case whole
@@ -160,19 +160,17 @@ public enum MealShare: String, Codable, Sendable, CaseIterable {
     }
 }
 
-/// How a plate becomes a number.
+/// Shared serving arithmetic for meal summaries and olive ratings.
 ///
-/// Kept here rather than inside the scorer so the rule has one home and the UI
-/// can quote it.
-public enum MealScoring {
+/// Kept here so every consumer applies the same per-meal group cap.
+public enum MealPortions {
     /// The most any single meal can contribute for one food group, in servings.
     ///
     /// Recognition splits a dish into as many rows as it sees — `cherry tomato`
     /// and `side salad`, or four kinds of fruit on one platter — and that is the
     /// right behaviour for the correction sheet: you can see what was actually
-    /// recognized. It is the wrong behaviour for the score, where four fruit
-    /// rows would clear a daily target from a single photograph. One meal is one
-    /// eating occasion, worth at most one large portion of any one group.
+    /// recognized. A summary should still treat one meal as one eating occasion,
+    /// worth at most one large portion of any one group.
     public static let perMealGroupCap = Portion.large.servings
 }
 
@@ -217,11 +215,11 @@ public struct MealEntry: Codable, Sendable, Hashable, Identifiable {
     public var recognitionEvidence: MealRecognitionEvidence?
     /// Nil on entries written before the switch existed. Read through `eaten`,
     /// which treats absence as `.whole` — the behaviour those entries were
-    /// scored with when they were logged.
+    /// interpreted with when they were logged.
     public var share: MealShare?
     /// True once you have touched the result. Uncorrected model output and
     /// human-confirmed output are not the same evidence and should not be
-    /// silently mixed when you later look at why a week scored badly.
+    /// silently mixed when you later evaluate recognition quality.
     public var wasCorrected: Bool
     /// The saved dish this meal came from, when it came from one. Optional
     /// because every line written before the recipe list existed has to keep
@@ -231,9 +229,9 @@ public struct MealEntry: Codable, Sendable, Hashable, Identifiable {
     /// than from a counter that would drift the first time a meal was deleted.
     public var recipeID: UUID?
     /// The meal as it reads, when recognition named dishes. Nil on every entry
-    /// written before dishes existed and on anything assembled by hand, which
-    /// is why `items` remains the list the score is computed from: a build that
-    /// has never heard of a dish still scores an old meal and a new one alike.
+    /// written before dishes existed and on anything assembled by hand. `items`
+    /// remains the list calculations use, so a build that has never heard of a
+    /// dish still reads an old meal and a new one alike.
     ///
     /// When this is present, `items` is `dishes.flatMap(\.flattened())` and
     /// nothing else — `MealDish.flattened()` is the only thing that writes it.
@@ -278,18 +276,18 @@ public struct MealEntry: Codable, Sendable, Hashable, Identifiable {
 
     public var eaten: MealShare { share ?? .whole }
 
-    /// What this meal contributes to the week for one group: the plate, capped
+    /// What this meal contributes for one group: the plate, capped
     /// at one large portion per group, then scaled by how much of it you ate.
     public func servings(
         of group: FoodGroup,
         servingGrams: [String: Double] = ServingWeight.defaultGrams
     ) -> Double {
-        min(rawServings(of: group, servingGrams: servingGrams), MealScoring.perMealGroupCap)
+        min(rawServings(of: group, servingGrams: servingGrams), MealPortions.perMealGroupCap)
             * eaten.factor
     }
 
     /// What is on the plate, before either rule applies. This is the number to
-    /// show next to the food; `servings(of:)` is the number that scores.
+    /// show next to the food; `servings(of:)` applies the per-meal cap.
     public func rawServings(
         of group: FoodGroup,
         servingGrams: [String: Double] = ServingWeight.defaultGrams

@@ -60,7 +60,7 @@ struct ThreadTests {
     @Test("A meal with no message still appears in the thread")
     func orphanMealsAreVisible() {
         // Anything logged before the thread existed, or added from the day
-        // sheet. A meal that scores but cannot be seen is a meal you cannot
+        // sheet. A meal in history that cannot be seen is a meal you cannot
         // correct.
         let meal = MealEntry.fixture(daysAgo: 0, [(.fish, .medium)])
         let turns = projection([.mealLogged(meal)]).thread(from: start, to: end)

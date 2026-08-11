@@ -134,6 +134,10 @@ async function worker(queue: Job[]) {
           qwen: process.env.QWEN_ENABLE_THINKING,
           // OpenRouter exposes no thinking control of its own; the model default stands.
           openrouter: undefined,
+          // Not `undefined`: `meta.ts` caps an unset budget at `low` rather than
+          // letting Muse Spark reason freely, so "default" would name a run
+          // nobody made.
+          meta: process.env.META_REASONING_EFFORT || "low",
         }[job.entry.provider] || "default",
       run: job.run,
       ok: false,

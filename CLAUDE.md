@@ -61,7 +61,7 @@ Anything that touches a framework goes in `App/`. HealthKit is isolated in
   August 2026. What lifted the ban was not a change of opinion but the arrival
   of a complete baseline: the objection to totalling a transcribed panel was
   that only packaged food carries one, so the total would be built from the
-  packaged fraction of a diet while looking exactly like a total.
+  packaged fraction of a meal while looking exactly like a total.
 
 - **A total is only allowed when every food group can answer.** That is the
   condition the paragraph above turns on, so it is a test rather than a
@@ -137,10 +137,10 @@ Anything that touches a framework goes in `App/`. HealthKit is isolated in
   logged before grams keeps the ladder and scores exactly as it always did.
   `flattenDishes` now writes `servings: null` on every row: there is no
   arithmetic left for the server to do.
-- **`ServingWeight` converts weight to servings, and is not a nutrition table.**
-  It says what one MEDAS serving of a group weighs, nothing about what is in it.
-  Its alcohol row is wrong by construction and says so: MEDAS counts drinks, and
-  a drink is defined by ethanol rather than volume.
+- **`ServingWeight` converts weight to display servings, and is not a nutrition
+  table.** It says how much one serving of a group weighs, nothing about what is
+  in it. Its alcohol row is approximate by construction: a drink is defined by
+  ethanol rather than volume.
 - **A transcribed panel wins figure by figure, not wholesale.** A printed
   number is a fact and beats the table for that nutrient only; a carton printing
   protein and energy but no sodium contributes two read figures and three
@@ -149,14 +149,14 @@ Anything that touches a framework goes in `App/`. HealthKit is isolated in
   computed on read and never written, so retuning `shaman-config.json` moves
   every estimate in the history and no measurement.
 
-- **Targets are floors, ranges, and one ceiling, and the type says which.**
-  `DailyTargets` derives all of them from body weight (HealthKit) and
-  `Protein.Intent`. Protein is a floor to reach; energy, carbohydrate and fat
-  are ranges to sit inside; salt is a ceiling. A screen that draws them all as
-  identical meters says they are the same kind of thing and invites eating to
-  each — which is why only protein gets a meter on Today. Nothing here uses
-  Mifflin-St Jeor: it needs height, age and sex, and asking for a birth date to
-  sharpen a number nobody should hit exactly is a bad trade.
+- **Daily references require a complete adult profile.** `NutritionProfile`
+  holds age, published sex-reference equation, height, weight, optional body
+  fat, activity, and goal. HealthKit values win at the app boundary and manual
+  values fill gaps; neither is part of a meal event. `DailyTargets` uses the
+  2023 adult DRI equations, retains carbohydrate/fat/protein AMDR ranges, and
+  shows a goal adjustment separately from maintenance. Missing inputs return
+  `nil`, never an imaginary default. Body fat supplies approximate lean mass and
+  does not enter the official energy equation.
 - **A meal is dishes; a dish is ingredients.** `count` is how many servings of
   the dish; `size` is a stored leftover that only multiplies on a meal described
   in portions, which is every meal logged before August 2026 and everything added
@@ -170,34 +170,14 @@ Anything that touches a framework goes in `App/`. HealthKit is isolated in
   is corrected in words on the fix screen, which is what `MealRefiner` is for.
 - **Items are what was seen; `MealEntry.servings(of:)` is what counts.** A meal
   contributes at most one large portion of any single group
-  (`MealScoring.perMealGroupCap`), scaled by `MealShare`. Never sum
-  `item.portion.servings` directly into a score — four fruit rows on one platter
-  are one plate of fruit. `MealItem.effectiveServings()` is the one place that
-  decides which of `grams`, `servings` and `portion` is authoritative.
-- **A diet is data, and the engine never mentions the Mediterranean.**
-  `DietSpec` is name + goals + constraints + habits; presets ship as specs and a
-  custom diet forks one. Because no score is ever stored, switching re-scores
-  the whole history instantly and re-reads no photograph — one parse, many
-  verdicts. `MEDAS` is now `DietPresets.mediterranean` and scores exactly what
-  it always scored; `DietTests` keeps every assertion that was written against
-  the old `MedasScorer` for precisely that reason.
-
-- **Goals average; constraints are kept or broken, and the type says which.**
-  `DietSpec.goals` and `DietSpec.constraints` are separate arrays rather than a
-  flag, so nothing can average an exclusion. "4.5 olives, but there was chicken
-  stock in the soup" is the case the split exists for: an average is the
-  instrument that would lose the second half. A broken constraint names the
-  meal and the day. `never` is its own shape because `dailyBelow(groups, 0)` is
-  strictly-less-than and can never pass — exclusion had no expression at all.
-
-- **Only a published instrument may claim to be one.** `DietSpec.instrument` is
-  what draws the validated badge and what gates `meetsGoodAdherence`, not the
-  name — a fork drops it, and `ScoreMethodView` stops describing PREDIMED for a
-  diet that is not it.
+  (`MealPortions.perMealGroupCap`), scaled by `MealShare`. Never sum
+  `item.portion.servings` directly into a summary — four fruit rows on one
+  platter are one plate of fruit. `MealItem.effectiveServings()` is the one
+  place that decides which of `grams`, `servings` and `portion` is authoritative.
 
 - **Two food groups were renamed, and both spellings still resolve.**
   `sofrito` → `cooked_tomato_sauce` and `healthy_fats` → `plant_fats`, because
-  both named one diet's opinion rather than a food. The raw value moved, so new
+  both carried a judgement rather than a food description. The raw value moved, so new
   writes use the new spelling; `FoodGroup.init(from:)` and `FoodGroup.value(in:)`
   make the old one keep resolving, for events *and* for the string-keyed tables.
   That second half is the load-bearing one: `shaman-config.json` is fetched from
@@ -205,64 +185,78 @@ Anything that touches a framework goes in `App/`. HealthKit is isolated in
   error anywhere, and so the generated table deliberately carries both spellings
   (`LEGACY_GROUP_NAMES` in `build-food-table.py`). `vegetable_oil` is the one
   addition — without it every non-olive oil vanished into nothing, and an
-  invisible frying fat was guessed as olive oil, which inflated MEDAS item 2.
-
-- **Which ambiguity earns a tap is a question about the active diet.**
-  `DietSpec.choiceChangesScore` replaces `Medas.choiceChangesScore`, so a
-  low-sugar week stops being asked "fish or chicken?" and starts being asked
-  "juice or smoothie?" with no new code. Nutrient rules are deliberately *not*
-  in the footprint: a footprint is a property of a group and a protein target is
-  a property of a quantity, so folding it in would make nearly every pair
-  distinct and saturate the one-question budget. `choiceChangesNutrients` is the
-  quantity-aware test, at a call site that has the grams.
+  invisible frying fat was guessed as olive oil.
 
 - **Thresholds and prompts belong in `shaman-config.json`,** not in Swift
   literals, so they can change without a rebuild.
 - **Three names per food group, and they are not interchangeable.**
-  `displayName` is the screener's vocabulary and belongs next to a score or in
-  an eval; `plainName` is the picker row; `shortName` is a chip and the middle
+  `displayName` is the formal taxonomy vocabulary and belongs in details or an
+  eval; `plainName` is the picker row; `shortName` is a chip and the middle
   of a sentence. Raw values are the on-disk format and move only under the
-  both-spellings discipline above — twice ever, and never silently. The same
-  split applies to the rules: `DietGoal.title` states the rule in the
-  screener's own words, `DietCopy.plainTitle` says it out loud — generated from
-  the rule's template, so a rule somebody built in the editor reads as a
-  sentence rather than as a threshold.
+  both-spellings discipline above — twice ever, and never silently.
 - **Sentences, not forms.** The recognised meal is one tappable sentence
   (`FoodSentence`), and at most one ambiguity is ever raised as a question.
   Saving is never blocked on answering it — an ignored question is itself
   recorded, because uncorrected model output is evidence.
 
-- **The identity is Space Grotesk, and it ships in the bundle.** `9d` in the
-  redesign doc is the whole system: Space Grotesk 400–700 for anything a person
-  reads, IBM Plex Mono uppercased for meta, radii 6–10 and never a pill, square
-  avatars, white surfaces separated by hairlines rather than lifted by shadows,
-  photos full-bleed and squared to 8 only inside a card. Both faces are OFL/SIL
-  and bundled under `App/Resources/Fonts` with their licences, declared in
-  `UIAppFonts` in `project.yml` — a font fetched at runtime is a first launch
-  that renders in the wrong typeface on a bad connection. `WellieTheme.font`
-  falls back to the system face and `EatsomeApp.init` asserts
-  `fontsAreInstalled`, because a missing resource otherwise renders silently in
-  SF with every metric here still tuned for a different face.
+- **The identity is Sora, and it ships in the bundle.** One face, 400–800, for
+  everything a person reads. It replaced the Space Grotesk / IBM Plex Mono pair
+  in August 2026, and with it the rule that mono meant metadata: `WellieMeta`
+  survives and still means *this is data about the thing*, but says so with
+  uppercasing and tracking rather than with a second typeface.
 
-- **Ink is reserved for sent text.** One dark object per exchange, and it is the
-  bubble in `LogThreadView`. Avatars, captions and photo posts stay light
-  grayscale, which is what lets twenty messages in a day read as a gallery
-  rather than as a wall. Blue was previously spent both here and on every
-  primary button, so a day of messages competed with the thing you were meant
-  to tap.
+  What ships is five *static* cuts, not the upstream `Sora[wght].ttf`. iOS
+  registers a variable font at its default instance only and offers no way to
+  ask `UIFont(name:)` for another, so a bundled variable file renders the whole
+  app at 400 while every lookup still succeeds — the silent-and-wrong shape
+  again. `scripts/build-fonts.py` cuts them; OFL/SIL, bundled under
+  `App/Resources/Fonts` with the licence, declared in `UIAppFonts` in
+  `project.yml`, because a font fetched at runtime is a first launch that
+  renders in the wrong typeface on a bad connection. `WellieTheme.font` falls
+  back to the system face and `EatsomeApp.init` asserts `fontsAreInstalled`.
+
+- **The app is dark, and it is only dark.** Not "has a dark mode": every
+  surface, every contrast ratio and the one translucent card on the meal detail
+  were drawn against `#0b0d12`, and `EatsomeApp` says so with
+  `preferredColorScheme(.dark)`. `WellieTheme`'s colours are single values
+  rather than adaptive pairs for the same reason — following the system would
+  hand half the users a light app nobody designed.
+
+- **One accent object per screen.** *Ink is reserved for sent text* was the
+  previous rule and it went with the thread it governed; on a dark page the
+  scarce thing is light, not dark. Periwinkle is spent on the primary button,
+  the current selection, and a value that is alive right now. Protein is the
+  one nutrient with a colour of its own, because it is the one of the five with
+  a *goal* rather than a reference range — a protein bar can honestly be full,
+  where an energy bar can only be long or less long.
+
+- **Salt is not on Today.** It is the invariant above ("a floor, and no screen
+  may score it against the ceiling") in its load-bearing form: the day card
+  draws four meters and salt is deliberately not one of them, because a meter
+  implies a ceiling. It appears on the meal detail, printed as `≥`, with
+  nothing to compare it to.
+
+- **Carbohydrate and fat show a range, not a target.** `DailyTargets` publishes
+  AMDR *ranges* for both and declines to collapse them, because picking a point
+  inside 45–65% is a preference the source does not contain. So `NutrientMeter`
+  draws a band rather than a denominator. Energy and protein have real numbers
+  and get real denominators.
 
 ## Screens
 
-The UI implements the approved redesign in the `Eatsome mobile app redesign`
-Claude Design project, plus the two settings screens and the onboarding flow
-from `Diet Engine Research` — `A` the "What counts" diet picker and `B` the diet
-editor, both in `App/Views/DietView.swift`. Screen for screen: `2a` onboarding
-(now four questions and then food — no camera or Health pre-ask, both deferred
-to the moment they are needed), `1b`/`2b` Today,
-`2c` My week, `3a`/`3c` the camera chooser, `2d` reading and failure, `1b Add
-meal` the result, `2e` meal detail, `2f` history, `2g` dishes, `2h` add by
-hand, `2i` settings. Screen ids appear in the doc comment of each view; if you
-change a screen, say which one.
+The UI implements the approved redesign in the `App redesign with variations`
+Claude Design project, turn `4`, option `4a` — *quiet night, olive-free,
+days-logged stats on the main screen*. Five screens carry it: `4a·1` Today
+(`TodayView`), `4a·2` log a meal (`LogMealSheet`), `4a·3` reading your plate
+(`ReadingPlateView`), `4a·4` meal detail (`MealDetailView`, with `MealFixSheet`
+behind `Edit ›`), `4a·5` progress (`ProgressScreen`).
+
+Everything else still carries an id from the previous `Eatsome mobile app
+redesign` project and has not been redrawn: `2a` onboarding, `2f` history, `2g`
+dishes, `2h` add by hand, `2i` settings, plus the tables surfaces. They inherit
+the new tokens — the palette and radii are shared — but not the new layouts.
+Screen ids appear in the doc comment of each view; if you change a screen, say
+which one.
 
 ## Model
 
@@ -292,7 +286,9 @@ only way the comparison means anything.
 
 ## HealthKit
 
-Workouts, sleep, and weight are queried from HealthKit and are never copied into
-the append-only event log. Read authorization is privacy-preserving: denial is
-indistinguishable from no samples, so the UI must not claim that access was
-granted merely because the authorization request completed.
+Date of birth, biological sex, height, weight, body-fat percentage, active and
+basal energy, workouts, and sleep are queried from HealthKit and are never
+copied into the append-only meal log. Usual activity is inferred only from at
+least seven complete active/resting-energy days. Read authorization is
+privacy-preserving: denial is indistinguishable from no samples, so the UI must
+not claim that access was granted merely because the request completed.

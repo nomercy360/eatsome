@@ -35,7 +35,7 @@ export const foodGroups = [
  *
  * The taxonomy audit renamed two groups — `sofrito` became
  * `cooked_tomato_sauce`, `healthy_fats` became `plant_fats` — because both
- * carried one diet's opinion in the name rather than describing food. Nothing
+ * carried a judgement in the name rather than describing food. Nothing
  * rewrites `events.jsonl`, so a phone syncing a two-year-old log still sends
  * the old spelling, and the server has to keep understanding it.
  *
@@ -71,6 +71,7 @@ export const recognitionProviders = [
   "anthropic",
   "qwen",
   "openrouter",
+  "meta",
 ] as const;
 export type RecognitionProvider = (typeof recognitionProviders)[number];
 export const eventKinds = [
@@ -78,9 +79,6 @@ export const eventKinds = [
   "meal_revised",
   "meal_deleted",
   "set_completed",
-  "habits_updated",
-  "diet_saved",
-  "diet_selected",
   "recipe_saved",
   "recipe_deleted",
   "message_sent",
@@ -113,12 +111,12 @@ export const mealRecognitionItemSchema = z.strictObject({
   // Required, and the only quantity asked for. It was nullable while `portion`
   // stood behind it, and a fallback is exactly what let the production Gemini
   // schema omit the field for a month without anything failing — every answer
-  // parsed, and every answer was scored on the ladder grams had replaced. With
+  // parsed, and every answer used the ladder grams had replaced. With
   // nothing behind it, a weightless answer is now a loud one.
   grams: z.number().min(0).max(20_000),
   label: z.string().max(200).nullable(),
   // Uncertainty is a shortlist of rival groups, not a number. A model asked to
-  // score its own certainty returns the same round value for every item on the
+  // quantify its own certainty returns the same round value for every item on the
   // plate; asked what else the food could be, it answers about the food — and
   // the answer doubles as the one-tap correction in the client.
   alternatives: z.array(z.enum(foodGroups)),
@@ -130,7 +128,7 @@ export const mealRecognitionItemSchema = z.strictObject({
  * `count` is how many servings of the dish are present, and it is a label
  * rather than a factor: the ingredients below already weigh every serving that
  * is there. The client's stepper rewrites those weights when the count is
- * corrected, so the number never multiplies anything at score time.
+ * corrected, so the number never multiplies anything during calculation.
  */
 /**
  * A nutrition panel transcribed off packaging, for one serving as the label
@@ -258,9 +256,9 @@ export const mealFlatItemSchema = mealRecognitionItemSchema.extend({
 });
 
 /**
- * What the client receives: the dishes, plus the flat list the scorer has
- * always used. Builds shipped before dishes existed read `items` and ignore the
- * rest, so the structure can change without stranding a phone in the field.
+ * What the client receives: the dishes, plus a derived flat ingredient list.
+ * Builds shipped before dishes existed read `items` and ignore the rest, so the
+ * structure can change without stranding a phone in the field.
  */
 export const mealRecognitionPayloadSchema = mealRecognitionSchema.extend({
   items: z.array(mealFlatItemSchema).max(64),
@@ -269,7 +267,7 @@ export const mealRecognitionPayloadSchema = mealRecognitionSchema.extend({
 export type MealRecognitionPayload = z.infer<typeof mealRecognitionPayloadSchema>;
 
 /**
- * The flat list the client scores from.
+ * The flat ingredient list the client uses for nutrition and meal ratings.
  *
  * There is no arithmetic left to do. An ingredient's grams already cover every
  * serving present, so `servings` is null on every row — the `count × size ×
@@ -415,7 +413,7 @@ export const mealItemSchema = z.strictObject({
   // Stored, not requested. `portion` stays required because it is on every line
   // of every `events.jsonl` ever written and the log is append-only — v17 stops
   // asking a model for one, it does not rewrite history. New items carry the
-  // schema default and score off `grams`.
+  // schema default and use `grams`.
   portion: z.enum(portions),
   label: z.string().max(200).nullable().optional(),
   modelAlternatives: z.array(storedFoodGroup).nullable().optional(),
@@ -440,7 +438,7 @@ export const recognitionEvidenceSchema = z.strictObject({
 
 // The model-facing dish schema above is not the shape Swift stores in the
 // append-only log. Stored dishes carry stable ids, the legacy size, and
-// flattened MealItems so an older build can still score the same meal.
+// flattened MealItems so an older build can still read the same meal.
 const storedNutritionPanelSchema = z.strictObject({
   protein: z.number().min(0).max(500).nullable().optional(),
   calories: z.number().min(0).max(5_000).nullable().optional(),
@@ -474,7 +472,7 @@ export const mealEventDataSchema = z.strictObject({
   // `text` is a meal described in words with no photograph. Words alongside a
   // photo stay `photo`: the picture is the stronger evidence of what was there.
   source: z.enum(["photo", "manual", "recipe", "text"]),
-  // Absent on entries logged before the switch existed; those were scored whole.
+  // Absent on entries logged before the switch existed; those count as whole.
   share: z.enum(["whole", "part", "taste"]).nullable().optional(),
   // What the photo could not show, in the person's own words. Natural-language
   // labelling of exactly what recognition missed — a better input for clustering
@@ -588,6 +586,12 @@ export const TABLE_MAX_MEMBERSHIPS_PER_ACCOUNT = 32;
 export const tableDisplayNameSchema = z.string().trim().min(1).max(40);
 export const tableTitleSchema = z.string().trim().min(1).max(60);
 
+export const tableVisibilitySchema = z.strictObject({
+  photos: z.boolean().default(true),
+  nutrition: z.boolean().default(false),
+  bodyAndGoals: z.boolean().default(false),
+});
+
 /**
  * The whole redaction, as a schema: what one shared ingredient is allowed to
  * say. Group, weight, label — the same three fields `refinementItemSchema`
@@ -606,6 +610,11 @@ export const createTableRequestSchema = z.strictObject({
   id: z.string().uuid(),
   name: tableTitleSchema,
   displayName: tableDisplayNameSchema,
+  visibility: tableVisibilitySchema.default({
+    photos: true,
+    nutrition: false,
+    bodyAndGoals: false,
+  }),
 });
 
 export const joinTableRequestSchema = z.strictObject({
@@ -662,11 +671,16 @@ export const markReadRequestSchema = z.strictObject({
   seq: z.number().int().min(0),
 });
 
+/** A plate may carry one line and never a thread. Null removes it. */
+export const updateTableNoteRequestSchema = z.strictObject({
+  note: z.string().trim().max(2_000).nullable(),
+});
+
 export const tablesListQuerySchema = z.strictObject({
   /**
    * The caller's local start-of-day, in epoch millis, for "3 cooked today".
    * The server has no idea where the phone's midnight is — the caller supplies
-   * the boundary, exactly as the diet scorer takes `windowEnd`. Absent means
+   * the boundary explicitly. Absent means
    * `cookedToday` comes back null rather than counted against a made-up UTC day.
    */
   since: z.coerce.number().int().nonnegative().optional(),
@@ -725,6 +739,11 @@ export type TableSummary = {
   members: TableMember[];
   /** Any member may invite — a table is a group of friends, not an org. */
   inviteCode: string;
+  /** Link invites rotate and expire; the code remains for old clients and as
+   *  the compact token encoded in the URL/QR. */
+  inviteExpiresAt: number;
+  /** The caller's own sharing boundary at this table. */
+  visibility: z.infer<typeof tableVisibilitySchema>;
   /** Rows past the caller's read cursor, counted by the server against the
    *  same snapshot as everything else in the response. Never computed
    *  client-side from a partial page — that is how a badge undercounts while
@@ -735,6 +754,17 @@ export type TableSummary = {
   /** Distinct members who shared a meal since the caller's `since` boundary;
    *  null when the caller did not say where their day starts. */
   cookedToday: number | null;
+  /** Total plates since the caller's local midnight. */
+  platesToday: number | null;
+  /** A bounded, redacted strip for the Tables list. */
+  recentPlates: {
+    id: string;
+    authorName: string;
+    mine: boolean;
+    createdAt: number;
+    hasPhoto: boolean;
+    reactionCount: number;
+  }[];
   /** "Marta: recipe?? they look unreal" — for the slim row under the day. */
   latest: { authorName: string; text: string; createdAt: number } | null;
 };

@@ -23,7 +23,7 @@ public struct MealRecognition: Codable, Sendable, Hashable {
         /// Other groups that could plausibly be right for THIS item, most likely
         /// first. Empty is the normal case and means the model was not torn.
         ///
-        /// This replaced a self-reported `confidence` number. Asked to score its
+        /// This replaced a self-reported `confidence` number. Asked to quantify its
         /// own certainty, a language model returns round, uncalibrated numbers —
         /// the same 0.56 on every item of a plate, whether the item is white rice
         /// or an unidentifiable meat. Asked what *else* the food could be, it is
@@ -34,7 +34,7 @@ public struct MealRecognition: Codable, Sendable, Hashable {
         /// before dishes existed, and from cache files written then.
         public let dish: String?
         /// Always nil from v17 on: the server has no arithmetic left to do. Read
-        /// only so an answer cached under an older prompt still scores the way
+        /// only so an answer cached under an older prompt still reads the way
         /// it did when it was bought.
         public let servings: Double?
         /// The edible weight of this ingredient on the plate, and the quantity.
@@ -60,27 +60,11 @@ public struct MealRecognition: Codable, Sendable, Hashable {
             self.grams = grams
         }
 
-        /// The alternatives that would move the score differently than the
-        /// chosen group — the only ones worth interrupting you for.
-        ///
-        /// Computed against whichever diet is active, which is where the diet
-        /// engine pays for itself twice: under MEDAS, chicken read as pork is
-        /// one of these and white rice read as brown is not, because no MEDAS
-        /// rule scores grains at all. Switch to low-sugar and the app stops
-        /// asking "fish or chicken?" and starts asking "juice or smoothie?" —
-        /// no new code, because the question was always "does this change what
-        /// the week scores", and the week is now scored by the person's diet.
-        public func scoreCriticalAlternatives(diet: DietSpec = DietPresets.default) -> [FoodGroup] {
-            alternatives.filter { candidate in
-                diet.choiceChangesScore(group, candidate)
-                    || diet.choiceChangesNutrients(group, candidate, grams: grams)
-            }
-        }
     }
 
     /// The named things the model saw, when it was asked for dishes. Nil for a
     /// cache file or a build from before dishes, which is why `items` — the
-    /// flattened list — remains what everything scores from.
+    /// flattened list — remains what nutrition and meal ratings derive from.
     public struct Dish: Codable, Sendable, Hashable {
         public let name: String
         /// How many servings of this dish. A label on the weights below rather

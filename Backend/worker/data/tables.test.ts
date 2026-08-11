@@ -1,11 +1,20 @@
 import { describe, expect, it } from "vitest";
 import {
   createPostRequestSchema,
+  createTableRequestSchema,
   tableFeedQuerySchema,
   tablesListQuerySchema,
+  updateTableNoteRequestSchema,
 } from "../../src/contracts";
 import type { Env } from "../env";
-import { deleteTablesData, newInviteCode, postMediaKey, tableMediaPrefix } from "./tables";
+import {
+  deleteTablesData,
+  newInviteCode,
+  postMediaKey,
+  redactTableShare,
+  tableMediaPrefix,
+  tableMembersForCaller,
+} from "./tables";
 
 describe("invite codes", () => {
   it("are ten characters from the unambiguous alphabet", () => {
@@ -19,6 +28,95 @@ describe("invite codes", () => {
   it("do not repeat", () => {
     const codes = new Set(Array.from({ length: 50 }, () => newInviteCode()));
     expect(codes.size).toBe(50);
+  });
+});
+
+describe("table privacy and notes", () => {
+  const create = {
+    id: "11111111-2222-4333-8444-555555555555",
+    name: "Flat dinners",
+    displayName: "You",
+  };
+
+  it("keeps old clients private by default", () => {
+    expect(createTableRequestSchema.parse(create).visibility).toEqual({
+      photos: true,
+      nutrition: false,
+      bodyAndGoals: false,
+    });
+  });
+
+  it("accepts an explicit per-member boundary", () => {
+    const visibility = { photos: false, nutrition: true, bodyAndGoals: false };
+    expect(createTableRequestSchema.parse({ ...create, visibility }).visibility).toEqual(
+      visibility,
+    );
+  });
+
+  it("allows one note to be replaced or removed", () => {
+    expect(updateTableNoteRequestSchema.parse({ note: "  still warm  " }).note).toBe("still warm");
+    expect(updateTableNoteRequestSchema.parse({ note: null }).note).toBeNull();
+    expect(
+      updateTableNoteRequestSchema.safeParse({ note: "x", replyToPostId: create.id }).success,
+    ).toBe(false);
+  });
+
+  it("enforces the member boundary even when a client sends private fields", () => {
+    const share = createPostRequestSchema.parse({
+      id: "11111111-2222-4333-8444-555555555556",
+      kind: "share",
+      mealId: "99999999-2222-4333-8444-555555555555",
+      dishName: "Salmon bowl",
+      caption: null,
+      ingredients: [{ group: "fish", grams: 140, label: "salmon" }],
+      photoHash: "a".repeat(64),
+    });
+    if (share.kind !== "share") throw new Error("Expected a share");
+
+    expect(redactTableShare({ showPhotos: 0, showNutrition: 0 }, share)).toEqual({
+      photoHash: null,
+      ingredients: null,
+    });
+    expect(redactTableShare({ showPhotos: 1, showNutrition: 1 }, share)).toEqual({
+      photoHash: share.photoHash,
+      ingredients: share.ingredients,
+    });
+  });
+
+  it("shows one seat when anonymous and Apple partitions were merged", () => {
+    const members = tableMembersForCaller(
+      [
+        {
+          memberId: "old-device-seat",
+          displayName: "Maksim",
+          role: "creator",
+          accountId: "device:old",
+        },
+        {
+          memberId: "friend-seat",
+          displayName: "Mira",
+          role: "member",
+          accountId: "acct:friend",
+        },
+        {
+          memberId: "apple-seat",
+          displayName: "You",
+          role: "member",
+          accountId: "acct:apple",
+        },
+      ],
+      ["acct:apple", "device:old"],
+    );
+
+    expect(members).toHaveLength(2);
+    expect(members.filter((member) => member.isMe)).toEqual([
+      {
+        memberId: "old-device-seat",
+        displayName: "Maksim",
+        role: "creator",
+        isMe: true,
+      },
+    ]);
   });
 });
 

@@ -7,7 +7,6 @@ import SwiftUI
 /// here is the only credential that opens the rest of the app.
 struct SignInGateView: View {
     @Environment(AppModel.self) private var model
-    @Environment(\.colorScheme) private var colorScheme
 
     @State private var signIn = AppleSignIn()
     @State private var error: String?
@@ -15,30 +14,17 @@ struct SignInGateView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("eatsome")
-                .font(WellieTheme.font(15, weight: .bold))
-                .padding(.top, 12)
-
-            Spacer(minLength: 28)
-
-            VStack(alignment: .leading, spacing: 22) {
-                OliveRow(olives: 5, size: 22)
-
-                Text("Your meals are yours.\nSign in to keep them that way.")
-                    .font(WellieTheme.font(30, weight: .bold))
+            VStack(alignment: .leading, spacing: 20) {
+                Text("Eat well\nwithout the\nbookkeeping.")
+                    .font(WellieTheme.font(41, weight: .black))
+                    .tracking(-1.5)
                     .foregroundStyle(WellieTheme.ink)
                     .fixedSize(horizontal: false, vertical: true)
 
                 WellieProse(
-                    "Sign in with Apple to use eatsome. Your meal log syncs privately to your account, including history already on this phone.",
+                    "Snap, type or say what you ate. We handle the numbers.",
                     size: 16
                 )
-
-                VStack(alignment: .leading, spacing: 11) {
-                    point("No shared or anonymous account")
-                    point("Your history follows you to another phone")
-                    point("No password, and no email unless you share it")
-                }
 
                 if let error {
                     Text(error)
@@ -47,16 +33,18 @@ struct SignInGateView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
+            .padding(.top, 108)
 
-            Spacer(minLength: 28)
+            Spacer(minLength: 60)
 
-            SignInWithAppleButton(.signIn) { request in
+            SignInWithAppleButton(.continue) { request in
                 signIn.prepare(request)
             } onCompletion: { result in
                 Task { await finish(result) }
             }
-            .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
-            .frame(height: 50)
+            .signInWithAppleButtonStyle(.white)
+            .frame(height: 52)
+            .clipShape(RoundedRectangle(cornerRadius: WellieTheme.controlRadius, style: .continuous))
             .opacity(canSignIn ? 1 : 0.4)
             .disabled(!canSignIn)
 
@@ -64,26 +52,21 @@ struct SignInGateView: View {
                 WellieCaption("This build has no backend configuration, so Apple sign-in is unavailable.")
                     .padding(.top, 10)
             }
+
+            Text("No feed, no followers. Your food stays yours.")
+                .font(WellieTheme.font(11.5, weight: .regular))
+                .foregroundStyle(WellieTheme.muted)
+                .frame(maxWidth: .infinity)
+                .padding(.top, 14)
         }
-        .padding(.horizontal, 26)
+        .padding(.horizontal, 20)
         .padding(.bottom, 16)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .background(WellieTheme.ice.ignoresSafeArea())
+        .background(WellieTheme.background.ignoresSafeArea())
         .wellieScreen()
     }
 
     private var canSignIn: Bool { !busy && model.hasBackendAccess }
-
-    private func point(_ text: String) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: "checkmark")
-                .font(.system(size: 14, weight: .bold))
-                .foregroundStyle(WellieTheme.blue)
-            Text(text)
-                .font(WellieTheme.font(15, weight: .semibold))
-                .foregroundStyle(WellieTheme.ink)
-        }
-    }
 
     private func finish(_ authorization: Result<ASAuthorization, any Error>) async {
         guard let backend = model.currentBackend else {

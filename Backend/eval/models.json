@@ -27,6 +27,15 @@
       "usdPerMillionOutput": 7.5
     },
     {
+      "id": "muse-spark-1.2",
+      "provider": "meta",
+      "model": "muse-spark-1.2",
+      "tier": "candidate",
+      "usdPerMillionInput": 1.25,
+      "usdPerMillionOutput": 4.25,
+      "why": "Reasoning model on Meta's Responses API, so it takes the same strict json_schema Luna does. Priced under gemini-3.6-flash on both sides, but it is a reasoning model billing its thinking as output — judge it on cost per photo rather than on the rate card. The `-contributor` snapshot is a fifth of the price and deliberately not used: Meta may train on what is sent to it, and these are photographs of someone's dinner."
+    },
+    {
       "id": "grok-4.5",
       "provider": "openrouter",
       "model": "x-ai/grok-4.5",

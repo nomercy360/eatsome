@@ -131,7 +131,7 @@ describe("gemini response schema", () => {
     // other provider derives theirs from the Zod contract, so it is the one
     // that can quietly fall behind — and it did: the prompt asked for grams,
     // the eval schema had a slot for them, and this one did not, so Gemini
-    // emitted none and the app scored a month of meals on the old ladder.
+    // emitted none and the app interpreted a month of meals on the old ladder.
     const properties = schema.properties as Record<string, Record<string, unknown>>;
     const dish = (properties.dishes as { items: Record<string, unknown> }).items;
     const dishProperties = dish.properties as Record<string, Record<string, unknown>>;

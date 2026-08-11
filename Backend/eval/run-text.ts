@@ -84,6 +84,7 @@ async function worker(queue: Job[]) {
           anthropic: process.env.ANTHROPIC_THINKING_BUDGET,
           qwen: process.env.QWEN_ENABLE_THINKING,
           openrouter: undefined,
+          meta: process.env.META_REASONING_EFFORT || "low",
         }[job.entry.provider] || "default",
       run: job.run,
       ok: false,

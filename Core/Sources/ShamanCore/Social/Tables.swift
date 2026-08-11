@@ -125,6 +125,17 @@ public struct TablePost: Codable, Sendable, Hashable, Identifiable {
         )
     }
 
+    /// The same immutable post after its author edits the one allowed line.
+    public func withCaption(_ caption: String?) -> TablePost {
+        TablePost(
+            id: id, seq: seq, kind: kind, authorMemberId: authorMemberId,
+            authorName: authorName, mine: mine, createdAt: createdAt,
+            mealId: mealId, dishName: dishName, caption: caption,
+            ingredients: ingredients, hasPhoto: hasPhoto,
+            text: text, replyToPostId: replyToPostId, reactions: reactions
+        )
+    }
+
     /// The mono line under a shared dish: what was in it, in chip vocabulary.
     ///
     /// Empty when the sharer left "show what's in it" off, which is the
@@ -161,8 +172,38 @@ public struct PostIngredient: Codable, Sendable, Hashable {
 }
 
 public enum TableReaction: String, Codable, Sendable, CaseIterable {
-    case olive
-    case heart
+    /// The server values stay stable so an upgraded app can react to plates
+    /// written by older builds without rewriting reaction rows in place.
+    case fire = "olive"
+    case sushi = "heart"
+}
+
+/// What the current member allows this table to receive. Photos default on;
+/// personal numbers default off. Keeping this on the membership rather than
+/// the table means every person at the same table owns their own boundary.
+public struct TableVisibility: Codable, Sendable, Hashable {
+    public let photos: Bool
+    public let nutrition: Bool
+    public let bodyAndGoals: Bool
+
+    public init(photos: Bool = true, nutrition: Bool = false, bodyAndGoals: Bool = false) {
+        self.photos = photos
+        self.nutrition = nutrition
+        self.bodyAndGoals = bodyAndGoals
+    }
+
+    public static let privateByDefault = TableVisibility()
+}
+
+/// The small, intentionally redacted slice used by the Tables list. It carries
+/// enough to draw a photo strip without making the list download whole posts.
+public struct TablePlatePreview: Codable, Sendable, Hashable, Identifiable {
+    public let id: String
+    public let authorName: String
+    public let mine: Bool
+    public let createdAt: EpochMillis
+    public let hasPhoto: Bool
+    public let reactionCount: Int
 }
 
 public struct TableSummary: Codable, Sendable, Hashable, Identifiable {
@@ -170,6 +211,11 @@ public struct TableSummary: Codable, Sendable, Hashable, Identifiable {
     public let name: String
     public let members: [TableMember]
     public let inviteCode: String
+    /// Nil against a pre-link API. The client still forms a link from the
+    /// stable invite code, while a current server supplies the real deadline.
+    public let inviteExpiresAt: EpochMillis?
+    /// Nil against a pre-privacy API; private-by-default is the safe fallback.
+    public let visibility: TableVisibility?
     /// Counted by the server against the same snapshot as the rest of the
     /// response. Never recomputed here from a page of posts — that is exactly
     /// how a badge undercounts while looking exact.
@@ -180,6 +226,11 @@ public struct TableSummary: Codable, Sendable, Hashable, Identifiable {
     /// Nil when the client did not say where its day begins, which is a
     /// different fact from zero and must not be drawn as one.
     public let cookedToday: Int?
+    /// Number of plates, not distinct cooks, since the caller's local midnight.
+    public let platesToday: Int?
+    /// Newest first. Optional so the app remains decodable during a rolling API
+    /// deployment where the old server has not started sending photo previews.
+    public let recentPlates: [TablePlatePreview]?
     public let latest: LatestPost?
 
     public struct LatestPost: Codable, Sendable, Hashable {
@@ -194,6 +245,12 @@ public struct TableSummary: Codable, Sendable, Hashable, Identifiable {
     }
 
     public var hasUnread: Bool { unreadCount > 0 }
+
+    public var effectiveVisibility: TableVisibility { visibility ?? .privateByDefault }
+
+    public var inviteURL: URL {
+        URL(string: "eatsome://table/\(inviteCode.lowercased())")!
+    }
 }
 
 public struct TablesListResponse: Codable, Sendable {
@@ -218,11 +275,18 @@ public struct CreateTableRequest: Codable, Sendable {
     public let id: String
     public let name: String
     public let displayName: String
+    public let visibility: TableVisibility
 
-    public init(name: String, displayName: String, id: String = UUIDv7.generate().uuidString) {
+    public init(
+        name: String,
+        displayName: String,
+        visibility: TableVisibility = .privateByDefault,
+        id: String = UUIDv7.generate().uuidString
+    ) {
         self.id = id
         self.name = name
         self.displayName = displayName
+        self.visibility = visibility
     }
 }
 
@@ -289,9 +353,8 @@ extension MealEntry {
     /// `showsIngredients` is the switch on the share sheet and the whole of the
     /// privacy decision: off, and the post carries a name and a photograph and
     /// nothing about the food. The olives are not a parameter — there is no
-    /// argument that would make them travel, because a score is a judgement of
-    /// a person's week and the one thing this app will not do is hand that to
-    /// somebody else's feed.
+    /// argument that would make a personal meal rating travel to somebody
+    /// else's feed.
     public func shareable(showingIngredients: Bool) -> [PostIngredient]? {
         guard showingIngredients else { return nil }
         return items.map { PostIngredient(group: $0.group, grams: $0.grams, label: $0.label) }

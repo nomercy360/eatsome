@@ -99,7 +99,7 @@ public struct FoodNutrientTable: Codable, Sendable, Equatable {
 
 /// Turning a model's free text into a lookup key.
 ///
-/// Every step is an exact match against the table. Nothing here scores string
+/// Every step is an exact match against the table. Nothing here uses string
 /// similarity: "chicken liver" is three times "chicken" in protein, and a fuzzy
 /// hit would be wrong in silence, where a miss is wrong in a way the group
 /// table already handles.

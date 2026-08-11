@@ -1,102 +1,152 @@
 import Foundation
 
-/// What a day is aiming at, in the five figures `Nutrients` carries.
+/// A personal daily planning reference derived from a complete
+/// `NutritionProfile`.
 ///
-/// Two of these are floors, two are ranges and one is a ceiling, and the type
-/// says which because a screen that treats them alike gets salt exactly
-/// backwards. `protein` is a floor — reaching it is the point. `kcal`,
-/// `carbohydrate` and `fat` are ranges to sit inside. `salt` is a ceiling, and
-/// the only figure here where the good direction is down.
-///
-/// Everything is derived from body weight and intent, which is all the app has:
-/// weight arrives from HealthKit and intent is a three-way switch in Settings.
-/// Nothing here asks for height, age or sex, so nothing here is Mifflin-St Jeor
-/// or Harris-Benedict. Those are better formulas fed data this app does not
-/// hold, and asking for a birth date to sharpen a number nobody should be
-/// hitting exactly is a bad trade.
+/// Maintenance energy uses the adult 2023 National Academies Dietary Reference
+/// Intake equations. Carbohydrate, fat and protein ranges use the adult AMDRs:
+/// 45–65%, 20–35% and 10–35% of energy respectively. They are ranges because
+/// the science publishes ranges; turning them into a single macro split would
+/// add a preference the source does not contain.
 public struct DailyTargets: Sendable, Equatable {
-    /// Grams. A floor.
-    public var protein: Double
-    /// Kilocalories. A range, centred here.
+    /// Estimated maintenance energy in kilocalories per day.
+    public var maintenanceKcal: Double
+    /// The planning centre after the selected goal adjustment.
     public var kcal: Double
-    /// Grams. Derived as the balance of energy left after protein and fat.
-    public var carbohydrate: Double
-    /// Grams.
-    public var fat: Double
+    /// A goal-specific protein reference in grams. `proteinRange` remains the
+    /// population AMDR; this figure is the simpler number shown day to day.
+    public var protein: Double
+    public var proteinMinimum: Double
+    public var proteinRange: ClosedRange<Double>
+    public var carbohydrateRange: ClosedRange<Double>
+    public var fatRange: ClosedRange<Double>
     /// Grams of salt equivalent. A ceiling.
     public var salt: Double
+    /// Signed difference between the goal centre and maintenance energy.
+    public var goalAdjustmentKcal: Double
 
-    public init(protein: Double, kcal: Double, carbohydrate: Double, fat: Double, salt: Double) {
-        self.protein = protein
+    public init(
+        maintenanceKcal: Double,
+        kcal: Double,
+        protein: Double,
+        proteinMinimum: Double,
+        proteinRange: ClosedRange<Double>,
+        carbohydrateRange: ClosedRange<Double>,
+        fatRange: ClosedRange<Double>,
+        salt: Double,
+        goalAdjustmentKcal: Double
+    ) {
+        self.maintenanceKcal = maintenanceKcal
         self.kcal = kcal
-        self.carbohydrate = carbohydrate
-        self.fat = fat
+        self.protein = protein
+        self.proteinMinimum = proteinMinimum
+        self.proteinRange = proteinRange
+        self.carbohydrateRange = carbohydrateRange
+        self.fatRange = fatRange
         self.salt = salt
+        self.goalAdjustmentKcal = goalAdjustmentKcal
     }
 
-    /// Kilocalories per kilogram of body weight per day, by intent.
-    ///
-    /// Deliberately coarse, and coarser than the protein figure beside it. A
-    /// resting expenditure predicted from weight alone carries roughly 15% error
-    /// before activity is guessed at, so this is a starting point to be adjusted
-    /// against the scale over a fortnight rather than a number to eat to. It is
-    /// shown as a range for that reason.
-    public static func kilocaloriesPerKilogram(_ intent: Protein.Intent) -> Double {
-        switch intent {
-        case .maintain: 30
-        case .active: 35
-        case .building: 40
-        }
-    }
-
-    /// The share of energy from fat.
-    ///
-    /// 35%, which is high against the 20–30% most guidelines print and correct
-    /// for the diet this app scores. PREDIMED's intervention arms ran 39–42% of
-    /// energy from fat, nearly all of it olive oil and nuts, and beat the
-    /// low-fat control. A 25% fat target inside a Mediterranean-diet tracker
-    /// would mark the olive oil that earns MEDAS points as an overshoot.
-    public static let fatShareOfEnergy = 0.35
-
-    /// Grams of salt a day, as a ceiling.
-    ///
-    /// The WHO recommendation, and an absolute figure rather than a
-    /// weight-scaled one because the evidence behind it is about blood pressure
-    /// rather than body size.
-    ///
-    /// Nothing currently shows this next to a derived figure, and that is on
-    /// purpose. `Nutrients.saltGrams` is a floor — composition tables publish
-    /// unsalted preparations, and it read 82% under a canteen meal that printed
-    /// its salt — so a progress bar against 5 g would report every restaurant
-    /// lunch as comfortably clear. The ceiling is kept because it is the right
-    /// number the day a salt figure exists that can be honestly compared to it,
-    /// which means either a panel that printed one or a way to account for what
-    /// cooking adds.
+    /// Grams of salt a day, as a ceiling. Kept separate from macro planning:
+    /// meal salt totals are often floors because cooking salt is invisible.
     public static let saltCeilingGrams = 5.0
 
-    public static func forBody(weightKilograms: Double, intent: Protein.Intent) -> DailyTargets {
-        let protein = Protein.dailyTarget(weightKilograms: weightKilograms, intent: intent)
-        let kcal = (weightKilograms * kilocaloriesPerKilogram(intent)).rounded()
-        let fat = (kcal * fatShareOfEnergy / 9).rounded()
-        // Carbohydrate is the balance, which is both the easiest arithmetic and
-        // the honest description: protein is set by body weight, fat by the diet
-        // being tracked, and what is left over is carbohydrate. Floored at zero
-        // so an unusual weight and intent cannot produce a negative target.
-        let carbohydrate = max(0, (kcal - protein * 4 - fat * 9) / 4).rounded()
+    /// A 500 kcal deficit is the moderate reference used by U.S. weight-loss
+    /// guidance. The 20% cap makes it smaller for lower maintenance estimates.
+    public static let maximumWeightLossDeficit = 500.0
+    public static let maximumWeightLossFraction = 0.20
+
+    /// Evidence does not establish one exact surplus for hypertrophy. The low
+    /// end of the published 10–20% range is used so the planning reference is
+    /// conservative and visibly separate from maintenance energy.
+    public static let muscleGainSurplusFraction = 0.10
+
+    public static func forProfile(_ profile: NutritionProfile) -> DailyTargets? {
+        guard profile.isComplete,
+              let weight = profile.weightKilograms,
+              let sex = profile.referenceSex,
+              let goal = profile.goal,
+              let maintenance = maintenanceEnergy(for: profile)
+        else { return nil }
+
+        let planned: Double
+        switch goal {
+        case .maintain:
+            planned = maintenance
+        case .loseWeight:
+            // Do not generate an automatic deficit below the adult underweight
+            // threshold. The profile remains usable; the displayed reference
+            // stays at maintenance and the UI explains why.
+            if let bmi = profile.bodyMassIndex, bmi < 18.5 {
+                planned = maintenance
+            } else {
+                let deficit = min(maximumWeightLossDeficit, maintenance * maximumWeightLossFraction)
+                let floor = sex == .female ? 1_200.0 : 1_500.0
+                planned = max(floor, maintenance - deficit)
+            }
+        case .gainMuscle:
+            planned = maintenance * (1 + muscleGainSurplusFraction)
+        }
+
+        let energy = planned.rounded()
+        let minimumProtein = (weight * 0.8).rounded()
+        let goalProtein = (weight * (goal == .maintain ? 0.8 : 1.6)).rounded()
+
         return DailyTargets(
-            protein: protein,
-            kcal: kcal,
-            carbohydrate: carbohydrate,
-            fat: fat,
-            salt: saltCeilingGrams
+            maintenanceKcal: maintenance.rounded(),
+            kcal: energy,
+            protein: goalProtein,
+            proteinMinimum: minimumProtein,
+            proteinRange: gramRange(energy: energy, lowerShare: 0.10, upperShare: 0.35, kcalPerGram: 4),
+            carbohydrateRange: gramRange(energy: energy, lowerShare: 0.45, upperShare: 0.65, kcalPerGram: 4),
+            fatRange: gramRange(energy: energy, lowerShare: 0.20, upperShare: 0.35, kcalPerGram: 9),
+            salt: saltCeilingGrams,
+            goalAdjustmentKcal: (energy - maintenance).rounded()
         )
     }
 
-    /// How wide the energy range around `kcal` is, either side, as a fraction.
-    ///
-    /// A single number invites eating to it, which is the behaviour this app
-    /// spent three years declining to encourage. The band is the honest width of
-    /// the estimate and roughly the day-to-day noise in a weight-derived figure.
+    /// Adult (19+) EER/TEE equations from the 2023 Dietary Reference Intakes
+    /// for Energy. Age is in years, height in centimetres and weight in kg.
+    public static func maintenanceEnergy(for profile: NutritionProfile) -> Double? {
+        guard profile.hasValidBodyInputs,
+              let age = profile.ageYears.map(Double.init),
+              let height = profile.heightCentimeters,
+              let weight = profile.weightKilograms,
+              let sex = profile.referenceSex,
+              let activity = profile.activityLevel
+        else { return nil }
+
+        let coefficients: (intercept: Double, age: Double, height: Double, weight: Double)
+        switch (sex, activity) {
+        case (.male, .inactive): coefficients = (753.07, -10.83, 6.50, 14.10)
+        case (.male, .lowActive): coefficients = (581.47, -10.83, 8.30, 14.94)
+        case (.male, .active): coefficients = (1_004.82, -10.83, 6.52, 15.91)
+        case (.male, .veryActive): coefficients = (-517.88, -10.83, 15.61, 19.11)
+        case (.female, .inactive): coefficients = (584.90, -7.01, 5.72, 11.71)
+        case (.female, .lowActive): coefficients = (575.77, -7.01, 6.60, 12.14)
+        case (.female, .active): coefficients = (710.25, -7.01, 6.54, 12.34)
+        case (.female, .veryActive): coefficients = (511.83, -7.01, 9.07, 12.56)
+        }
+        return coefficients.intercept
+            + coefficients.age * age
+            + coefficients.height * height
+            + coefficients.weight * weight
+    }
+
+    private static func gramRange(
+        energy: Double,
+        lowerShare: Double,
+        upperShare: Double,
+        kcalPerGram: Double
+    ) -> ClosedRange<Double> {
+        (energy * lowerShare / kcalPerGram).rounded()
+            ...
+            (energy * upperShare / kcalPerGram).rounded()
+    }
+
+    /// Individual energy needs vary around the population equation. The band
+    /// is presentation uncertainty, not permission to treat either edge as a
+    /// hard daily limit.
     public static let energyBand = 0.10
 
     public var kcalRange: ClosedRange<Double> {

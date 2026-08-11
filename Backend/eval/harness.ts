@@ -145,10 +145,14 @@ export function envFor(provider: RecognitionProvider, model?: string): Env {
     OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY ?? "",
     OPENROUTER_RECOGNITION_MODEL: process.env.OPENROUTER_RECOGNITION_MODEL ?? "",
     OPENROUTER_BASE_URL: process.env.OPENROUTER_BASE_URL ?? "",
+    META_API_KEY: process.env.META_API_KEY ?? "",
+    META_RECOGNITION_MODEL: process.env.META_RECOGNITION_MODEL ?? "muse-spark-1.2",
+    META_BASE_URL: process.env.META_BASE_URL ?? "",
     OPENAI_REASONING_EFFORT: process.env.OPENAI_REASONING_EFFORT ?? "",
     GEMINI_THINKING_LEVEL: process.env.GEMINI_THINKING_LEVEL ?? "",
     ANTHROPIC_THINKING_BUDGET: process.env.ANTHROPIC_THINKING_BUDGET ?? "",
     QWEN_ENABLE_THINKING: process.env.QWEN_ENABLE_THINKING ?? "",
+    META_REASONING_EFFORT: process.env.META_REASONING_EFFORT ?? "",
     RECOGNITION_PROVIDER: provider,
   } as unknown as Env;
   if (model) {
@@ -160,6 +164,7 @@ export function envFor(provider: RecognitionProvider, model?: string): Env {
       anthropic: "ANTHROPIC_RECOGNITION_MODEL",
       qwen: "QWEN_RECOGNITION_MODEL",
       openrouter: "OPENROUTER_RECOGNITION_MODEL",
+      meta: "META_RECOGNITION_MODEL",
     }[provider];
     (env as unknown as Record<string, string>)[key] = model;
   }
@@ -172,6 +177,7 @@ const keyVariable: Record<RecognitionProvider, string> = {
   anthropic: "ANTHROPIC_API_KEY",
   qwen: "QWEN_API_KEY",
   openrouter: "OPENROUTER_API_KEY",
+  meta: "META_API_KEY",
 };
 
 export function isConfigured(provider: RecognitionProvider): boolean {

@@ -50,7 +50,12 @@ public actor EventLog {
         var events: [LoggedEvent] = []
         var skipped = 0
         for line in raw.split(separator: "\n", omittingEmptySubsequences: true) {
-            if let event = try? Self.decoder.decode(LoggedEvent.self, from: Data(line.utf8)) {
+            let data = Data(line.utf8)
+            if let probe = try? Self.decoder.decode(EventKindProbe.self, from: data),
+               Self.retiredEventKinds.contains(probe.payload.kind) {
+                continue
+            }
+            if let event = try? Self.decoder.decode(LoggedEvent.self, from: data) {
                 events.append(event)
             } else {
                 skipped += 1
@@ -91,4 +96,21 @@ public actor EventLog {
     }()
 
     private static let decoder = JSONDecoder()
+
+    /// These settings events were valid in older builds. They no longer affect
+    /// the projection, but silently retaining their JSONL rows makes an in-place
+    /// upgrade lossless and avoids misreporting them as corrupt records.
+    private static let retiredEventKinds: Set<String> = [
+        "habits_updated",
+        "diet_saved",
+        "diet_selected"
+    ]
+
+    private struct EventKindProbe: Decodable {
+        let payload: Payload
+
+        struct Payload: Decodable {
+            let kind: String
+        }
+    }
 }

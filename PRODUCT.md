@@ -25,15 +25,13 @@ recognition work is measured against.
 ## Product Purpose
 
 Say what you ate — as a photograph, a sentence, or a voice note — and get a
-score for the week against a diet you choose.
+clear meal record, sourced nutrition figures, and a simple olive rating.
 
-The app reads the meal into food groups and weights, then scores a rolling
-seven-day window. Success is **a week you keep logging**: the score is only
-worth anything if the days are actually in it, so every design decision is
-weighed against whether somebody will still be logging on day forty. That is why
-the window is seven days rather than one (no fish on Tuesday is not a failure),
-why the bottom of the olive scale is "a treat — it happens" rather than a
-reprimand, and why a wrong reading is corrected in a sentence instead of a form.
+The app reads the meal into dishes, food groups, and weights. Success is **a log
+you keep using**: every design decision is weighed against whether somebody will
+still be logging on day forty. That is why the bottom of the olive scale is "a
+treat — it happens" rather than a reprimand, and why a wrong reading is corrected
+in a sentence instead of a form.
 
 ## Positioning
 
@@ -56,9 +54,6 @@ the same work:
   must surface. A partial total that does not say it is partial is the failure
   the whole design is arranged against.
 
-The diet is data rather than a mode: switching it re-scores the entire history
-instantly, because no score was ever stored — only the parse.
-
 ## Operating Context
 
 - **Capture is one field.** Camera, photo library, keyboard, microphone — all
@@ -69,22 +64,21 @@ instantly, because no score was ever stored — only the parse.
 - **Correction is conversational.** A wrong weight or a wrong food is fixed by
   saying so in words; the model returns a delta touching only the rows it names,
   so hand edits survive.
-- **At most one question per meal.** Which ambiguity is worth a tap is computed
-  from the active diet, so the question changes when the diet does. Saving is
-  never blocked on answering, and an ignored question is itself recorded as
-  evidence.
-- **Health data is read, never written.** Workouts, sleep and weight are read
-  from HealthKit at launch and never copied into the log.
+- **At most one question per meal.** The first genuine ambiguity is offered as
+  direct choices. Saving is never blocked on answering, and the original model
+  shortlist remains evidence.
+- **Health data is read, never written.** Body profile, energy, workouts and
+  sleep are read from HealthKit at launch and never copied into the meal log.
 - **Tables** — small groups of friends, capped at twelve — are where a meal can
-  be shared. The score never travels with it.
+  be shared. The olive rating never travels with it.
 
 ## Capabilities and Constraints
 
 **Confirmed functionality.** Photo/text/voice recognition; food-group and gram
 extraction; five nutrients derived by table lookup; transcription of printed
-nutrition panels when one is legible; a diet engine with five shipped presets and
-user-forked custom diets; goals scored into olives and constraints reported
-kept-or-broken; an optional protein target; a seven-day window; HealthKit import;
+nutrition panels when one is legible; meal and day olive ratings; an adult daily
+energy and macro reference based on body profile, activity and goal; daily
+history; HealthKit import;
 tables with posts, replies, reactions and shared photos; Sign in with Apple.
 
 **Technical constraints that are not negotiable without a decision.**
@@ -92,7 +86,7 @@ tables with posts, replies, reactions and shared photos; Sign in with Apple.
 - Storage is an append-only event log. Corrections are new lines; nothing
   rewrites history, and new fields on stored types must be optional.
 - `Core/` is framework-free — no UIKit, AVFoundation, MediaPipe or HealthKit —
-  which is what makes the scoring testable.
+  which is what makes the domain logic testable.
 - Time is UTC epoch milliseconds; local time is derived at render. Identifiers
   are UUIDv7.
 - Thresholds, prompts and nutrient tables live in `shaman-config.json`, fetched
@@ -110,14 +104,14 @@ tables with posts, replies, reactions and shared photos; Sign in with Apple.
 - **Sign-in is required.** Sign in with Apple is the production identity
   boundary, shown before onboarding or an existing local log. The shared build
   token can start the identity exchange but cannot access meals, recognition,
-  voice, or tables by itself. A week follows the signed-in account to another
+  voice, or tables by itself. Meal history follows the signed-in account to another
   phone; local history remains on disk after sign-out but stays locked until an
   account is authenticated again.
 - **Push notifications** are not built. Table badges are polled on open and every
   response states when the server counted it.
-- **Macro targets beyond protein.** Energy, carbohydrate and fat are computed and
-  shown, but no target is offered for them, on the argument that a target invites
-  eating to a number that is only as good as an estimated weight.
+- **Personal profile sync.** Health-sourced values and manually entered profile
+  fallbacks remain on the device. Meal history syncs between signed-in devices,
+  but personal energy-reference inputs do not yet.
 
 ## Brand Commitments
 
@@ -125,16 +119,16 @@ tables with posts, replies, reactions and shared photos; Sign in with Apple.
   identifier `app.shaman.tracker`, and the `Shaman` application-support
   directory — is legacy plumbing retained so existing installs keep their
   history. It must never appear in anything a person reads.
-- **Olives are the score.** One to five, and the unit every diet shares, so a
-  plant-forward week and a Mediterranean week read the same at a glance.
+- **Olives rate the plate.** One to five, deliberately coarse, with one olive
+  described as a treat rather than a failure.
 - **Sentences, not forms.** The recognised meal is one tappable sentence. Numbers
   small enough to speak are spelled as words in prose, because a digit
   mid-sentence reads as data and the point of the sentence is that it is not.
 - **The tone is additive.** One olive is a treat, never a failure. There is no
   screen that tells somebody off.
-- **A score is private.** Sharing a meal shares a dish, a photograph, and — only
-  if switched on — what was in it. There is deliberately no control that would
-  make olives travel to somebody else's feed.
+- **The olive rating is private.** Sharing a meal shares a dish, a photograph,
+  and — only if switched on — what was in it. There is deliberately no control
+  that would make olives travel to somebody else's feed.
 
 ## Evidence on Hand
 
@@ -150,15 +144,11 @@ Real, in the repository:
   estimate worse on every figure that matters.
 - A canteen bibimbap printing 4 g of salt against a derived 0.7 g — the
   measurement behind showing salt as a floor (`≥`) and never against a ceiling.
-- MEDAS, the Mediterranean Diet Adherence Screener from the PREDIMED trial: the
-  one shipped diet that is a published instrument, and the only one allowed to
-  say so.
 - TestFlight feedback and screenshots from real testers.
 
 Absences that future work must not fabricate: there are no customers, no
 testimonials, no usage numbers, no press, no pricing, and no clinical validation
-of anything except MEDAS itself — and MEDAS validates the screener, not this
-app's implementation of it.
+of the app's meal rating or nutrition estimates.
 
 ## Product Principles
 
@@ -168,16 +158,13 @@ app's implementation of it.
 2. **The person is the authority on their own meal.** Their words outrank the
    model's reading of the photograph, and a correction is kept as evidence rather
    than overwriting what the model thought.
-3. **Never require perfection to stay useful.** A rolling window, a forgiving
-   scale, skippable questions, and a log that works offline — because the failure
+3. **Never require perfection to stay useful.** A forgiving scale, skippable
+   questions, and a log that works offline — because the failure
    mode that kills this product is somebody quietly stopping in week three.
-4. **The diet belongs to the user, the measurement belongs to the app.** What
-   counts as a good week is a choice; what is on the plate is a reading. Those
-   two are kept apart, which is what lets the diet change without the history
-   changing.
-5. **Say what it cost.** Estimates state that they are estimates, snapshots state
-   when they were taken, and a claim that only one diet earns — "validated" —
-   belongs to the one instrument that earned it.
+4. **The meal belongs to the user, the reading belongs to the app.** Their words
+   outrank the model and corrections remain visible in the append-only history.
+5. **Say what it cost.** Estimates state that they are estimates, partial totals
+   state what is unresolved, and snapshots state when they were taken.
 
 ## Accessibility & Inclusion
 

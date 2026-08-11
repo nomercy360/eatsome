@@ -41,7 +41,7 @@ public enum DishLibrary {
     /// offered in August.
     public static let recencyHalfLifeDays = 14.0
 
-    /// How much of a dish's score survives being suggested in the wrong part of
+    /// How much of a dish's rank survives being suggested in the wrong part of
     /// the day. Not zero — people do eat soup for breakfast — but enough that
     /// three lunches outrank one breakfast at lunchtime.
     private static let wrongDaypartFloor = 0.35
@@ -106,8 +106,8 @@ public enum DishLibrary {
 
         let candidates = entries(in: all).filter { needle.isEmpty || matches($0.name, needle) }
 
-        var scored: [(entry: Entry, score: Double)] = []
-        scored.reserveCapacity(candidates.count)
+        var ranked: [(entry: Entry, rank: Double)] = []
+        ranked.reserveCapacity(candidates.count)
         for entry in candidates {
             let elapsed: Double = Double(max(0, now - entry.lastLoggedAt)) / 86_400_000
             let recency: Double = pow(0.5, elapsed / recencyHalfLifeDays)
@@ -116,13 +116,13 @@ public enum DishLibrary {
             let share: Double = Double(atThisTime) / Double(max(1, entry.timesLogged))
             let affinity: Double = wrongDaypartFloor + (1 - wrongDaypartFloor) * share
 
-            scored.append((entry, Double(entry.timesLogged) * recency * affinity))
+            ranked.append((entry, Double(entry.timesLogged) * recency * affinity))
         }
 
-        scored.sort {
-            $0.score == $1.score ? $0.entry.lastLoggedAt > $1.entry.lastLoggedAt : $0.score > $1.score
+        ranked.sort {
+            $0.rank == $1.rank ? $0.entry.lastLoggedAt > $1.entry.lastLoggedAt : $0.rank > $1.rank
         }
-        return scored.prefix(limit).map(\.entry)
+        return ranked.prefix(limit).map(\.entry)
     }
 
     /// True when the needle starts the name or any word inside it. Deliberately

@@ -1,383 +1,414 @@
 ---
 name: eatsome
-description: Say what you ate; the week keeps score in olives.
+description: Say what you ate; the day keeps the count.
 colors:
-  signal-blue: "#2E5BFF"
-  signal-blue-dark: "#6E92FF"
-  brine-olive: "#7D9455"
-  brine-olive-dark: "#9BB374"
-  ink: "#0A0F1E"
-  ink-dark: "#EDF2F8"
-  ink-surface: "#0A0F1E"
-  ink-surface-dark: "#E7EDF5"
-  on-ink: "#FFFFFF"
-  on-ink-dark: "#0A0F1E"
-  body: "#4C5F7A"
-  body-dark: "#A9B7C8"
-  muted: "#667085"
-  muted-dark: "#8794A5"
-  faint: "#98A2B3"
-  faint-dark: "#4A5461"
-  background: "#FFFFFF"
-  background-dark: "#0B0F16"
-  surface: "#FFFFFF"
-  surface-dark: "#121820"
-  ice: "#F4F7FA"
-  ice-dark: "#141A23"
-  well: "#F7F9FB"
-  well-dark: "#0E141C"
-  hairline: "rgba(10, 15, 30, 0.10)"
-  hairline-dark: "rgba(255, 255, 255, 0.12)"
-  outline: "rgba(10, 15, 30, 0.16)"
-  outline-dark: "rgba(255, 255, 255, 0.20)"
-  attention: "#C7822F"
-  attention-surface: "#FBF3E7"
-  danger: "#C24B4B"
-  heart: "#E0525B"
+  accent: "#8A97F7"
+  on-accent: "#0B0D12"
+  protein: "#A3B04A"
+  protein-dim: "#2E331F"
+  ink: "#EEF1F7"
+  body: "#B4BDCC"
+  muted: "#737E92"
+  faint: "#3A4152"
+  background: "#0B0D12"
+  surface: "#13161E"
+  well: "#10131A"
+  raised: "#232834"
+  hairline: "#1E2330"
+  outline: "#2A3040"
+  ink-surface: "#E7EDF5"
+  on-ink: "#0B0D12"
+  attention: "#E0A257"
+  attention-surface: "#2A2113"
+  danger: "#E27777"
+  heart: "#F4767E"
 typography:
-  display:
-    fontFamily: "Space Grotesk, -apple-system, system-ui, sans-serif"
-    fontSize: "32px"
-    fontWeight: 700
+  counter:
+    fontFamily: "Sora, -apple-system, system-ui, sans-serif"
+    fontSize: "58px"
+    fontWeight: 800
     lineHeight: 1.1
-    letterSpacing: "-0.02em"
-  headline:
-    fontFamily: "Space Grotesk, -apple-system, system-ui, sans-serif"
-    fontSize: "26px"
+    letterSpacing: "-1.5px"
+  display:
+    fontFamily: "Sora, -apple-system, system-ui, sans-serif"
+    fontSize: "25px"
     fontWeight: 700
-    lineHeight: 1.15
+    lineHeight: 1.3
+  headline:
+    fontFamily: "Sora, -apple-system, system-ui, sans-serif"
+    fontSize: "24px"
+    fontWeight: 600
+    lineHeight: 1.3
   title:
-    fontFamily: "Space Grotesk, -apple-system, system-ui, sans-serif"
-    fontSize: "17px"
+    fontFamily: "Sora, -apple-system, system-ui, sans-serif"
+    fontSize: "16px"
     fontWeight: 700
     lineHeight: 1.25
   body:
-    fontFamily: "Space Grotesk, -apple-system, system-ui, sans-serif"
-    fontSize: "15.5px"
-    fontWeight: 500
+    fontFamily: "Sora, -apple-system, system-ui, sans-serif"
+    fontSize: "14px"
+    fontWeight: 400
     lineHeight: 1.5
   label:
-    fontFamily: "IBMPlexMono-Medm, ui-monospace, monospace"
-    fontSize: "9.5px"
-    fontWeight: 500
-    letterSpacing: "0.6px"
+    fontFamily: "Sora, -apple-system, system-ui, sans-serif"
+    fontSize: "11px"
+    fontWeight: 600
+    letterSpacing: "1.3px"
+    textTransform: "uppercase"
 rounded:
-  chip: "6px"
-  control: "8px"
-  photo: "8px"
-  card: "10px"
+  thumb: "14px"
+  chip: "16px"
+  photo: "16px"
+  inner: "20px"
+  card: "22px"
+  control: "24px"
+  hero: "26px"
 spacing:
-  screen-inset: "18px"
-  card-gap: "14px"
-  card-padding: "18px"
+  screen-inset: "20px"
+  card-gap: "12px"
+  card-padding: "20px"
 components:
   button-primary:
-    backgroundColor: "{colors.signal-blue}"
-    textColor: "#FFFFFF"
+    backgroundColor: "{colors.accent}"
+    textColor: "{colors.on-accent}"
     rounded: "{rounded.control}"
     padding: "17px 0"
     typography: "{typography.title}"
-  button-ink:
-    backgroundColor: "{colors.ink-surface}"
-    textColor: "{colors.on-ink}"
+  button-secondary:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.body}"
+    borderColor: "{colors.hairline}"
     rounded: "{rounded.control}"
-    padding: "0"
-    size: "34px"
+    padding: "16px 0"
   card:
     backgroundColor: "{colors.surface}"
     textColor: "{colors.ink}"
+    borderColor: "{colors.hairline}"
     rounded: "{rounded.card}"
     padding: "{spacing.card-padding}"
-  card-tinted:
-    backgroundColor: "{colors.ice}"
-    textColor: "{colors.ink}"
-    rounded: "{rounded.card}"
-    padding: "{spacing.card-padding}"
+  card-glass:
+    backgroundColor: "rgba(19, 22, 30, 0.72)"
+    backdropFilter: "blur(18px)"
+    borderColor: "rgba(255, 255, 255, 0.09)"
+    rounded: "{rounded.hero}"
+    padding: "24px"
   chip:
-    backgroundColor: "transparent"
+    backgroundColor: "{colors.surface}"
     textColor: "{colors.body}"
+    borderColor: "{colors.hairline}"
     rounded: "{rounded.chip}"
-    padding: "6px 10px"
+    padding: "10px 16px"
+  chip-selected:
+    backgroundColor: "{colors.accent}"
+    textColor: "{colors.on-accent}"
+    rounded: "{rounded.chip}"
+    padding: "10px 16px"
   input:
     backgroundColor: "{colors.surface}"
     textColor: "{colors.ink}"
-    rounded: "{rounded.chip}"
-    padding: "9px 14px"
-  avatar:
-    backgroundColor: "{colors.ice}"
-    textColor: "{colors.body}"
-    rounded: "{rounded.chip}"
-    size: "28px"
+    borderColor: "{colors.hairline}"
+    focusBorderColor: "{colors.accent}"
+    rounded: "{rounded.card}"
+    padding: "18px"
+  meter-track:
+    backgroundColor: "{colors.hairline}"
+    height: "6px"
+    rounded: "3px"
+  day-dot:
+    backgroundColor: "{colors.raised}"
+    activeBackgroundColor: "{colors.accent}"
+    size: "32px"
 ---
 
 # Design System: eatsome
 
 ## Overview
 
-**Creative North Star: "The Field Notebook"**
+**Creative North Star: "Quiet Night"**
 
-A day in eatsome is a record you keep, not a feed you consume. The day page is a
-time rail with entries hanging off it, dated and ordered by when the food was
-eaten rather than when it was written down — so a day typed up at bedtime still
-reads as the day you had, with one small margin note admitting when it was
-written. Everything about the surface follows from that: white paper, hairline
-rules, measurements set in the margin, and prose reserved for what the app
-actually observed.
+The app is dark, and it is a *ledger you check* rather than a page you read. It
+opens on one figure — how many of the last ninety days you wrote something down
+— and then on four meters and the meals themselves. Everything else is one tap
+off that.
 
-The system is flat by construction. There is no shadow anywhere in it. Cards are
-white on white, separated by a single hairline, because a screen of them should
-read as a page of entries rather than a stack of floating objects. Colour is
-almost absent: one blue that marks the single thing you are meant to touch, one
-olive that belongs to the score and to nothing else, and a warm red spent
-entirely on a reaction. Everything else is ink, grey, or paper.
+The system is flat by construction. There are no shadows in it. A card is
+`#13161E` on a `#0B0D12` page with a 1 px `#1E2330` line around it, which is the
+dark-page equivalent of the hairline discipline the previous, light direction
+ran on: separation is a line and a tonal step, never a lift. Colour is almost
+absent — one periwinkle accent, one olive that belongs to protein, and a warm
+amber for anything the app is admitting it does not know.
 
-The binding anti-reference is **the calorie tracker**. No ring charts, no macro
-donuts, no red/amber/green judgement, no streak flames, no big number in a
-circle. The product exists as a rejection of that genre and the surface has to
-say so before a word is read. The direction this replaced — rounded SF, 28 pt
-radii, ice-blue cards lifted on shadows — is also spent: soft where this system
-is exact.
+**This replaced a white, papery, two-typeface system in August 2026** (`9d`,
+"The Field Notebook"), and the change is total: page, palette, typeface, radii,
+and the home screen's whole premise. The thread — a permanently-present composer
+with the day rendered as a conversation — went with it. Screens outside the five
+redrawn ones still carry the old *layouts*; they inherit these tokens, because
+the tokens are shared, but they have not been redesigned.
+
+**What survived the change**, because it was never a matter of style:
+
+- No score on the food. The olive rating is gone from every redrawn screen. The
+  counter measures logging, not eating well.
+- Salt is never drawn against a ceiling. It is a floor and it says `≥`.
+- A figure that is a range is drawn as a range.
+- A total built from part of a plate says how much of it did not answer.
+
+**What changed on purpose.** The old doctrine's binding anti-reference was *the
+calorie tracker* — no macro meters, no streaks, no big number. Two of those are
+now here, and the reason is that the app can now honestly compute them: energy
+and the three macros come off the same sourced composition rows as protein, and
+`DailyTargets` derives a personal reference from a complete profile. The
+anti-reference narrowed rather than disappeared: no ring charts, no red/amber/
+green judgement, no grade for a meal, and no figure the app cannot source.
 
 **Key Characteristics:**
 
-- Flat to the point of doctrine; a hairline does every job a shadow would
-- Two typefaces with a semantic split, never a decorative one
-- Radii live in a 6–10 px band and never become a pill
-- One accent, one score colour, one warm colour, and no fourth
-- Photographs run to the edge of the screen; the interface recedes around them
-- Dark mode is a real appearance, not an inversion
+- One scheme, and it is dark. Not an inversion of a light one
+- Flat to the point of doctrine; a 1 px line does every job a shadow would
+- One typeface, five weights, from an 11 px label to a 58 px counter
+- Radii 14–26 px; the previous 6–10 band reads as a table cell on a dark page
+- One accent per screen, plus protein's own colour
+- Photographs run to the edge and the interface sits on top of them
 
 ## Colors
 
-A near-monochrome page with three colours allowed on it, each with exactly one
-job.
+A near-black page with two colours allowed on it, each with exactly one job.
 
 ### Primary
 
-- **Signal Blue** (#2E5BFF; #6E92FF in dark): A signal, not a brand colour. It
-  marks the one thing on a screen you are meant to touch — the primary button,
-  the active selection, an unread badge, a live link. A screen with three blue
-  things has no accent.
+- **Periwinkle** (#8A97F7): The accent, at 7.3:1 on the page. It marks the
+  primary button, the current selection, and a value that is live right now —
+  today's bar in a chart, the caption on a photo being read. A screen with three
+  periwinkle things has no accent.
 
 ### Secondary
 
-- **Brine Olive** (#7D9455; #9BB374 in dark): The score, and the colour of the
-  fruit itself. It appears in the olive row, in a filled olive reaction, and in
-  the confirmed state of a save. It is never a status colour and never means
-  "good" on anything that is not an olive.
-
-### Tertiary
-
-- **Heart Red** (#E0525B): The one warm colour in the system, spent entirely on
-  a reaction at a table. Nowhere else.
+- **Protein Olive** (#A3B04A) and **Protein Dim** (#2E331F): The only nutrient
+  with a colour. It gets one because it is the only one of the five with a
+  *goal* rather than a reference range, so a protein bar can honestly be full or
+  short. Never a generic success green.
 
 ### Neutral
 
-- **Ink** (#0A0F1E; #EDF2F8 in dark): Titles, dish names, anything read first.
-- **Ink Surface** (#0A0F1E; #E7EDF5 in dark) with **On Ink** (#FFFFFF; #0A0F1E
-  in dark): A matched pair for the one dark object in an exchange. Kept separate
-  from Ink because Ink must invert for dark mode as a *text* colour, and a fill
-  that inverts with a hardcoded white foreground puts white on white.
-- **Body** (#4C5F7A; #A9B7C8 in dark): Running prose, one step back from ink.
-- **Muted** (#667085; #8794A5 in dark): Labels, captions, and every mono line.
-- **Faint** (#98A2B3; #4A5461 in dark): Chevrons, disabled marks, the "now"
-  tick. Never used for text that has to be read.
-- **Paper** (#FFFFFF; #0B0F16 in dark) and **Ice** (#F4F7FA; #141A23 in dark):
-  The page and the one tinted surface, for heroes and quiet inputs.
-- **Hairline** (rgba(10,15,30,.10)) and **Outline** (rgba(10,15,30,.16)): The
-  line that does the work shadows used to, and its slightly firmer sibling for a
-  control that has an edge but no fill.
-- **Attention** (#C7822F) and **Danger** (#C24B4B): A failed reading, a broken
-  constraint, a destructive action. Warm amber rather than alarm red for
-  anything that is merely *not yet* — the app does not tell people off.
+- **Ink** (#EEF1F7): Titles, figures, anything read first.
+- **Body** (#B4BDCC): Running prose, one step back from ink.
+- **Muted** (#737E92): Labels, captions, secondary values, every meta line.
+  Three values lighter than the source mock's `#6C7689`, which measures 4.26:1
+  here — under the floor for text this size, and it carries real words.
+- **Faint** (#3A4152): Chevrons, empty meter track, section labels on a quiet
+  row, the denominator of a fraction. 1.6:1 — **decoration and non-text marks
+  only**.
+- **Background** (#0B0D12), **Surface** (#13161E), **Well** (#10131A),
+  **Raised** (#232834): The page, a card on it, an input inset in the card, and
+  a raised fill — an unfilled meter, a secondary control, a bar in a chart.
+- **Hairline** (#1E2330) and **Outline** (#2A3040): The line that does the work
+  shadows used to, and its firmer sibling for a control with an edge and no
+  fill. One point, not a half: on a dark page a 0.5 px line at low contrast is
+  not there.
+- **Ink Surface** (#E7EDF5) with **On Ink** (#0B0D12): A matched pair for
+  anything that has to be the one *bright* block on the page.
+- **Attention** (#E0A257) and **Danger** (#E27777): An unresolved weight, a
+  failed reading, a destructive action. Warm amber for anything that is merely
+  *not yet* — the app does not tell people off.
 
 ### Named Rules
 
-**The One Signal Rule.** Signal Blue marks the single most touchable thing on a
-screen. If two elements are blue, one of them is wrong.
+**The One Accent Rule.** Periwinkle marks the single most touchable or most live
+thing on a screen. If two elements are periwinkle, one of them is wrong.
 
-**The Olive Is Not A Status Rule.** Brine Olive belongs to the score. It never
-becomes a generic success green, and no other colour ever stands in for an
-olive.
+**The Protein Colour Rule.** Olive belongs to protein, because protein has a
+goal. It never becomes a success green, and no other nutrient is coloured.
 
-**The Matched Pair Rule.** Any fill that inverts between appearances carries its
-own foreground token. A hardcoded `white` on an adaptive fill is a bug — it put
-white text on a white button and made every sent message invisible in dark mode.
+**The Faint Is Not Text Rule.** #3A4152 is 1.6:1 on the page. If a thing has
+words in it that have to be read, it does not get this colour. The one argued
+exception is a fraction's denominator, which is 42 px and sits against its own
+bright numerator.
+
+**The Matched Pair Rule.** Any fill carries its own foreground token. A
+hardcoded `white` on a fill is a bug waiting for the fill to change.
 
 ## Typography
 
-**Display Font:** Space Grotesk (400/500/700, bundled; falls back to system)
-**Body Font:** Space Grotesk
-**Label/Mono Font:** IBM Plex Mono Medium (PostScript name `IBMPlexMono-Medm`)
+**One face:** Sora — 400 Regular, 500 Medium, 600 SemiBold, 700 Bold, 800
+ExtraBold. Bundled as five static cuts, OFL/SIL, falling back to the system face.
 
-**Character:** A grotesque with enough personality to carry a headline and
-enough neutrality to disappear into a list, paired with a mono that reads as
-instrument output rather than as code. The pairing is semantic: the grotesque is
-the voice of the app, the mono is the margin of the notebook.
+**Character:** A geometric grotesque with a tall x-height and enough width at
+800 to hold a 58 px number without looking like a heading that grew. The
+two-typeface split it replaced used IBM Plex Mono to mean *this is data about
+the thing*; that meaning survives, carried by uppercasing and 1.3 px of tracking
+instead of by a second family. One face is what lets a 58 px counter and an
+11 px caption on the same screen read as one object.
 
 ### Hierarchy
 
-- **Display** (700, 32 px, 1.1, −0.02em): The welcome screen and nothing else.
-- **Headline** (700, 26 px, 1.15): The question at the top of an onboarding
-  step; a dish name on a gallery page.
-- **Title** (700, 17 px): Dish names on the timeline, card headings, the primary
+- **Counter** (800, 58 px, −1.5 tracking): The days-logged figure. One per app.
+- **Display** (700, 25 px): The question at the top of a sheet — "What did you
+  eat?"
+- **Headline** (600, 24 px): The meal sentence on the detail card.
+- **Title** (700, 16 px): Sheet titles, a meal's name in a row, the primary
   button.
-- **Body** (500, 15.5 px, 1.5): Running prose and message text.
-- **Label** (mono, 500, 9.5 px, +0.6 tracking, uppercased): Every timestamp,
-  count, food-group line, provenance note and staleness stamp.
+- **Body** (400, 14 px, 1.5): Running prose, captions, meter values.
+- **Label** (600, 11 px, +1.3 tracking, uppercased): Section headings, the
+  time-and-daypart line, provenance, every timestamp.
 
 ### Named Rules
 
-**The Margin Rule.** IBM Plex Mono, uppercased, means *this is data about the
-thing*. Space Grotesk means *this is the thing*. Mono never carries a sentence;
-prose never carries a measurement. `WHOLE GRAINS, FRUIT, NUTS` under "Oatmeal
-with pear" is the rule working — the food is the entry, the groups are the
+**The Margin Rule.** Uppercased and tracked out means *this is data about the
+thing*; sentence case means *this is the thing*. `15:12 · SNACK` above "Salmon
+and tuna don" is the rule working — the food is the entry, the stamp is the
 margin.
 
+**The Weight Floor Rule.** Nothing readable is set below 11 px, clamped in
+`WellieTheme.metaFont` rather than at the call sites, because the previous
+system shipped 9–10.5 px meta everywhere and fixing it one caller at a time did
+not hold.
+
 **The Spelled Number Rule.** Numbers small enough to say out loud are spelled as
-words inside a sentence ("Three meals", "four of five") and printed as digits
-inside a measure ("4 of 7 days"). A digit mid-sentence reads as data, and the
-point of the sentence is that it is not.
+words inside a sentence ("Three meals") and printed as digits inside a measure
+("22 / 90"). A digit mid-sentence reads as data, and the point of the sentence
+is that it is not.
 
 ## Layout
 
-One column, inset 18 px from the screen edges, with 14 px between cards. Cards
-supply 18 px of internal padding; list cards drop to 2 px vertical so their rows
-own the rhythm and the dividers run the full width of the inset.
+One column, inset 20 px, 12 px between cards, 20 px of card padding. Headers and
+prose sit at 22–24 px so a heading is not flush with the card edges below it.
 
-The day page is the exception and the signature: a three-column structure of a
-46 px right-aligned time gutter, a 20 px rail carrying a 1 px line and a 7 px
-dot, and the entry itself taking the rest. Vertical space between entries is
-proportional to elapsed time, clamped to 10–56 px — enough that five hours
-between lunch and dinner feels different from twenty minutes between a coffee
-and a biscuit, without a literal scale turning an afternoon into a screen and a
-half of nothing.
+Today is a fixed header — a gear, the date, and `Progress ›` — over a scrolling
+column, with the one primary button in a bottom safe-area inset. The counter and
+the seven day dots are centred; everything below them is left-aligned. Sheets
+carry their own header (`✕ Cancel`, a centred title) rather than a navigation
+bar, and the pushed screens hide the system bar and draw a `‹ Today` in the same
+position.
 
-The composer is a bottom safe-area inset on a system material, always present,
-never a screen you navigate to.
+The meal detail is the signature exception: the photograph is 360 px tall, runs
+to both edges and under the status bar, and the plate card floats on it at
+208 px with a translucent fill. It is the only translucent surface in the app,
+and the justification is that what is behind it is the plate the card describes.
 
 ## Elevation & Depth
 
-**There are no shadows in this system.** Not reduced, not subtle — absent.
-Separation is carried entirely by a 1 px hairline at rgba(10,15,30,.10) and by a
-single tonal step between paper (#FFFFFF) and ice (#F4F7FA). A white card on a
-white page with a hairline edge is the intended reading, and it is what makes a
-column of them look like a page of entries rather than a stack of cards.
+**There are no shadows in this system.** Not reduced — absent. Separation is a
+1 px `#1E2330` line plus one tonal step from `#0B0D12` to `#13161E`. Depth on a
+dark page comes from the step, and a card that needed more than that would be a
+layout problem.
 
-The only translucency in the app is the system material behind the composer bar,
-so content scrolls under it legibly. That is a platform affordance, not a
-depth effect.
+The translucent plate card is the single exception, and it is a *content*
+effect: the photo shows through it.
 
 ### Named Rules
 
 **The Flat Page Rule.** No `.shadow()` anywhere. If something needs to separate
-from what is behind it, it gets a hairline or a tonal step. If it needs to
-separate from *both*, the layout is wrong.
+from what is behind it, it gets a line or a tonal step.
 
 ## Shapes
 
-Radii occupy a narrow band and never leave it: chips at 6 px, controls, inputs
-and in-card photos at 8 px, cards at 10 px. Nothing is a pill and nothing is a
-circle — avatars are squares at the chip radius, and icon buttons are squares at
-the control radius.
+Radii run 14–26 px. A thumbnail is 14, a chip and an in-card photo 16, an inner
+control 20, a card 22, the primary button 24, and a hero card 26. The day dots
+and the two round icon buttons in the composer are genuine circles — the only
+circles in the system, and both are 32–44 px marks rather than containers.
 
-Photographs are the exception in the other direction: a photo in a feed is
-full-bleed with no radius at all, running to both edges of the screen. Inside a
-card it squares to 8 px. Passing "am I in a card" is the whole decision; the
-radius follows.
+Photographs are full-bleed with no radius when they are the page, and square to
+16 px inside a card. Passing "am I in a card" is the whole decision.
 
 ### Named Rules
 
-**The No Pill Rule.** No `Capsule()`, no `Circle()` on a control, no
-`cornerRadius` above 10. The previous direction ran 12–28 and reads as a
-different app.
+**The Big Radius Rule.** Nothing below 14 px. The previous direction ran 6–10
+and reads as a different app — on a dark page a 10 px corner with a low-contrast
+edge reads as a table cell rather than as an object.
 
 ## Components
 
 ### Buttons
 
-- **Shape:** Squared-off, gently eased (8 px continuous radius).
-- **Primary:** Signal Blue fill, white label, full width, 17 px vertical
-  padding, 17.5 px bold. Disabled drops the fill to Faint.
-- **Ink:** The send button and the save action. Ink Surface fill with the On Ink
-  foreground — the matched pair, never `white` directly.
-- **Quiet:** Label-only in Signal Blue, no fill, no border.
-- **Pressed:** 0.985 scale and 0.8 opacity over 120 ms. No shadow, no lift.
+- **Primary:** Accent fill, page-coloured label, full width, 17 px vertical
+  padding, 16.5 px bold, 24 px radius. Disabled drops to Raised with Muted text.
+- **Secondary:** Surface fill, 1 px hairline, Body label. "Log another while
+  this runs", "From gallery" / "Camera".
+- **Quiet:** Label-only in Muted, no fill, no border.
+- **Pressed:** 0.985 scale and 0.82 opacity over 120 ms. No lift.
 
 ### Chips
 
-- **Style:** Outline only — a 1 px hairline at 6 px radius, Body text, no fill.
-  Used for a shared ingredient and its weight.
-- **State:** Selection is expressed by a filled check or a tinted row, never by
-  a chip changing colour.
+- **Unselected:** Surface fill, 1 px hairline, 16 px radius, Body semibold.
+- **Selected:** Accent fill, page-coloured bold label, no border.
+- Used for the day window on Progress, the share question on a meal, and the
+  repeat-dish row in the composer. `WellieChipRow` is the segmented form — chips
+  with a gap, never a `Picker`, whose segmented style paints its own chrome.
 
 ### Cards / Containers
 
-- **Corner Style:** 10 px continuous.
-- **Background:** Surface white, or Ice for the one tinted card per screen.
-- **Shadow Strategy:** None. A 1 px hairline stroke on the same radius.
-- **Internal Padding:** 18 px; list cards use 18 px horizontal and let rows own
-  the vertical.
+- **Corner style:** 22 px continuous; 26 px for a hero.
+- **Background:** Surface, with a 1 px hairline stroke on the same radius.
+- **Shadow strategy:** None.
+- **Internal padding:** 20 px; list cards let their rows own the vertical.
 
 ### Inputs / Fields
 
-- **Style:** Surface fill, 1 px Outline stroke, 6 px radius, 14×9 px padding.
-- **Focus:** The stroke becomes Signal Blue at 1.5 px. No glow, no shadow.
+- **Style:** Surface fill, 1 px hairline, 22 px radius, 18 px padding.
+- **Focus:** The stroke becomes Accent at 1.5 px, eased over 150 ms. No glow.
+- The composer puts the mic and send buttons on their own row *under* the field,
+  as 44 px circles, so the sentence gets the full width.
 
-### Navigation
+### Meters (signature)
 
-- Standard iOS navigation stack with inline titles; the day page is "Today",
-  a pushed screen keeps its own name. Sheets for self-contained tasks. No custom
-  global navigation and no tab bar — the composer is always on screen, so a tab
-  whose job was to open a capture screen had nothing left to do.
+A 6 px track at Hairline with a 3 px radius, filling to the day's value on
+appear. Two forms, because `DailyTargets` publishes two kinds of reference:
 
-### The Olive Row (signature)
+- **Point** — energy and protein have a number, so the label reads `412 / 1,800
+  kcal` and the fill is a fraction of it.
+- **Band** — carbohydrate and fat have an AMDR *range*, which the model
+  deliberately declines to collapse into a point. A lighter Raised stretch marks
+  the range on the track and the label reads `172 / 202–292 g`.
 
-Five drawn olives, filled to the score, unfilled at 0.17 opacity. Drawn as
-vector ellipses rather than an emoji or a raster asset, so the ghost state is
-genuinely the same shape at low opacity and it stays crisp at every size from a
-13 px reaction to a 22 px welcome mark. It is the only chart in the app, and it
-is deliberately five steps: a rating of 3.4 out of 5 would claim a resolution
-nothing in the pipeline has.
+The track is scaled to `max(reference, value)`, so a day past its reference is
+drawn past it with a 2 px notch at the reference. A bar pinned at 100 % would
+make 3,000 kcal and 1,800 kcal look like the same day.
 
-### The Time Rail (signature)
+### Bar series (signature)
 
-A 1 px vertical hairline with a 7 px dot per entry, carrying state by fill:
-solid ink for a logged meal, hollow Signal Blue for a reading in progress,
-Attention for a failure. It terminates in a hollow Faint tick labelled
-`NOW · HH:MM`, because nothing happened at that point yet and the rail should
-not run past the day it has not reached.
+One bar per day, scaled to the tallest in the window, gap narrowing from 5 px to
+1.5 px as the window grows from 14 to 90 days. A day with nothing logged draws
+*nothing* — a gap in the record and a day you ate nothing are different facts.
+A logged day always draws at least 3 px, so a 40 kcal coffee is still visible
+against a 2,600 kcal peak.
+
+### The day strip (signature)
+
+Seven 32 px circles ending today, each carrying a weekday initial. Filled Accent
+when something was logged, Raised when nothing was, and — for today only, before
+anything is logged — an Accent outline rather than an empty dot, because the day
+is not a gap yet.
 
 ## Do's and Don'ts
 
 ### Do:
 
-- **Do** separate surfaces with the 1 px hairline at rgba(10,15,30,.10) and a
-  tonal step from #FFFFFF to #F4F7FA.
-- **Do** set every timestamp, count, food-group list and provenance note in
-  uppercased IBM Plex Mono at 9.5–10 px with +0.6 tracking.
-- **Do** give any adaptive fill its own matched foreground token.
-- **Do** keep radii between 6 and 10 px, and square avatars and icon buttons.
-- **Do** run photographs full-bleed in a feed and square them to 8 px in a card.
-- **Do** state a figure's own limits where it is drawn — `≥` on salt, an `AS OF`
-  age on a polled count, "logged 19:02" on a backdated meal.
-- **Do** spell small numbers as words in prose and print them as digits in a
-  measure.
+- **Do** separate surfaces with the 1 px `#1E2330` line and the step from
+  `#0B0D12` to `#13161E`.
+- **Do** set section headings, timestamps and provenance in Sora 600 at 11 px,
+  uppercased, with 1.3 px tracking.
+- **Do** keep radii between 14 and 26 px.
+- **Do** draw a range as a range when the source publishes one.
+- **Do** state a figure's own limits where it is drawn — `≥` on salt, "9 g
+  today wasn't recognised" under a partial total, "averaged over the 10 days you
+  logged" under a mean.
+- **Do** run photographs full-bleed when they are the subject and square them to
+  16 px in a card.
 
 ### Don't:
 
-- **Don't** add a shadow. Anywhere. The system has none by design.
-- **Don't** use `Capsule()`, `Circle()` on a control, or a radius above 10 px.
-- **Don't** use `.fontDesign(.rounded)` or the system rounded face — it is the
-  previous identity and overrides the bundled one on every `Text` that did not
-  ask.
-- **Don't** put a second blue element on a screen that already has its one
-  touchable thing in Signal Blue.
-- **Don't** use Brine Olive as a success colour or substitute another colour for
-  an olive.
-- **Don't** draw a ring chart, macro donut, streak counter, or red/amber/green
-  scale. The calorie tracker is the anti-reference.
-- **Don't** hardcode `Color.white` as a foreground on any fill that adapts
-  between light and dark.
-- **Don't** let ink become a second dark object in an exchange — one per
-  exchange is what keeps a busy day readable.
+- **Don't** add a shadow. Anywhere.
+- **Don't** put salt on a meter, or beside a daily ceiling. It is a floor.
+- **Don't** invent a single target for carbohydrate or fat.
+- **Don't** use `#3A4152` for text that has to be read.
+- **Don't** put a second accent-coloured element on a screen that already has
+  its one live thing.
+- **Don't** use protein olive as a success colour, or colour a second nutrient.
+- **Don't** draw a ring chart, a macro donut, a red/amber/green scale, or any
+  grade for a meal. The calorie tracker is still the anti-reference; what
+  changed is that sourced totals are no longer part of what it means.
+- **Don't** add a light appearance. Every ratio here is measured against
+  `#0B0D12`, and the app pins `preferredColorScheme(.dark)`.
+- **Don't** use `.fontDesign(.rounded)` or the system face — the bundled one is
+  set per call by `WellieTheme.font`, and a design modifier fights it on every
+  `Text` that did not ask.

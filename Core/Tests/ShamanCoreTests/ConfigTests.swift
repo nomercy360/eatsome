@@ -15,8 +15,6 @@ struct ConfigTests {
         #expect(config.movements.map(\.id) == AppConfig.fallback.movements.map(\.id))
         #expect(config.recognition.model == "gpt-5.6-luna")
         #expect(config.lunaConfiguration.systemPrompt == MealPrompt.system)
-        #expect(config.medas.windowDays == 7)
-
         // Prompt version carries the model, so eval rows from two providers
         // answering the same prompt never pool into one bucket.
         #expect(config.lunaConfiguration.promptVersion == "\(MealPrompt.version)/gpt-5.6-luna")
@@ -32,7 +30,7 @@ struct ConfigTests {
     func decodesConfigWithoutProviderFields() throws {
         let legacy = Data(
             #"""
-            {"version":1,"medas":{"excludedItems":[8],"windowDays":7},
+            {"version":1,
              "recognition":{"model":"gpt-5.6-luna","imageDetail":"low","reasoningEffort":"low",
                             "autoConfirmConfidence":0.85},
              "movements":[]}
@@ -51,7 +49,6 @@ struct ConfigTests {
         let data = try JSONEncoder().encode(AppConfig.fallback)
         let decoded = try JSONDecoder().decode(AppConfig.self, from: data)
         #expect(decoded.movements == AppConfig.fallback.movements)
-        #expect(decoded.medas == AppConfig.fallback.medas)
     }
 
     @Test("Joints and metrics serialise as readable names")

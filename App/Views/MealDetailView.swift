@@ -1,12 +1,22 @@
 import ShamanCore
 import SwiftUI
 
-/// Screen `2e`. A meal you already saved.
+/// Screen `4a·4`. A meal you already saved.
 ///
-/// The same sentence as the capture screen, so editing later uses the muscle
-/// you already have. Save appears only once something has changed — a button
-/// that is always there teaches you to press it out of superstition. Delete is
-/// text, at the bottom, where destructive things belong.
+/// The photograph is the page here, not an object on it — it runs to the top
+/// edge under a gradient and the card floats on it. That is the one place in the
+/// app a photo behaves that way, and the reason is that this screen is the only
+/// one whose subject is a single plate: everywhere else a photo is one of
+/// several things in a list.
+///
+/// What is on the card is what you would want to check without deciding to edit
+/// anything: when, what it was, and the five figures. The meal reads as a
+/// sentence and every word in it is tappable, which is the same gesture and the
+/// same words as the capture screen — editing later uses the muscle you already
+/// have. Everything that is properly an *edit* — a correction in words, the
+/// time, sharing, removing it — moved behind `Edit ›` into `MealFixSheet`, so
+/// this screen has one question on it ("how much of that was yours?") instead
+/// of six cards of controls.
 struct MealDetailView: View {
     let meal: MealEntry
 
@@ -20,75 +30,74 @@ struct MealDetailView: View {
     @State private var dishes: [MealDish]
     @State private var openDish: MealDish?
     @State private var editing: EditingFood?
-    @State private var showingDelete = false
-    @State private var showingTableShare = false
-    @State private var isRefining = false
-    @State private var refineFailure: String?
-    /// The dish a new ingredient is being named for, the words being typed for
-    /// it, and — while the model is weighing them — the words to quote back.
-    /// Kept apart from the note: an addition is spent on the row it produces.
-    @State private var adding: AddingIngredient?
-    @State private var addText = ""
-    @State private var addInFlight: String?
-    /// Shown by the sentence rather than in the note card, which is where the
-    /// re-read reports and is several cards further down.
-    @State private var addFailure: String?
-    /// The note as it stood when this meal was last read. Whatever was saved
-    /// with the meal has already been through the model, so it is where the
-    /// comparison starts.
-    @State private var readNote: String
-    @FocusState private var isTyping: Bool
+    @State private var showingFix = false
+    /// The same destination as `showingFix`, in the other presentation slot.
+    ///
+    /// A dish sheet is already up when this one is asked for, and a second
+    /// `.sheet` on the same view cannot present over the first — it silently
+    /// does nothing. A `fullScreenCover` is a separate slot, so the fix screen
+    /// opens over the dish and the dish is still there underneath when it
+    /// closes. That is also how the add-ingredient screen behaved before.
+    @State private var addingFromDish = false
 
     init(meal: MealEntry) {
         self.meal = meal
         _draft = State(initialValue: meal)
         _dishes = State(initialValue: meal.storedDishes ?? [])
-        _readNote = State(initialValue: meal.note ?? "")
     }
+
+    private var photo: UIImage? { PhotoStore.shared.image(for: meal.photoHash) }
 
     var body: some View {
         ScrollView {
-            VStack(spacing: WellieTheme.cardSpacing) {
-                if let photo = PhotoStore.shared.image(for: meal.photoHash) {
-                    MealPhotoBanner(image: photo, height: 180)
+            VStack(spacing: 0) {
+                ZStack(alignment: .top) {
+                    if let photo { banner(photo) }
+                    VStack(spacing: 0) {
+                        Color.clear.frame(height: photo == nil ? 8 : 208)
+                        plateCard
+                            .padding(.horizontal, 18)
+                    }
                 }
 
-                sentenceCard
-                nutrientCard
-                shareCard
-                tableShareCard
-                noteCard
-                factsCard
+                shareSection
+                    .padding(.horizontal, 18)
+                    .padding(.top, 24)
 
-                Button("Remove this meal") { showingDelete = true }
-                    .font(WellieTheme.font(15.5, weight: .semibold))
-                    .foregroundStyle(WellieTheme.danger)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 6)
+                Button { showingFix = true } label: {
+                    HStack(spacing: 8) {
+                        Text("Missing or wrong?")
+                            .font(WellieTheme.font(14, weight: .regular))
+                            .foregroundStyle(WellieTheme.muted)
+                        Spacer(minLength: 8)
+                        Text("Edit")
+                            .font(WellieTheme.font(14, weight: .semibold))
+                            .foregroundStyle(WellieTheme.accent)
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(WellieTheme.accent)
+                    }
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 18)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 10)
             }
-            .wellieColumn()
-            .contentShape(Rectangle())
-            .simultaneousGesture(TapGesture().onEnded { isTyping = false })
+            .padding(.bottom, 24)
         }
-        .scrollDismissesKeyboard(.interactively)
+        .scrollIndicators(.hidden)
+        .ignoresSafeArea(edges: photo == nil ? [] : .top)
         .background(WellieTheme.background)
-        .navigationTitle(DayFormat.title(Date(epochMillis: draft.eatenAt)))
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            // A timestamp is a label, not a control. Without this iOS 26 wraps
-            // it in the same glass capsule it gives buttons, and it reads as
-            // something you can press.
-            if #available(iOS 26.0, *) {
-                ToolbarItem(placement: .topBarTrailing) { timeLabel }
-                    .sharedBackgroundVisibility(.hidden)
-            } else {
-                ToolbarItem(placement: .topBarTrailing) { timeLabel }
-            }
-        }
-        // Only once something has actually moved. Comparing the whole entry
-        // rather than tracking a flag means undoing an edit hides it again.
+        .toolbar(.hidden, for: .navigationBar)
+        .overlay(alignment: .topLeading) { backButton }
         .safeAreaInset(edge: .bottom) { if draft != meal { saveBar } }
-        .sheet(isPresented: $showingTableShare) { ShareToTableSheet(meal: meal) }
+        .sheet(isPresented: $showingFix) {
+            MealFixSheet(meal: meal, draft: $draft, dishes: $dishes) { dismiss() }
+        }
+        .fullScreenCover(isPresented: $addingFromDish) {
+            MealFixSheet(meal: meal, draft: $draft, dishes: $dishes) { dismiss() }
+        }
         .sheet(item: $editing) { target in
             if let index = draft.items.firstIndex(where: { $0.id == target.id }) {
                 FoodEditSheet(
@@ -96,10 +105,6 @@ struct MealDetailView: View {
                     onRemove: { draft.items.removeAll { $0.id == target.id } }
                 )
             }
-        }
-        .onChange(of: draft.items) { _, updated in
-            guard !dishes.isEmpty else { return }
-            dishes = MealDish.regrouped(updated, keeping: dishes)
         }
         .sheet(item: $openDish) { dish in
             DishSheet(
@@ -113,13 +118,14 @@ struct MealDetailView: View {
                 // Never the ingredient sheet: it is pickers only, and a row
                 // appended as `.other` to open it in gave the person "Something
                 // else / Something else" and "Not weighed" — a promise to name
-                // an ingredient with no way to name one.
-                onAddIngredient: { adding = AddingIngredient(id: dish.id, dish: dish.name) },
+                // an ingredient with no way to name one. Words are the one way
+                // in, which is what the fix screen is.
+                onAddIngredient: { addingFromDish = true },
                 onCount: { count in
                     guard let index = dishes.firstIndex(where: { $0.id == dish.id }) else { return }
-                    // Rewrites the weights rather than multiplying at score time: a
-                    // weighed dish already holds every serving that is present, so
-                    // "one, not three" has to take two thirds of it back off.
+                    // Rewrites the weights rather than multiplying when read: a
+                    // weighed dish already holds every serving that is present,
+                    // so "one, not three" has to take two thirds of it back off.
                     dishes[index] = dishes[index].scaled(toCount: count)
                     draft.items = dishes.flatMap { $0.flattened() }
                 },
@@ -129,172 +135,235 @@ struct MealDetailView: View {
                 }
             )
         }
-        // The fix screen with the fix screen's words swapped out. Full screen
-        // for the reason it is full screen there: a keyboard and a detent
-        // cannot agree on a height.
-        .fullScreenCover(item: $adding) { target in
-            FixScreen(purpose: .add, text: $addText) {
-                Task { await addIngredient(to: target.dish) }
-            }
-        }
-        .confirmationDialog("Remove this meal?", isPresented: $showingDelete, titleVisibility: .visible) {
-            Button("Remove", role: .destructive) {
-                Task {
-                    await model.deleteMeal(meal)
-                    dismiss()
-                }
-            }
-        } message: {
-            Text("It comes off your week. The photo goes with it.")
+        .onChange(of: draft.items) { _, updated in
+            guard !dishes.isEmpty else { return }
+            dishes = MealDish.regrouped(updated, keeping: dishes)
         }
         .wellieScreen()
     }
 
-    private var timeLabel: some View {
-        Text(Date(epochMillis: draft.eatenAt).formatted(date: .omitted, time: .shortened))
-            .font(WellieTheme.font(14, weight: .semibold))
-            .foregroundStyle(WellieTheme.muted)
+    // MARK: - The photograph
+
+    /// The photograph, filling the width at a fixed height.
+    ///
+    /// Sized by an empty container with the image as an *overlay* rather than
+    /// by hanging two frames off the image. `scaledToFill` fills whatever size
+    /// it is proposed, and stacked `.frame(height:)` / `.frame(maxWidth:)`
+    /// modifiers make the order they were written in load-bearing — which is
+    /// the kind of detail that survives until someone reorders them tidily.
+    /// `Color.clear` settles the size first and the overlay has one thing to
+    /// fill.
+    private func banner(_ image: UIImage) -> some View {
+        Color.clear
+            .frame(maxWidth: .infinity)
+            .frame(height: 360)
+            .overlay {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+            }
+            .clipped()
+            .overlay {
+                // Dark at the top so the back button reads on a bright plate,
+                // dark at the bottom so the card has something to sit on.
+                LinearGradient(
+                    stops: [
+                        .init(color: WellieTheme.background.opacity(0.55), location: 0),
+                        .init(color: WellieTheme.background.opacity(0), location: 0.4),
+                        .init(color: WellieTheme.background.opacity(0.9), location: 0.92),
+                        .init(color: WellieTheme.background, location: 1),
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            }
+            .frame(maxWidth: .infinity, alignment: .top)
     }
 
-    private var sentenceCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(sentenceHeading)
-                    .font(WellieTheme.font(13, weight: .semibold))
-                    .foregroundStyle(addInFlight == nil ? WellieTheme.muted : WellieTheme.blue)
-                Spacer(minLength: 0)
-                // Share included, so halving the plate below visibly halves it.
-                if !draft.items.isEmpty {
-                    Text(model.figure(for: draft).text)
-                        .font(WellieTheme.font(13, weight: .semibold))
-                        .foregroundStyle(WellieTheme.ink)
-                        .fixedSize()
-                }
+    private var backButton: some View {
+        Button { dismiss() } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "chevron.left").font(.system(size: 13, weight: .bold))
+                Text("Today")
+            }
+            .font(WellieTheme.font(14, weight: .semibold))
+            .foregroundStyle(photo == nil ? WellieTheme.accent : .white)
+            .padding(.horizontal, 22)
+            .wellieHitTarget()
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - The plate
+
+    /// The card that floats on the photograph.
+    ///
+    /// Translucent rather than solid, and it is the one translucent surface in
+    /// the app: what is behind it is the plate this card describes, so letting a
+    /// little of it through is information rather than decoration.
+    private var plateCard: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            WellieMeta(
+                "\(DayFormat.time(draft.eatenAt)) · \(MealDisplay.partOfDay(draft))",
+                color: WellieTheme.accent
+            )
+
+            if draft.items.isEmpty {
+                Text("Nothing on this meal yet")
+                    .font(WellieTheme.font(24, weight: .bold))
+                    .foregroundStyle(WellieTheme.ink)
+                    .padding(.top, 10)
+            } else {
+                FoodSentence(
+                    lead: "",
+                    words: sentenceWords,
+                    size: 24,
+                    punctuates: false,
+                    onTap: { tapWord($0) }
+                )
+                .padding(.top, 10)
+                Text("Tap a word to change it")
+                    .font(WellieTheme.font(13, weight: .regular))
+                    .foregroundStyle(WellieTheme.muted)
+                    .padding(.top, 8)
             }
 
-            if !draft.items.isEmpty {
-                FoodSentence(lead: "You had", words: sentenceWords, onTap: { tapWord($0) })
-            }
-
-            if let addInFlight {
-                WellieCaption("Adding “\(addInFlight)” — everything else stays as you set it.")
-            } else if let addFailure {
-                Text(addFailure)
-                    .font(WellieTheme.font(12.5, weight: .medium))
-                    .foregroundStyle(WellieTheme.attention)
-                    .fixedSize(horizontal: false, vertical: true)
+            figures
+        }
+        .padding(24)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            ZStack {
+                RoundedRectangle(cornerRadius: WellieTheme.heroRadius, style: .continuous)
+                    .fill(.ultraThinMaterial)
+                RoundedRectangle(cornerRadius: WellieTheme.heroRadius, style: .continuous)
+                    .fill(WellieTheme.surface.opacity(photo == nil ? 1 : 0.72))
             }
         }
-        .wellieCard()
-        .animation(.easeInOut(duration: 0.2), value: addInFlight)
-    }
-
-    private var sentenceHeading: String {
-        if addInFlight != nil { return "Adding it to the list…" }
-        return draft.items.isEmpty ? "Nothing on this meal yet" : "Tap a word to change it"
+        .overlay {
+            RoundedRectangle(cornerRadius: WellieTheme.heroRadius, style: .continuous)
+                .strokeBorder(.white.opacity(0.09), lineWidth: 1)
+        }
     }
 
     /// What this meal came to, share included.
     ///
-    /// No targets here and no meters: a target is a property of a day, and a
-    /// single meal measured against one would say a normal lunch was a third of
-    /// a person. This card states what was eaten and stops.
-    ///
-    /// A figure that rounds to nothing is left out rather than printed as zero.
-    /// `PlateFigure` already settled this argument for the headline — "0 g
-    /// protein" above a can of Monster is a true sentence that tells a person
-    /// nothing they did not know — and a row of five zeros makes the two real
-    /// numbers on that can harder to find, not easier. A drink with 4 g of carbs
-    /// and 0.4 g of salt should say those two things.
+    /// No targets and no meters: a target is a property of a day, and a single
+    /// meal measured against one would say a normal lunch was a third of a
+    /// person. This states what was eaten and stops.
     @ViewBuilder
-    private var nutrientCard: some View {
+    private var figures: some View {
         if !draft.items.isEmpty {
             let total = model.nutrients(in: draft)
             let shown = shownFigures(total)
             if !shown.isEmpty {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("This meal")
-                        .font(WellieTheme.font(13, weight: .semibold))
-                        .foregroundStyle(WellieTheme.muted)
-
-                    HStack(alignment: .top, spacing: 0) {
-                        ForEach(shown, id: \.name) { mealFigure($0.name, $0.value, $0.unit) }
-                        // Keeps two figures at two-fifths width rather than
-                        // stretching them across the card.
-                        ForEach(shown.count..<5, id: \.self) { _ in
-                            Color.clear.frame(maxWidth: .infinity)
-                        }
-                    }
-
-                    if !total.isComplete {
-                        Text("\(Int(total.unresolvedGrams.rounded())) g here was not recognised. "
-                             + "Name it on the fix screen and these figures fill in.")
-                            .font(WellieTheme.font(12, weight: .medium))
-                            .foregroundStyle(WellieTheme.attention)
-                            .fixedSize(horizontal: false, vertical: true)
+                HStack(alignment: .top, spacing: 0) {
+                    ForEach(shown, id: \.name) { figure($0.name, $0.value, $0.unit) }
+                    // Keeps two figures at two-fifths width rather than
+                    // stretching them across the card.
+                    ForEach(shown.count..<5, id: \.self) { _ in
+                        Color.clear.frame(maxWidth: .infinity)
                     }
                 }
-                .wellieCard()
+                .padding(.top, 18)
+                .overlay(alignment: .top) {
+                    Rectangle().fill(.white.opacity(0.09)).frame(height: 1)
+                }
+                .padding(.top, 22)
+
+                if !total.isComplete {
+                    Text("\(Int(total.unresolvedGrams.rounded())) g here wasn't recognised. "
+                         + "Name it under Edit and these fill in.")
+                        .font(WellieTheme.font(12, weight: .regular))
+                        .foregroundStyle(WellieTheme.attention)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 16)
+                }
             }
         }
     }
 
     /// The figures worth printing, in a fixed order, skipping the ones that
     /// round to nothing.
+    ///
+    /// A figure that rounds to nothing is left out rather than printed as zero:
+    /// "0 g protein" above a can of Monster is a true sentence that tells a
+    /// person nothing they did not know, and a row of five zeros makes the two
+    /// real numbers on that can harder to find rather than easier.
     private func shownFigures(
         _ total: NutrientTotal
     ) -> [(name: String, value: String, unit: String)] {
         let meal = total.nutrients
         var out: [(name: String, value: String, unit: String)] = []
-        func add(_ name: String, _ value: Double, _ unit: String, _ text: String) {
+        func add(_ name: String, _ value: Double, _ unit: String) {
             guard value.rounded() > 0 else { return }
-            out.append((name, text, unit))
+            out.append((name, "\(Int(value.rounded()))", unit))
         }
-        add("Energy", meal.kcal, "kcal", "\(Int(meal.kcal.rounded()))")
-        add("Protein", meal.protein, "g", "\(Int(meal.protein.rounded()))")
-        add("Carbs", meal.carbohydrate, "g", "\(Int(meal.carbohydrate.rounded()))")
-        add("Fat", meal.fat, "g", "\(Int(meal.fat.rounded()))")
+        add("Energy", meal.kcal, "kcal")
+        add("Protein", meal.protein, "g")
+        add("Carbs", meal.carbohydrate, "g")
+        add("Fat", meal.fat, "g")
         // Salt is the one shown to a decimal, because the interesting range is
-        // 0.5 to 5 g and whole grams would round most meals to nothing. `≥`
-        // only when it was derived: a label that printed 食塩相当量 settled the
-        // number, and marking that as a lower bound understates a known fact.
+        // 0.5 to 5 g and whole grams would round most meals to nothing. `≥` only
+        // when it was derived: a label that printed 食塩相当量 settled the number,
+        // and marking that as a lower bound understates a known fact. There is
+        // deliberately no daily ceiling beside it — see `Nutrients.saltGrams`.
         let salt = meal.saltGrams
         if salt >= 0.05 {
             out.append((
                 "Salt",
-                (total.saltIsFloor ? "≥ " : "") + String(format: "%.1f", salt),
+                (total.saltIsFloor ? "≥" : "") + String(format: "%.1f", salt),
                 "g"
             ))
         }
         return out
     }
 
-    private func mealFigure(_ name: String, _ value: String, _ unit: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
+    private func figure(_ name: String, _ value: String, _ unit: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
             Text(name)
-                .font(WellieTheme.font(11.5, weight: .semibold))
+                .font(WellieTheme.font(12, weight: .regular))
                 .foregroundStyle(WellieTheme.muted)
-            HStack(alignment: .firstTextBaseline, spacing: 2) {
+            HStack(alignment: .firstTextBaseline, spacing: 1) {
                 Text(value)
-                    .font(WellieTheme.font(16, weight: .bold))
+                    .font(WellieTheme.font(17, weight: .bold))
                     .foregroundStyle(WellieTheme.ink)
-                Text(unit)
-                    .font(WellieTheme.font(11, weight: .semibold))
-                    .foregroundStyle(WellieTheme.muted)
+                if unit != "kcal" {
+                    Text(" \(unit)")
+                        .font(WellieTheme.font(12, weight: .semibold))
+                        .foregroundStyle(WellieTheme.muted)
+                }
             }
+            .lineLimit(1)
+            .minimumScaleFactor(0.6)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(name) \(value) \(unit)")
     }
 
     /// A dish is one word and its ingredients are behind it. A meal saved
     /// before dishes existed has none, and reads food by food as it always did.
+    ///
+    /// The first word takes a capital because there is no lead any more: the
+    /// capture screen says "You had *salmon and tuna don*", where this card puts
+    /// the sentence where a title goes and "salmon and tuna don" alone reads as
+    /// a typo rather than as a style.
     private var sentenceWords: [FoodSentence.Word] {
-        guard !dishes.isEmpty else {
-            return draft.items.map {
-                .init(id: $0.id, text: FoodPhrase.word(for: $0.group, label: $0.label))
+        var words = dishes.isEmpty
+            ? draft.items.map {
+                FoodSentence.Word(id: $0.id, text: FoodPhrase.word(for: $0.group, label: $0.label))
             }
+            : FoodSentence.words(for: dishes)
+        if let first = words.first {
+            words[0] = FoodSentence.Word(
+                id: first.id,
+                text: first.text.capitalizedFirst,
+                isUncertain: first.isUncertain,
+                isPending: first.isPending
+            )
         }
-        return FoodSentence.words(for: dishes)
+        return words
     }
 
     private func tapWord(_ id: UUID) {
@@ -305,203 +374,25 @@ struct MealDetailView: View {
         }
     }
 
+    // MARK: - How much was yours
+
     /// The one control that exists because sharing genuinely changes the
     /// arithmetic: a platter counted whole is the largest way this app can
-    /// overstate a week.
-    /// The same one question as the capture screen, worded identically. Two
-    /// screens asking the same thing in different words is how a person comes
-    /// to believe they are two different things.
-    /// Sharing this meal with friends, and only when there are friends to share
-    /// it with. `shareCard` above is a different question with an unfortunately
-    /// similar name — that one asks how much of the plate was yours.
-    ///
-    /// Absent when you are in no tables, for the same reason the row on the day
-    /// page is: a button offering to share with nobody is an advert.
-    @ViewBuilder
-    private var tableShareCard: some View {
-        if !model.tables.isEmpty {
-            Button { showingTableShare = true } label: {
-                HStack(spacing: 10) {
-                    Image(systemName: "square.and.arrow.up")
-                        .font(.system(size: 15, weight: .semibold))
-                    Text("Share with a table")
-                        .font(WellieTheme.font(15.5, weight: .bold))
-                    Spacer(minLength: 8)
-                    WellieMeta("Your olives stay yours")
-                }
-                .foregroundStyle(WellieTheme.blue)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .wellieCard()
-        }
-    }
-
-    private var shareCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text("How much was yours?")
-                    .font(WellieTheme.font(15.5, weight: .semibold))
-                Text("Covers sharing too — half a shared bowl counts half")
-                    .font(WellieTheme.font(13, weight: .medium))
-                    .foregroundStyle(WellieTheme.muted)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            ShareChips(share: Binding(get: { draft.eaten }, set: { draft.share = $0 }))
-        }
-        .wellieCard(padding: 20)
-    }
-
-    /// The only way food is added or corrected here: say what was missed and the
-    /// model returns a delta. There is no picker any more, on purpose — one path
-    /// to fix a meal, and it is the one that also teaches the prompt something.
-    private var noteCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Missing or wrong?")
-                .font(WellieTheme.font(15.5, weight: .semibold))
-            TextField(
-                "There was also a coffee",
-                text: Binding(get: { draft.note ?? "" }, set: { draft.note = $0.isEmpty ? nil : $0 }),
-                axis: .vertical
+    /// overstate what you ate. Worded exactly as the capture screen words it —
+    /// two screens asking the same thing in different words is how a person
+    /// comes to believe they are two different questions.
+    private var shareSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("How much was yours?")
+                .font(WellieTheme.font(13, weight: .regular))
+                .foregroundStyle(WellieTheme.muted)
+            WellieChipRow(
+                options: MealShare.allCases,
+                selection: Binding(get: { draft.eaten }, set: { draft.share = $0 }),
+                title: \.chipName,
+                fills: true
             )
-            .font(WellieTheme.font(15, weight: .medium))
-            .focused($isTyping)
-            .lineLimit(1...5)
-            .padding(14)
-            .background(WellieTheme.well, in: RoundedRectangle(cornerRadius: WellieTheme.cardRadius, style: .continuous))
-
-            if hasNewNote {
-                Button {
-                    Task { await reread() }
-                } label: {
-                    if isRefining {
-                        ProgressView().frame(maxWidth: .infinity)
-                    } else {
-                        Label(
-                            draft.items.isEmpty ? "Put this on the list" : "Take this into account",
-                            systemImage: "sparkles"
-                        )
-                        .font(WellieTheme.font(15, weight: .semibold))
-                        .frame(maxWidth: .infinity)
-                    }
-                }
-                .buttonStyle(WellieSecondaryButtonStyle())
-                .disabled(isRefining)
-            }
-
-            if let refineFailure {
-                Text(refineFailure)
-                    .font(WellieTheme.font(12.5, weight: .medium))
-                    .foregroundStyle(WellieTheme.attention)
-            }
-
-            WellieCaption("Kept with this meal. Save it as a dish and it comes back next time.")
         }
-        .wellieCard(padding: 20)
-    }
-
-    /// Offering to re-read is only honest while the note says something the list
-    /// has not already been through.
-    private var hasNewNote: Bool {
-        let now = (draft.note ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        return !now.isEmpty && now != readNote.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    /// A delta, not a re-run: the items may have been fixed by hand since, and
-    /// regenerating the list would throw that work away.
-    private func reread() async {
-        let text = (draft.note ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return }
-        isTyping = false
-        isRefining = true
-        refineFailure = nil
-        defer { isRefining = false }
-        do {
-            let revision = try await model.refine(
-                imageData: PhotoStore.shared.data(for: meal.photoHash),
-                current: draft.items,
-                note: text
-            )
-            draft.items = revision.applied(to: draft.items)
-            readNote = text
-        } catch {
-            refineFailure = error.localizedDescription
-        }
-    }
-
-    /// A named ingredient, weighed by the model and filed under the dish it was
-    /// added from.
-    ///
-    /// The same delta as a fix, because it is the same act: the person supplies
-    /// words, the model supplies the weight. The words are not appended to the
-    /// note — the note is what is still to be taken into account, and these have
-    /// been. The row on the list is the record.
-    ///
-    /// The dish is written on afterwards rather than asked for: the refiner is
-    /// handed a flat list and knows nothing about dishes, so every row it adds
-    /// comes back unfiled. Coming from a dish sheet there is nothing to guess.
-    private func addIngredient(to dish: String) async {
-        let text = addText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return }
-        addText = ""
-        addInFlight = text
-        isRefining = true
-        addFailure = nil
-        defer {
-            isRefining = false
-            addInFlight = nil
-        }
-        do {
-            let existing = Set(draft.items.map(\.id))
-            let revision = try await model.refine(
-                imageData: PhotoStore.shared.data(for: meal.photoHash),
-                current: draft.items,
-                note: text
-            )
-            // A revision that changes nothing has to say so. Returning to a
-            // sentence with no new word in it reads as the app having dropped
-            // what you typed.
-            guard !revision.isEmpty else {
-                addFailure = "I couldn't tell what “\(text)” was. Try naming it in a few plain words."
-                return
-            }
-            var updated = revision.applied(to: draft.items)
-            for index in updated.indices where !existing.contains(updated[index].id) {
-                updated[index].dish = dish
-            }
-            draft.items = updated
-        } catch {
-            addFailure = error.localizedDescription
-        }
-    }
-
-    private var factsCard: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Text("Eaten at")
-                    .font(WellieTheme.font(15.5, weight: .semibold))
-                Spacer()
-                DatePicker(
-                    "",
-                    selection: Binding(
-                        get: { Date(epochMillis: draft.eatenAt) },
-                        set: { draft.eatenAt = $0.epochMillis }
-                    )
-                )
-                .labelsHidden()
-            }
-            .padding(.vertical, 12)
-
-            // "Save as a dish" was here, and it is gone with the screen that
-            // listed them. What it existed for still happens, automatically:
-            // home cooking hides its ingredients, so you correct a dish once —
-            // the eggs in the French toast, the oil in the stew — and the next
-            // time you log it from a chip it comes back with those corrections,
-            // because the chip repeats the most recent logging rather than a
-            // separately curated recipe. Naming it a second time was a list to
-            // keep, and the log already knows.
-        }
-        .wellieListCard()
     }
 
     private var saveBar: some View {
@@ -523,5 +414,4 @@ struct MealDetailView: View {
         .padding(.bottom, 10)
         .background(WellieTheme.background)
     }
-
 }

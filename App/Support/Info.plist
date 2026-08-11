@@ -18,6 +18,17 @@
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>me.eatso.table-invite</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>eatsome</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>EatsomeAPIBaseURL</key>
@@ -29,19 +40,20 @@
 	<key>NSCameraUsageDescription</key>
 	<string>Photograph meals so eatsome can identify their food groups.</string>
 	<key>NSHealthShareUsageDescription</key>
-	<string>Import workouts, sleep, and weight to show your daily health overview.</string>
+	<string>Read age, sex reference, height, weight, body fat, energy, workouts, and sleep to fill your daily energy and macro reference and health overview.</string>
 	<key>NSHealthUpdateUsageDescription</key>
-	<string>eatsome never writes to Health. It only reads workouts, sleep, and weight to show your daily overview.</string>
+	<string>eatsome never writes to Health. It only reads your body profile, energy, workouts, and sleep for a daily reference and overview.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Describe a meal out loud instead of typing it. Audio is transcribed to text as you speak and is not kept.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Pick a photo of a meal to log it.</string>
 	<key>UIAppFonts</key>
 	<array>
-		<string>SpaceGrotesk-Regular.ttf</string>
-		<string>SpaceGrotesk-Medium.ttf</string>
-		<string>SpaceGrotesk-Bold.ttf</string>
-		<string>IBMPlexMono-Medium.ttf</string>
+		<string>Sora-Regular.ttf</string>
+		<string>Sora-Medium.ttf</string>
+		<string>Sora-SemiBold.ttf</string>
+		<string>Sora-Bold.ttf</string>
+		<string>Sora-ExtraBold.ttf</string>
 	</array>
 	<key>UILaunchScreen</key>
 	<dict/>

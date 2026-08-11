@@ -41,6 +41,7 @@ const PREVIEW_MAX = 200;
  *  another, and a table of six does not need more than 32^10 of keyspace. */
 const INVITE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 const INVITE_LENGTH = 10;
+export const TABLE_INVITE_TTL_MS = 24 * 60 * 60 * 1_000;
 
 export function newInviteCode(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(INVITE_LENGTH));
@@ -74,6 +75,9 @@ type MemberRow = {
   displayName: string;
   role: string;
   lastReadSeq: number;
+  showPhotos: number;
+  showNutrition: number;
+  showBodyGoals: number;
 };
 
 type PostRow = {
@@ -105,16 +109,32 @@ async function membershipFor(
   tableId: string,
   partitions: string[],
 ): Promise<MemberRow | null> {
-  return database
+  const rows = await database
     .prepare(
       `SELECT table_id AS tableId, account_id AS accountId, member_id AS memberId,
-              display_name AS displayName, role, last_read_seq AS lastReadSeq
+              display_name AS displayName, role, last_read_seq AS lastReadSeq,
+              show_photos AS showPhotos, show_nutrition AS showNutrition,
+              show_body_goals AS showBodyGoals
          FROM table_members
         WHERE table_id = ? AND account_id IN (${placeholders(partitions.length)})
-        ORDER BY joined_at LIMIT 1`,
+        ORDER BY joined_at, member_id`,
     )
     .bind(tableId, ...partitions)
-    .first<MemberRow>();
+    .all<MemberRow>();
+  const first = rows.results[0];
+  if (!first) return null;
+
+  // An anonymous membership and an Apple-account membership can both belong
+  // to the same caller after account union. Keep one public identity, but
+  // combine state conservatively: read position advances, privacy never does.
+  const canonical = rows.results.find((row) => row.role === "creator") ?? first;
+  return {
+    ...canonical,
+    lastReadSeq: Math.max(...rows.results.map((row) => row.lastReadSeq)),
+    showPhotos: Math.min(...rows.results.map((row) => row.showPhotos)),
+    showNutrition: Math.min(...rows.results.map((row) => row.showNutrition)),
+    showBodyGoals: Math.min(...rows.results.map((row) => row.showBodyGoals)),
+  };
 }
 
 /** 404 rather than 403 for a non-member: whether a table id exists is itself
@@ -129,12 +149,19 @@ async function requireMembership(
   return member;
 }
 
-type TableRow = { id: string; name: string; creatorAccount: string; inviteCode: string };
+type TableRow = {
+  id: string;
+  name: string;
+  creatorAccount: string;
+  inviteCode: string;
+  inviteExpiresAt: number;
+};
 
 async function tableRow(database: D1Database, tableId: string): Promise<TableRow | null> {
   return database
     .prepare(
-      `SELECT id, name, creator_account AS creatorAccount, invite_code AS inviteCode
+      `SELECT id, name, creator_account AS creatorAccount, invite_code AS inviteCode,
+              invite_expires_at AS inviteExpiresAt
          FROM tables WHERE id = ?`,
     )
     .bind(tableId)
@@ -146,7 +173,11 @@ async function tableRow(database: D1Database, tableId: string): Promise<TableRow
  *  same snapshot; a client must never rebuild the count from a partial page. */
 async function summarize(
   env: Env,
-  tables: { row: TableRow; myLastReadSeq: number }[],
+  tables: {
+    row: TableRow;
+    myLastReadSeq: number;
+    visibility: { showPhotos: number; showNutrition: number; showBodyGoals: number };
+  }[],
   caller: TableCaller,
   since: number | undefined,
 ): Promise<TableSummary[]> {
@@ -169,14 +200,23 @@ async function summarize(
           AND author_account NOT IN (${placeholders(parts.length)})`,
     ).bind(row.id, myLastReadSeq, ...parts),
     env.DB.prepare(
-      `SELECT COUNT(DISTINCT author_member_id) AS cooked FROM table_posts
+      `SELECT COUNT(*) AS plates, COUNT(DISTINCT author_member_id) AS cooked FROM table_posts
         WHERE table_id = ? AND kind = 'share' AND created_at >= ?`,
     ).bind(row.id, since ?? 0),
+    env.DB.prepare(
+      `SELECT p.id, p.author_account AS authorAccount, p.author_name AS authorName,
+              p.created_at AS createdAt,
+              CASE WHEN p.photo_object_key IS NULL THEN 0 ELSE 1 END AS hasPhoto,
+              (SELECT COUNT(*) FROM table_reactions AS r WHERE r.post_id = p.id) AS reactionCount
+         FROM table_posts AS p
+        WHERE p.table_id = ? AND p.kind = 'share'
+        ORDER BY p.seq DESC LIMIT 3`,
+    ).bind(row.id),
   ]);
   const results = await env.DB.batch(statements);
 
-  return tables.map(({ row, myLastReadSeq }, index) => {
-    const offset = index * 4;
+  return tables.map(({ row, myLastReadSeq, visibility }, index) => {
+    const offset = index * 5;
     const memberRows = (results[offset]?.results ?? []) as {
       memberId: string;
       displayName: string;
@@ -193,14 +233,19 @@ async function summarize(
         }
       | undefined;
     const unreadRow = (results[offset + 2]?.results ?? [])[0] as { unread: number } | undefined;
-    const cookedRow = (results[offset + 3]?.results ?? [])[0] as { cooked: number } | undefined;
+    const cookedRow = (results[offset + 3]?.results ?? [])[0] as
+      | { cooked: number; plates: number }
+      | undefined;
+    const recentRows = (results[offset + 4]?.results ?? []) as {
+      id: string;
+      authorAccount: string;
+      authorName: string;
+      createdAt: number;
+      hasPhoto: number;
+      reactionCount: number;
+    }[];
 
-    const members: TableMember[] = memberRows.map((member) => ({
-      memberId: member.memberId,
-      displayName: member.displayName,
-      role: member.role === "creator" ? "creator" : "member",
-      isMe: parts.includes(member.accountId),
-    }));
+    const members = tableMembersForCaller(memberRows, parts);
 
     const latestText = latestRow ? (latestRow.body ?? latestRow.dishName ?? "") : "";
     return {
@@ -208,6 +253,12 @@ async function summarize(
       name: row.name,
       members,
       inviteCode: row.inviteCode,
+      inviteExpiresAt: row.inviteExpiresAt,
+      visibility: {
+        photos: visibility.showPhotos === 1,
+        nutrition: visibility.showNutrition === 1,
+        bodyAndGoals: visibility.showBodyGoals === 1,
+      },
       unreadCount: unreadRow?.unread ?? 0,
       latestSeq: latestRow?.seq ?? 0,
       myLastReadSeq,
@@ -215,6 +266,15 @@ async function summarize(
       // no idea where the phone's midnight is, and a count against a made-up
       // UTC boundary would be a number pretending to be a fact.
       cookedToday: since === undefined ? null : (cookedRow?.cooked ?? 0),
+      platesToday: since === undefined ? null : (cookedRow?.plates ?? 0),
+      recentPlates: recentRows.map((plate) => ({
+        id: plate.id,
+        authorName: plate.authorName,
+        mine: parts.includes(plate.authorAccount),
+        createdAt: plate.createdAt,
+        hasPhoto: plate.hasPhoto === 1,
+        reactionCount: plate.reactionCount,
+      })),
       latest: latestRow
         ? {
             authorName: latestRow.authorName,
@@ -226,6 +286,39 @@ async function summarize(
   });
 }
 
+/** Collapse every partition belonging to the caller into one public seat.
+ * Account ids are consumed here and never cross the response boundary. */
+export function tableMembersForCaller(
+  rows: { memberId: string; displayName: string; role: string; accountId: string }[],
+  partitions: string[],
+): TableMember[] {
+  const mine = rows.filter((row) => partitions.includes(row.accountId));
+  const canonicalMine = mine.find((row) => row.role === "creator") ?? mine[0];
+  let emittedMine = false;
+  const members: TableMember[] = [];
+
+  for (const row of rows) {
+    if (!partitions.includes(row.accountId)) {
+      members.push({
+        memberId: row.memberId,
+        displayName: row.displayName,
+        role: row.role === "creator" ? "creator" : "member",
+        isMe: false,
+      });
+      continue;
+    }
+    if (emittedMine || !canonicalMine) continue;
+    emittedMine = true;
+    members.push({
+      memberId: canonicalMine.memberId,
+      displayName: canonicalMine.displayName,
+      role: mine.some((member) => member.role === "creator") ? "creator" : "member",
+      isMe: true,
+    });
+  }
+  return members;
+}
+
 async function summaryFor(
   env: Env,
   row: TableRow,
@@ -235,7 +328,13 @@ async function summaryFor(
 ): Promise<TableSummary> {
   const [summary] = await summarize(
     env,
-    [{ row, myLastReadSeq: member.lastReadSeq }],
+    [
+      {
+        row,
+        myLastReadSeq: member.lastReadSeq,
+        visibility: member,
+      },
+    ],
     caller,
     since,
   );
@@ -246,21 +345,37 @@ async function summaryFor(
 export async function createTable(
   env: Env,
   caller: TableCaller,
-  input: { id: string; name: string; displayName: string },
+  input: {
+    id: string;
+    name: string;
+    displayName: string;
+    visibility: { photos: boolean; nutrition: boolean; bodyAndGoals: boolean };
+  },
   now = Date.now(),
 ): Promise<TableSummary> {
   await enforceMembershipCeiling(env.DB, caller.partitions);
   await env.DB.batch([
     env.DB.prepare(
-      `INSERT INTO tables (id, name, creator_account, invite_code, created_at)
-       VALUES (?, ?, ?, ?, ?) ON CONFLICT(id) DO NOTHING`,
-    ).bind(input.id, input.name, caller.accountId, newInviteCode(), now),
+      `INSERT INTO tables
+        (id, name, creator_account, invite_code, invite_expires_at, created_at)
+       VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO NOTHING`,
+    ).bind(input.id, input.name, caller.accountId, newInviteCode(), now + TABLE_INVITE_TTL_MS, now),
     env.DB.prepare(
       `INSERT INTO table_members
-        (table_id, account_id, member_id, display_name, role, joined_at, last_read_seq)
-       VALUES (?, ?, ?, ?, 'creator', ?, 0)
+        (table_id, account_id, member_id, display_name, role, joined_at, last_read_seq,
+         show_photos, show_nutrition, show_body_goals)
+       VALUES (?, ?, ?, ?, 'creator', ?, 0, ?, ?, ?)
        ON CONFLICT(table_id, account_id) DO NOTHING`,
-    ).bind(input.id, caller.accountId, uuidV7(now), input.displayName, now),
+    ).bind(
+      input.id,
+      caller.accountId,
+      uuidV7(now),
+      input.displayName,
+      now,
+      input.visibility.photos ? 1 : 0,
+      input.visibility.nutrition ? 1 : 0,
+      input.visibility.bodyAndGoals ? 1 : 0,
+    ),
   ]);
 
   // The id is client-generated so a retried create is the same table — but the
@@ -282,7 +397,7 @@ export async function createTable(
 async function enforceMembershipCeiling(database: D1Database, partitions: string[]): Promise<void> {
   const row = await database
     .prepare(
-      `SELECT COUNT(*) AS memberships FROM table_members
+      `SELECT COUNT(DISTINCT table_id) AS memberships FROM table_members
         WHERE account_id IN (${placeholders(partitions.length)})`,
     )
     .bind(...partitions)
@@ -299,12 +414,14 @@ export async function joinTable(
   now = Date.now(),
 ): Promise<TableSummary> {
   const row = await env.DB.prepare(
-    `SELECT id, name, creator_account AS creatorAccount, invite_code AS inviteCode
+    `SELECT id, name, creator_account AS creatorAccount, invite_code AS inviteCode,
+            invite_expires_at AS inviteExpiresAt
        FROM tables WHERE invite_code = ?`,
   )
     .bind(input.code.toUpperCase())
     .first<TableRow>();
   if (!row) throw new HttpError(404, "No table answers to that code.");
+  if (row.inviteExpiresAt <= now) throw new HttpError(410, "That invite link has expired.");
 
   const existing = await membershipFor(env.DB, row.id, caller.partitions);
   if (existing) return summaryFor(env, row, existing, caller);
@@ -338,17 +455,31 @@ export async function listTables(
 ): Promise<TablesListResponse> {
   const rows = await env.DB.prepare(
     `SELECT t.id, t.name, t.creator_account AS creatorAccount, t.invite_code AS inviteCode,
-            m.last_read_seq AS lastReadSeq
+            t.invite_expires_at AS inviteExpiresAt,
+            MAX(m.last_read_seq) AS lastReadSeq, MIN(m.show_photos) AS showPhotos,
+            MIN(m.show_nutrition) AS showNutrition, MIN(m.show_body_goals) AS showBodyGoals
        FROM table_members AS m JOIN tables AS t ON t.id = m.table_id
       WHERE m.account_id IN (${placeholders(caller.partitions.length)})
-      ORDER BY m.joined_at`,
+      GROUP BY t.id, t.name, t.creator_account, t.invite_code, t.invite_expires_at
+      ORDER BY MIN(m.joined_at)`,
   )
     .bind(...caller.partitions)
-    .all<TableRow & { lastReadSeq: number }>();
+    .all<
+      TableRow & {
+        lastReadSeq: number;
+        showPhotos: number;
+        showNutrition: number;
+        showBodyGoals: number;
+      }
+    >();
 
   const tables = await summarize(
     env,
-    rows.results.map((row) => ({ row, myLastReadSeq: row.lastReadSeq })),
+    rows.results.map((row) => ({
+      row,
+      myLastReadSeq: row.lastReadSeq,
+      visibility: row,
+    })),
     caller,
     since,
   );
@@ -464,16 +595,17 @@ export async function createPost(
   now = Date.now(),
 ): Promise<TablePost> {
   const member = await requireMembership(env.DB, tableId, caller.partitions);
+  const visibleShare = input.kind === "share" ? redactTableShare(member, input) : null;
 
   let photoObjectKey: string | null = null;
   let photoMime: string | null = null;
-  if (input.kind === "share" && input.photoHash) {
+  if (visibleShare?.photoHash) {
     const copied = await copySharedPhoto(
       env,
       caller.partitions,
       tableId,
       input.id,
-      input.photoHash,
+      visibleShare.photoHash,
     );
     photoObjectKey = copied.objectKey;
     photoMime = copied.mimeType;
@@ -508,7 +640,7 @@ export async function createPost(
       input.kind === "share" ? input.mealId : null,
       input.kind === "share" ? input.dishName : null,
       input.kind === "share" ? input.caption : input.text,
-      input.kind === "share" && input.ingredients ? JSON.stringify(input.ingredients) : null,
+      visibleShare?.ingredients ? JSON.stringify(visibleShare.ingredients) : null,
       photoObjectKey,
       photoMime,
       now,
@@ -524,6 +656,48 @@ export async function createPost(
   if (stored.tableId !== tableId) throw new HttpError(409, "That post id is already taken.");
   const reactions = await reactionsByPost(env.DB, [stored.id], caller.partitions);
   return buildPost(stored, caller.partitions, reactions.get(stored.id) ?? []);
+}
+
+/** Membership preferences are enforced again at the storage boundary. An old
+ * or modified client can ask for more, but the Worker never stores it. */
+export function redactTableShare(
+  member: Pick<MemberRow, "showPhotos" | "showNutrition">,
+  input: Extract<CreatePostRequest, { kind: "share" }>,
+): {
+  photoHash: string | null;
+  ingredients: Extract<CreatePostRequest, { kind: "share" }>["ingredients"];
+} {
+  return {
+    photoHash: member.showPhotos === 1 ? input.photoHash : null,
+    ingredients: member.showNutrition === 1 ? input.ingredients : null,
+  };
+}
+
+/** The only words at a table are the author's one-line plate note. Updating it
+ * never creates a row, a reply target, or an unread conversation. */
+export async function updateTableNote(
+  env: Env,
+  caller: TableCaller,
+  tableId: string,
+  postId: string,
+  note: string | null,
+): Promise<{ note: string | null }> {
+  await requireMembership(env.DB, tableId, caller.partitions);
+  const post = await env.DB.prepare(
+    `SELECT author_account AS authorAccount, kind FROM table_posts
+      WHERE id = ? AND table_id = ?`,
+  )
+    .bind(postId, tableId)
+    .first<{ authorAccount: string; kind: string }>();
+  if (post?.kind !== "share") throw new HttpError(404, "No such plate at this table.");
+  if (!caller.partitions.includes(post.authorAccount)) {
+    throw new HttpError(403, "Only the plate's author can edit its note.");
+  }
+  const normalized = note?.trim() || null;
+  await env.DB.prepare("UPDATE table_posts SET body = ? WHERE id = ? AND table_id = ?")
+    .bind(normalized, postId, tableId)
+    .run();
+  return { note: normalized };
 }
 
 /**
@@ -675,11 +849,15 @@ export async function rotateInvite(
   env: Env,
   caller: TableCaller,
   tableId: string,
-): Promise<{ inviteCode: string }> {
+  now = Date.now(),
+): Promise<{ inviteCode: string; inviteExpiresAt: number }> {
   await requireMembership(env.DB, tableId, caller.partitions);
   const code = newInviteCode();
-  await env.DB.prepare("UPDATE tables SET invite_code = ? WHERE id = ?").bind(code, tableId).run();
-  return { inviteCode: code };
+  const inviteExpiresAt = now + TABLE_INVITE_TTL_MS;
+  await env.DB.prepare("UPDATE tables SET invite_code = ?, invite_expires_at = ? WHERE id = ?")
+    .bind(code, inviteExpiresAt, tableId)
+    .run();
+  return { inviteCode: code, inviteExpiresAt };
 }
 
 /**

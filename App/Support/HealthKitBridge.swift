@@ -1,5 +1,6 @@
 import Foundation
 import HealthKit
+import ShamanCore
 
 struct ImportedWorkout: Identifiable, Sendable {
     let id: UUID
@@ -31,10 +32,31 @@ struct WeightMeasurement: Identifiable, Sendable {
     let sourceName: String
 }
 
+struct HealthProfileSnapshot: Sendable {
+    var ageYears: Int? = nil
+    var referenceSex: NutritionProfile.ReferenceSex? = nil
+    var heightCentimeters: Double? = nil
+    var weightKilograms: Double? = nil
+    var bodyFatPercentage: Double? = nil
+    var activityLevel: NutritionProfile.ActivityLevel? = nil
+
+    var isEmpty: Bool {
+        ageYears == nil
+            && referenceSex == nil
+            && heightCentimeters == nil
+            && weightKilograms == nil
+            && bodyFatPercentage == nil
+            && activityLevel == nil
+    }
+
+    static let empty = HealthProfileSnapshot()
+}
+
 struct HealthSnapshot: Sendable {
     var workouts: [ImportedWorkout] = []
     var sleep: [SleepSummary] = []
     var weights: [WeightMeasurement] = []
+    var profile = HealthProfileSnapshot.empty
 
     static let empty = HealthSnapshot()
 }
@@ -58,10 +80,26 @@ actor HealthKitBridge {
     private var workoutType: HKWorkoutType { HKObjectType.workoutType() }
     private var sleepType: HKCategoryType { HKCategoryType(.sleepAnalysis) }
     private var weightType: HKQuantityType { HKQuantityType(.bodyMass) }
+    private var heightType: HKQuantityType { HKQuantityType(.height) }
+    private var bodyFatType: HKQuantityType { HKQuantityType(.bodyFatPercentage) }
+    private var activeEnergyType: HKQuantityType { HKQuantityType(.activeEnergyBurned) }
+    private var basalEnergyType: HKQuantityType { HKQuantityType(.basalEnergyBurned) }
+    private var dateOfBirthType: HKCharacteristicType { HKCharacteristicType(.dateOfBirth) }
+    private var biologicalSexType: HKCharacteristicType { HKCharacteristicType(.biologicalSex) }
 
     func requestAuthorization() async throws {
         guard HKHealthStore.isHealthDataAvailable() else { throw BridgeError.unavailable }
-        let readTypes: Set<HKObjectType> = [workoutType, sleepType, weightType]
+        let readTypes: Set<HKObjectType> = [
+            workoutType,
+            sleepType,
+            weightType,
+            heightType,
+            bodyFatType,
+            activeEnergyType,
+            basalEnergyType,
+            dateOfBirthType,
+            biologicalSexType
+        ]
         try await store.requestAuthorization(toShare: [], read: readTypes)
     }
 
@@ -71,16 +109,60 @@ actor HealthKitBridge {
         let workoutStart = calendar.date(byAdding: .day, value: -90, to: now) ?? now.addingTimeInterval(-90 * 86_400)
         let sleepStart = calendar.date(byAdding: .day, value: -30, to: now) ?? now.addingTimeInterval(-30 * 86_400)
         let weightStart = calendar.date(byAdding: .year, value: -1, to: now) ?? now.addingTimeInterval(-365 * 86_400)
+        let heightStart = calendar.date(byAdding: .year, value: -20, to: now) ?? now.addingTimeInterval(-20 * 365 * 86_400)
+        let bodyFatStart = calendar.date(byAdding: .year, value: -2, to: now) ?? now.addingTimeInterval(-2 * 365 * 86_400)
+        let activityStart = calendar.date(byAdding: .day, value: -35, to: now) ?? now.addingTimeInterval(-35 * 86_400)
 
         async let workouts: [HKWorkout] = samples(of: workoutType, startingAt: workoutStart)
         async let sleep: [HKCategorySample] = samples(of: sleepType, startingAt: sleepStart)
         async let weights: [HKQuantitySample] = samples(of: weightType, startingAt: weightStart)
+        async let heights: [HKQuantitySample] = samples(of: heightType, startingAt: heightStart)
+        async let bodyFat: [HKQuantitySample] = samples(of: bodyFatType, startingAt: bodyFatStart)
+        async let activeEnergy: [HKQuantitySample] = samples(of: activeEnergyType, startingAt: activityStart)
+        async let basalEnergy: [HKQuantitySample] = samples(of: basalEnergyType, startingAt: activityStart)
 
-        return try await HealthSnapshot(
-            workouts: Self.mapWorkouts(workouts),
-            sleep: Self.summarizeSleep(sleep),
-            weights: Self.mapWeights(weights)
+        let mappedWorkouts = try await Self.mapWorkouts(workouts)
+        let mappedSleep = try await Self.summarizeSleep(sleep)
+        let mappedWeights = try await Self.mapWeights(weights)
+        let resolvedHeights = try await heights
+        let resolvedBodyFat = try await bodyFat
+        let resolvedActiveEnergy = try await activeEnergy
+        let resolvedBasalEnergy = try await basalEnergy
+
+        return HealthSnapshot(
+            workouts: mappedWorkouts,
+            sleep: mappedSleep,
+            weights: mappedWeights,
+            profile: HealthProfileSnapshot(
+                ageYears: age(now: now, calendar: calendar),
+                referenceSex: referenceSex(),
+                heightCentimeters: Self.latestHeight(resolvedHeights),
+                weightKilograms: mappedWeights.first?.kilograms,
+                bodyFatPercentage: Self.latestBodyFat(resolvedBodyFat),
+                activityLevel: Self.inferredActivity(
+                    activeEnergy: resolvedActiveEnergy,
+                    basalEnergy: resolvedBasalEnergy,
+                    now: now,
+                    calendar: calendar
+                )
+            )
         )
+    }
+
+    private func age(now: Date, calendar: Calendar) -> Int? {
+        guard let components = try? store.dateOfBirthComponents(),
+              let birthday = calendar.date(from: components)
+        else { return nil }
+        return calendar.dateComponents([.year], from: birthday, to: now).year
+    }
+
+    private func referenceSex() -> NutritionProfile.ReferenceSex? {
+        guard let sex = try? store.biologicalSex().biologicalSex else { return nil }
+        switch sex {
+        case .female: return NutritionProfile.ReferenceSex.female
+        case .male: return NutritionProfile.ReferenceSex.male
+        default: return nil
+        }
     }
 
     private func samples<T: HKSample>(of type: HKSampleType, startingAt start: Date) async throws -> [T] {
@@ -150,6 +232,52 @@ actor HealthKitBridge {
             )
         }
         .sorted { $0.measuredAt > $1.measuredAt }
+    }
+
+    private static func latestHeight(_ samples: [HKQuantitySample]) -> Double? {
+        samples.max(by: { $0.startDate < $1.startDate })?
+            .quantity.doubleValue(for: .meterUnit(with: .centi))
+    }
+
+    private static func latestBodyFat(_ samples: [HKQuantitySample]) -> Double? {
+        guard let sample = samples.max(by: { $0.startDate < $1.startDate }) else { return nil }
+        return sample.quantity.doubleValue(for: .percent()) * 100
+    }
+
+    /// PAL is total energy expenditure divided by basal/resting expenditure.
+    /// Health can supply both sides when a watch has enough complete days. The
+    /// median of at least seven days avoids one long workout choosing a person's
+    /// permanent category; otherwise onboarding asks them directly.
+    private static func inferredActivity(
+        activeEnergy: [HKQuantitySample],
+        basalEnergy: [HKQuantitySample],
+        now: Date,
+        calendar: Calendar
+    ) -> NutritionProfile.ActivityLevel? {
+        let today = calendar.startOfDay(for: now)
+
+        func totals(_ samples: [HKQuantitySample]) -> [Date: Double] {
+            samples.reduce(into: [:]) { result, sample in
+                guard sample.startDate < today else { return }
+                let day = calendar.startOfDay(for: sample.startDate)
+                result[day, default: 0] += sample.quantity.doubleValue(for: .kilocalorie())
+            }
+        }
+
+        let active = totals(activeEnergy)
+        let basal = totals(basalEnergy)
+        let ratios = basal.compactMap { day, resting -> Double? in
+            guard resting >= 500, let moving = active[day] else { return nil }
+            return (resting + max(0, moving)) / resting
+        }
+        .sorted()
+
+        guard ratios.count >= 7 else { return nil }
+        let middle = ratios.count / 2
+        let median = ratios.count.isMultiple(of: 2)
+            ? (ratios[middle - 1] + ratios[middle]) / 2
+            : ratios[middle]
+        return NutritionProfile.ActivityLevel.inferred(fromPAL: median)
     }
 
     private static func summarizeSleep(_ samples: [HKCategorySample]) -> [SleepSummary] {

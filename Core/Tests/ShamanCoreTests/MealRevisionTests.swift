@@ -45,11 +45,11 @@ struct MealRevisionTests {
         #expect(result[2].group == .sweets)
     }
 
-    @Test("A revision moves the number that scores")
-    func revisionMovesTheScore() {
+    @Test("A revision moves the effective serving count")
+    func revisionMovesEffectiveServings() {
         // The point of carrying grams. A revise used to set `portion`, which
         // `effectiveServings` never reached on a weighed row: the delta applied,
-        // the summary said "1 changed", and the score did not move an inch.
+        // the summary said "1 changed", and the quantity did not move an inch.
         let items = [MealItem(group: .whiteMeat, label: "chicken", grams: 200)]
         let before = items[0].effectiveServings()
         let result = MealRevision(revise: [.init(index: 1, group: .whiteMeat, grams: 100)]).applied(to: items)

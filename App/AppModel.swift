@@ -3,10 +3,24 @@ import Observation
 import ShamanCore
 
 private let photoProcessingConsentVersion = "photo-processing-2026-08-06-v1"
+/// Bump this only when onboarding gains required data that an existing install
+/// cannot safely infer. The old boolean is still written for downgrade
+/// compatibility, but it no longer lets an upgraded install skip new required
+/// questions forever.
+private let onboardingVersion = "nutrition-profile-2026-08-11-v2"
 
 @MainActor
 @Observable
 final class AppModel {
+    enum NutritionProfileField: String, CaseIterable {
+        case age
+        case referenceSex
+        case height
+        case weight
+        case bodyFat
+        case activity
+    }
+
     private(set) var config: AppConfig = .fallback
     private(set) var configSource: ConfigLoader.Source = .fallback
     private(set) var projection = Projection()
@@ -16,10 +30,18 @@ final class AppModel {
     private(set) var isLoadingHealth = false
     private(set) var healthLastRefreshedAt: Date?
     private(set) var hasRequestedHealthAccess = UserDefaults.standard.bool(forKey: "hasRequestedHealthAccess")
-    /// Set once the four intro screens have been seen or skipped. Not an event:
-    /// it is a fact about this install, not about what was eaten, and the log is
-    /// for the latter.
-    private(set) var hasOnboarded = UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")
+    private(set) var manualNutritionProfile = NutritionProfile()
+    private(set) var nutritionProfileHealthOverrides: Set<NutritionProfileField> = Set(
+        UserDefaults.standard
+            .stringArray(forKey: "nutritionProfile.healthOverrides.v1")?
+            .compactMap(NutritionProfileField.init(rawValue:))
+            ?? []
+    )
+    /// True only after this install has completed the current required setup.
+    /// Versioning is intentional: users who finished an older, smaller flow
+    /// must see newly required profile questions once after upgrading.
+    private(set) var hasOnboarded =
+        UserDefaults.standard.string(forKey: "completedOnboardingVersion") == onboardingVersion
     /// Surfaced in Settings. A silently skipped line is how you lose trust in
     /// your own data six months later.
     private(set) var skippedLogLines = 0
@@ -65,6 +87,8 @@ final class AppModel {
     /// that actually proves it lives in the Keychain.
     private static let accountIDDefaultsKey = "signedInAccountID"
     private static let onboardedKey = "hasCompletedOnboarding"
+    private static let onboardingVersionKey = "completedOnboardingVersion"
+    private static let tableVisibilityOverridesKey = "tableVisibilityOverrides.v1"
     private let keychain = KeychainStore()
     private var log: EventLog?
     private var loadedEvents: [LoggedEvent] = []
@@ -111,11 +135,14 @@ final class AppModel {
         provider = UserDefaults.standard.string(forKey: Self.providerDefaultsKey)
             .flatMap(RecognitionProvider.init(rawValue:))
             ?? config.defaultProvider
-        proteinIntent = UserDefaults.standard.string(forKey: Self.proteinIntentKey)
-            .flatMap(Protein.Intent.init(rawValue:))
-            ?? .active
-        hasProteinGoal = UserDefaults.standard.bool(forKey: Self.proteinGoalKey)
-
+        if let data = UserDefaults.standard.data(forKey: Self.nutritionProfileKey),
+           let saved = try? JSONDecoder().decode(NutritionProfile.self, from: data) {
+            manualNutritionProfile = saved
+        } else if UserDefaults.standard.string(forKey: "proteinIntent") == "building" {
+            // The old three-way protein switch was local-only. Carry its one
+            // unambiguous choice forward without inventing the missing body data.
+            manualNutritionProfile.goal = .gainMuscle
+        }
         hasSessionToken = ((try? keychain.get(.sessionToken)) ?? nil)?.isEmpty == false
         // An interrupted credential write is not half a sign-in. Normalize the
         // pair so the root cannot enter the app with identity metadata but no
@@ -172,13 +199,10 @@ final class AppModel {
         await record(.mealDeleted(mealID: meal.id), occurredAt: meal.eatenAt)
     }
 
-    func updateHabits(_ habits: DietHabits) async {
-        await record(.habitsUpdated(habits))
-    }
-
     func completeOnboarding() {
         hasOnboarded = true
         UserDefaults.standard.set(true, forKey: Self.onboardedKey)
+        UserDefaults.standard.set(onboardingVersion, forKey: Self.onboardingVersionKey)
     }
 
     func acceptPhotoProcessing() {
@@ -236,17 +260,26 @@ final class AppModel {
     /// Write the message down, then read it. In that order, always: the log
     /// entry is what makes the thread survive being offline, being killed, or
     /// the reading failing.
-    func send(said: String?, photo: Data? = nil) async {
+    ///
+    /// Returns the message it wrote, because the reading screen has to watch
+    /// one particular send rather than "whether anything is being read": two
+    /// plates can be in flight at once — that is the whole point of not
+    /// blocking the composer — and a screen that dismissed on
+    /// `isReadingAnything` would close on whichever finished first and show the
+    /// wrong meal. Nil when there was nothing to send.
+    @discardableResult
+    func send(said: String?, photo: Data? = nil) async -> LogMessage? {
         let normalized = photo.flatMap(ModelInputImage.render)
         let text = said?.trimmingCharacters(in: .whitespacesAndNewlines)
         let message = LogMessage(
             said: (text?.isEmpty ?? true) ? nil : text,
             photoHash: normalized.flatMap { PhotoStore.shared.store($0) }
         )
-        guard !message.isEmpty else { return }
+        guard !message.isEmpty else { return nil }
 
         await record(.messageSent(message), occurredAt: message.sentAt)
         read(message, bytes: normalized)
+        return message
     }
 
     /// Log a repeat dish straight from a chip, with no model call.
@@ -413,75 +446,6 @@ final class AppModel {
         DishLibrary.entries(in: projection.meals.values).count
     }
 
-    // MARK: - Reads
-
-    /// The diet the week is scored against, with the protein target folded in.
-    ///
-    /// Read rather than stored, which is what makes switching instant: the diet
-    /// changes and the whole history re-scores off the same meals, because no
-    /// score was ever written down.
-    var diet: DietSpec {
-        projection.diet.withProteinTarget(hasProteinGoal ? proteinTarget : nil)
-    }
-
-    func adherence(endingAt end: Date = Date(), calendar: Calendar = .current) -> DietResult {
-        score(with: diet, endingAt: end, calendar: calendar)
-    }
-
-    /// The same week under a diet that is not the active one — what the editor
-    /// shows under "last week would score 4 of 5 on this plan" before anything
-    /// is saved. It costs one pass over seven days of meals and no model call
-    /// at all, which is the point worth making in the UI.
-    func score(
-        with spec: DietSpec,
-        endingAt end: Date = Date(),
-        calendar: Calendar = .current
-    ) -> DietResult {
-        // The window ends at the start of tomorrow so today counts in full.
-        let end = calendar.startOfDay(for: end).addingTimeInterval(86_400).epochMillis
-        let start = end - EpochMillis(config.medas.windowDays) * 86_400_000
-        return DietScorer(spec: spec, configuration: config.medas).score(
-            meals: projection.meals(from: start, to: end),
-            habits: projection.habits,
-            windowEnd: end,
-            calendar: calendar,
-            servingGrams: ServingWeight.defaultGrams,
-            proteinPerServing: config.proteinTable,
-            foods: config.nutrientsPerGram
-        )
-    }
-
-    /// How long a constraint has been kept, over the whole log rather than the
-    /// window — "kept 34 days" is the number somebody who does not eat meat
-    /// actually wants, and it is not a fact about the last seven.
-    func daysKept(_ constraint: DietConstraint, endingAt end: Date = Date(),
-                  calendar: Calendar = .current) -> Int {
-        DietStreak.daysKept(
-            constraint,
-            meals: Array(projection.meals.values),
-            endingAt: calendar.startOfDay(for: end).addingTimeInterval(86_400).epochMillis,
-            calendar: calendar
-        )
-    }
-
-    // MARK: - Choosing a diet
-
-    func selectDiet(_ spec: DietSpec) async {
-        // A preset is a compiled constant and is not copied into the log — only
-        // the choice is. A fork is the person's own and is stored whole.
-        if !DietPresets.isPreset(spec.id) {
-            await record(.dietSaved(spec))
-        }
-        await record(.dietSelected(dietID: spec.id))
-    }
-
-    func saveDiet(_ spec: DietSpec) async {
-        await record(.dietSaved(spec))
-        if projection.selectedDietID != spec.id {
-            await record(.dietSelected(dietID: spec.id))
-        }
-    }
-
     func mealsToday(calendar: Calendar = .current) -> [MealEntry] {
         meals(on: Date(), calendar: calendar)
     }
@@ -493,19 +457,6 @@ final class AppModel {
         return projection.meals.values
             .filter { interval.contains(Date(epochMillis: $0.eatenAt)) }
             .sorted { $0.eatenAt > $1.eatenAt }
-    }
-
-    /// The seven dots, over the same window and the same boundary the scorer
-    /// uses — the row and the score must never describe different weeks.
-    func weekDays(endingAt end: Date = Date(), calendar: Calendar = .current) -> [DayLog] {
-        let windowEnd = calendar.startOfDay(for: end).addingTimeInterval(86_400).epochMillis
-        let windowStart = windowEnd - EpochMillis(config.medas.windowDays) * 86_400_000
-        return WeekRhythm.days(
-            meals: projection.meals(from: windowStart, to: windowEnd),
-            endingAt: windowEnd,
-            days: config.medas.windowDays,
-            calendar: calendar
-        )
     }
 
     /// Consecutive days back from today, newest first — what the history screen
@@ -520,6 +471,97 @@ final class AppModel {
             calendar: calendar
         )
         .reversed()
+    }
+
+    // MARK: - How much of it got written down
+    //
+    // The Today screen leads on days logged rather than on a meal rating, and
+    // the distinction is the same one `DayLog.fill` already makes: this counts
+    // *logging*, not eating well. A figure that dimmed because of what you ate
+    // would turn a record into a report card, and the app has just spent a
+    // release taking one of those out.
+
+    /// The window the day counter is drawn against.
+    ///
+    /// Ninety days is the mock's number and it is a habit-forming span rather
+    /// than a calendar one — nothing resets on the first of the month, so a
+    /// good run in March is not erased by April.
+    static let loggingWindow = 90
+
+    /// Days in the last `days` with at least one meal on them.
+    func daysLogged(inLast days: Int = AppModel.loggingWindow, calendar: Calendar = .current) -> Int {
+        recentDays(days, calendar: calendar).count { $0.isLogged }
+    }
+
+    /// Consecutive days ending today with at least one meal.
+    ///
+    /// Today not being logged *yet* does not read as a broken streak — the same
+    /// concession `movementStreak` makes, and for the same reason: at nine in
+    /// the morning nobody has eaten anything worth a zero.
+    func loggingStreak(calendar: Calendar = .current) -> Int {
+        let logged = Set(
+            projection.meals.values.map { calendar.startOfDay(for: Date(epochMillis: $0.eatenAt)) }
+        )
+        var streak = 0
+        var day = calendar.startOfDay(for: Date())
+        if !logged.contains(day) {
+            guard let yesterday = calendar.date(byAdding: .day, value: -1, to: day) else { return 0 }
+            day = yesterday
+        }
+        while logged.contains(day) {
+            streak += 1
+            guard let previous = calendar.date(byAdding: .day, value: -1, to: day) else { break }
+            day = previous
+        }
+        return streak
+    }
+
+    /// One local day, with what it came to. Oldest first, gaps included — a day
+    /// with nothing on it is a bar that has to be drawn at zero, not a column
+    /// the chart quietly leaves out.
+    struct DayNutrition: Identifiable, Equatable {
+        /// The local midnight this day starts at, in seconds. Stable and
+        /// orderable, and safe as a `ForEach` id in a way a `Date` is not.
+        let id: Int
+        let start: Date
+        let mealCount: Int
+        let total: NutrientTotal
+
+        var isLogged: Bool { mealCount > 0 }
+        var kcal: Double { total.nutrients.kcal }
+        var protein: Double { total.nutrients.protein }
+    }
+
+    /// The last `count` days, oldest first, each totalled once.
+    ///
+    /// Bucketed in a single pass rather than by calling `meals(on:)` per day:
+    /// the progress screen asks for ninety of these at a time and the naive
+    /// shape walks the whole log ninety times.
+    func dailyNutrition(
+        _ count: Int,
+        endingAt end: Date = Date(),
+        calendar: Calendar = .current
+    ) -> [DayNutrition] {
+        let lastDay = calendar.startOfDay(for: end)
+        // Keyed on the local midnight itself rather than on a day *number*
+        // divided out of an epoch. Two of those can collide across a daylight
+        // saving change, where a day is 23 hours long — and a collision here is
+        // not a missing bar, it is one day quietly drawing another day's food.
+        var byDay: [Date: [MealEntry]] = [:]
+        for meal in projection.meals.values {
+            let day = calendar.startOfDay(for: Date(epochMillis: meal.eatenAt))
+            byDay[day, default: []].append(meal)
+        }
+        return (0..<max(1, count)).reversed().compactMap { offset in
+            guard let start = calendar.date(byAdding: .day, value: -offset, to: lastDay) else { return nil }
+            let meals = byDay[start] ?? []
+            return DayNutrition(
+                id: Int(start.timeIntervalSince1970),
+                start: start,
+                mealCount: meals.count,
+                total: nutrients(in: meals)
+            )
+        }
     }
 
     func workoutsToday(calendar: Calendar = .current) -> [ImportedWorkout] {
@@ -555,6 +597,7 @@ final class AppModel {
         healthSnapshot.workouts.isEmpty
             && healthSnapshot.sleep.isEmpty
             && healthSnapshot.weights.isEmpty
+            && healthSnapshot.profile.isEmpty
     }
 
     // MARK: - How today compares
@@ -582,25 +625,91 @@ final class AppModel {
 
     // MARK: - Nutrition
 
-    /// Per device, like the recognition provider: this is a training decision,
-    /// not a property of the food.
-    /// Whether the protein target is a goal in the diet or just a figure on the
-    /// day sheet.
-    ///
-    /// Off unless somebody said yes in onboarding or settings. A target nobody
-    /// asked for that quietly costs a rule is a diet the app chose for them, and
-    /// the whole change here is that it stopped doing that.
-    var hasProteinGoal: Bool = false {
-        didSet { UserDefaults.standard.set(hasProteinGoal, forKey: Self.proteinGoalKey) }
+    private static let nutritionProfileKey = "nutritionProfile.v1"
+
+    /// Health values win when present; manually entered values remain as a
+    /// fallback for fields Health does not contain or the person did not share.
+    var nutritionProfile: NutritionProfile {
+        var profile = manualNutritionProfile
+        let health = healthSnapshot.profile
+        if !nutritionProfileHealthOverrides.contains(.age), let value = health.ageYears {
+            profile.ageYears = value
+        }
+        if !nutritionProfileHealthOverrides.contains(.referenceSex), let value = health.referenceSex {
+            profile.referenceSex = value
+        }
+        if !nutritionProfileHealthOverrides.contains(.height), let value = health.heightCentimeters {
+            profile.heightCentimeters = value
+        }
+        if !nutritionProfileHealthOverrides.contains(.weight), let value = health.weightKilograms {
+            profile.weightKilograms = value
+        }
+        if !nutritionProfileHealthOverrides.contains(.bodyFat), let value = health.bodyFatPercentage {
+            profile.bodyFatPercentage = value
+        }
+        if !nutritionProfileHealthOverrides.contains(.activity), let value = health.activityLevel {
+            profile.activityLevel = value
+        }
+        return profile
     }
 
-    static let proteinGoalKey = "proteinIsAGoal"
+    /// Saves manual profile values without copying accepted Health values into
+    /// stale fallbacks. A field in `overridingHealthFields` is the explicit
+    /// exception: the person tapped Change in onboarding, so their value wins
+    /// until they edit it again.
+    func saveNutritionProfile(
+        _ profile: NutritionProfile,
+        overridingHealthFields: Set<NutritionProfileField> = []
+    ) {
+        nutritionProfileHealthOverrides.formUnion(overridingHealthFields)
+        UserDefaults.standard.set(
+            nutritionProfileHealthOverrides.map(\.rawValue).sorted(),
+            forKey: "nutritionProfile.healthOverrides.v1"
+        )
 
-    var proteinIntent: Protein.Intent = .active {
-        didSet { UserDefaults.standard.set(proteinIntent.rawValue, forKey: Self.proteinIntentKey) }
+        // A resolved editor contains Health values as well as typed ones. Do not
+        // silently turn those Health values into stale manual fallbacks when the
+        // person changes only their goal or another unfilled field.
+        var manual = profile
+        let health = healthSnapshot.profile
+        if health.ageYears != nil, !nutritionProfileHealthOverrides.contains(.age) {
+            manual.ageYears = manualNutritionProfile.ageYears
+        }
+        if health.referenceSex != nil, !nutritionProfileHealthOverrides.contains(.referenceSex) {
+            manual.referenceSex = manualNutritionProfile.referenceSex
+        }
+        if health.heightCentimeters != nil, !nutritionProfileHealthOverrides.contains(.height) {
+            manual.heightCentimeters = manualNutritionProfile.heightCentimeters
+        }
+        if health.weightKilograms != nil, !nutritionProfileHealthOverrides.contains(.weight) {
+            manual.weightKilograms = manualNutritionProfile.weightKilograms
+        }
+        if health.bodyFatPercentage != nil, !nutritionProfileHealthOverrides.contains(.bodyFat) {
+            manual.bodyFatPercentage = manualNutritionProfile.bodyFatPercentage
+        }
+        if health.activityLevel != nil, !nutritionProfileHealthOverrides.contains(.activity) {
+            manual.activityLevel = manualNutritionProfile.activityLevel
+        }
+
+        manualNutritionProfile = manual
+        if let data = try? JSONEncoder().encode(manual) {
+            UserDefaults.standard.set(data, forKey: Self.nutritionProfileKey)
+        }
     }
 
-    private static let proteinIntentKey = "proteinIntent"
+    /// Health fields that still own their value. Explicit onboarding overrides
+    /// are masked so Settings presents them as editable manual values instead
+    /// of incorrectly labelling and disabling them as Health-owned.
+    var editableHealthProfile: HealthProfileSnapshot {
+        var health = healthSnapshot.profile
+        if nutritionProfileHealthOverrides.contains(.age) { health.ageYears = nil }
+        if nutritionProfileHealthOverrides.contains(.referenceSex) { health.referenceSex = nil }
+        if nutritionProfileHealthOverrides.contains(.height) { health.heightCentimeters = nil }
+        if nutritionProfileHealthOverrides.contains(.weight) { health.weightKilograms = nil }
+        if nutritionProfileHealthOverrides.contains(.bodyFat) { health.bodyFatPercentage = nil }
+        if nutritionProfileHealthOverrides.contains(.activity) { health.activityLevel = nil }
+        return health
+    }
 
     /// Everything today came to, with the share of the weight that answered.
     ///
@@ -667,16 +776,13 @@ final class AppModel {
         Protein.grams(in: meal, gramsPerServing: config.proteinTable, foods: config.nutrientsPerGram)
     }
 
-    /// Nil until Health has a weight: a target invented from a guessed body
-    /// weight would be a number with no meaning behind it.
+    /// Nil until all required profile inputs are known. A missing input produces
+    /// no reference rather than a default belonging to an imaginary person.
     var proteinTarget: Double? { dailyTargets?.protein }
 
-    /// All five, from the same body weight and the same intent. Nil for the same
-    /// reason `proteinTarget` is: without a weight there is nothing to derive
-    /// them from, and a default figure would be a stranger's target wearing this
-    /// person's label.
+    /// Energy and macro references from the same resolved profile.
     var dailyTargets: DailyTargets? {
-        latestWeight.map { DailyTargets.forBody(weightKilograms: $0.kilograms, intent: proteinIntent) }
+        DailyTargets.forProfile(nutritionProfile)
     }
 
     func workoutCount(weeksAgo: Int, calendar: Calendar = .current) -> Int {
@@ -853,6 +959,20 @@ final class AppModel {
     /// them the same way.
     private(set) var tablesAsOf: EpochMillis?
     private(set) var tablesError: String?
+    /// A deep-linked table code survives the identity/onboarding gates. Joining
+    /// is still confirmed by the person; opening a URL never mutates membership
+    /// by itself.
+    private(set) var pendingTableInviteCode: String?
+    /// Rolling-API bridge: the old strict create endpoint cannot echo the new
+    /// privacy object. Keep the choice on this device until the current server
+    /// owns it, so an intentionally hidden photo is never re-enabled by a nil
+    /// field in an older response.
+    private var tableVisibilityOverrides: [String: TableVisibility] = {
+        guard let data = UserDefaults.standard.data(forKey: AppModel.tableVisibilityOverridesKey),
+              let values = try? JSONDecoder().decode([String: TableVisibility].self, from: data)
+        else { return [:] }
+        return values
+    }()
 
     /// The one table the day page's slim row names. The loudest — most unread —
     /// then the most recently posted in, so a quiet table cannot sit in front
@@ -867,11 +987,28 @@ final class AppModel {
 
     var totalUnread: Int { tables.reduce(0) { $0 + $1.unreadCount } }
 
+    func handleIncomingURL(_ url: URL) {
+        guard url.scheme?.lowercased() == "eatsome",
+              ["table", "join"].contains(url.host?.lowercased() ?? ""),
+              let rawCode = url.pathComponents.dropFirst().first
+        else { return }
+        let code = rawCode.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard (6...20).contains(code.count) else { return }
+        pendingTableInviteCode = code
+    }
+
+    func clearPendingTableInvite() {
+        pendingTableInviteCode = nil
+    }
+
+    func tableVisibility(for table: TableSummary) -> TableVisibility {
+        table.visibility ?? tableVisibilityOverrides[table.id] ?? .privateByDefault
+    }
+
     func refreshTables(calendar: Calendar = .current) async {
         guard let backend else { return }
         // The server cannot know where this phone's midnight is, so "cooked
-        // today" is counted from a boundary this side supplies — exactly how
-        // the scorer takes `windowEnd`.
+        // today" is counted from a boundary this side supplies.
         let since = calendar.startOfDay(for: Date()).epochMillis
         do {
             let response = try await backend.tables(since: since)
@@ -900,10 +1037,20 @@ final class AppModel {
         }
     }
 
-    func createTable(named name: String, as displayName: String) async throws {
+    @discardableResult
+    func createTable(
+        named name: String,
+        as displayName: String = "You",
+        visibility: TableVisibility = .privateByDefault
+    ) async throws -> TableSummary {
         guard let backend else { throw TablesError.noBackend }
-        _ = try await backend.createTable(.init(name: name, displayName: displayName))
+        let table = try await backend.createTable(
+            .init(name: name, displayName: displayName, visibility: visibility)
+        )
+        tableVisibilityOverrides[table.id] = visibility
+        persistTableVisibilityOverrides()
         await refreshTables()
+        return tables.first(where: { $0.id == table.id }) ?? table
     }
 
     func joinTable(code: String, as displayName: String) async throws {
@@ -929,18 +1076,30 @@ final class AppModel {
                 mealId: meal.id.uuidString,
                 dishName: MealDisplay.title(meal),
                 caption: trimmed.isEmpty ? nil : trimmed,
-                ingredients: meal.shareable(showingIngredients: showingIngredients),
-                photoHash: meal.photoHash
+                ingredients: meal.shareable(
+                    showingIngredients: showingIngredients && tableVisibility(for: table).nutrition
+                ),
+                photoHash: tableVisibility(for: table).photos ? meal.photoHash : nil
             ),
             to: table.id
         )
         await refreshTables()
     }
 
+    private func persistTableVisibilityOverrides() {
+        guard let data = try? JSONEncoder().encode(tableVisibilityOverrides) else { return }
+        UserDefaults.standard.set(data, forKey: Self.tableVisibilityOverridesKey)
+    }
+
+    func updateTableNote(_ note: String?, for post: TablePost, in table: TableSummary) async throws -> String? {
+        guard let backend else { throw TablesError.noBackend }
+        return try await backend.updateTableNote(postID: post.id, note: note, in: table.id)
+    }
+
     /// A friend's dish, saved into your own log as your own meal.
     ///
     /// A new `MealEntry` with a new id, not a copy of theirs: it is now
-    /// something you ate, it scores against *your* diet, and you can correct it
+    /// something you ate, it updates your meal rating, and you can correct it
     /// in words like anything else. `source` is `.recipe` because that is what
     /// it is — a repeat of something already checked by somebody — and the note
     /// records where it came from so the provenance survives a correction.

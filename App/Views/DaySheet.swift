@@ -8,9 +8,7 @@ import SwiftUI
 /// each row opening `2e`. The thread stays visible behind it; swiping down goes
 /// back to logging.
 ///
-/// It doubles as the view for an earlier day, reached from a dot on `My week`.
-/// The two were separate screens when Today was a tab, and they were the same
-/// screen with one of them missing an "add" button.
+/// It doubles as the view for an earlier day, reached from History.
 struct DaySheet: View {
     let day: Date
 
@@ -34,6 +32,10 @@ struct DaySheet: View {
                         olivesCard
                         countedCard
                         mealsCard
+                    }
+                    if isToday, let targets = model.dailyTargets {
+                        DailyReferenceSummary(profile: model.nutritionProfile, targets: targets)
+                            .wellieCard(color: WellieTheme.ice)
                     }
                     if isToday { healthCard }
                 }
@@ -234,8 +236,8 @@ struct DaySheet: View {
             if !model.hasRequestedHealthAccess {
                 WellieProse(
                     """
-                    Sleep, workouts and weight can appear here. Your weight is also what \
-                    sets a protein target.
+                    Health can fill your body profile and activity reference, and show \
+                    sleep, workouts and weight here.
                     """
                 )
                 Button("Connect Apple Health") { Task { await model.connectHealth() } }

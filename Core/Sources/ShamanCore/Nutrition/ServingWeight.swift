@@ -1,9 +1,9 @@
-/// What one MEDAS serving of each food group weighs.
+/// What one display serving of each food group weighs.
 ///
 /// Recognition now reports grams — the edible weight of an ingredient as it sits
 /// on the plate — because a photograph shows an amount of food, not an amount of
 /// "serving". This is the table that turns that observation into the unit the
-/// diet score is actually made of.
+/// meal summaries and ratings are made of.
 ///
 /// Two things it deliberately is not. It is not a nutrition database: it says
 /// how much a serving weighs, never what is in it. And it is not a route to
@@ -20,7 +20,7 @@ public enum ServingWeight {
     /// `shaman-config.json`, like every other number that is a judgement rather
     /// than a fact.
     ///
-    /// Calibrated to MEDAS's own serving definitions where it states them —
+    /// Calibrated to published serving definitions where available —
     /// 100 g of meat or fish, 200 ml of dairy, one egg — and to ordinary
     /// helpings where it does not.
     public static let defaultGrams: [String: Double] = [
@@ -50,8 +50,8 @@ public enum ServingWeight {
         FoodGroup.plantMilk.rawValue: 200,
         FoodGroup.smoothie.rawValue: 250,
         // A beer, because a beer is what people photograph. This is the weakest
-        // row in the table and the only one that is wrong by construction: MEDAS
-        // counts alcohol in drinks, and a drink is defined by its ethanol, not
+        // row in the table and the only one that is wrong by construction: an
+        // alcoholic drink is defined by its ethanol, not
         // its volume. At 330 a glass of wine reads as a third of a drink and a
         // measure of spirits as almost none. Weighing drinks is the case where
         // grams and servings genuinely disagree, and if the alcohol item ever

@@ -15,7 +15,7 @@ import Foundation
 /// Step 3 is where protein and the rest deliberately part company. Protein falls
 /// back to `Protein.defaultGramsPerServing`, a hand-calibrated per-serving table
 /// that predates all of this and that every protein figure in the history was
-/// scored against; moving it would silently restate months of estimates to buy
+/// calculated against; moving it would silently restate months of estimates to buy
 /// consistency with a table that did not exist when they were written. The other
 /// four fall back to `FoodNutrientTable.groups`, a sourced row per group. The
 /// two disagree slightly — cod is 22.8 g of protein per 100 g against the fish
@@ -28,9 +28,8 @@ import Foundation
 public enum Nutrition {
     /// The five figures for a list of foods — a plate, or a dish as described.
     ///
-    /// Uses what is on the plate rather than what the MEDAS scorer counts: the
-    /// per-group cap exists to stop a platter clearing a diet target and has
-    /// nothing to say about what a person actually ate.
+    /// Uses everything on the plate. The per-group portion cap used by meal
+    /// summaries has nothing to say about nutrient quantities.
     public static func total(
         in items: [MealItem],
         gramsPerServing: [String: Double] = Protein.defaultGramsPerServing,

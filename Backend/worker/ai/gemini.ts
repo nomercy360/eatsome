@@ -111,7 +111,7 @@ export function geminiResponseSchema(): Record<string, unknown> {
                 // the whole of v16: the prompt asked for a weight on every
                 // ingredient, the eval schema had somewhere to put one and
                 // graded it well, and every answer the app actually received
-                // came back weightless and scored on the ladder grams replaced.
+                // came back weightless and used the ladder grams replaced.
                 propertyOrdering: ["group", "grams", "label", "alternatives"],
                 required: ["group", "grams", "label", "alternatives"],
                 properties: {

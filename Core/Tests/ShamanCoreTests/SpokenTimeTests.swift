@@ -69,7 +69,7 @@ struct SpokenTimeTests {
     @Test("Logging a meal as you eat it is not thrown back a day")
     func sameMinuteIsToday() {
         // "lunch at 13:00" sent at 13:00:04. Without the tolerance those four
-        // seconds move the meal to yesterday, and the day's score with it.
+        // seconds move the meal to yesterday, and the day's history with it.
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "UTC")!
         let justAfter = calendar.date(from: DateComponents(

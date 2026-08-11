@@ -19,7 +19,7 @@ import SwiftUI
 /// progress bar with segments to complete.
 struct OliveRow: View {
     let olives: Int
-    /// Scales with the reader's text size. The olives are the score — the one
+    /// Scales with the reader's text size. The olives are the rating — the one
     /// figure the whole screen is for — and a 16 pt row beside 40 pt type reads
     /// as a decoration rather than as the answer.
     @ScaledMetric(relativeTo: .body) private var scale: CGFloat = 1

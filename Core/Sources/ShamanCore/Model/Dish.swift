@@ -20,7 +20,7 @@ public struct NutritionPanel: Codable, Sendable, Hashable {
     ///
     /// This was kept and never summed for two years, because only packaged food
     /// carries a label and a total built from these would have been computed
-    /// from the packaged fraction of a diet while looking exactly like a total.
+    /// from the packaged fraction of a meal while looking exactly like a total.
     /// What changed is the baseline underneath, not the argument: every food now
     /// derives energy from `FoodNutrientTable`, so a printed figure improves a
     /// complete total rather than creating a partial one — which is the test
@@ -87,7 +87,7 @@ public struct NutritionPanel: Codable, Sendable, Hashable {
 /// One named thing on the tray, and what it is made of.
 ///
 /// The dish is what a person recognises — "kaisen don", "two beers" — and the
-/// ingredients underneath are what the diet score is made of. The quantity is on
+/// ingredients underneath drive the nutrition figures and meal rating. The quantity is on
 /// the ingredients, as weight: `count` is how many servings are present, but it
 /// is a label and a control rather than a factor, since the weights below
 /// already cover every serving there is.
@@ -100,9 +100,9 @@ public struct MealDish: Codable, Sendable, Hashable, Identifiable {
     ///
     /// Nothing sets this any more: no model is asked for it and the dish sheet
     /// stopped offering the chips in v17, because on a weighed dish the control
-    /// changed no score — `effectiveServings` prefers grams — while looking
+    /// changed no quantity — `effectiveServings` prefers grams — while looking
     /// exactly like one that did. It stays on the type so a meal logged before
-    /// August 2026 still scores the way it was scored the day it was logged.
+    /// August 2026 still reads the way it did the day it was logged.
     public var size: Portion
     /// What the packaging said, when it said anything. Nil for almost all food,
     /// which is cooked and has nothing printed on it.
@@ -145,7 +145,7 @@ public struct MealDish: Codable, Sendable, Hashable, Identifiable {
 
     /// The dish as if a different number of servings had been present. Used by
     /// the count control, which now rewrites weights rather than multiplying
-    /// them at score time.
+    /// them when calculating quantities.
     public func scaled(toCount newCount: Int) -> MealDish {
         guard weighed, count > 0, newCount > 0, newCount != count else {
             var copy = self
@@ -163,11 +163,11 @@ public struct MealDish: Codable, Sendable, Hashable, Identifiable {
         return copy
     }
 
-    /// The dish as rows the scorer can add up, each carrying the servings the
-    /// three factors produced.
+    /// The dish as ingredient rows, each carrying the servings the three
+    /// factors produced.
     ///
     /// `MealEntry` stores both this and the dishes, so that a build which has
-    /// never heard of dishes still scores a meal correctly. They can only
+    /// never heard of dishes still reads a meal correctly. They can only
     /// disagree if something writes one without the other, which is why this is
     /// the single way the flat list is ever produced.
     /// Rebuild dishes from a flat list that has been edited.

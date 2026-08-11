@@ -10,10 +10,6 @@ import Foundation
 public struct AppConfig: Codable, Sendable {
     public var version: Int
     public var movements: [MovementDefinition]
-    /// Named `medas` because it was here first and every config file in the
-    /// wild — remote and cached — still spells it that way. What it holds is the
-    /// window length, which was never Mediterranean.
-    public var medas: DietConfiguration
     public var recognition: Recognition
     /// Protein grams per serving, by food group. Absent means the compiled
     /// defaults; this is the table you will want to tune from real meals, which
@@ -66,7 +62,6 @@ public struct AppConfig: Codable, Sendable {
     public static let fallback = AppConfig(
         version: 1,
         movements: MovementDefinition.builtIn,
-        medas: DietConfiguration(),
         recognition: Recognition(
             model: "gpt-5.6-luna",
             imageDetail: "high",

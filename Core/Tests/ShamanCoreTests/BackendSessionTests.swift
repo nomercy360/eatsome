@@ -11,14 +11,14 @@ struct BackendSessionTests {
                 id: UUIDv7.generate(at: 1_700_000_000_000 + EpochMillis(index)),
                 occurredAt: EpochMillis(index),
                 recordedAt: EpochMillis(index),
-                payload: .habitsUpdated(DietHabits())
+                payload: .messageDeleted(messageID: UUIDv7.generate(at: 1_600_000_000_000 + EpochMillis(index)))
             )
         }
         let last = LoggedEvent(
             id: UUIDv7.generate(at: 1_700_000_001_000),
             occurredAt: 500,
             recordedAt: 500,
-            payload: .dietSelected(dietID: "mediterranean")
+            payload: .messageDeleted(messageID: UUIDv7.generate(at: 1_600_000_001_000))
         )
         var requests: [URLRequest] = []
 
@@ -83,7 +83,7 @@ struct BackendSessionTests {
         let remote = LoggedEvent(
             occurredAt: 1,
             recordedAt: 2,
-            payload: .dietSelected(dietID: "mediterranean"),
+            payload: .messageDeleted(messageID: UUIDv7.generate(at: 1_600_000_002_000)),
             sourceDeviceId: "another-phone"
         )
         try await backend().syncEvents([remote])

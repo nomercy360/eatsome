@@ -15,7 +15,7 @@ struct FoodSentence: View {
         let id: UUID
         let text: String
         /// Drawn with an underline: the model named a rival for this one that
-        /// would score differently, and the question is asked below.
+        /// would change the meal reading, and the question is asked below.
         var isUncertain = false
         /// Not a word yet — a placeholder for what a fix is about to add.
         ///
@@ -30,6 +30,14 @@ struct FoodSentence: View {
     let lead: String
     let words: [Word]
     var size: CGFloat = 23
+    /// Commas, "and", and the full stop at the end.
+    ///
+    /// True where the sentence is prose — the capture screen's "You had *toast,
+    /// eggs and coffee.*" False where it stands in for a title, which is what
+    /// the meal detail does with it: a heading that ends in a full stop reads as
+    /// a typo, and with one dish it produced "Lentil soup ." under the photo.
+    /// The "and" survives either way; that is grammar, not punctuation.
+    var punctuates = true
     var onTap: ((UUID) -> Void)?
 
     var body: some View {
@@ -57,12 +65,12 @@ struct FoodSentence: View {
                     .foregroundStyle(word.isPending ? WellieTheme.muted : WellieTheme.ink)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 2)
-                    .background(WellieTheme.ice, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                    .background(WellieTheme.raised, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                     .opacity(word.isPending ? 0.55 : 1)
                     .overlay(alignment: .bottom) {
                         if word.isUncertain {
                             RoundedRectangle(cornerRadius: 1)
-                                .fill(WellieTheme.blue)
+                                .fill(WellieTheme.accent)
                                 .frame(height: 2)
                                 .padding(.horizontal, 8)
                                 .offset(y: 1)
@@ -92,10 +100,11 @@ struct FoodSentence: View {
     /// English list punctuation: commas between, "and" before the last, a full
     /// stop at the end.
     private func joiner(after index: Int) -> String {
+        guard punctuates else { return "" }
         switch words.count - index {
-        case 1: "."
-        case 2: ""
-        default: ","
+        case 1: return "."
+        case 2: return ""
+        default: return ","
         }
     }
 }

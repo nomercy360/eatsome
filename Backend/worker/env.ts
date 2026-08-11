@@ -9,6 +9,7 @@ export type Env = {
   ANTHROPIC_API_KEY: string;
   QWEN_API_KEY: string;
   OPENROUTER_API_KEY: string;
+  META_API_KEY: string;
   /** Mints short-lived transcription keys; the real key never reaches a device. */
   SONIOX_API_KEY: string;
   EATSOME_API_TOKEN: string;
@@ -30,9 +31,12 @@ export type Env = {
   ANTHROPIC_RECOGNITION_MODEL: string;
   QWEN_RECOGNITION_MODEL: string;
   OPENROUTER_RECOGNITION_MODEL: string;
+  META_RECOGNITION_MODEL: string;
   // Any OpenAI-compatible host: DashScope, QwenCloud, OpenRouter.
   QWEN_BASE_URL: string;
   OPENROUTER_BASE_URL: string;
+  /** Empty means Meta's own host. */
+  META_BASE_URL: string;
   // Used when a request does not name one.
   RECOGNITION_PROVIDER: RecognitionProvider;
   // Reasoning budget per provider. Empty means the provider's own default,
@@ -49,6 +53,10 @@ export type Env = {
   ANTHROPIC_THINKING_BUDGET: string;
   /** "true" turns Qwen's thinking mode on. */
   QWEN_ENABLE_THINKING: string;
+  /** Muse Spark reasons freely when uncapped. Empty means `low`. */
+  META_REASONING_EFFORT: string;
+  /** As `OPENAI_IMAGE_DETAIL`; empty means `high`. */
+  META_IMAGE_DETAIL: string;
   MEAL_PROMPT_VERSION: string;
   /** Global ceiling across every caller, because the rate limiter is per-colo
    *  and a proxy in front of paid model APIs needs a bound in money, not in

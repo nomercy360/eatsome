@@ -192,6 +192,29 @@ struct Delta {
 
 
 enum DayFormat {
+    /// "Tuesday 11 Aug" — the line above the day counter on Today.
+    ///
+    /// Assembled rather than pattern-formatted, for the same reason `title` is:
+    /// `.weekday(.wide).day().month(.abbreviated)` orders by locale and lands
+    /// on "11 Tuesday Aug" in several of them.
+    static func long(_ day: Date, calendar: Calendar = .current) -> String {
+        let weekday = day.formatted(.dateTime.weekday(.wide))
+        let month = day.formatted(.dateTime.month(.abbreviated))
+        return "\(weekday) \(calendar.component(.day, from: day)) \(month)"
+    }
+
+    /// The clock, in the reader's own 12- or 24-hour convention.
+    static let clock: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = .autoupdatingCurrent
+        formatter.setLocalizedDateFormatFromTemplate("jm")
+        return formatter
+    }()
+
+    static func time(_ at: EpochMillis) -> String {
+        clock.string(from: Date(epochMillis: at))
+    }
+
     /// "Today", "Yesterday", then "Monday 3" the way the history screen labels
     /// its cards.
     static func title(_ day: Date, calendar: Calendar = .current) -> String {

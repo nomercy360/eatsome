@@ -1,6 +1,6 @@
 # eatsome
 
-A personal Mediterranean-diet and health overview for iOS.
+A conversational meal log and health overview for iOS.
 
 Canonical domain: [eatso.me](https://eatso.me)
 
@@ -9,22 +9,21 @@ unchanged internally so the rename installs as an update without losing data.
 
 Two connected loops:
 
-1. **Photograph a meal** → `gpt-5.6-luna` classifies it into food groups and
-   coarse portions → a rolling weekly **MEDAS** adherence score.
-2. **Connect Apple Health** → workouts, sleep stages, and weight recorded by
-   Apple Watch, smart scales, and the Health app appear in one daily overview.
+1. **Describe or photograph a meal** → the recognition model classifies dishes,
+   food groups, and weights → sourced nutrition figures and a one-to-five olive
+   rating for the plate.
+2. **Connect Apple Health** → age, sex reference, height, weight, body fat, and
+   recent energy data fill a personal daily energy and macro reference when
+   available; workouts and sleep still appear in the daily overview.
 
 ## What this deliberately does not do
 
-**No calorie counting.** A vision model asked for grams returns a number with
-30–50% error that still looks like data — you cannot tell a bad week from a bad
-estimate. The Mediterranean diet is defined by food-group frequency anyway, and
-that is what a photo can actually establish. The app scores the 14-item
-[MEDAS](https://pubmed.ncbi.nlm.nih.gov/22330017/) screener from the PREDIMED
-trial.
+**No model-invented nutrition.** Recognition estimates only the food and its
+weight. Energy, protein, carbohydrate, fat, and sodium come from published food
+tables or a nutrition panel the model can actually read.
 
-**No daily perfection.** Scoring is a rolling 7-day window. No fish on Tuesday is
-not a failure, and false failures are how habit apps get deleted in week three.
+**Meal history, not weekly verdicts.** The app keeps meal-level olive ratings
+and daily history without grading the week.
 
 **No silent cloud dependency.** The app still works from its local append-only
 log. The new backend is an explicit sync and recognition boundary; it does not
@@ -39,7 +38,7 @@ HealthKit. eatsome does not turn them into a proprietary readiness number.
 Core/            SwiftPM package — all logic, no frameworks, fully tested
   Sources/ShamanCore/
     Model/       UUIDv7, epoch time, food groups, append-only events
-    Nutrition/   MEDAS criteria and the rolling-window scorer
+    Nutrition/   sourced nutrient totals, serving weights, olive ratings
     Movement/    Experimental pose geometry and rep counter (not shipped in app)
     AI/          Luna client, strict JSON schema, SHA-256 recognition cache
     Storage/     JSONL event log, Keychain
@@ -124,9 +123,8 @@ a fold over the file; at personal-tracker volumes that costs milliseconds.
   confidence number: self-scored certainty comes back round and uncalibrated
   (the same 0.56 on the rice and on the unidentifiable meat), while "what else
   could this be" is a question about the food and becomes the correction button.
-- A confirmation is required only when a rival would move the MEDAS score in a
-  different direction — chicken read as pork does, brown rice read as white does
-  not, because no MEDAS item scores grains. A warning on every row is wallpaper.
+- At most one uncertainty is raised on a meal card. The model's best guess and
+  its shortlist are direct correction buttons; saving never waits for an answer.
 - Cost at `detail: low` is roughly $0.20/$1.20 per million tokens. Personal use
   is cents per month.
 
@@ -158,36 +156,34 @@ exactly what recognition missed, which no JSON diff gives you.
 A thumbs up/down sits apart from all of this. Correcting takes attention; a thumb
 takes none, and most bad readings are never worth typing about.
 
-### Protein is the one number in grams
+### A daily reference begins with the person, not the meal
 
-Everything else here is food groups and coarse portions, on purpose. Protein is
-the exception, for three reasons that do not apply to the other macronutrients:
+Onboarding offers Apple Health first. It fills age, the applicable published
+sex-reference equation, height, weight, body fat, and usual activity when those
+values are available; the next screens ask only for what is missing. Age,
+reference equation, height, weight, activity, and a maintain/lose/gain-muscle
+goal are required. Body fat is optional and supplies approximate lean mass only.
 
-- it has an absolute daily threshold with evidence behind it — roughly 1.6–2.2 g
-  per kilogram of body weight when building muscle — so it has to be summed in
-  grams rather than watched as a ratio;
-- its sources are discrete and countable, which is the only reason a photograph
-  can estimate it at all. Fat is smeared through the dish and invisible in the
-  cooking, and its grams would be fiction;
-- its target computes itself from data already here: body weight arrives from
-  HealthKit, so the number moves when you do.
+`NutritionProfile` and `DailyTargets` live in framework-free Core. Maintenance
+energy uses the 2023 adult Dietary Reference Intake equations. Carbohydrate and
+fat are shown as the published acceptable ranges, not an invented single macro
+split. Protein is 0.8 g/kg for maintenance and a 1.6 g/kg planning reference for
+weight loss or muscle gain. The selected goal is shown as a separate adjustment
+from maintenance: a moderate deficit for loss or a small surplus for muscle
+gain. Every calorie figure stays visibly approximate, because a population
+equation is a starting point and body-weight trend is the calibration.
 
-It is derived, never entered — group servings times a table in
-`shaman-config.json`, which is where you tune it against real meals. Carbohydrate
-and fat get no daily gram targets, and nothing anywhere converts any of it to
-calories, though it would be easy from the same data. That is the road that ends
-at a calorie counter.
-
-Per meal the estimate is loose, and large portions are read low by every model
-measured, so the sum leans conservative. Read the trend. If a month of days
-lands 15–20 g short, suspect the estimate before the diet.
+This personal reference is different from the day's meal total. Meal energy and
+macros are still derived from recognised food weights and published composition
+rows; unresolved food makes the total explicitly incomplete. The profile and
+manual fallback stay on the device rather than entering the meal event API.
 
 ### A plate is not a serving count
 
 Recognition splits a dish into as many rows as it sees, and that is right for the
 correction sheet — you can check what was actually recognized. It is wrong for
-the score: a fruit platter read as four rows would clear a daily target from one
-photograph. So scoring aggregates per meal, per group, with two rules:
+the summary: a fruit platter read as four rows should still be one eating
+occasion. So serving summaries aggregate per meal, per group, with two rules:
 
 - a meal contributes at most one large portion of any single group, because one
   meal is one eating occasion;
@@ -204,15 +200,18 @@ plate, for display.
 The supplied Wellie Figma exports are translated into named SwiftUI tokens in
 `App/DesignSystem/WellieTheme.swift`: SF Rounded typography, deep navy text,
 blue actions, ice-blue health surfaces, neutral cards, and consistent radii.
-The reference screens include calorie and macro concepts that eatsome explicitly
-does not adopt; only their visual system and interaction hierarchy are reused.
+The reference screens reuse the visual system and interaction hierarchy while
+keeping the energy estimate and macro ranges plainly approximate.
 
 ### HealthKit is the health-data source of truth
 
-eatsome requests read-only access to workouts, sleep analysis, and body mass.
+eatsome requests read-only access to date of birth, biological sex, height, body
+mass, body-fat percentage, active and basal energy, workouts, and sleep analysis.
 It refreshes a recent snapshot when the app becomes active and does not copy or
-modify those samples in its event log. Sleep intervals are merged before totals
-are calculated so overlapping sources are not double-counted.
+modify those samples in its event log. Activity is inferred only when at least
+seven complete energy days are available; otherwise it is asked directly. Sleep
+intervals are merged before totals are calculated so overlapping sources are not
+double-counted.
 
 ### The backend preserves the append-only model
 
@@ -229,7 +228,8 @@ See [`Backend/README.md`](Backend/README.md) for local setup and deployment.
 
 ## Status
 
-`Core` is complete and tested (52 tests). The app supports meal recognition,
-rolling MEDAS adherence, and read-only HealthKit imports for workouts, sleep,
-and weight. The signed app has been built, installed, and launched on a physical
-iPhone with its HealthKit entitlement.
+The app supports meal recognition, sourced nutrition figures, meal and day olive
+ratings, a personal daily energy and macro reference, history, tables, account
+sync, and read-only HealthKit imports for body profile, energy, workouts, and
+sleep. The signed app has been built, installed, and
+launched on a physical iPhone with its HealthKit entitlement.

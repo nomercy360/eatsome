@@ -17,6 +17,7 @@ import {
   signInRequestSchema,
   tableFeedQuerySchema,
   tablesListQuerySchema,
+  updateTableNoteRequestSchema,
 } from "../src/contracts";
 import { apiKeyFor, keyVariableFor, modelFor, resolveProvider } from "./ai/recognize";
 import {
@@ -43,6 +44,7 @@ import {
   markRead,
   rotateInvite,
   setReaction,
+  updateTableNote,
 } from "./data/tables";
 import type { Env } from "./env";
 import { requireAppToken, requireStableAccount } from "./lib/auth";
@@ -318,6 +320,22 @@ app.post("/v1/tables/:id/posts", zValidator("json", createPostRequestSchema), as
   c.header("Cache-Control", "no-store");
   return c.json(post, 201);
 });
+
+app.put(
+  "/v1/tables/:id/posts/:postId/note",
+  zValidator("json", updateTableNoteRequestSchema),
+  async (c) => {
+    await enforceSyncLimits(c.env, c.req.raw);
+    const result = await updateTableNote(
+      c.env,
+      tableCaller(c),
+      c.req.param("id"),
+      c.req.param("postId"),
+      c.req.valid("json").note,
+    );
+    return c.json(result);
+  },
+);
 
 app.delete("/v1/tables/:id/posts/:postId", async (c) => {
   await enforceSyncLimits(c.env, c.req.raw);

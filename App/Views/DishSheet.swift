@@ -6,7 +6,7 @@ import SwiftUI
 /// The sentence names dishes because that is what a person recognises; this is
 /// where the ingredients live, which is where a salmon filed as white meat gets
 /// corrected. Hiding them entirely would hide the only mistake that matters —
-/// a "kaisen don" scores wrong and looks right.
+/// a "kaisen don" can be classified wrong while looking right.
 ///
 /// One quantity control, and it is the count. "How big is one?" stood beside it
 /// until v17 offering A little / Normal / A lot, and on a weighed dish the chips
@@ -130,7 +130,7 @@ struct DishSheet: View {
         .padding(.horizontal, 10)
     }
 
-    /// What kind of thing this is, and where it lands in the score. The second
+    /// What kind of thing this is, and where it lands in the taxonomy. The second
     /// half is the only place the app says out loud that "Monster Energy zero
     /// sugar" is counted as a fizzy drink, which is the fact a person would
     /// otherwise have to open the ingredient row to discover.

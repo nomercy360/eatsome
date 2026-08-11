@@ -1,11 +1,5 @@
 {
   "version": 1,
-  "medas": {
-    "excludedItems": [
-      8
-    ],
-    "windowDays": 7
-  },
   "recognition": {
     "provider": "gemini",
     "model": "gpt-5.6-luna",

@@ -16,7 +16,7 @@ import Foundation
 /// `Nutrition`, which computes all five and which this type now delegates to.
 ///
 /// Protein keeps its own name and its own group table because it is the figure
-/// with a history: every estimate ever shown was scored against
+/// with a history: every estimate ever shown was calculated against
 /// `defaultGramsPerServing`, and `pnpm eval:nutrients` measures changes to it.
 public enum Protein {
     /// Grams of protein in one serving of each group, where a serving is the
@@ -67,33 +67,6 @@ public enum Protein {
     ]
 
     /// What a day should reach, from body weight and how hard you are training.
-    public enum Intent: String, Codable, Sendable, CaseIterable {
-        case maintain
-        case active
-        case building
-
-        /// Grams per kilogram of body weight per day.
-        public var gramsPerKilogram: Double {
-            switch self {
-            case .maintain: 1.2
-            case .active: 1.6
-            case .building: 2.0
-            }
-        }
-
-        public var displayName: String {
-            switch self {
-            case .maintain: "Maintain"
-            case .active: "Active"
-            case .building: "Building"
-            }
-        }
-    }
-
-    public static func dailyTarget(weightKilograms: Double, intent: Intent) -> Double {
-        (weightKilograms * intent.gramsPerKilogram).rounded()
-    }
-
     /// Grams in a list of foods — a plate, or a dish as it is described.
     ///
     /// Every overload below reads the protein figure off `Nutrition`, which is

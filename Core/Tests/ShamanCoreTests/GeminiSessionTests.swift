@@ -83,7 +83,6 @@ struct GeminiSessionTests {
 
         #expect(item.group == .whiteMeat)
         #expect(item.alternatives == [.redMeat])
-        #expect(item.scoreCriticalAlternatives() == [.redMeat])
         #expect(artifact.promptVersion == "test/gemini")
         #expect(!artifact.rawModelJSON.contains("ignore me"), "thought parts are not model output")
     }

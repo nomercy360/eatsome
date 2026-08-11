@@ -1,12 +1,10 @@
 import Foundation
 
-/// The unit of measurement for this app. Not calories.
+/// The food taxonomy shared by recognition, nutrition, and meal ratings.
 ///
 /// A vision model asked "how many grams of rice is this" produces a number with
-/// 30-50% error that still *looks* like data. Asked "is there a starch here, and
-/// is the portion small, medium, or large", it is reliable. The Mediterranean
-/// diet is scored on food-group frequency (PREDIMED/MEDAS), so the metric we
-/// actually want is the one the model can actually deliver.
+/// 30-50% error that still *looks* like data. Food groups keep the recognition
+/// output useful even when the weight is only an estimate.
 public enum FoodGroup: String, Codable, CaseIterable, Sendable, Hashable {
     case oliveOil = "olive_oil"
     case vegetables
@@ -15,13 +13,10 @@ public enum FoodGroup: String, Codable, CaseIterable, Sendable, Hashable {
     case fish
     case nuts
     /// Avocado, olives, seeds, tahini. Separate from fruit and vegetables
-    /// because they are a fat source, and scoring an avocado as fruit both
-    /// credits a fruit serving you did not eat and hides the fat you did.
+    /// because they are a fat source, and filing an avocado as fruit hides that.
     ///
     /// Called `healthy_fats` until the taxonomy audit: that was a verdict rather
-    /// than a food, and a verdict is a thing only one diet holds — keto
-    /// disagrees with it about cream, and a group name is the wrong place to
-    /// have that argument. Same members, no opinion. Legacy lines still decode.
+    /// than a food. Same members, no opinion. Legacy lines still decode.
     case plantFats = "plant_fats"
     case wholeGrains = "whole_grains"
     case refinedGrains = "refined_grains"
@@ -36,8 +31,7 @@ public enum FoodGroup: String, Codable, CaseIterable, Sendable, Hashable {
     /// What a person drinks, split out from `other` because that bucket was
     /// answering for all of it. Filed under `other` a coffee inherited the
     /// bucket's protein estimate, and 2 g of protein in a black coffee is a
-    /// number the app invented. MEDAS has no item for any of these, so they
-    /// score nowhere — the same honest nothing `healthyFats` gets.
+    /// number the app invented.
     ///
     /// A latte is a `coffee` ingredient and a `dairy` ingredient in one dish,
     /// not dairy alone: the milk and the caffeine are different facts.
@@ -52,19 +46,14 @@ public enum FoodGroup: String, Codable, CaseIterable, Sendable, Hashable {
     ///
     /// Added by the taxonomy audit, and it is the one addition: olive oil was
     /// fine as a group, but being the *only* named oil meant every other oil
-    /// vanished into nothing at all. A diet that limits seed oils had no
-    /// evidence to rule on, and the olive-oil habit question ("is it your main
-    /// fat?") had evidence on one side only. One group, and the whole
-    /// clean-eating family becomes expressible.
+    /// vanished into nothing at all. Keeping it separate also stops unnamed
+    /// frying fat from being mislabeled as olive oil.
     case vegetableOil = "vegetable_oil"
     case alcohol
     /// The cooked tomato-and-onion base most stews start with.
     ///
-    /// Called `sofrito` until the taxonomy audit, where it was the clearest case
-    /// of a group that existed only because one screener asks for it — MEDAS
-    /// item 14. The food is real and worth recognising in any diet; the Spanish
-    /// name for it was the Mediterranean showing through the vocabulary. The
-    /// MEDAS preset maps it straight back.
+    /// Called `sofrito` until the taxonomy audit. The descriptive name is easier
+    /// to apply across cuisines while old stored values continue to decode.
     case cookedTomatoSauce = "cooked_tomato_sauce"
     case other
 
@@ -102,9 +91,9 @@ public enum FoodGroup: String, Codable, CaseIterable, Sendable, Hashable {
 
     /// What a person would call this at the table.
     ///
-    /// `displayName` is the screener's vocabulary — "Legumes", "Refined grains",
-    /// "Commercial pastry" — and it is the right label next to a score, in
-    /// diagnostics, and in an eval. It is the wrong label on a chip you tap
+    /// `displayName` is the formal taxonomy vocabulary — "Legumes", "Refined
+    /// grains", "Commercial pastry" — and it is the right label in diagnostics
+    /// and evals. It is the wrong label on a chip you tap
     /// while holding a plate. Both exist because the manual picker shows them
     /// together: the plain name on the row, the group it counts as underneath.
     ///
@@ -227,7 +216,7 @@ public enum FoodGroup: String, Codable, CaseIterable, Sendable, Hashable {
     ///
     /// `other` rather than a thrown error, for the reason `MealShare` and
     /// `MealSource` give: a `MealEntry` that will not decode is a meal that
-    /// disappears from the score with no error anywhere, and a food filed under
+    /// disappears from nutrition totals with no error anywhere, and a food filed under
     /// "something else" is visibly wrong in a way a missing meal is not. It also
     /// lands in `NutrientTotal.unresolvedGrams`, which every total has to
     /// surface — so the loss is stated rather than absorbed.
@@ -247,7 +236,7 @@ public enum FoodGroup: String, Codable, CaseIterable, Sendable, Hashable {
         case .sweets, .pastry: [.sweets, .pastry]
         // Which fat a dish was cooked in is the hardest thing on this list to
         // see, and now that seed oil has a group of its own it is also the
-        // question a clean-eating diet turns on — so it sits with the other two.
+        // hardest ambiguities to resolve — so it sits with the other two.
         case .oliveOil, .butter, .vegetableOil: [.oliveOil, .vegetableOil, .butter]
         case .fruit, .vegetables, .plantFats: [.fruit, .vegetables, .plantFats]
         // A dark drink in a mug is coffee or tea and a photo rarely settles it,
@@ -267,7 +256,7 @@ public enum Portion: String, Codable, CaseIterable, Sendable, Hashable {
     case medium
     case large
 
-    /// MEDAS "servings". One medium portion is one serving.
+    /// One medium portion is one serving.
     public var servings: Double {
         switch self {
         case .small: 0.5
@@ -285,11 +274,4 @@ public enum Portion: String, Codable, CaseIterable, Sendable, Hashable {
         case .large: "A lot"
         }
     }
-}
-
-extension FoodGroup {
-    /// Olive oil is scored in tablespoons by MEDAS (item 2 wants >= 4 tbsp/day),
-    /// so one "serving" of oil is defined as 2 tbsp and the criterion asks for 2.
-    /// Every other group is 1 serving == 1 serving.
-    public var tablespoonsPerServing: Double? { self == .oliveOil ? 2.0 : nil }
 }
