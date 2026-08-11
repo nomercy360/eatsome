@@ -15,6 +15,8 @@ struct OnboardingView: View {
     @State private var profile = NutritionProfile()
     @State private var loadedProfile = false
     @State private var connectingHealth = false
+    @State private var routeHistory: [RouteHistoryEntry] = []
+    @State private var movingBackward = false
     @State private var returnAfterEdit: Route?
     @State private var healthOverrides: Set<AppModel.NutritionProfileField> = []
     @State private var showingFirstMealLog = false
@@ -30,6 +32,16 @@ struct OnboardingView: View {
         case goal
         case bodyFat
         case summary
+    }
+
+    /// Health can skip several routes, so "back" must mean the screen that was
+    /// actually visited. Keeping its draft as well prevents a prepared default
+    /// from becoming an answered field when someone backs out before Continue.
+    private struct RouteHistoryEntry {
+        let route: Route
+        let profile: NutritionProfile
+        let healthOverrides: Set<AppModel.NutritionProfileField>
+        let returnAfterEdit: Route?
     }
 
     var body: some View {
@@ -48,8 +60,13 @@ struct OnboardingView: View {
             }
         }
         .id(route)
-        .transition(.opacity.combined(with: .move(edge: .trailing)))
+        .transition(routeTransition)
         .animation(WellieMotion.step(reduceMotion), value: route)
+        .contentShape(Rectangle())
+        .simultaneousGesture(backSwipeGesture)
+        .accessibilityAction(.escape) {
+            if canNavigateBack { navigateBack() }
+        }
         .onAppear {
             guard !loadedProfile else { return }
             profile = model.nutritionProfile
@@ -202,8 +219,8 @@ struct OnboardingView: View {
         destination: Route
     ) -> some View {
         Button {
-            returnAfterEdit = .healthReview
             navigate(to: destination)
+            returnAfterEdit = .healthReview
         } label: {
             HStack(spacing: 14) {
                 Image(systemName: "checkmark")
@@ -655,6 +672,10 @@ struct OnboardingView: View {
 
     private var summary: some View {
         VStack(alignment: .leading, spacing: 0) {
+            onboardingBackRow
+                .padding(.horizontal, 22)
+                .padding(.top, 4)
+
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     WellieMeta("Your daily targets")
@@ -736,10 +757,7 @@ struct OnboardingView: View {
         @ViewBuilder actions: () -> Actions
     ) -> some View {
         VStack(spacing: 0) {
-            OnboardingProgress(current: progress)
-                .padding(.horizontal, 30)
-                .padding(.top, 18)
-                .padding(.bottom, 36)
+            onboardingHeader(progress: progress)
 
             ScrollView {
                 content()
@@ -757,6 +775,41 @@ struct OnboardingView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(WellieTheme.background.ignoresSafeArea())
+    }
+
+    private func onboardingHeader(progress: Int) -> some View {
+        VStack(spacing: 0) {
+            if canNavigateBack {
+                onboardingBackRow
+                    .padding(.horizontal, 22)
+            }
+
+            OnboardingProgress(current: progress)
+                .padding(.horizontal, 30)
+                .padding(.top, canNavigateBack ? 4 : 18)
+                .padding(.bottom, canNavigateBack ? 24 : 36)
+        }
+    }
+
+    private var onboardingBackRow: some View {
+        HStack {
+            if canNavigateBack {
+                Button(action: navigateBack) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 14, weight: .bold))
+                        Text("Back")
+                            .font(WellieTheme.font(14, weight: .semibold))
+                    }
+                    .foregroundStyle(WellieTheme.accent)
+                    .wellieHitTarget()
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Returns to the previous onboarding step")
+            }
+            Spacer(minLength: 0)
+        }
+        .frame(height: 44)
     }
 
     private func onboardingTitle(_ title: String, detail: String? = nil) -> some View {
@@ -863,9 +916,60 @@ struct OnboardingView: View {
     }
 
     private func navigate(to destination: Route) {
+        guard destination != route else { return }
+        routeHistory.append(
+            RouteHistoryEntry(
+                route: route,
+                profile: profile,
+                healthOverrides: healthOverrides,
+                returnAfterEdit: returnAfterEdit
+            )
+        )
+        movingBackward = false
         prepare(destination)
         withAnimation(WellieMotion.step(reduceMotion)) {
             route = destination
+        }
+    }
+
+    private var canNavigateBack: Bool { !routeHistory.isEmpty }
+
+    private var routeTransition: AnyTransition {
+        .asymmetric(
+            insertion: .opacity.combined(with: .move(edge: movingBackward ? .leading : .trailing)),
+            removal: .opacity.combined(with: .move(edge: movingBackward ? .trailing : .leading))
+        )
+    }
+
+    private var backSwipeGesture: some Gesture {
+        DragGesture(minimumDistance: 20)
+            .onEnded { value in
+                guard canNavigateBack,
+                      value.startLocation.x <= 24,
+                      value.translation.width >= 72,
+                      abs(value.translation.height) <= 48
+                else { return }
+                navigateBack()
+            }
+    }
+
+    private func navigateBack() {
+        navigateBack(restoringState: true)
+    }
+
+    private func navigateBack(restoringState: Bool) {
+        guard let previous = routeHistory.popLast() else { return }
+        if restoringState {
+            profile = previous.profile
+            healthOverrides = previous.healthOverrides
+            returnAfterEdit = previous.returnAfterEdit
+        } else {
+            returnAfterEdit = nil
+        }
+        movingBackward = true
+        prepare(previous.route)
+        withAnimation(WellieMotion.step(reduceMotion)) {
+            route = previous.route
         }
     }
 
@@ -892,7 +996,11 @@ struct OnboardingView: View {
 
         if let destination = returnAfterEdit {
             returnAfterEdit = nil
-            navigate(to: destination)
+            if routeHistory.last?.route == destination {
+                navigateBack(restoringState: false)
+            } else {
+                navigate(to: destination)
+            }
         } else {
             navigate(to: next)
         }
