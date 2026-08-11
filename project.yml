@@ -55,7 +55,7 @@ targets:
         NSCameraUsageDescription: >-
           Photograph meals so eatsome can identify their food groups.
         NSPhotoLibraryUsageDescription: >-
-          Pick a photo of a meal to log it.
+          Show your latest photos in the meal logger so you can attach one quickly.
         NSMicrophoneUsageDescription: >-
           Describe a meal out loud instead of typing it. Audio is transcribed to
           text as you speak and is not kept.

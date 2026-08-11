@@ -149,25 +149,31 @@ struct LogMealSheet: View {
     private var inputCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             if let pendingPhoto, let image = UIImage(data: pendingPhoto) {
-                HStack(spacing: 11) {
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 52, height: 52)
-                        .clipShape(RoundedRectangle(cornerRadius: WellieTheme.thumbRadius, style: .continuous))
-                    Text("Add a note, or just send it.")
-                        .font(WellieTheme.font(13.5, weight: .regular))
-                        .foregroundStyle(WellieTheme.muted)
-                    Spacer(minLength: 0)
-                    Button { self.pendingPhoto = nil } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 19))
-                            .foregroundStyle(WellieTheme.faint)
-                            .wellieHitTarget(36)
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 72, height: 72)
+                    .clipShape(RoundedRectangle(cornerRadius: WellieTheme.thumbRadius, style: .continuous))
+                    .accessibilityLabel("Selected meal photo")
+                    .overlay(alignment: .topTrailing) {
+                        Button { self.pendingPhoto = nil } label: {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundStyle(WellieTheme.ink)
+                                .frame(width: 30, height: 30)
+                                .background(WellieTheme.background.opacity(0.94), in: Circle())
+                                .overlay {
+                                    Circle().strokeBorder(Color.white.opacity(0.16), lineWidth: 1)
+                                }
+                                .frame(width: 44, height: 44)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Remove the photo")
+                        .offset(x: 10, y: -10)
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Remove the photo")
-                }
+                    .padding(.top, 10)
+                    .padding(.trailing, 10)
             }
 
             TextField(
@@ -324,12 +330,13 @@ private struct SourceLabel: View {
 /// The last few pictures on the phone, so lunch you photographed at one o'clock
 /// is one tap at nine in the evening.
 ///
-/// Read access is asked for on the first tap rather than when the sheet opens.
-/// A permission dialog that appears because a screen was shown gets dismissed
-/// without being read; one that appears because a person reached for a
-/// photograph is answerable. Until then the row is drawn as what it is — four
-/// empty slots — and says so.
+/// The strip asks for read access when the meal logger opens. That is the first
+/// screen where the app visibly needs the library, so the request is contextual
+/// without becoming a launch-time interruption. The system `PhotosPicker`
+/// remains available even when this broader access is declined.
 private struct RecentPhotosStrip: View {
+    @Environment(\.scenePhase) private var scenePhase
+
     let onPick: (Data) -> Void
 
     @State private var status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
@@ -384,13 +391,53 @@ private struct RecentPhotosStrip: View {
                     .font(WellieTheme.font(12.5, weight: .regular))
                     .foregroundStyle(WellieTheme.muted)
             } else if !isAllowed {
-                Text("Tap to let eatsome show the last few pictures you took.")
+                Text(photoAccessMessage)
                     .font(WellieTheme.font(12.5, weight: .regular))
                     .foregroundStyle(WellieTheme.muted)
             }
         }
         .padding(.horizontal, 24)
-        .task { if isAllowed { load() } }
+        .task { preparePhotoLibrary() }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            refreshPhotoLibrary()
+        }
+    }
+
+    private var photoAccessMessage: String {
+        switch status {
+        case .notDetermined:
+            "Allow photo access to show your latest pictures here."
+        case .denied:
+            "Photo access is off. Pick above, or tap here to change it in Settings."
+        case .restricted:
+            "Photo access is restricted on this device."
+        default:
+            "Recent photos are unavailable."
+        }
+    }
+
+    private func preparePhotoLibrary() {
+        let current = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        status = current
+        switch current {
+        case .notDetermined:
+            request()
+        case .authorized, .limited:
+            load()
+        default:
+            recent = []
+        }
+    }
+
+    private func refreshPhotoLibrary() {
+        let current = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        status = current
+        if current == .authorized || current == .limited {
+            load()
+        } else {
+            recent = []
+        }
     }
 
     private func request() {

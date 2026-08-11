@@ -46,7 +46,7 @@
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Describe a meal out loud instead of typing it. Audio is transcribed to text as you speak and is not kept.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Pick a photo of a meal to log it.</string>
+	<string>Show your latest photos in the meal logger so you can attach one quickly.</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>Sora-Regular.ttf</string>
