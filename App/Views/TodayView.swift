@@ -202,6 +202,10 @@ private struct DayDot: View {
         Button(action: open) {
             Text(initial)
                 .font(WellieTheme.font(12, weight: .bold))
+                // A one-letter calendrical mark is symbol-like, and its full
+                // date is already the accessibility label. Keeping it at the
+                // designed size prevents seven scaled letters colliding.
+                .dynamicTypeSize(.large)
                 .foregroundStyle(day.isLogged ? WellieTheme.onAccent : WellieTheme.muted)
                 .frame(width: 32, height: 32)
                 .background {

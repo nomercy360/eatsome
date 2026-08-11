@@ -105,13 +105,9 @@ struct TablesListView: View {
         .toolbar {
             if isTabRoot {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button { creating = true } label: {
-                        Image(systemName: "plus")
-                            .font(.system(size: 15, weight: .bold))
-                            .foregroundStyle(WellieTheme.accent)
-                            .wellieHitTarget()
-                    }
-                    .accessibilityLabel("New table")
+                    Button("New table") { creating = true }
+                        .font(WellieTheme.font(14, weight: .semibold))
+                        .foregroundStyle(WellieTheme.accent)
                 }
             }
         }

@@ -279,7 +279,9 @@ than a fifth destination, so a separate round `+` opens the photo/text/voice
 composer. It is labelled “Log a meal” for assistive technology; a record glyph
 would incorrectly promise audio recording. Pushed meal and table detail screens
 hide this shell so their own back gesture and bottom controls retain the safe
-area.
+area. At accessibility text sizes or on a genuinely narrow host, the action
+becomes a full-width labelled control and the destinations become a two-by-two
+grid; labels and touch targets never truncate merely to preserve the one-row silhouette.
 
 Today is a centred date over a scrolling column. The date opens full history,
 and each of the seven day dots opens that day, which keeps earlier entries

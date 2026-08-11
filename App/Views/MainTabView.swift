@@ -104,87 +104,164 @@ private enum MainTab: String, CaseIterable, Hashable, Identifiable {
 }
 
 private struct FloatingTabBar: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     @Binding var selection: MainTab
     let unreadTables: Int
     let logMeal: () -> Void
 
     var body: some View {
-        HStack(spacing: 10) {
-            HStack(spacing: 0) {
-                ForEach(MainTab.allCases) { tab in
-                    Button {
-                        selection = tab
-                    } label: {
-                        VStack(spacing: 4) {
-                            ZStack(alignment: .topTrailing) {
-                                Image(systemName: tab.symbol)
-                                    .font(.system(size: 21, weight: .semibold))
-                                    .frame(width: 24, height: 23)
-
-                                if tab == .tables, unreadTables > 0 {
-                                    Circle()
-                                        .fill(WellieTheme.protein)
-                                        .frame(width: 7, height: 7)
-                                        .offset(x: 5, y: -3)
-                                        .accessibilityHidden(true)
-                                }
-                            }
-
-                            Text(tab.title)
-                                .font(WellieTheme.font(11, weight: .semibold))
-                                .lineLimit(1)
-                        }
-                        .foregroundStyle(selection == tab ? WellieTheme.ink : WellieTheme.body)
-                        .frame(maxWidth: .infinity, minHeight: 52)
-                        .background {
-                            if selection == tab {
-                                RoundedRectangle(cornerRadius: 23, style: .continuous)
-                                    .fill(Color.white.opacity(0.13))
-                            }
-                        }
-                        .contentShape(RoundedRectangle(cornerRadius: 23, style: .continuous))
-                    }
-                    .buttonStyle(FloatingTabButtonStyle())
-                    .accessibilityLabel(tab.title)
-                    .accessibilityValue(selection == tab ? "Selected" : "")
-                    .accessibilityAddTraits(selection == tab ? .isSelected : [])
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                stackedLayout
+            } else {
+                ViewThatFits(in: .horizontal) {
+                    regularLayout
+                    stackedLayout
                 }
             }
-            .padding(7)
-            .background {
-                Capsule()
-                    .fill(.ultraThinMaterial)
-                Capsule()
-                    .fill(WellieTheme.raised.opacity(0.56))
-            }
-            .overlay {
-                Capsule()
-                    .strokeBorder(Color.white.opacity(0.14), lineWidth: 1)
-            }
-
-            Button(action: logMeal) {
-                Image(systemName: "plus")
-                    .font(.system(size: 27, weight: .bold))
-                    .foregroundStyle(WellieTheme.ink)
-                    .frame(width: 64, height: 64)
-                    .background {
-                        Circle()
-                            .fill(.ultraThinMaterial)
-                        Circle()
-                            .fill(WellieTheme.accent.opacity(0.46))
-                    }
-                    .overlay {
-                        Circle()
-                            .strokeBorder(Color.white.opacity(0.2), lineWidth: 1)
-                    }
-            }
-            .buttonStyle(FloatingTabButtonStyle())
-            .accessibilityLabel("Log a meal")
-            .accessibilityHint("Opens photo, text, and voice logging")
         }
         .padding(.horizontal, 14)
         .padding(.top, 8)
         .padding(.bottom, 4)
+    }
+
+    private var regularLayout: some View {
+        HStack(spacing: 10) {
+            tabCapsule
+                // The four labels fit beside the action on every iPhone that
+                // can run iOS 17. A genuinely narrower host uses the stacked
+                // alternative below rather than truncating a destination.
+                .frame(minWidth: 268)
+            roundLogButton
+        }
+    }
+
+    private var stackedLayout: some View {
+        VStack(spacing: 8) {
+            Button(action: logMeal) {
+                Label("Log a meal", systemImage: "plus")
+                    .font(WellieTheme.font(16, weight: .bold))
+                    .foregroundStyle(WellieTheme.ink)
+                    .frame(maxWidth: .infinity, minHeight: 54)
+                    .background {
+                        Capsule()
+                            .fill(.ultraThinMaterial)
+                        Capsule()
+                            .fill(WellieTheme.accent.opacity(0.46))
+                    }
+                    .overlay {
+                        Capsule()
+                            .strokeBorder(Color.white.opacity(0.2), lineWidth: 1)
+                    }
+            }
+            .buttonStyle(FloatingTabButtonStyle())
+            .accessibilityHint("Opens photo, text, and voice logging")
+
+            accessibilityTabGrid
+        }
+    }
+
+    private var tabCapsule: some View {
+        HStack(spacing: 0) {
+            ForEach(MainTab.allCases) { tab in
+                tabButton(tab)
+            }
+        }
+        .padding(7)
+        .background {
+            Capsule()
+                .fill(.ultraThinMaterial)
+            Capsule()
+                .fill(WellieTheme.raised.opacity(0.56))
+        }
+        .overlay {
+            Capsule()
+                .strokeBorder(Color.white.opacity(0.14), lineWidth: 1)
+        }
+    }
+
+    private var accessibilityTabGrid: some View {
+        LazyVGrid(
+            columns: [GridItem(.flexible(), spacing: 0), GridItem(.flexible(), spacing: 0)],
+            spacing: 0
+        ) {
+            ForEach(MainTab.allCases) { tab in
+                tabButton(tab)
+            }
+        }
+        .padding(7)
+        .background {
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .fill(.ultraThinMaterial)
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .fill(WellieTheme.raised.opacity(0.56))
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.14), lineWidth: 1)
+        }
+    }
+
+    private func tabButton(_ tab: MainTab) -> some View {
+        Button {
+            selection = tab
+        } label: {
+            VStack(spacing: 4) {
+                ZStack(alignment: .topTrailing) {
+                    Image(systemName: tab.symbol)
+                        .font(.system(size: 21, weight: .semibold))
+                        .frame(width: 24, height: 23)
+
+                    if tab == .tables, unreadTables > 0 {
+                        Circle()
+                            .fill(WellieTheme.protein)
+                            .frame(width: 7, height: 7)
+                            .offset(x: 5, y: -3)
+                            .accessibilityHidden(true)
+                    }
+                }
+
+                Text(tab.title)
+                    .font(WellieTheme.font(11, weight: .semibold))
+                    .lineLimit(1)
+            }
+            .foregroundStyle(selection == tab ? WellieTheme.ink : WellieTheme.body)
+            .frame(maxWidth: .infinity, minHeight: 52)
+            .background {
+                if selection == tab {
+                    RoundedRectangle(cornerRadius: 23, style: .continuous)
+                        .fill(Color.white.opacity(0.13))
+                }
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 23, style: .continuous))
+        }
+        .buttonStyle(FloatingTabButtonStyle())
+        .accessibilityLabel(tab.title)
+        .accessibilityValue(selection == tab ? "Selected" : "")
+        .accessibilityAddTraits(selection == tab ? .isSelected : [])
+    }
+
+    private var roundLogButton: some View {
+        Button(action: logMeal) {
+            Image(systemName: "plus")
+                .font(.system(size: 27, weight: .bold))
+                .foregroundStyle(WellieTheme.ink)
+                .frame(width: 64, height: 64)
+                .background {
+                    Circle()
+                        .fill(.ultraThinMaterial)
+                    Circle()
+                        .fill(WellieTheme.accent.opacity(0.46))
+                }
+                .overlay {
+                    Circle()
+                        .strokeBorder(Color.white.opacity(0.2), lineWidth: 1)
+                }
+        }
+        .buttonStyle(FloatingTabButtonStyle())
+        .accessibilityLabel("Log a meal")
+        .accessibilityHint("Opens photo, text, and voice logging")
     }
 }
 
