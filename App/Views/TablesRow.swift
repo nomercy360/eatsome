@@ -57,6 +57,8 @@ struct TablesRow: View {
 struct TablesListView: View {
     @Environment(AppModel.self) private var model
 
+    var isTabRoot = false
+
     @State private var creating = false
 
     var body: some View {
@@ -69,7 +71,10 @@ struct TablesListView: View {
                     .padding(.bottom, 10)
 
                 ForEach(ordered) { table in
-                    NavigationLink { TableFeedView(table: table) } label: {
+                    NavigationLink {
+                        TableFeedView(table: table)
+                            .hidesMainTabBar()
+                    } label: {
                         TableListCard(table: table)
                     }
                     .buttonStyle(.plain)
@@ -97,12 +102,27 @@ struct TablesListView: View {
         .background(WellieTheme.background)
         .navigationTitle("Tables")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if isTabRoot {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { creating = true } label: {
+                        Image(systemName: "plus")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundStyle(WellieTheme.accent)
+                            .wellieHitTarget()
+                    }
+                    .accessibilityLabel("New table")
+                }
+            }
+        }
         .safeAreaInset(edge: .bottom) {
-            Button("New table") { creating = true }
-                .buttonStyle(WelliePrimaryButtonStyle())
-                .padding(.horizontal, WellieTheme.screenInset)
-                .padding(.vertical, 10)
-                .background(WellieTheme.background)
+            if !isTabRoot {
+                Button("New table") { creating = true }
+                    .buttonStyle(WelliePrimaryButtonStyle())
+                    .padding(.horizontal, WellieTheme.screenInset)
+                    .padding(.vertical, 10)
+                    .background(WellieTheme.background)
+            }
         }
         .refreshable { await model.refreshTables() }
         .sheet(isPresented: $creating) { TableCreateFlow() }

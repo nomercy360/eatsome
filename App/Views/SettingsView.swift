@@ -9,6 +9,8 @@ struct SettingsView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
 
+    var isTabRoot = false
+
     @State private var versionTaps = 0
     @State private var showingWorkshop = false
     @State private var showingPrivacy = false
@@ -27,12 +29,14 @@ struct SettingsView: View {
                 .wellieColumn()
             }
             .background(WellieTheme.background)
-            .navigationTitle("Settings")
+            .navigationTitle(isTabRoot ? "You" : "Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") { dismiss() }
-                        .font(WellieTheme.font(15, weight: .semibold))
+                if !isTabRoot {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Done") { dismiss() }
+                            .font(WellieTheme.font(15, weight: .semibold))
+                    }
                 }
             }
             .navigationDestination(isPresented: $showingWorkshop) { WorkshopView() }

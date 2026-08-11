@@ -37,12 +37,11 @@ struct EatsomeApp: App {
     }
 }
 
-/// The app opens on Today.
+/// The app opens on the four-place shell.
 ///
-/// There is no tab bar and no thread. The thread was the home for as long as
-/// logging was the only thing here; now the day has a top — a counter, a week,
-/// the four figures — and logging is a sheet one button away. `TodayView`
-/// carries the whole of it.
+/// Today, Tables, Progress, and You are durable destinations. Logging remains a
+/// sheet because it is an action rather than a place, opened from the separate
+/// `+` beside the tabs.
 struct RootView: View {
     @Environment(AppModel.self) private var model
 
@@ -60,7 +59,7 @@ struct RootView: View {
             // with an existing local log stop at Apple sign-in before any backend
             // work can resume under a shared credential.
             } else if model.hasOnboarded {
-                TodayView()
+                MainTabView()
             } else {
                 OnboardingView()
                     .transition(.opacity)

@@ -9,7 +9,7 @@ import SwiftUI
 /// people actually open the app with ("am I keeping this up?" and "how much
 /// have I had today?") were both answered somewhere below the fold, if at all.
 /// So the day is a page again: a counter, a week, four figures, and what you
-/// ate. Logging moved into `LogMealSheet`, one button away.
+/// ate. Logging and the other top-level sections now live in `MainTabView`.
 ///
 /// The counter leads because it is the one figure that is unambiguously good
 /// news. It counts *days logged*, not a score: the app can see what it was
@@ -20,14 +20,10 @@ struct TodayView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.scenePhase) private var scenePhase
 
-    @State private var showingLog = false
-    @State private var showingSettings = false
     @State private var showingProfile = false
     @State private var openMeal: MealEntry?
-    @State private var showingConsent = false
     @State private var showingHistory = false
-    @State private var showingTables = false
-    @State private var openTable: TableSummary?
+    @State private var openDay: DayLog?
     @State private var mealPendingRemoval: MealEntry?
 
     private var meals: [MealEntry] { model.mealsToday() }
@@ -37,34 +33,29 @@ struct TodayView: View {
             VStack(spacing: 0) {
                 header
                 ScrollView {
-                    VStack(spacing: 0) {
-                        VStack(spacing: WellieTheme.cardSpacing) {
-                            counter
-                            week
-                            NutrientCard(
-                                total: model.nutrientsToday,
-                                targets: model.dailyTargets,
-                                onSetUp: { showingProfile = true }
-                            )
-                            mealList
-                        }
-                        .padding(.horizontal, WellieTheme.screenInset)
-
-                        footer.padding(.top, 22)
+                    VStack(spacing: WellieTheme.cardSpacing) {
+                        counter
+                        week
+                        NutrientCard(
+                            total: model.nutrientsToday,
+                            targets: model.dailyTargets,
+                            onSetUp: { showingProfile = true }
+                        )
+                        mealList
                     }
+                    .padding(.horizontal, WellieTheme.screenInset)
                     .padding(.bottom, 20)
                 }
                 .scrollIndicators(.hidden)
             }
             .background(WellieTheme.background)
-            .safeAreaInset(edge: .bottom) { snapButton }
             .toolbar(.hidden, for: .navigationBar)
-            .navigationDestination(item: $openMeal) { MealDetailView(meal: $0) }
-            .navigationDestination(isPresented: $showingTables) { TablesListView() }
-            .navigationDestination(item: $openTable) { TableFeedView(table: $0) }
+            .navigationDestination(item: $openMeal) {
+                MealDetailView(meal: $0)
+                    .hidesMainTabBar()
+            }
             .sheet(isPresented: $showingHistory) { HistoryView() }
-            .sheet(isPresented: $showingLog) { LogMealSheet() }
-            .sheet(isPresented: $showingSettings) { SettingsView() }
+            .sheet(item: $openDay) { DaySheet(day: $0.start) }
             .sheet(isPresented: $showingProfile) { NutritionProfileSettingsView() }
             .confirmationDialog(
                 "Remove this meal?",
@@ -80,18 +71,6 @@ struct TodayView: View {
                 Button("Cancel", role: .cancel) { mealPendingRemoval = nil }
             } message: {
                 Text("It leaves your history. The photo goes with it.")
-            }
-            .sheet(isPresented: $showingConsent) {
-                // Nothing is sent from this screen, so the consent it asks for
-                // is the one the composer is about to need. Agreeing opens the
-                // composer; declining leaves you where you were.
-                SendConsentView(includesPhoto: true) {
-                    model.acceptPhotoProcessing()
-                    showingConsent = false
-                    showingLog = true
-                } onCancel: {
-                    showingConsent = false
-                }
             }
         }
         .wellieScreen()
@@ -115,77 +94,25 @@ struct TodayView: View {
 
     // MARK: - Header
 
-    /// The mock's header is the date on the left and Progress on the right. The
-    /// gear is the one addition, and it is not a taste decision: settings holds
-    /// sign-in, the photo-processing consent and the body details the four
-    /// figures below are computed from, and the screen it used to live on no
-    /// longer exists. Buried behind a tap on the date it would have been
-    /// undiscoverable, which for a consent screen is not an acceptable place to
-    /// put it.
+    /// Tables, Progress, and settings have permanent places in the tab shell,
+    /// so the day header can be only the day. The small calendar mark keeps the
+    /// full history reachable after removing the old `Earlier days` footer.
     private var header: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Button { showingSettings = true } label: {
-                Image(systemName: "gearshape")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(WellieTheme.muted)
-                    .wellieHitTarget(36)
+        Button { showingHistory = true } label: {
+            HStack(spacing: 6) {
+                Text(DayFormat.long(Date()))
+                Image(systemName: "calendar")
+                    .font(.system(size: 12, weight: .semibold))
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Settings")
-
-            Text(DayFormat.long(Date()))
-                .font(WellieTheme.font(14, weight: .regular))
-                .foregroundStyle(WellieTheme.muted)
-
-            Spacer(minLength: 12)
-
-            NavigationLink {
-                ProgressScreen()
-            } label: {
-                HStack(spacing: 3) {
-                    Text("Progress")
-                    Image(systemName: "chevron.right").font(.system(size: 11, weight: .bold))
-                }
-                .font(WellieTheme.font(14, weight: .semibold))
-                .foregroundStyle(WellieTheme.accent)
-            }
+            .font(WellieTheme.font(14, weight: .regular))
+            .foregroundStyle(WellieTheme.muted)
+            .wellieHitTarget()
         }
-        .padding(.horizontal, 22)
+        .buttonStyle(.plain)
+        .accessibilityLabel("Open meal history, \(DayFormat.long(Date()))")
+        .frame(maxWidth: .infinity)
         .padding(.top, 4)
         .padding(.bottom, 20)
-    }
-
-    // MARK: - Below the day
-
-    /// The two places the day is not.
-    ///
-    /// Neither is in the mock, and both are here because the screen they used
-    /// to hang off — the thread's header — went with the thread. Tables is a
-    /// whole feature whose only entry point that was, and earlier days is the
-    /// only way to add a meal you forgot on Tuesday, which is the one thing a
-    /// gap in the record is still good for. Quiet, below the fold, and one row
-    /// each: that is the same budget the thread gave them.
-    private var footer: some View {
-        VStack(spacing: 0) {
-            TablesRow { table in
-                if let table { openTable = table } else { showingTables = true }
-            }
-            Button { showingHistory = true } label: {
-                HStack(spacing: 8) {
-                    Text("Earlier days")
-                        .font(WellieTheme.font(14, weight: .semibold))
-                        .foregroundStyle(WellieTheme.body)
-                    Spacer(minLength: 8)
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(WellieTheme.faint)
-                }
-                .padding(.horizontal, WellieTheme.screenInset)
-                .padding(.vertical, 14)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-        }
     }
 
     // MARK: - The counter
@@ -223,9 +150,9 @@ struct TodayView: View {
 
     /// Seven days ending today. Filled means something was written down.
     private var week: some View {
-        HStack(spacing: 9) {
+        HStack(spacing: 0) {
             ForEach(model.recentDays(7).reversed()) { day in
-                DayDot(day: day)
+                DayDot(day: day) { openDay = day }
             }
         }
         .frame(maxWidth: .infinity)
@@ -257,37 +184,13 @@ struct TodayView: View {
         }
     }
 
-    // MARK: - The one button
-
-    private var snapButton: some View {
-        Button {
-            // The consent is for anything leaving the phone, not only for a
-            // photograph — a typed meal goes to the same provider. Asking here
-            // rather than after the words are typed means the first thing a new
-            // person sends cannot leave before it has been mentioned.
-            if model.hasAcceptedPhotoProcessing {
-                showingLog = true
-            } else {
-                showingConsent = true
-            }
-        } label: {
-            HStack(spacing: 10) {
-                Image(systemName: "camera.fill").font(.system(size: 15, weight: .semibold))
-                Text("Snap your plate")
-            }
-        }
-        .buttonStyle(WelliePrimaryButtonStyle())
-        .padding(.horizontal, WellieTheme.screenInset)
-        .padding(.top, 10)
-        .padding(.bottom, 6)
-        .background(WellieTheme.background)
-    }
 }
 
 // MARK: - One day in the week strip
 
 private struct DayDot: View {
     let day: DayLog
+    let open: () -> Void
 
     private var isToday: Bool { Calendar.current.isDateInToday(day.start) }
 
@@ -296,24 +199,28 @@ private struct DayDot: View {
     }
 
     var body: some View {
-        Text(initial)
-            .font(WellieTheme.font(12, weight: .bold))
-            .foregroundStyle(day.isLogged ? WellieTheme.onAccent : WellieTheme.muted)
-            .frame(width: 32, height: 32)
-            .background {
-                Circle().fill(day.isLogged ? WellieTheme.accent : WellieTheme.raised)
-            }
-            .overlay {
-                // Today, before anything has been logged, is an outline rather
-                // than an empty dot: the day is not a gap yet.
-                if isToday && !day.isLogged {
-                    Circle().strokeBorder(WellieTheme.accent, lineWidth: 2)
+        Button(action: open) {
+            Text(initial)
+                .font(WellieTheme.font(12, weight: .bold))
+                .foregroundStyle(day.isLogged ? WellieTheme.onAccent : WellieTheme.muted)
+                .frame(width: 32, height: 32)
+                .background {
+                    Circle().fill(day.isLogged ? WellieTheme.accent : WellieTheme.raised)
                 }
-            }
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(
-                "\(DayFormat.title(day.start)), \(day.isLogged ? Count.meals(day.mealCount).lowercased() : "nothing logged")"
-            )
+                .overlay {
+                    // Today, before anything has been logged, is an outline rather
+                    // than an empty dot: the day is not a gap yet.
+                    if isToday && !day.isLogged {
+                        Circle().strokeBorder(WellieTheme.accent, lineWidth: 2)
+                    }
+                }
+        }
+        .buttonStyle(.plain)
+        .wellieHitTarget()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(
+            "Open \(DayFormat.title(day.start)), \(day.isLogged ? Count.meals(day.mealCount).lowercased() : "nothing logged")"
+        )
     }
 }
 

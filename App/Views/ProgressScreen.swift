@@ -18,6 +18,8 @@ struct ProgressScreen: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
 
+    var isTabRoot = false
+
     @State private var window = Window.twoWeeks
 
     enum Window: Int, CaseIterable, Hashable {
@@ -57,18 +59,20 @@ struct ProgressScreen: View {
             Text("Progress")
                 .font(WellieTheme.font(16, weight: .bold))
                 .foregroundStyle(WellieTheme.ink)
-            HStack {
-                Button { dismiss() } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "chevron.left").font(.system(size: 13, weight: .bold))
-                        Text("Today")
+            if !isTabRoot {
+                HStack {
+                    Button { dismiss() } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.left").font(.system(size: 13, weight: .bold))
+                            Text("Today")
+                        }
+                        .font(WellieTheme.font(14, weight: .semibold))
+                        .foregroundStyle(WellieTheme.accent)
+                        .wellieHitTarget()
                     }
-                    .font(WellieTheme.font(14, weight: .semibold))
-                    .foregroundStyle(WellieTheme.accent)
-                    .wellieHitTarget()
+                    .buttonStyle(.plain)
+                    Spacer(minLength: 0)
                 }
-                .buttonStyle(.plain)
-                Spacer(minLength: 0)
             }
         }
         .padding(.horizontal, 22)

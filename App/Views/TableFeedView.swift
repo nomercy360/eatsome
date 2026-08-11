@@ -64,6 +64,7 @@ struct TableFeedView: View {
                 post: post,
                 react: { kind, on in react(post, kind, on) }
             )
+            .hidesMainTabBar()
         }
         .sheet(isPresented: $showingPicker, onDismiss: { Task { await load() } }) {
             TableMealPickerSheet(table: table)

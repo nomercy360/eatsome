@@ -273,12 +273,20 @@ is that it is not.
 One column, inset 20 px, 12 px between cards, 20 px of card padding. Headers and
 prose sit at 22–24 px so a heading is not flush with the card edges below it.
 
-Today is a fixed header — a gear, the date, and `Progress ›` — over a scrolling
-column, with the one primary button in a bottom safe-area inset. The counter and
-the seven day dots are centred; everything below them is left-aligned. Sheets
-carry their own header (`✕ Cancel`, a centred title) rather than a navigation
-bar, and the pushed screens hide the system bar and draw a `‹ Today` in the same
-position.
+The app's four durable places — Today, Tables, Progress, and You — sit in a
+floating translucent tab capsule at the bottom. Logging is an action rather
+than a fifth destination, so a separate round `+` opens the photo/text/voice
+composer. It is labelled “Log a meal” for assistive technology; a record glyph
+would incorrectly promise audio recording. Pushed meal and table detail screens
+hide this shell so their own back gesture and bottom controls retain the safe
+area.
+
+Today is a centred date over a scrolling column. The date opens full history,
+and each of the seven day dots opens that day, which keeps earlier entries
+reachable without the old `Tables` and `Earlier days` footer rows. The counter
+and week are centred; everything below them is left-aligned. Sheets carry their
+own header (`✕ Cancel`, a centred title), while pushed screens use the native
+navigation stack and preserve the system edge-swipe gesture.
 
 The meal detail is the signature exception: the photograph is 360 px tall, runs
 to both edges and under the status bar, and the plate card floats on it at
