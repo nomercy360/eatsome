@@ -2,15 +2,12 @@ import SwiftUI
 
 /// Swipe-to-remove for a row that lives in a card rather than in a `List`.
 ///
-/// The redesign puts meals and dishes inside white 28pt cards, which rules out
+/// The redesign puts meals inside rounded surface cards, which rules out
 /// `List` and its free `swipeActions`. The gesture is still the right one —
 /// removing a meal is a rare, reversible-by-relogging action that should not
 /// cost a button on every row — so it is rebuilt here.
-///
-/// Deliberately a plain `.gesture`, not a high-priority one: the vertical
-/// scroll must always win, because scrolling past a list is what you do a
-/// hundred times more often than deleting from it.
 struct SwipeToRemove<Content: View>: View {
+    let onTap: () -> Void
     let onRemove: () -> Void
     @ViewBuilder var content: Content
 
@@ -38,20 +35,16 @@ struct SwipeToRemove<Content: View>: View {
             }
             .buttonStyle(.plain)
             .opacity(offset < -8 ? 1 : 0)
+            .accessibilityHidden(!isOpen)
 
             content
-                .background(WellieTheme.surface)
                 .offset(x: offset)
+                // A real tap gesture fails as soon as the finger travels far
+                // enough to become the horizontal drag below. A nested Button
+                // can still commit its action after a simultaneous drag, which
+                // is how a delete swipe used to open the meal instead.
+                .onTapGesture(perform: handleTap)
                 // Simultaneous, and it has to be all three of those words.
-                //
-                // A plain `.gesture` loses outright: the row wraps a
-                // NavigationLink, whose press handling claims the touch and
-                // cancels the drag before it starts, which is why swiping did
-                // nothing at all. `.highPriorityGesture` fixes that and breaks
-                // something worse — it takes the touch ahead of the enclosing
-                // ScrollView, so every drag beginning on a meal row is swallowed
-                // and the whole of Today stops scrolling. Refusing to move the
-                // row is not the same as declining the gesture.
                 //
                 // Simultaneous lets the scroll view keep its pan while this
                 // watches the same finger, and the axis latch below is what
@@ -77,7 +70,22 @@ struct SwipeToRemove<Content: View>: View {
                         }
                 )
         }
+        .background(
+            WellieTheme.surface,
+            in: RoundedRectangle(cornerRadius: WellieTheme.innerRadius, style: .continuous)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: WellieTheme.innerRadius, style: .continuous))
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction { onTap() }
         .accessibilityAction(named: "Remove") { onRemove() }
+    }
+
+    private func handleTap() {
+        if isOpen {
+            close()
+        } else {
+            onTap()
+        }
     }
 
     private func close() {

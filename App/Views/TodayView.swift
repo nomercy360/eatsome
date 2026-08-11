@@ -176,9 +176,11 @@ struct TodayView: View {
             .padding(.vertical, 26)
         } else {
             ForEach(meals) { meal in
-                SwipeToRemove(onRemove: { mealPendingRemoval = meal }) {
-                    Button { openMeal = meal } label: { MealRow(meal: meal) }
-                        .buttonStyle(.plain)
+                SwipeToRemove(
+                    onTap: { openMeal = meal },
+                    onRemove: { mealPendingRemoval = meal }
+                ) {
+                    MealRow(meal: meal)
                 }
             }
         }
