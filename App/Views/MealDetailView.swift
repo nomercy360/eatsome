@@ -90,6 +90,7 @@ struct MealDetailView: View {
         .ignoresSafeArea(edges: photo == nil ? [] : .top)
         .background(WellieTheme.background)
         .toolbar(.hidden, for: .navigationBar)
+        .wellieBackSwipe()
         .overlay(alignment: .topLeading) { backButton }
         .safeAreaInset(edge: .bottom) { if draft != meal { saveBar } }
         .sheet(isPresented: $showingFix) {

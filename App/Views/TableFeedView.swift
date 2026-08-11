@@ -81,6 +81,7 @@ struct TableFeedView: View {
         }
         .task { await load() }
         .refreshable { await load() }
+        .wellieBackSwipe()
         .wellieScreen()
     }
 

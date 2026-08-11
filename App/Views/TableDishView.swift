@@ -125,6 +125,7 @@ struct TableDishView: View {
             }
         }
         .task { await loadPhoto() }
+        .wellieBackSwipe()
         .wellieScreen()
     }
 

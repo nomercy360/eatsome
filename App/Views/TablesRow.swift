@@ -107,6 +107,7 @@ struct TablesListView: View {
         .refreshable { await model.refreshTables() }
         .sheet(isPresented: $creating) { TableCreateFlow() }
         .task { await model.refreshTables() }
+        .wellieBackSwipe()
         .wellieScreen()
     }
 

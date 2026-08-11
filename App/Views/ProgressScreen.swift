@@ -48,6 +48,7 @@ struct ProgressScreen: View {
         }
         .background(WellieTheme.background)
         .toolbar(.hidden, for: .navigationBar)
+        .wellieBackSwipe()
         .wellieScreen()
     }
 

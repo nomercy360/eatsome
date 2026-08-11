@@ -28,6 +28,7 @@ struct TodayView: View {
     @State private var showingHistory = false
     @State private var showingTables = false
     @State private var openTable: TableSummary?
+    @State private var mealPendingRemoval: MealEntry?
 
     private var meals: [MealEntry] { model.mealsToday() }
 
@@ -65,6 +66,21 @@ struct TodayView: View {
             .sheet(isPresented: $showingLog) { LogMealSheet() }
             .sheet(isPresented: $showingSettings) { SettingsView() }
             .sheet(isPresented: $showingProfile) { NutritionProfileSettingsView() }
+            .confirmationDialog(
+                "Remove this meal?",
+                isPresented: removalConfirmationPresented,
+                titleVisibility: .visible
+            ) {
+                if let meal = mealPendingRemoval {
+                    Button("Remove", role: .destructive) {
+                        mealPendingRemoval = nil
+                        Task { await model.deleteMeal(meal) }
+                    }
+                }
+                Button("Cancel", role: .cancel) { mealPendingRemoval = nil }
+            } message: {
+                Text("It leaves your history. The photo goes with it.")
+            }
             .sheet(isPresented: $showingConsent) {
                 // Nothing is sent from this screen, so the consent it asks for
                 // is the one the composer is about to need. Agreeing opens the
@@ -86,6 +102,15 @@ struct TodayView: View {
             // push exists.
             Task { await model.synchronizeAccount() }
         }
+    }
+
+    private var removalConfirmationPresented: Binding<Bool> {
+        Binding(
+            get: { mealPendingRemoval != nil },
+            set: { shown in
+                if !shown { mealPendingRemoval = nil }
+            }
+        )
     }
 
     // MARK: - Header
@@ -224,8 +249,10 @@ struct TodayView: View {
             .padding(.vertical, 26)
         } else {
             ForEach(meals) { meal in
-                Button { openMeal = meal } label: { MealRow(meal: meal) }
-                    .buttonStyle(.plain)
+                SwipeToRemove(onRemove: { mealPendingRemoval = meal }) {
+                    Button { openMeal = meal } label: { MealRow(meal: meal) }
+                        .buttonStyle(.plain)
+                }
             }
         }
     }

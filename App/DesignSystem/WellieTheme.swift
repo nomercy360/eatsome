@@ -342,6 +342,52 @@ extension View {
         frame(minWidth: side, minHeight: side)
             .contentShape(Rectangle())
     }
+
+    /// Keep the system left-edge pop gesture when a pushed screen draws its
+    /// own navigation chrome. SwiftUI disables the recognizer together with a
+    /// hidden navigation bar; the custom back button still works, but the
+    /// muscle-memory gesture disappears unless it is explicitly restored.
+    func wellieBackSwipe() -> some View {
+        background(WellieBackSwipeEnabler().allowsHitTesting(false))
+    }
+}
+
+private struct WellieBackSwipeEnabler: UIViewControllerRepresentable {
+    func makeUIViewController(context: Context) -> Controller {
+        Controller()
+    }
+
+    func updateUIViewController(_ controller: Controller, context: Context) {
+        controller.enableBackSwipe()
+    }
+
+    @MainActor
+    final class Controller: UIViewController {
+        override func viewDidLoad() {
+            super.viewDidLoad()
+            view.backgroundColor = .clear
+            view.isUserInteractionEnabled = false
+        }
+
+        override func didMove(toParent parent: UIViewController?) {
+            super.didMove(toParent: parent)
+            enableBackSwipe()
+        }
+
+        override func viewDidAppear(_ animated: Bool) {
+            super.viewDidAppear(animated)
+            enableBackSwipe()
+        }
+
+        func enableBackSwipe() {
+            guard let navigationController,
+                  navigationController.viewControllers.count > 1,
+                  let recognizer = navigationController.interactivePopGestureRecognizer
+            else { return }
+            recognizer.delegate = nil
+            recognizer.isEnabled = true
+        }
+    }
 }
 
 /// Motion, or its absence.
