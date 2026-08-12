@@ -19,6 +19,16 @@ import { join } from "node:path";
 import { rmSync, writeFileSync } from "node:fs";
 
 const apply = process.argv.includes("--apply");
+
+/**
+ * Server-authored events say so.
+ *
+ * Written with the original device's id first, which made every affected
+ * partition look like it had just checked in — the rollout view then reported
+ * three devices as upgraded when the app had not shipped. A write the server
+ * made must never be mistaken for a person opening the app.
+ */
+const SERVER_DEVICE = "server:v21-migration";
 const cwd = join(import.meta.dirname, "..");
 
 function d1(sql) {
@@ -70,7 +80,7 @@ const statements = [...meals.values()].map((meal, index) => {
   const literal = (value) => `'${String(value).replace(/'/g, "''")}'`;
   return (
     `INSERT INTO events (id, account_id, device_id, occurred_at, recorded_at, kind, payload_json, received_at) ` +
-    `VALUES (${literal(uuidv7(now + index))}, ${literal(meal.account_id)}, ${literal(meal.device_id)}, ` +
+    `VALUES (${literal(uuidv7(now + index))}, ${literal(meal.account_id)}, ${literal(SERVER_DEVICE)}, ` +
     `${meal.occurred_at}, ${now + index}, 'meal_deleted', ${literal(payload)}, ${literal(new Date(now).toISOString())});`
   );
 });
