@@ -34,6 +34,7 @@ struct TodayView: View {
                 header
                 ScrollView {
                     VStack(spacing: WellieTheme.cardSpacing) {
+                        restoreBanner
                         counter
                         week
                         NutrientCard(
@@ -81,6 +82,49 @@ struct TodayView: View {
             // push exists.
             Task { await model.synchronizeAccount() }
         }
+    }
+
+    /// Meals this build cannot read out of local storage, and what is being
+    /// done about it.
+    ///
+    /// v21 reads only v21, so an upgrade finds a log full of lines it must skip.
+    /// Recovery is a download from the account — but an app that recovers
+    /// silently and an app that has quietly lost your history look identical
+    /// while it is happening, and identical forever if it fails. So it says so.
+    @ViewBuilder
+    private var restoreBanner: some View {
+        switch model.historyRestore {
+        case .notNeeded, .restored:
+            EmptyView()
+        case .pending(let lines):
+            banner(
+                "Restoring your history",
+                detail: "\(lines) meals are being downloaded from your account.",
+                tint: WellieTheme.muted
+            )
+        case .restoring:
+            banner(
+                "Restoring your history",
+                detail: "Downloading from your account…",
+                tint: WellieTheme.muted
+            )
+        case .blocked(let reason):
+            banner("Some meals are missing", detail: reason, tint: WellieTheme.danger)
+        }
+    }
+
+    private func banner(_ title: String, detail: String, tint: Color) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(WellieTheme.font(15, weight: .semibold))
+                .foregroundStyle(WellieTheme.ink)
+            Text(detail)
+                .font(WellieTheme.font(12.5, weight: .medium))
+                .foregroundStyle(tint)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .wellieCard()
     }
 
     private var removalConfirmationPresented: Binding<Bool> {

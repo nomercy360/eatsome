@@ -45,6 +45,31 @@ final class AppModel {
     /// Surfaced in Settings. A silently skipped line is how you lose trust in
     /// your own data six months later.
     private(set) var skippedLogLines = 0
+
+    /// A local log holding events this build cannot read.
+    ///
+    /// v21 stores composition on every food and reads only v21, so every meal
+    /// line written by v20 fails to decode. `EventLog.load` skips a line it
+    /// cannot read — which is right for one corrupt record after a crash and
+    /// very wrong for an entire history after a schema change, because the app
+    /// then opens on an empty Today and says nothing.
+    ///
+    /// Recovery works: a skipped line never reaches `loadedEvents`, so its id is
+    /// not in the set `synchronizeAccountHistory` dedupes against, and the
+    /// server's migrated copy of that id is seen as missing and appended. What
+    /// was missing is any of that being *deliberate* — it fired only when Today
+    /// happened to appear, only when signed in, and reported nothing either way.
+    enum HistoryRestore: Equatable {
+        case notNeeded
+        /// Lines this build cannot read, waiting on a restore.
+        case pending(lines: Int)
+        case restoring
+        case restored(events: Int)
+        /// Nothing can be done from here, and the reason.
+        case blocked(String)
+    }
+
+    private(set) var historyRestore: HistoryRestore = .notNeeded
     private(set) var cloudError: String?
     private(set) var isDeletingCloudData = false
     private(set) var hasAcceptedPhotoProcessing =
@@ -119,6 +144,10 @@ final class AppModel {
             })
             projection = Projection(replaying: events)
             skippedLogLines = skipped
+            // Said out loud before anything renders. An empty Today with no
+            // explanation is the same silent failure as a partial total that
+            // does not say it is partial.
+            historyRestore = skipped > 0 ? .pending(lines: skipped) : .notNeeded
         } catch {
             loadError = error.localizedDescription
         }
@@ -129,6 +158,11 @@ final class AppModel {
         if let cache {
             (config, configSource) = await ConfigLoader(remoteURL: configURL, cacheURL: cache).load()
         }
+
+        // Kicked from bootstrap rather than left to whichever screen appears
+        // first. A history this build cannot read is not something to recover
+        // opportunistically.
+        if case .pending = historyRestore { Task { await synchronizeAccount() } }
 
         provider = UserDefaults.standard.string(forKey: Self.providerDefaultsKey)
             .flatMap(RecognitionProvider.init(rawValue:))
@@ -1189,9 +1223,20 @@ final class AppModel {
     }
 
     private func synchronizeAccountHistory() async {
-        guard isSignedIn, !isSynchronizingAccount, let backend else { return }
+        guard isSignedIn, !isSynchronizingAccount, let backend else {
+            // Without an account there is no second copy, and a line this build
+            // cannot read can never be uploaded either — it cannot be decoded to
+            // send. Signing in is genuinely the only route back.
+            if case .pending = historyRestore, !isSignedIn {
+                historyRestore = .blocked(
+                    "Sign in to restore meals this version cannot read from local storage."
+                )
+            }
+            return
+        }
         isSynchronizingAccount = true
         defer { isSynchronizingAccount = false }
+        if case .pending = historyRestore { historyRestore = .restoring }
         do {
             if !loadedEvents.isEmpty { try await backend.syncEvents(loadedEvents) }
             let remote = try await backend.events()
@@ -1207,9 +1252,21 @@ final class AppModel {
                 }.map(\.element)
                 projection = Projection(replaying: loadedEvents)
             }
+            if historyRestore == .restoring {
+                // A restore that recovered nothing is not a restore. It means
+                // those events never reached the server — the device wrote them
+                // and was never signed in, or never synced — and no amount of
+                // retrying will produce them.
+                historyRestore = missing.isEmpty
+                    ? .blocked("\(skippedLogLines) meals could not be restored: they never reached the cloud.")
+                    : .restored(events: missing.count)
+            }
             await restoreMissingMealPhotos(using: backend)
             cloudError = nil
         } catch {
+            // A failed restore is still a pending one: the network is the
+            // reason, not the data, and the next launch should try again.
+            if historyRestore == .restoring { historyRestore = .pending(lines: skippedLogLines) }
             handleAccountError(error, prefix: "Cloud sync")
         }
     }
