@@ -897,8 +897,14 @@ final class AppModel {
     /// the picture would mean the first thing a new user sends leaves the device
     /// without ever having been mentioned. `SendConsentView` says both.
     func recognize(_ message: MealMessage) async throws -> RecognitionArtifact {
+        // A backstop, not a gate: the composer discloses before it lets you
+        // send, and sending records the agreement. If this ever fires it is a
+        // path that skipped the composer, and it says so plainly rather than
+        // blaming the food.
         guard hasAcceptedPhotoProcessing else {
-            throw BackendError.invalidRequest("Agree before a meal is sent to be read.")
+            throw BackendError.invalidRequest(
+                "This meal was not sent: you have not agreed to it being read off-device yet."
+            )
         }
         guard !message.isEmpty else { throw MealRecognizerError.emptyMessage }
         guard let recognizer else { throw MealRecognizerError.missingAPIKey }
@@ -1169,6 +1175,13 @@ final class AppModel {
         rebuildRecognizer()
     }
 
+    /// The privacy policy, served by the Worker at `/privacy`.
+    ///
+    /// Derived from the same base URL the app talks to rather than pasted in as
+    /// a literal, so a build pointed at a different backend links to that
+    /// backend's policy instead of silently to production's.
+    var privacyURL: URL? { backendBaseURL?.appending(path: "privacy") }
+
     private func rebuildRecognizer() {
         guard let baseURL = backendBaseURL,
               let deviceID = stableDeviceID()
@@ -1256,6 +1269,13 @@ final class AppModel {
             let remote = try await backend.events()
             let existing = Set(loadedEvents.map(\.id))
             let missing = remote.filter { !existing.contains($0.id) }
+            // A returning account has onboarded, whatever this install knows.
+            //
+            // `hasOnboarded` lives in UserDefaults, which a delete takes with
+            // it — so signing back in restored every meal and then asked the
+            // person to introduce themselves to an app they had been using for
+            // a week. History is the account's, and so is this.
+            if !remote.isEmpty && !hasOnboarded { completeOnboarding() }
             if !missing.isEmpty {
                 try await log?.append(missing)
                 loadedEvents.append(contentsOf: missing)

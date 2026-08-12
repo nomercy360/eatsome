@@ -28,6 +28,7 @@ struct LogMealSheet: View {
     /// shutter is also the send button.
     @State private var pendingPhoto: Data?
     @State private var showingCamera = false
+    @State private var showingConsentDetail = false
     @State private var pickerItem: PhotosPickerItem?
     /// The message being read. Non-nil is the whole of the reading phase.
     @State private var reading: LogMessage?
@@ -48,6 +49,15 @@ struct LogMealSheet: View {
         .presentationDragIndicator(.hidden)
         .task { voice.configure(model.voiceKeySource) }
         .sheet(isPresented: $showingCamera) { CameraPhotoPicker { attach($0) } }
+        // The detail behind the notice, read-only: agreeing happens by sending,
+        // so this screen has nothing to decide and only closes.
+        .sheet(isPresented: $showingConsentDetail) {
+            SendConsentView(
+                includesPhoto: pendingPhoto != nil,
+                onAgree: { showingConsentDetail = false },
+                onCancel: { showingConsentDetail = false }
+            )
+        }
         .onChange(of: pickerItem) { _, item in
             guard let item else { return }
             Task {
@@ -211,6 +221,17 @@ struct LogMealSheet: View {
                 .disabled(!canSend)
                 .accessibilityLabel("Send")
             }
+
+            if !model.hasAcceptedPhotoProcessing {
+                consentNotice
+            }
+
+            if let error = voice.error {
+                Text(error)
+                    .font(WellieTheme.font(12.5, weight: .medium))
+                    .foregroundStyle(WellieTheme.attention)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .padding(18)
         .background(WellieTheme.surface, in: RoundedRectangle(cornerRadius: WellieTheme.cardRadius, style: .continuous))
@@ -275,10 +296,47 @@ struct LogMealSheet: View {
         isTyping = true
     }
 
+    /// What sending does, said once, next to the button that does it.
+    ///
+    /// Shown until the first send and never again. It replaced a full screen
+    /// that stood between a new person and the first thing they came to do —
+    /// and which, on a fresh install, did not stand there at all: it let them
+    /// through to "Reading your plate" and returned "Couldn't read that one",
+    /// which reads as the app failing to understand lunch rather than as a
+    /// consent that was never given.
+    private var consentNotice: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Sending has it read by an AI service off your device. By sending, you agree.")
+                .font(WellieTheme.font(12.5, weight: .medium))
+                .foregroundStyle(WellieTheme.muted)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 14) {
+                Button { showingConsentDetail = true } label: {
+                    Text("What happens to it")
+                        .font(WellieTheme.font(12.5, weight: .semibold))
+                        .foregroundStyle(WellieTheme.accent)
+                }
+                .buttonStyle(.plain)
+
+                if let privacy = model.privacyURL {
+                    Link("Privacy policy", destination: privacy)
+                        .font(WellieTheme.font(12.5, weight: .semibold))
+                        .foregroundStyle(WellieTheme.accent)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.top, 8)
+    }
+
     private func send() {
         let said = draft.trimmingCharacters(in: .whitespacesAndNewlines)
         let photo = pendingPhoto
         guard !said.isEmpty || photo != nil else { return }
+        // Sending is the agreement, which is what the notice above the composer
+        // says it is. Recorded here rather than on a screen of its own so the
+        // disclosure sits against the action it describes.
+        if !model.hasAcceptedPhotoProcessing { model.acceptPhotoProcessing() }
         isTyping = false
         Task {
             reading = await model.send(said: said.isEmpty ? nil : said, photo: photo)

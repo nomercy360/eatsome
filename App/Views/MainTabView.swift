@@ -67,13 +67,19 @@ struct MainTabView: View {
         .wellieScreen()
     }
 
-    private func beginLogging() {
-        if model.hasAcceptedPhotoProcessing {
-            showingLog = true
-        } else {
-            showingConsent = true
-        }
-    }
+    /// Straight to the composer, consented or not.
+    ///
+    /// A wall in front of the first thing anyone does is a wall in front of
+    /// finding out whether the app is any good, and on a fresh install it was
+    /// worse than that: the gate lived at the point of *sending*, so a first
+    /// meal got as far as "Reading your plate" and came back "Couldn't read
+    /// that one. Agree before a meal is sent to be read." — an error about a
+    /// policy, phrased as a failure to understand the food.
+    ///
+    /// The composer states what sending does and links to the detail, and
+    /// sending is the agreement. Same disclosure, before the same action, minus
+    /// the interruption.
+    private func beginLogging() { showingLog = true }
 }
 
 private enum MainTab: String, CaseIterable, Hashable, Identifiable {
