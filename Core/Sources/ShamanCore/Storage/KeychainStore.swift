@@ -5,9 +5,8 @@ import Security
 ///
 /// The old provider keys remain readable so an installed build does not lose
 /// them during migration, but recognition now uses the app-owned backend. The
-/// device id generated on first launch is what keeps this install's cloud data
-/// separate from every other tester's, so it is the one value worth surviving
-/// an app reinstall; the backend token is an override for development builds.
+/// device id generated on first launch preserves the source partition when an
+/// account first adopts this install's local history.
 public struct KeychainStore: Sendable {
     public let service: String
 
@@ -19,7 +18,8 @@ public struct KeychainStore: Sendable {
     public enum Key: String, Sendable {
         case openAIAPIKey = "openai.api_key"
         case geminiAPIKey = "gemini.api_key"
-        case backendAPIToken = "backend.api_token"
+        /// Removed at launch by the first session-bearer build.
+        case legacyBackendAPIToken = "backend.api_token"
         case deviceID = "backend.device_id"
         /// Opaque, server-minted, and the only thing that proves who you are.
         ///

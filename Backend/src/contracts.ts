@@ -178,8 +178,48 @@ const rawJsonSchema = z
     }
   }, "Expected valid raw model JSON.");
 
+/**
+ * Composition per 100 g of edible portion, as the food will be eaten.
+ *
+ * v20 asked only for weight and looked composition up in a table shipped with
+ * the client. Measured against that table's own sourced rows the model
+ * reproduces published composition at 0-3% median error, while the lookup left
+ * 78% of logged grams unresolved because a free-text label rarely matches a
+ * table key. Weight remains the load-bearing figure and the hard one.
+ *
+ * `sodium_mg` spells its unit out: every other field here is what its name
+ * says, and a sodium field named for neither milligrams nor grams of salt is
+ * how a factor of a thousand goes missing.
+ */
+export const compositionSchema = z.strictObject({
+  protein: z.number().min(0).max(100),
+  fat: z.number().min(0).max(100),
+  carbohydrate: z.number().min(0).max(100),
+  kcal: z.number().min(0).max(900),
+  sodium_mg: z.number().min(0).max(40_000),
+});
+
+export type Composition = z.infer<typeof compositionSchema>;
+
+/**
+ * How far the four macronutrients may disagree with the energy figure before
+ * the answer is treated as garbled.
+ *
+ * Atwater: protein and carbohydrate at 4 kcal/g, fat at 9. It is the one check
+ * available with no table to compare against, and it is the replacement for the
+ * unresolved-grams signal v20 used to make a bad answer visible. Measured on an
+ * official Subway panel it came out at 2.3%; a tenth is loose enough for fibre,
+ * polyols and rounding, and tight enough to catch a units error.
+ */
+export const ATWATER_TOLERANCE = 0.1;
+
+export function atwaterDelta(value: Composition): number | null {
+  if (value.kcal <= 0) return null;
+  const fromMacros = value.protein * 4 + value.carbohydrate * 4 + value.fat * 9;
+  return Math.abs(fromMacros - value.kcal) / value.kcal;
+}
+
 export const mealRecognitionItemSchema = z.strictObject({
-  kind: z.enum(foodKinds),
   // Edible weight on the plate, absolute: everything of this ingredient that is
   // there, across every serving present. Nothing multiplies it by the dish's
   // count afterwards.
@@ -190,9 +230,13 @@ export const mealRecognitionItemSchema = z.strictObject({
   // parsed, and every answer used the ladder grams had replaced. With
   // nothing behind it, a weightless answer is now a loud one.
   grams: z.number().min(0).max(20_000),
+  // The whole identity now, and it must name exactly one food. 18% of the
+  // distinct labels v20 failed to resolve named two ("ham and bacon",
+  // "shredded cabbage and lettuce"), and a row that is two foods cannot be
+  // priced as either.
   label: z.string().min(1).max(200),
+  per_100g: compositionSchema,
   preparation: z.array(z.enum(preparationMethods)).max(4),
-  composition_hints: z.array(z.enum(compositionHints)).max(5),
   // Uncertainty is a shortlist of rival groups, not a number. A model asked to
   // quantify its own certainty returns the same round value for every item on the
   // plate; asked what else the food could be, it answers about the food — and
@@ -201,7 +245,10 @@ export const mealRecognitionItemSchema = z.strictObject({
     .array(
       z.strictObject({
         label: z.string().min(1).max(200),
-        kind: z.enum(foodKinds),
+        // Priced, so the client can answer "honey or syrup?" without a second
+        // call. Three composition blocks is a trivial addition to the response
+        // and removes a round trip from the one question the sentence asks.
+        per_100g: compositionSchema,
       }),
     )
     .max(3),
@@ -316,61 +363,29 @@ export const mealDishSchema = z.strictObject({
 
 export const mealRecognitionSchema = z.strictObject({
   dishes: z.array(mealDishSchema).max(16),
-  other_meals_visible: z.boolean(),
-  notes: z.string().max(2_000).nullable(),
 });
 
 export type MealRecognition = z.infer<typeof mealRecognitionSchema>;
 
 /**
- * A flattened ingredient. `grams` is the whole quantity now, so `servings` is
- * always null — kept in the shape rather than deleted because the field is what
- * a client checks to find out whether the server did the arithmetic, and an
- * absent field and a null one should not have to mean different things.
+ * What the client receives.
  *
- * Dropping `portion` from here is the one breaking change in this contract: a
- * client built before v17 requires it and fails to decode without it. Worker and
- * app ship together. There is no derived stand-in on purpose — turning grams
- * back into small/medium/large needs a serving-weight table, that table lives in
- * `shaman-config.json` on the client, and a second copy of it here is how the
- * two start disagreeing.
+ * v20 also carried a flattened `items` list, because meals predated dishes and
+ * an old build read the flat list and ignored the rest. v21 stores dishes and
+ * only dishes: two representations of one thing is how they come to disagree,
+ * and there is no build left in the field that needs the other one.
+ *
+ * The one thing the server still does is normalise a panel to what the
+ * container holds, which is arithmetic on a printed figure rather than an
+ * estimate of anything.
  */
-export const mealFlatItemSchema = mealRecognitionItemSchema.extend({
-  servings: z.number().min(0).nullable(),
-  dish: z.string().max(120).nullable(),
-});
-
-/**
- * What the client receives: the dishes, plus a derived flat ingredient list.
- * Builds shipped before dishes existed read `items` and ignore the rest, so the
- * structure can change without stranding a phone in the field.
- */
-export const mealRecognitionPayloadSchema = mealRecognitionSchema.extend({
-  items: z.array(mealFlatItemSchema).max(64),
-});
+export const mealRecognitionPayloadSchema = mealRecognitionSchema;
 
 export type MealRecognitionPayload = z.infer<typeof mealRecognitionPayloadSchema>;
 
-/**
- * The flat ingredient list the client uses for nutrition and meal ratings.
- *
- * There is no arithmetic left to do. An ingredient's grams already cover every
- * serving present, so `servings` is null on every row — the `count × size ×
- * portion` product that used to live here is the thing v17 removed, and the
- * reason is that it compounded: the model called a bowl of ramen large and its
- * noodles large, and one bowl came out worth 126 g of protein.
- */
-export function flattenDishes(recognition: MealRecognition): MealRecognitionPayload {
+export function normalizePanels(recognition: MealRecognition): MealRecognitionPayload {
   return {
-    ...recognition,
     dishes: recognition.dishes.map((dish) => ({ ...dish, panel: panelPerContainer(dish.panel) })),
-    items: recognition.dishes.flatMap((dish) =>
-      dish.ingredients.map((ingredient) => ({
-        ...ingredient,
-        dish: dish.name,
-        servings: null,
-      })),
-    ),
   };
 }
 
@@ -447,13 +462,8 @@ export const rerunRecognitionRequestSchema = z.strictObject({
 export type RerunRecognitionRequest = z.infer<typeof rerunRecognitionRequestSchema>;
 
 export const refinementItemSchema = z.strictObject({
-  kind: storedFoodKind,
-  // Nullable here and nowhere else in the recognition path: this is the list as
-  // it stands on the person's phone, and a meal logged before grams — or added
-  // by hand — genuinely has no weight to send. The prompt says so in words when
-  // it happens, rather than inventing a number to fill the field.
-  grams: z.number().min(0).max(20_000).nullable(),
-  label: z.string().max(200).nullable(),
+  label: z.string().min(1).max(200),
+  grams: z.number().min(0).max(20_000),
 });
 
 export const refinementRequestSchema = z.strictObject({
@@ -464,19 +474,26 @@ export const refinementRequestSchema = z.strictObject({
 
 export type RefinementRequest = z.infer<typeof refinementRequestSchema>;
 
+/**
+ * A correction, as a delta.
+ *
+ * `per_100g` is required on every add and every revise, and describes the food
+ * AS IT NOW STANDS. Stored figures and editable rows can desync: a row renamed
+ * from "chicken" to "fried chicken" whose numbers stayed behind is worse than an
+ * uncorrected one, because it looks corrected.
+ */
 export const mealRevisionSchema = z.strictObject({
   add: z.array(
     z.strictObject({
-      kind: z.enum(foodKinds),
-      grams: z.number().min(0).max(20_000),
       label: z.string().min(1).max(200),
+      grams: z.number().min(0).max(20_000),
+      per_100g: compositionSchema,
       preparation: z.array(z.enum(preparationMethods)).max(4),
-      composition_hints: z.array(z.enum(compositionHints)).max(5),
       alternatives: z
         .array(
           z.strictObject({
             label: z.string().min(1).max(200),
-            kind: z.enum(foodKinds),
+            per_100g: compositionSchema,
           }),
         )
         .max(3),
@@ -485,10 +502,10 @@ export const mealRevisionSchema = z.strictObject({
   revise: z.array(
     z.strictObject({
       index: z.number().int().min(1).max(64),
-      kind: z.enum(foodKinds),
+      label: z.string().min(1).max(200),
       grams: z.number().min(0).max(20_000),
+      per_100g: compositionSchema,
       preparation: z.array(z.enum(preparationMethods)).max(4),
-      composition_hints: z.array(z.enum(compositionHints)).max(5),
     }),
   ),
   remove: z.array(z.number().int().min(1).max(64)),
@@ -503,69 +520,48 @@ export function mealRevisionJsonSchema(): Record<string, unknown> {
   return schema;
 }
 
-const storedAlternativeSchema = z.strictObject({
+const sourceRefSchema = z.strictObject({
+  url: z.string().min(1).max(2_000),
+  fetchedAt: z.number().int().nonnegative(),
+  market: z.string().max(8).nullable().optional(),
+  scaleFactor: z.number().min(0).max(100).nullable().optional(),
+  scaleBasis: z.string().max(64).nullable().optional(),
+  productName: z.string().max(300).nullable().optional(),
+});
+
+export const nutrientSources = ["panel", "published", "model", "user"] as const;
+
+const provenanceSchema = z.strictObject({
+  protein: z.enum(nutrientSources),
+  fat: z.enum(nutrientSources),
+  carbohydrate: z.enum(nutrientSources),
+  kcal: z.enum(nutrientSources),
+  sodium: z.enum(nutrientSources),
+});
+
+/**
+ * A stored food.
+ *
+ * No `kind`, no `portion`, no `servings`, no `resolution`, and no legacy
+ * acceptance of any of them. v21 reads only v21: the migration rewrites the log
+ * server-side and the client replaces its local copy, so there is nothing left
+ * in the field writing the old shape. That is the whole of what makes this
+ * schema free of the compatibility branches the last one accumulated.
+ */
+export const mealItemSchema = z.strictObject({
+  id: z.string().uuid(),
   label: z.string().min(1).max(200),
-  kind: storedFoodKind,
+  grams: z.number().min(0).max(20_000),
+  per_100g: compositionSchema,
+  provenance: provenanceSchema,
+  preparation: z.array(z.enum(preparationMethods)).max(4).optional(),
+  sourceRef: sourceRefSchema.nullable().optional(),
+  alternatives: z
+    .array(z.strictObject({ label: z.string().min(1).max(200), per_100g: compositionSchema }))
+    .max(3)
+    .optional(),
 });
 
-const foodReferenceSchema = z.strictObject({
-  database: z.enum(["usda_fdc", "mext", "label"]),
-  id: z.string().min(1).max(120),
-  version: z.string().min(1).max(120),
-  canonicalName: z.string().min(1).max(300),
-});
-
-const nutrientResolutionSchema = z.strictObject({
-  status: z.enum(["label", "exact", "user_confirmed", "class_estimate", "unresolved"]),
-  foodRef: foodReferenceSchema.nullable().optional(),
-  reason: z.string().max(500).nullable().optional(),
-});
-
-export const mealItemSchema = z
-  .strictObject({
-    id: z.string().uuid(),
-    kind: storedFoodKind.optional(),
-    /** Accepted only while development builds with append-only `group` events
-     * are still syncing. New clients encode `kind`. */
-    group: storedFoodKind.optional(),
-    // Stored, not requested. `portion` stays required because it is on every line
-    // of every `events.jsonl` ever written and the log is append-only — v17 stops
-    // asking a model for one, it does not rewrite history. New items carry the
-    // schema default and use `grams`.
-    portion: z.enum(portions),
-    label: z.string().max(200).nullable().optional(),
-    modelAlternatives: z
-      .union([z.array(storedAlternativeSchema), z.array(storedFoodKind)])
-      .nullable()
-      .optional(),
-    preparation: z.array(z.enum(preparationMethods)).max(4).optional(),
-    compositionHints: z.array(z.enum(compositionHints)).max(5).optional(),
-    resolution: nutrientResolutionSchema.nullable().optional(),
-    // Events written before the alternatives contract still sync from devices
-    // that have them in their append-only log. Accept, do not require.
-    modelConfidence: z.number().min(0).max(1).nullable().optional(),
-    // A strict object rejects what it does not name, and `MealItem` has carried
-    // these three since dishes and grams landed. Without them here every weighed
-    // meal 400s on sync — invisible until now only because the production Gemini
-    // schema was never emitting a weight for one to carry.
-    grams: z.number().min(0).max(20_000).nullable().optional(),
-    servings: z.number().min(0).nullable().optional(),
-    dish: z.string().max(120).nullable().optional(),
-  })
-  .refine((item) => item.kind !== undefined || item.group !== undefined, {
-    message: "A stored meal item needs kind (or legacy group).",
-  });
-
-export const recognitionEvidenceSchema = z.strictObject({
-  promptVersion: z.string().min(1).max(120),
-  rawModelJSON: rawJsonSchema,
-  initialItems: z.array(mealItemSchema).max(64),
-  otherMealsVisible: z.boolean(),
-});
-
-// The model-facing dish schema above is not the shape Swift stores in the
-// append-only log. Stored dishes carry stable ids, the legacy size, and
-// flattened MealItems so an older build can still read the same meal.
 const storedNutritionPanelSchema = z.strictObject({
   protein: z.number().min(0).max(500).nullable().optional(),
   calories: z.number().min(0).max(5_000).nullable().optional(),
@@ -574,8 +570,6 @@ const storedNutritionPanelSchema = z.strictObject({
   salt: z.number().min(0).max(100).nullable().optional(),
   sodium: z.number().min(0).max(100).nullable().optional(),
   caffeine: z.number().min(0).max(2_000).nullable().optional(),
-  // Stored Swift history uses a String so an older/newer printed basis must
-  // round-trip even when the current recognition prompt does not emit it.
   basis: z.string().max(64).nullable().optional(),
   net_ml: z.number().min(0).max(10_000).nullable().optional(),
   net_g: z.number().min(0).max(10_000).nullable().optional(),
@@ -583,39 +577,39 @@ const storedNutritionPanelSchema = z.strictObject({
 
 const storedMealDishSchema = z.strictObject({
   id: z.string().uuid(),
-  // Empty is the intentional bucket for an ingredient added by correction
-  // when assigning it to a named dish would be a guess.
-  name: z.string().max(120),
+  /** Null for food that belongs to no named dish. */
+  name: z.string().max(120).nullable().optional(),
   count: z.number().int().min(1).max(24),
-  size: z.enum(portions),
   panel: storedNutritionPanelSchema.nullable().optional(),
   items: z.array(mealItemSchema).max(64),
 });
 
+export const recognitionEvidenceSchema = z.strictObject({
+  promptVersion: z.string().min(1).max(120),
+  model: z.string().max(120).nullable().optional(),
+  rawModelJSON: rawJsonSchema,
+  initialDishes: z.array(storedMealDishSchema).max(16),
+});
+
+/** The shape this event was written in. A reader that does not know a version
+ * must refuse loudly rather than guess, which is the failure v20 shipped. */
+export const MEAL_SCHEMA_VERSION = 21;
+
 export const mealEventDataSchema = z.strictObject({
   id: z.string().uuid(),
+  schemaVersion: z.literal(MEAL_SCHEMA_VERSION),
   eatenAt: z.number().int().nonnegative(),
-  items: z.array(mealItemSchema).max(64),
-  // `text` is a meal described in words with no photograph. Words alongside a
-  // photo stay `photo`: the picture is the stronger evidence of what was there.
+  dishes: z.array(storedMealDishSchema).max(16),
   source: z.enum(["photo", "manual", "recipe", "text"]),
-  // Absent on entries logged before the switch existed; those count as whole.
   share: z.enum(["whole", "part", "taste"]).nullable().optional(),
-  // What the photo could not show, in the person's own words. Natural-language
-  // labelling of exactly what recognition missed — a better input for clustering
-  // weekly failures than any diff of the JSON.
   note: z.string().max(2_000).nullable().optional(),
   recognitionRating: z.enum(["good", "bad"]).nullable().optional(),
-  // Links a meal card to the chat bubble it was parsed from. Accept, do not
-  // require: this is a strict object, and an unknown key here 400s every sync
-  // from a build that writes one — the grams/servings/dish failure again.
   messageID: z.string().uuid().nullable().optional(),
   photoHash: sha256Schema.nullable().optional(),
-  modelConfidence: z.number().min(0).max(1).nullable().optional(),
   recognitionEvidence: recognitionEvidenceSchema.nullable().optional(),
+  recognitionID: z.string().uuid().nullable().optional(),
   wasCorrected: z.boolean(),
   recipeID: z.string().uuid().nullable().optional(),
-  storedDishes: z.array(storedMealDishSchema).max(16).nullable().optional(),
 });
 
 export const loggedEventSchema = z.strictObject({

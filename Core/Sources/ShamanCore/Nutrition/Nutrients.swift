@@ -13,7 +13,7 @@ import Foundation
 /// the three macros, kilocalories for energy, milligrams for sodium. Naming them
 /// is the defence — `sodium` is the only field whose unit is not its name, and
 /// `saltGrams` exists so the conversion is written once.
-public struct Nutrients: Codable, Sendable, Equatable {
+public struct Nutrients: Codable, Sendable, Hashable {
     /// Grams.
     public var protein: Double
     /// Grams.
@@ -41,6 +41,14 @@ public struct Nutrients: Codable, Sendable, Equatable {
 
     public static let zero = Nutrients()
 
+    /// Explicit, and spelling the one ambiguous unit out on the wire and on
+    /// disk. `sodium` is milligrams while every label prints grams of salt, and
+    /// a field named for neither is how a factor of a thousand gets lost.
+    private enum CodingKeys: String, CodingKey {
+        case protein, fat, carbohydrate, kcal
+        case sodium = "sodium_mg"
+    }
+
     /// Grams of salt equivalent, which is what a person recognises and what
     /// every label outside the United States prints.
     ///
@@ -50,21 +58,20 @@ public struct Nutrients: Codable, Sendable, Equatable {
     /// sixth column: a table that carried both could disagree with itself.
     public static let saltPerSodium = 58.44 / 22.99
 
-    /// Grams of salt equivalent, and a FLOOR rather than an estimate.
+    /// Grams of salt equivalent.
     ///
-    /// This is the one figure of the five where the derivation is known to be
-    /// biased and known which way. Composition tables publish plain
-    /// preparations — cooked white rice is 1 mg of sodium per 100 g — while the
-    /// salt in cooked food is mostly added during cooking, in sauces and
-    /// seasoning that carry no weight on the plate and appear in no ingredient
-    /// list. Measured against a canteen bibimbap that printed 4 g, this derived
-    /// 0.7 g: 82% low, and structurally so. See `Backend/eval/nutrients.ts`.
+    /// Until v21 this was a documented floor rather than an estimate, because
+    /// the figure came from a composition table and composition tables publish
+    /// plain preparations: cooked white rice is 1 mg of sodium per 100 g, while
+    /// the salt in cooked food is added in sauces and seasoning that carry no
+    /// weight on the plate. Measured against a canteen bibimbap that printed
+    /// 4 g, the derived figure was 0.7 g — 82% low, and structurally so.
     ///
-    /// So it is the salt *in the food*, and real food contains at least this
-    /// much. Nothing may present it as a measurement of intake or compare it to
-    /// `DailyTargets.salt` as though a small number meant a good day — a salt
-    /// figure that reads "well under" on a 4 g lunch is exactly the kind of
-    /// confident, complete-looking, wrong total this app declines to show.
+    /// Composition now comes with the food, priced as eaten, so the bias is
+    /// gone with the table that caused it: asked for guacamole, the model
+    /// answers 430 mg where the unsalted avocado row said 8. A screen should
+    /// still consult `NutrientProvenance` before dressing this as a
+    /// measurement, but it is no longer a lower bound by construction.
     public var saltGrams: Double { sodium * Self.saltPerSodium / 1000 }
 
     /// A weight of a food whose composition is known per 100 g.
@@ -92,86 +99,4 @@ public struct Nutrients: Codable, Sendable, Equatable {
     }
 
     public static func += (lhs: inout Nutrients, rhs: Nutrients) { lhs = lhs + rhs }
-}
-
-/// A `Nutrients` total, and how much of the food behind it actually answered.
-///
-/// The second half is not decoration. A daily energy figure built from the two
-/// thirds of a plate that resolved is not a small error, it is a different
-/// number wearing the same label — and unlike a missing figure, it is invisible.
-/// `unresolvedGrams` counts food with no exact or explicitly accepted broad
-/// match. That includes a known broad identity such as `sauce_condiment` when
-/// the exact sauce composition is genuinely unavailable.
-public struct NutrientTotal: Sendable, Equatable {
-    public var nutrients: Nutrients
-    /// Grams of food that produced no figure at all.
-    public var unresolvedGrams: Double
-    /// Grams connected to a named composition record or a printed panel.
-    public var exactGrams: Double
-    /// Grams calculated from an explicitly accepted broad-class estimate.
-    public var estimatedGrams: Double
-    public var resolvedGrams: Double { exactGrams + estimatedGrams }
-    /// Whether any of the sodium above was derived from a composition table
-    /// rather than read off a printed panel.
-    ///
-    /// The distinction is the difference between a fact and a lower bound, and
-    /// it has to be carried rather than assumed. A can of Monster prints
-    /// 食塩相当量 0.1 g per 100 ml: scaled to the can that is 0.36 g and it is
-    /// exactly 0.36 g, so showing it as "≥ 0.4" would understate a figure the
-    /// label already settled. A bowl of ramen has no label, derives 0.7 g from
-    /// the noodles and the pork, and genuinely contains several times that.
-    ///
-    /// A plate mixing the two is a floor, because the unlabelled half is.
-    public var saltIsFloor: Bool
-
-    public init(
-        nutrients: Nutrients = .zero,
-        unresolvedGrams: Double = 0,
-        exactGrams: Double = 0,
-        estimatedGrams: Double = 0,
-        saltIsFloor: Bool = false
-    ) {
-        self.nutrients = nutrients
-        self.unresolvedGrams = unresolvedGrams
-        self.exactGrams = exactGrams
-        self.estimatedGrams = estimatedGrams
-        self.saltIsFloor = saltIsFloor
-    }
-
-    public static let zero = NutrientTotal()
-
-    /// Whether every gram of food on the plate produced a figure.
-    public var isComplete: Bool { unresolvedGrams == 0 && estimatedGrams == 0 }
-
-    /// The share of the weight that answered, 0...1. One when there was no food
-    /// at all, because a total of nothing is not an incomplete total.
-    public var coverage: Double {
-        let weighed = exactGrams + estimatedGrams + unresolvedGrams
-        return weighed > 0 ? exactGrams / weighed : 1
-    }
-
-    public func scaled(by factor: Double) -> NutrientTotal {
-        NutrientTotal(
-            nutrients: nutrients.scaled(by: factor),
-            unresolvedGrams: unresolvedGrams * factor,
-            exactGrams: exactGrams * factor,
-            estimatedGrams: estimatedGrams * factor,
-            saltIsFloor: saltIsFloor
-        )
-    }
-
-    public static func + (lhs: NutrientTotal, rhs: NutrientTotal) -> NutrientTotal {
-        NutrientTotal(
-            nutrients: lhs.nutrients + rhs.nutrients,
-            unresolvedGrams: lhs.unresolvedGrams + rhs.unresolvedGrams,
-            exactGrams: lhs.exactGrams + rhs.exactGrams,
-            estimatedGrams: lhs.estimatedGrams + rhs.estimatedGrams,
-            // One unlabelled dish makes the whole plate a floor. Salt is the
-            // figure where a confident understatement does the most damage, so
-            // the pessimistic side is the right side to round to.
-            saltIsFloor: lhs.saltIsFloor || rhs.saltIsFloor
-        )
-    }
-
-    public static func += (lhs: inout NutrientTotal, rhs: NutrientTotal) { lhs = lhs + rhs }
 }

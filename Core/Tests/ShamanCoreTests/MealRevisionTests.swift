@@ -4,28 +4,30 @@ import Testing
 
 @Suite("Correcting a recognition")
 struct MealRevisionTests {
+    private static let egg = Nutrients(protein: 12.6, fat: 10.6, carbohydrate: 1.1, kcal: 155, sodium: 124)
+    private static let butter = Nutrients(protein: 0.9, fat: 81.1, carbohydrate: 0.1, kcal: 717, sodium: 11)
+
     private func current() -> [MealItem] {
         [
-            MealItem(kind: .breadFlatbread, label: "French toast", grams: 180),
-            MealItem(kind: .fruit, label: "sliced banana", grams: 90),
-            // No weight: typed in by hand, or logged before v17.
-            MealItem(kind: .sugarHoneySyrup, label: "syrup drizzle")
+            Fixture.item("French toast", grams: 180),
+            Fixture.item("sliced banana", grams: 90),
+            Fixture.item("syrup drizzle", grams: 20)
         ]
     }
 
     @Test("A delta adds what the photo could not show and leaves the rest alone")
     func appliesAdditions() {
         let revision = MealRevision(add: [
-            .init(kind: .egg, grams: 100, label: "eggs in the batter"),
-            .init(kind: .butterMargarine, grams: 12, label: "butter for frying"),
-            .init(kind: .milk, grams: 60, label: "milk in the batter")
+            .init(label: "eggs in the batter", grams: 100, per100g: Self.egg),
+            .init(label: "butter for frying", grams: 12, per100g: Self.butter),
+            .init(label: "milk in the batter", grams: 60, per100g: Fixture.composition)
         ])
         let result = revision.applied(to: current())
 
         #expect(result.count == 6)
-        #expect(result.map(\.kind).prefix(3) == [.breadFlatbread, .fruit, .sugarHoneySyrup])
-        #expect(result.first { $0.kind == .egg }?.grams == 100)
-        #expect(result.first { $0.kind == .butterMargarine }?.grams == 12)
+        #expect(result.map(\.label).prefix(3) == ["French toast", "sliced banana", "syrup drizzle"])
+        #expect(result.first { $0.label == "eggs in the batter" }?.grams == 100)
+        #expect(result.first { $0.label == "butter for frying" }?.per100g.fat == 81.1)
         #expect(revision.summary == "3 added")
     }
 
@@ -36,58 +38,68 @@ struct MealRevisionTests {
         var items = current()
         items[1].grams = 200
 
-        let revision = MealRevision(revise: [.init(index: 1, kind: .pastry, grams: 150)])
+        let revision = MealRevision(revise: [
+            .init(index: 1, label: "brioche french toast", grams: 150, per100g: Fixture.composition)
+        ])
         let result = revision.applied(to: items)
 
-        #expect(result[0].kind == .pastry)
+        #expect(result[0].label == "brioche french toast")
         #expect(result[0].grams == 150)
         #expect(result[1].grams == 200, "row 2 was never mentioned")
-        #expect(result[2].kind == .sugarHoneySyrup)
+        #expect(result[2].label == "syrup drizzle")
     }
 
-    @Test("A revision moves the effective serving count")
-    func revisionMovesEffectiveServings() {
-        // The point of carrying grams. A revise used to set `portion`, which
-        // `effectiveServings` never reached on a weighed row: the delta applied,
-        // the summary said "1 changed", and the quantity did not move an inch.
-        let items = [MealItem(kind: .poultry, label: "chicken", grams: 200)]
-        let before = items[0].effectiveServings()
-        let result = MealRevision(revise: [.init(index: 1, kind: .poultry, grams: 100)]).applied(to: items)
+    @Test("A revision moves the weight, which is what a correction is for")
+    func revisionMovesWeight() {
+        // A revise used to set `portion`, which never reached a weighed row:
+        // the delta applied, the summary said "1 changed", and the quantity did
+        // not move an inch.
+        let items = [Fixture.item("chicken", grams: 200)]
+        let result = MealRevision(revise: [
+            .init(index: 1, label: "chicken", grams: 100, per100g: Fixture.composition)
+        ]).applied(to: items)
 
         #expect(result[0].grams == 100)
-        #expect(result[0].effectiveServings() < before)
+        #expect(result[0].nutrients.kcal == Fixture.composition.kcal)
     }
 
-    @Test("A revised row keeps one quantity, not two")
-    func revisionClearsStaleServings() {
-        // A row flattened under the old ladder carries its arithmetic in
-        // `servings`. Writing a weight beside it would leave the item saying
-        // two different things about how much there was.
-        let items = [MealItem(kind: .fish, label: "salmon", servings: 2, grams: nil)]
-        let result = MealRevision(revise: [.init(index: 1, kind: .fish, grams: 140)]).applied(to: items)
+    @Test("A revision restates the composition, so the figures follow the food")
+    func revisionRestatesComposition() {
+        // The desync guard. A row renamed from "chicken" to "fried chicken"
+        // whose numbers stayed behind is worse than an uncorrected one, because
+        // it looks corrected.
+        let items = [Fixture.item("chicken breast", grams: 180)]
+        let fried = Nutrients(protein: 22.0, fat: 12.1, carbohydrate: 8.9, kcal: 240, sodium: 480)
+        let result = MealRevision(revise: [
+            .init(index: 1, label: "fried chicken", grams: 180, per100g: fried, preparation: [.deepFried])
+        ]).applied(to: items)
 
-        #expect(result[0].grams == 140)
-        #expect(result[0].servings == nil)
+        #expect(result[0].label == "fried chicken")
+        #expect(result[0].per100g == fried)
+        #expect(result[0].preparation == [.deepFried])
+        // The person is why it changed, even though a model wrote the numbers.
+        #expect(result[0].provenance.kcal == .user)
     }
 
-    @Test("Revising a kind drops the model's stale shortlist")
+    @Test("Revising a food drops the model's stale shortlist")
     func revisionClearsAlternatives() {
-        let items = [MealItem(
-            kind: .poultry,
-            label: "kebab",
-            modelAlternatives: [.init(label: "beef kebab", kind: .beef)],
-            grams: 150
+        let items = [Fixture.item(
+            "kebab",
+            grams: 150,
+            alternatives: [.init(label: "beef kebab", per100g: Fixture.composition)]
         )]
-        let result = MealRevision(revise: [.init(index: 1, kind: .beef, grams: 150)]).applied(to: items)
+        let result = MealRevision(revise: [
+            .init(index: 1, label: "beef kebab", grams: 150, per100g: Fixture.composition)
+        ]).applied(to: items)
 
-        #expect(result[0].kind == .beef)
-        #expect(result[0].modelAlternatives == nil)
+        #expect(result[0].label == "beef kebab")
+        #expect(result[0].alternatives.isEmpty)
     }
 
     @Test("Removals are applied by position, after revisions")
     func appliesRemovals() {
         let result = MealRevision(
-            revise: [.init(index: 3, kind: .sugarHoneySyrup, grams: 25)],
+            revise: [.init(index: 3, label: "syrup drizzle", grams: 25, per100g: Fixture.composition)],
             remove: [2]
         ).applied(to: current())
 
@@ -100,7 +112,10 @@ struct MealRevisionTests {
     func boundsAreChecked() {
         let items = current()
         let revision = MealRevision(
-            revise: [.init(index: 99, kind: .beef, grams: 200), .init(index: 0, kind: .beef, grams: 200)],
+            revise: [
+                .init(index: 99, label: "beef", grams: 200, per100g: Fixture.composition),
+                .init(index: 0, label: "beef", grams: 200, per100g: Fixture.composition)
+            ],
             remove: [42, -1]
         )
         #expect(revision.applied(to: items) == items)
@@ -112,32 +127,32 @@ struct MealRevisionTests {
             current: current(),
             note: "fried in butter, two eggs in the batter"
         )
-        #expect(message.contains("1. French toast — bread_flatbread, 180 g"))
-        // An unweighed row says so rather than being given a number nobody
-        // established — the model is told to leave it alone if the words do not
-        // settle it.
-        #expect(message.contains("3. syrup drizzle — sugar_honey_syrup, no weight recorded"))
+        #expect(message.contains("1. French toast, 180 g"))
+        #expect(message.contains("3. syrup drizzle, 20 g"))
         #expect(message.contains("two eggs in the batter"))
         #expect(message.contains("Keep everything else"))
 
         let system = MealRevisionPrompt.system.lowercased()
         #expect(system.contains("smallest possible delta"))
-        #expect(system.contains("weight is the only numeric estimate"))
-        #expect(!system.contains("coarse portions"))
+        // The desync guard, stated to the model as well as enforced in the type.
+        #expect(system.contains("as it now stands"))
+        #expect(system.contains("looks corrected"))
+        #expect(!system.contains("`kind`"))
     }
 
-    @Test("Both revision schemas match the food kinds the app knows")
+    @Test("Both revision schemas require the figures a correction moves")
     func revisionSchemas() throws {
         let openAI = MealRevisionPrompt.jsonSchema
         #expect(openAI["additionalProperties"] as? Bool == false)
         let properties = try #require(openAI["properties"] as? [String: Any])
         #expect(Set(try #require(openAI["required"] as? [String])) == Set(properties.keys))
 
-        let addition = try #require((properties["add"] as? [String: Any])?["items"] as? [String: Any])
-        let kinds = try #require(
-            ((addition["properties"] as? [String: Any])?["kind"] as? [String: Any])?["enum"] as? [String]
-        )
-        #expect(Set(kinds) == Set(FoodKind.allCases.map(\.rawValue)))
+        // A revise that could omit `per_100g` is a row that can be renamed while
+        // keeping the old numbers — corrected-looking and wrong.
+        for key in ["add", "revise"] {
+            let block = try #require((properties[key] as? [String: Any])?["items"] as? [String: Any])
+            #expect(try #require(block["required"] as? [String]).contains("per_100g"))
+        }
 
         // Gemini rejects `additionalProperties`, so the mirror must not carry it.
         #expect(!MealRevisionPrompt.geminiResponseSchema.description.contains("additionalProperties"))
@@ -200,13 +215,13 @@ struct MealRevisionTests {
     @Test("A model's delta decodes from either provider")
     func parsesRevisionResponses() throws {
         let payload =
-            #"{\"add\":[{\"kind\":\"egg\",\"grams\":100,\"label\":\"eggs in the batter\",\"preparation\":[],\"composition_hints\":[],\"alternatives\":[]}],\"revise\":[{\"index\":1,\"kind\":\"bread_flatbread\",\"grams\":180,\"preparation\":[],\"composition_hints\":[]}],\"remove\":[],\"notes\":null}"#
+            #"{\"add\":[{\"label\":\"eggs in the batter\",\"grams\":100,\"per_100g\":{\"protein\":12.6,\"fat\":10.6,\"carbohydrate\":1.1,\"kcal\":155,\"sodium_mg\":124},\"preparation\":[],\"alternatives\":[]}],\"revise\":[{\"index\":1,\"label\":\"French toast\",\"grams\":180,\"per_100g\":{\"protein\":12.6,\"fat\":10.6,\"carbohydrate\":1.1,\"kcal\":155,\"sodium_mg\":124},\"preparation\":[]}],\"remove\":[],\"notes\":null}"#
 
         let luna = """
         {"status":"completed","output":[{"type":"message","content":[{"type":"output_text","text":"\(payload)"}]}]}
         """
         let fromLuna = try LunaSession.parseRevision(Data(luna.utf8))
-        #expect(fromLuna.add.first?.kind == .egg)
+        #expect(fromLuna.add.first?.per100g.protein == 12.6)
         #expect(fromLuna.revise.first?.index == 1)
 
         let gemini = """
@@ -228,9 +243,9 @@ struct MealRevisionTests {
             func recognize(_ message: MealMessage) async throws -> RecognitionArtifact {
                 await counter.increment()
                 return RecognitionArtifact(
-                    recognition: MealRecognition(
-                        items: [], otherMealsVisible: false, notes: message.trimmedText
-                    ),
+                    recognition: MealRecognition(dishes: [
+                        .init(name: message.trimmedText ?? "meal", ingredients: [])
+                    ]),
                     rawModelJSON: "{}",
                     promptVersion: "stub"
                 )

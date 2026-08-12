@@ -16,7 +16,7 @@ struct ThreadTests {
     @Test("A message and the meal it became are one turn, not two")
     func messageAndMealPairUp() {
         let message = LogMessage(sentAt: MealEntry.referenceNow, said: "banana and coffee")
-        var meal = MealEntry.fixture(daysAgo: 0, [(.fruit, .medium)])
+        var meal = MealEntry.fixture(daysAgo: 0, [("banana", 120.0)])
         meal.messageID = message.id
 
         let turns = projection([.messageSent(message), .mealLogged(meal)]).thread(from: start, to: end)
@@ -40,9 +40,9 @@ struct ThreadTests {
         let breakfast = LogMessage(sentAt: MealEntry.referenceNow, said: "french toast")
         let snack = LogMessage(sentAt: MealEntry.referenceNow + 60_000, said: "2 of this")
 
-        var snackMeal = MealEntry.fixture(daysAgo: 0, [(.yogurt, .medium)])
+        var snackMeal = MealEntry.fixture(daysAgo: 0, [("yogurt", 120.0)])
         snackMeal.messageID = snack.id
-        var breakfastMeal = MealEntry.fixture(daysAgo: 0, [(.egg, .medium)])
+        var breakfastMeal = MealEntry.fixture(daysAgo: 0, [("boiled egg", 120.0)])
         breakfastMeal.messageID = breakfast.id
 
         // Applied in completion order: the snack was read first.
@@ -62,7 +62,7 @@ struct ThreadTests {
         // Anything logged before the thread existed, or added from the day
         // sheet. A meal in history that cannot be seen is a meal you cannot
         // correct.
-        let meal = MealEntry.fixture(daysAgo: 0, [(.fish, .medium)])
+        let meal = MealEntry.fixture(daysAgo: 0, [("salmon", 120.0)])
         let turns = projection([.mealLogged(meal)]).thread(from: start, to: end)
         #expect(turns.count == 1)
         #expect(turns.first?.message == nil)
@@ -74,7 +74,7 @@ struct ThreadTests {
         // A changed id would animate the whole row out and back in at exactly
         // the moment the meal card appears.
         let message = LogMessage(sentAt: MealEntry.referenceNow, said: "lentil soup")
-        var meal = MealEntry.fixture(daysAgo: 0, [(.legume, .medium)])
+        var meal = MealEntry.fixture(daysAgo: 0, [("chickpeas", 120.0)])
         meal.messageID = message.id
 
         let reading = projection([.messageSent(message)]).thread(from: start, to: end)
@@ -114,24 +114,38 @@ struct ThreadTests {
         #expect(json.contains("\"message_sent\""))
     }
 
-    @Test("A meal from a build that has never heard of messages still decodes")
+    @Test("A meal with no message id still decodes")
     func mealsWithoutAMessageIDDecode() throws {
-        // `messageID` is optional for the same reason every stored field added
-        // since v1 is: one non-optional addition and every existing line of
-        // events.jsonl fails, taking the meals with it.
+        // `messageID` is optional because the composer is not the only way a
+        // meal is written; nothing may depend on it being there.
         let json = """
-        {"id":"\(UUID().uuidString)","eatenAt":1700000000000,
-         "items":[],"source":"photo","wasCorrected":false}
+        {"id":"\(UUID().uuidString)","schemaVersion":21,"eatenAt":1700000000000,
+         "dishes":[],"source":"photo","wasCorrected":false}
         """
         let meal = try JSONDecoder().decode(MealEntry.self, from: Data(json.utf8))
         #expect(meal.messageID == nil)
     }
 
-    @Test("A source this build has never seen falls back rather than throwing")
-    func unknownSourceDecodes() throws {
+    @Test("A meal with no schema version is refused rather than guessed at")
+    func unversionedMealsAreRefused() {
+        // The failure v20 shipped, as a test. A decoder with no version has to
+        // guess, and guessing produced 62 kcal for a sandwich instead of an
+        // error anybody could see. v21 reads only v21.
         let json = """
         {"id":"\(UUID().uuidString)","eatenAt":1700000000000,
-         "items":[],"source":"telepathy","wasCorrected":false}
+         "dishes":[],"source":"photo","wasCorrected":false}
+        """
+        #expect(throws: (any Error).self) {
+            try JSONDecoder().decode(MealEntry.self, from: Data(json.utf8))
+        }
+    }
+
+    @Test("A source this build has never seen falls back rather than throwing")
+    func unknownSourceDecodes() throws {
+        // A wrong provenance label is a far smaller loss than a missing meal.
+        let json = """
+        {"id":"\(UUID().uuidString)","schemaVersion":21,"eatenAt":1700000000000,
+         "dishes":[],"source":"telepathy","wasCorrected":false}
         """
         let meal = try JSONDecoder().decode(MealEntry.self, from: Data(json.utf8))
         #expect(meal.source == .manual)

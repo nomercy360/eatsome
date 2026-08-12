@@ -19,18 +19,11 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate:local": "wrangler d1 migrations apply eatsome --local",
     "db:migrate:remote": "wrangler d1 migrations apply eatsome --remote",
-    "taxonomy:audit": "node scripts/migrate-food-taxonomy.mjs --audit",
-    "taxonomy:migrate": "node scripts/migrate-food-taxonomy.mjs --apply",
     "cf:typegen": "wrangler types",
-    "eval": "promptfoo eval -c promptfooconfig.yaml --repeat 3 --output eval/runs/latest.json",
-    "eval:coverage": "tsx eval/coverage.ts",
-    "eval:ceiling": "promptfoo eval -c promptfooconfig.ceiling.yaml --repeat 3",
-    "eval:holdout": "EVAL_INCLUDE_HOLDOUT=1 promptfoo eval -c promptfooconfig.yaml --repeat 3",
-    "eval:run": "tsx eval/run.ts",
-    "eval:score": "tsx eval/score.ts",
-    "eval:text": "tsx eval/run-text.ts",
-    "eval:text:score": "tsx eval/score-text.ts",
-    "eval:nutrients": "tsx eval/nutrients.ts"
+    "poc:google-search": "tsx eval/google-search-poc.ts",
+    "v21:audit": "node scripts/migrate-v21.mjs --audit",
+    "v21:migrate": "node scripts/migrate-v21.mjs --apply",
+    "eval:nutrition": "tsx eval/score-nutrition.ts"
   },
   "dependencies": {
     "@hono/zod-validator": "0.9.0",

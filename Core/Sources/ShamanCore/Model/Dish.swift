@@ -86,139 +86,107 @@ public struct NutritionPanel: Codable, Sendable, Hashable {
 
 /// One named thing on the tray, and what it is made of.
 ///
-/// The dish is what a person recognises — "kaisen don", "two beers" — and the
-/// ingredients underneath drive the nutrition figures and meal rating. The quantity is on
-/// the ingredients, as weight: `count` is how many servings are present, but it
-/// is a label and a control rather than a factor, since the weights below
-/// already cover every serving there is.
+/// The dish is what a person recognises — "kaisen don", "two beers". The
+/// quantity lives on the ingredients as weight; `count` is a label and a
+/// control, never a factor, because the weights below already cover every
+/// serving present. Changing it rewrites them — see `scaled(toCount:)`.
+///
+/// v20 also carried `size` and a `multiplier`, and multiplying a weighed dish
+/// by both is what made one bowl of ramen worth 126 g of protein. There is no
+/// multiplier here at all: with weights absolute and composition stored, a dish
+/// total is a sum.
 public struct MealDish: Codable, Sendable, Hashable, Identifiable {
     public let id: UUID
-    public var name: String
-    /// How many servings of this dish. Three beers is one dish with count 3.
+    /// What it is called. Nil for food assembled by hand that belongs to no
+    /// named dish — the picker offers ingredients, not dishes.
+    public var name: String?
+    /// How many servings of this dish are present. Three beers is one dish with
+    /// count 3, and the ingredient weights already account for all three.
     public var count: Int
-    /// How big ONE serving is, on a meal old enough to be described in portions.
-    ///
-    /// Nothing sets this any more: no model is asked for it and the dish sheet
-    /// stopped offering the chips in v17, because on a weighed dish the control
-    /// changed no quantity — `effectiveServings` prefers grams — while looking
-    /// exactly like one that did. It stays on the type so a meal logged before
-    /// August 2026 still reads the way it did the day it was logged.
-    public var size: Portion
     /// What the packaging said, when it said anything. Nil for almost all food,
     /// which is cooked and has nothing printed on it.
     public var panel: NutritionPanel?
-    /// The ingredients as recognised: each `portion` is that ingredient's share
-    /// of ONE serving, never of the whole dish.
     public var items: [MealItem]
 
     public init(
         id: UUID = UUIDv7.generate(),
-        name: String,
+        name: String? = nil,
         count: Int = 1,
-        size: Portion = .medium,
         panel: NutritionPanel? = nil,
         items: [MealItem] = []
     ) {
         self.id = id
         self.name = name
         self.count = count
-        self.size = size
         self.panel = panel
         self.items = items
     }
 
-    /// What one ingredient of this dish contributes once the dish's own
-    /// quantity is applied. Only meaningful for a dish described in portions —
-    /// see `weighed`.
-    public var multiplier: Double { Double(count) * size.servings }
+    public var grams: Double { items.reduce(0) { $0 + $1.grams } }
 
-    /// True when recognition weighed this dish's ingredients.
+    /// The dish total: its ingredients summed, then any printed figure
+    /// substituted in.
     ///
-    /// A weighed ingredient's `grams` is everything of it on the plate, so the
-    /// dish's own `count` and `size` must not be applied on top: three beers
-    /// arrive as one dish with the grams of three beers already in it. Changing
-    /// `count` in the UI rewrites those grams instead — see `scaled(toCount:)`.
-    /// Multiplying anyway is the same mistake that made one bowl of ramen worth
-    /// 126 g of protein, and on 220 weighed dishes it cost 7 points of median
-    /// error and half again as many gross misses.
-    public var weighed: Bool { items.contains { $0.grams != nil } }
+    /// Figure by figure rather than wholesale, which is the same rule v20 had
+    /// and the same reason: a carton printing protein and energy but no sodium
+    /// contributes two read numbers and three from the model, and discarding the
+    /// ingredients over a partial panel throws away something true.
+    public var nutrients: Nutrients {
+        var total = items.reduce(Nutrients.zero) { $0 + $1.nutrients }
+        guard let panel else { return total }
+        if let value = panel.protein { total.protein = value }
+        if let value = panel.fat { total.fat = value }
+        if let value = panel.carbohydrate { total.carbohydrate = value }
+        if let value = panel.calories { total.kcal = value }
+        // The panel prints grams of salt or grams of sodium; `Nutrients.sodium`
+        // is milligrams. Salt is preferred when both are present because it is
+        // what the label was actually counted in outside the United States.
+        if let salt = panel.salt {
+            total.sodium = salt * 1000 / Nutrients.saltPerSodium
+        } else if let sodium = panel.sodium {
+            total.sodium = sodium * 1000
+        }
+        return total
+    }
 
-    /// The dish as if a different number of servings had been present. Used by
-    /// the count control, which now rewrites weights rather than multiplying
-    /// them when calculating quantities.
+    /// Which of the five this dish's panel settled, so a caller can mark them
+    /// read rather than estimated without re-deriving the rule above.
+    public var panelSources: NutrientProvenance? {
+        guard let panel else { return nil }
+        var sources = NutrientProvenance.model
+        if panel.protein != nil { sources.protein = .panel }
+        if panel.fat != nil { sources.fat = .panel }
+        if panel.carbohydrate != nil { sources.carbohydrate = .panel }
+        if panel.calories != nil { sources.kcal = .panel }
+        if panel.salt != nil || panel.sodium != nil { sources.sodium = .panel }
+        return sources
+    }
+
+    /// The dish as if a different number of servings had been present.
+    ///
+    /// Rewrites the weights rather than multiplying at score time, so there is
+    /// never a second place where quantity lives.
     public func scaled(toCount newCount: Int) -> MealDish {
-        guard weighed, count > 0, newCount > 0, newCount != count else {
-            var copy = self
-            copy.count = max(1, newCount)
-            return copy
-        }
-        let factor = Double(newCount) / Double(count)
         var copy = self
-        copy.count = newCount
-        copy.items = items.map { item in
-            var scaled = item
-            if let grams = item.grams { scaled.grams = grams * factor }
-            return scaled
-        }
+        copy.count = max(1, newCount)
+        guard count > 0, copy.count != count else { return copy }
+        let factor = Double(copy.count) / Double(count)
+        copy.items = items.map { $0.weighing($0.grams * factor) }
         return copy
     }
 
-    /// The dish as ingredient rows, each carrying the servings the three
-    /// factors produced.
-    ///
-    /// `MealEntry` stores both this and the dishes, so that a build which has
-    /// never heard of dishes still reads a meal correctly. They can only
-    /// disagree if something writes one without the other, which is why this is
-    /// the single way the flat list is ever produced.
-    /// Rebuild dishes from a flat list that has been edited.
-    ///
-    /// Corrections arrive as a delta against the flat items — the refiner adds,
-    /// revises and removes rows, and knows nothing about dishes. Regrouping by
-    /// name puts the survivors back where they were and keeps each dish's own
-    /// `count`, `size` and `panel`, which no flat row carries. Anything the
-    /// correction added has no dish name and lands in one unnamed dish, because
-    /// guessing which dish a new food joined would silently change a count.
-    public static func regrouped(_ items: [MealItem], keeping dishes: [MealDish]) -> [MealDish] {
-        var byName: [String: MealDish] = [:]
-        for dish in dishes { byName[dish.name] = dish }
-
-        var order: [String?] = []
-        var grouped: [String?: [MealItem]] = [:]
-        for item in items {
-            if grouped[item.dish] == nil { order.append(item.dish) }
-            grouped[item.dish, default: []].append(item)
-        }
-
-        return order.compactMap { name in
-            guard let members = grouped[name], !members.isEmpty else { return nil }
-            guard let name else {
-                return MealDish(name: "", items: members.map { $0.withoutDishQuantity() })
-            }
-            var dish = byName[name] ?? MealDish(name: name)
-            dish.items = members.map { $0.withoutDishQuantity() }
-            return dish
-        }
+    /// Replace one item wherever it lives, by id. Corrections address rows, and
+    /// with the flat list gone this is how they land.
+    public func replacing(_ item: MealItem) -> MealDish {
+        guard items.contains(where: { $0.id == item.id }) else { return self }
+        var copy = self
+        copy.items = items.map { $0.id == item.id ? item : $0 }
+        return copy
     }
 
-    public func flattened() -> [MealItem] {
-        items.map { item in
-            MealItem(
-                id: item.id,
-                kind: item.kind,
-                portion: item.portion,
-                label: item.label,
-                modelAlternatives: item.modelAlternatives,
-                preparation: item.preparation,
-                compositionHints: item.compositionHints,
-                resolution: item.resolution,
-                dish: name,
-                // A weighed ingredient already says how much is there. Writing a
-                // `servings` beside it would be a second answer to the same
-                // question, and `effectiveServings` prefers grams anyway — so
-                // the only way they could ever disagree is if this wrote one.
-                servings: item.grams == nil ? item.portion.servings * multiplier : nil,
-                grams: item.grams
-            )
-        }
+    public func removing(_ itemID: UUID) -> MealDish {
+        var copy = self
+        copy.items = items.filter { $0.id != itemID }
+        return copy
     }
 }

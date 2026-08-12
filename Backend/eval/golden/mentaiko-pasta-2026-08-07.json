@@ -1,0 +1,28 @@
+{
+  "id": "mentaiko-pasta-2026-08-07",
+  "photo": "IMG_3264.jpeg",
+  "source": "canteen board",
+  "published": {
+    "protein_g": 21
+  },
+  "excludes": ["natto"],
+  "items": [
+    {
+      "label": "spaghetti",
+      "grams": 250
+    },
+    {
+      "label": "mentaiko",
+      "grams": 35
+    },
+    {
+      "label": "butter",
+      "grams": 10
+    },
+    {
+      "label": "nori seaweed",
+      "grams": 2
+    }
+  ],
+  "note": "Mentaiko cream spaghetti under shredded nori. The natto the board's figure excludes is NOT in the frame \u2014 the exclusion is kept because it describes the published figure, but it will never fire. The only other thing on the tray is an upturned empty cup."
+}

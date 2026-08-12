@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { foodKinds, mealRecognitionJsonSchema } from "../../src/contracts";
+import { mealRecognitionJsonSchema } from "../../src/contracts";
 import type { Env } from "../env";
 import { HttpError } from "../lib/http-error";
 import { geminiResponseSchema, requestGeminiRecognition } from "./gemini";
@@ -46,9 +46,43 @@ describe("provider selection", () => {
   });
 });
 
+describe("the hand-written revision schema", () => {
+  // The recognition schema has been guarded since v16 shipped a weighing prompt
+  // that returned no weights. This one was not, and went a whole version asking
+  // for `kind` and `composition_hints` after both were deleted — the identical
+  // failure, one file over. Gemini emits exactly the properties a schema names.
+  const spec = revisionSpec({ current: [{ label: "chicken", grams: 200 }], note: "fried" });
+
+  it("requires the figures a correction moves", () => {
+    const schema = spec.geminiSchema as Record<string, Record<string, never>>;
+    const properties = schema.properties as unknown as Record<string, Record<string, unknown>>;
+    for (const key of ["add", "revise"]) {
+      const block = (properties[key] as { items: Record<string, unknown> }).items;
+      expect(block.required).toContain("per_100g");
+      expect(block.required).toContain("label");
+      const fields = block.properties as Record<string, Record<string, unknown>>;
+      expect(fields.per_100g.required).toEqual([
+        "protein",
+        "fat",
+        "carbohydrate",
+        "kcal",
+        "sodium_mg",
+      ]);
+    }
+  });
+
+  it("carries nothing from the retired taxonomy", () => {
+    const json = JSON.stringify(spec.geminiSchema);
+    expect(json).not.toContain("composition_hints");
+    expect(json).not.toContain('"kind"');
+    // Rejected outright by Gemini rather than ignored.
+    expect(json).not.toContain("additionalProperties");
+  });
+});
+
 describe("a correction with no photograph", () => {
   const spec = revisionSpec({
-    current: [{ kind: "fish", grams: 120, label: null }],
+    current: [{ label: "grilled cod", grams: 120 }],
     note: "there were two eggs in it",
   });
   const answer = { add: [], revise: [], remove: [], notes: null };
@@ -110,7 +144,7 @@ describe("gemini response schema", () => {
     expect(schema.type).toBe("OBJECT");
   });
 
-  it("carries the same food kinds and facets as the rest of the app", () => {
+  it("carries the same fields as the rest of the app", () => {
     const properties = schema.properties as Record<string, Record<string, unknown>>;
     const dish = (properties.dishes as { items: Record<string, unknown> }).items;
     const dishProperties = dish.properties as Record<string, Record<string, unknown>>;
@@ -118,21 +152,45 @@ describe("gemini response schema", () => {
     const item = (dishProperties.ingredients as { items: Record<string, unknown> }).items;
     const itemProperties = item.properties as Record<string, Record<string, unknown>>;
 
-    expect(itemProperties.kind.enum).toEqual([...foodKinds]);
-    const alternative = itemProperties.alternatives.items as {
-      properties: { kind: { enum: string[] } };
-    };
-    expect(alternative.properties.kind.enum).toEqual([...foodKinds]);
-    expect(item.required).toEqual([
-      "kind",
-      "grams",
-      "label",
-      "preparation",
-      "composition_hints",
-      "alternatives",
-    ]);
+    expect(item.required).toEqual(["label", "grams", "per_100g", "preparation", "alternatives"]);
     expect(itemProperties.label.nullable).toBeUndefined();
-    expect(properties.notes.nullable).toBe(true);
+
+    // An alternative is priced with the same block as the ingredient. If it
+    // were not, choosing one in the client would swap the name and leave the
+    // old numbers — the exact desync `per_100g` on a revision exists to stop.
+    const alternative = itemProperties.alternatives.items as {
+      required: string[];
+      properties: Record<string, Record<string, unknown>>;
+    };
+    expect(alternative.required).toEqual(["label", "per_100g"]);
+    expect(alternative.properties.per_100g.required).toEqual([
+      "protein",
+      "fat",
+      "carbohydrate",
+      "kcal",
+      "sodium_mg",
+    ]);
+  });
+
+  it("asks for composition on every ingredient", () => {
+    // The v16 regression generalised. This schema is hand-written while every
+    // other provider derives theirs from the Zod contract, so it is the one
+    // that can quietly fall behind — and it did once, for `grams`. With no
+    // table behind the app any more, a silently missing `per_100g` would be a
+    // meal worth zero calories rather than a meal on the old ladder.
+    const properties = schema.properties as Record<string, Record<string, unknown>>;
+    const dish = (properties.dishes as { items: Record<string, unknown> }).items;
+    const dishProperties = dish.properties as Record<string, Record<string, unknown>>;
+    const item = (dishProperties.ingredients as { items: Record<string, unknown> }).items;
+    const itemProperties = item.properties as Record<string, Record<string, unknown>>;
+    expect(itemProperties.per_100g.type).toBe("OBJECT");
+    expect(itemProperties.per_100g.required).toEqual([
+      "protein",
+      "fat",
+      "carbohydrate",
+      "kcal",
+      "sodium_mg",
+    ]);
   });
 
   it("asks for a weight on every ingredient", () => {

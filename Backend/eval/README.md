@@ -1,97 +1,64 @@
 # Eval
 
-28 photos, human golden, four candidate models. Run it after any prompt change.
+Two meals, both real, both with figures somebody else published.
 
 ```bash
-pnpm eval:coverage   # what the dataset asks for that the app cannot express
-pnpm eval            # candidates, three runs each, via promptfoo
-pnpm eval:ceiling    # the expensive tier — reference only, never gates
-pnpm eval:holdout    # the cases held back from prompt iteration
-pnpm eval:text       # the text track: described meals, no photographs
-pnpm eval:text:score # score the latest text artefact
+pnpm eval:nutrition                              # the whole pipeline vs published figures
+pnpm eval:nutrition -- --case bibimbap-2026-08-07
+tsx eval/composition-recall-poc.ts               # does the model know composition?
+tsx eval/macro-mode-poc.ts                       # per 100 g vs the portion total
+tsx eval/google-search-poc.ts                    # fetch official figures for branded food
 ```
 
-The text track (`golden-text/`, from prompt v18) grades meals that arrive as
-words. It is a separate track with its own dataset doc because weight from a
-description is a different claim than weight from a photograph, with different
-honest tolerances — see `golden-text/DATASET.md`.
+## What happened to the old one
 
-Keys come from the environment: `OPENAI_API_KEY`, `GEMINI_API_KEY`,
-`ANTHROPIC_API_KEY`, `QWEN_API_KEY`. Models that have no key are skipped.
+46 photos with food-group and weight annotations, scored on recall, precision
+and excess rows. Two problems, and the second is fatal:
 
-## Why the providers are ours
+1. The annotations were model-written, so grading a model against them measured
+   agreement with a model.
+2. From v21 they graded the wrong thing. The app reports calories, protein,
+   carbohydrate, fat and salt; nothing in that set knew any of them.
 
-`eval/promptfoo-provider.ts` calls `worker/ai/*`, the same code the proxy runs.
-Pointed at promptfoo's built-in providers instead, the eval would measure
-promptfoo's request shaping — and the four vendors differ exactly where it
-matters: strict `json_schema`, `responseSchema`, a forced `tool_use` call, and an
-OpenAI-compatible endpoint that implements none of the above the same way.
+It is deleted rather than parked, along with the harness that only existed to
+serve it. `FINDINGS.md` is kept as a record of what those runs decided — the
+model comparison that chose `gemini-3.6-flash` is still the reason it is in
+production — but its numbers describe a contract the app no longer ships and
+must not be quoted as if they were current.
 
-Same reason the prompt is not in this directory. It is `prompts/meal-v5.md`,
-generated into both languages, with tests either side that fail on drift.
+The text track is parked in the same way; see `golden-text/README.md`.
 
-## Four things this is built to avoid
+## What replaced it
 
-- **Fitting the prompt to the dataset.** Six cases are frozen — one per failure
-  class, chosen before the first prompt edit — and excluded from every ordinary
-  run. Ten iterations of staring at failures is enough to learn 22 photos, and
-  these are the only evidence left that a version generalises rather than having
-  been fitted. Run them with `--holdout` when a version is otherwise finished,
-  and if they disagree with the dev set, believe them.
-- **Contaminated few-shot examples.** If a prompt ever carries examples, they
-  come from photos that are not in here. An example of a case you also score
-  measures memory.
-- **Scoring welded to running.** `run.ts` writes raw answers to `runs/*.jsonl`
-  and scores nothing. Dedup rules will change; re-scoring an artefact is free,
-  re-running the matrix is not.
-- **Averages on 28 cases.** A three-point move in recall is one photo. The report
-  that matters is which cases flipped between prompt versions.
+`golden/` — meals whose nutrition was published by whoever served them, scored
+on the figure a person actually sees. The admission standard is in
+`golden/DATASET.md`, and it is deliberately narrow: no case enters without a
+number somebody else printed.
 
-## The scorer is versioned too
+`score-nutrition.ts` runs the *production* prompt and the *production* Gemini
+schema rather than copies of them, because an eval that asks a different
+question than the app is how v16 reported good weights for a month while the app
+received none.
 
-`SCORER_VERSION` moves whenever a gate, a denominator or a definition does, and
-every report names it. Gemini read 21/28, then 17/28, then 21/28 across one
-afternoon without answering a single photo differently — the ruler changed twice.
-Numbers from two scorer versions are no more comparable than numbers from two
-prompts, and nothing else in a report would say which ruler produced it.
+Two numbers per case:
 
-The image boundary is versioned for the same reason. New runs render historical
-source photos as `jpeg-1024-q82-v1` and record both that version and the actual
-SHA-256. Future production cases should copy the exact private R2 model-input
-bytes; they must not be reconstructed from a Photos original.
+- **error against `published`** — weight and composition together, which is what
+  a person sees and the only thing worth calling accuracy.
+- **Atwater delta** — the model's macronutrients against its own energy figure.
+  Needs no ground truth, so it works on any meal.
 
-## Metrics, and why no judge
+## What is already known
 
-Group recall and precision, portion match, duplicate groups. All set comparisons
-against a closed enum — there is an exact answer, so a model-graded assertion
-would add cost, latency and nondeterminism to a question that does not need an
-opinion. A judge earns its keep on open text.
+- Composition alone: **0–3% median error**, 0% when the food is named
+  unambiguously (`composition-recall-poc.ts`, 48 sourced rows).
+- Asking per-100 g versus asking for the portion total: **a dead heat**, and the
+  model's own multiplication was exact on 201 of 201 figures
+  (`macro-mode-poc.ts`).
+- Weight: **never measured against anything but a model's own annotations.**
+  That is the gap this set exists to close, and it is where the error almost
+  certainly is.
 
-Recall gates: a missed food is invisible in the app, while a spurious one is one
-tap from being deleted.
+## Growing it
 
-## The taxonomy gap
-
-The golden set is richer than `FoodGroup`, and `pnpm eval:coverage` prints the
-difference. Items with no representable group are excluded from the denominator
-rather than counted as misses — otherwise every model "fails" a potato for a
-reason no prompt can fix. Read that report before believing any number here.
-
-## The eval runs ahead of the app
-
-The models are asked for `prompts/meal-v6.md` and `eval/schema.ts`, not the
-contract the app ships. The dataset was written from real meals and knows about
-potatoes, counted eggs and sauces as their own category; the
-app does not yet. While it is being built, the dataset is the one to believe, and
-whatever survives these runs is what `FoodGroup` should become.
-
-Two consequences:
-
-- a miss here is a real model failure. Under the production contract, scoring a
-  potato as missing blamed the prompt for something no prompt could fix;
-- numbers from a v6 run and a v5 run are not comparable. Every row carries both
-  `promptVersion` and `schemaVersion` so that stays visible.
-
-`pnpm eval:coverage` now lists the app's debt rather than the dataset's: the
-groups and measures still missing from `FoodGroup`, which is the migration list
-for after the first results.
+Two cases is not a calibration set. Add one every time a meal arrives with a
+printed number — a chain, a package, a canteen board.

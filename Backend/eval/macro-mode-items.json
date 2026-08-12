@@ -1,0 +1,327 @@
+[
+ {
+  "kind": "cheese",
+  "label": "sliced cheese",
+  "grams": 15,
+  "truth": {
+   "protein": 24.25,
+   "fat": 33.82,
+   "carbohydrate": 2.13,
+   "kcal": 410.0,
+   "sodium": 644.0
+  },
+  "row": "Cheese, cheddar, sharp, sliced"
+ },
+ {
+  "kind": "rice",
+  "label": "white rice",
+  "grams": 250,
+  "truth": {
+   "protein": 2.69,
+   "fat": 0.28,
+   "carbohydrate": 28.17,
+   "kcal": 130.0,
+   "sodium": 1.0
+  },
+  "row": "Rice, white, long-grain, regular, enriched, cooked"
+ },
+ {
+  "kind": "potato",
+  "label": "mashed potato",
+  "grams": 130,
+  "truth": {
+   "protein": 1.86,
+   "fat": 4.22,
+   "carbohydrate": 16.81,
+   "kcal": 113.0,
+   "sodium": 317.0
+  },
+  "row": "Potatoes, mashed, home-prepared, whole milk and butter added"
+ },
+ {
+  "kind": "mayonnaise_dressing",
+  "label": "mayonnaise",
+  "grams": 20,
+  "truth": {
+   "protein": 0.96,
+   "fat": 74.85,
+   "carbohydrate": 0.57,
+   "kcal": 680.0,
+   "sodium": 635.0
+  },
+  "row": "Salad dressing, mayonnaise, regular"
+ },
+ {
+  "kind": "processed_meat",
+  "label": "bacon",
+  "grams": 28,
+  "truth": {
+   "protein": 35.73,
+   "fat": 43.27,
+   "carbohydrate": 1.35,
+   "kcal": 548.0,
+   "sodium": 2193.0
+  },
+  "row": "Pork, cured, bacon, cooked, baked"
+ },
+ {
+  "kind": "poultry",
+  "label": "turkey breast",
+  "grams": 60,
+  "truth": {
+   "protein": 22.16,
+   "fat": 3.46,
+   "carbohydrate": 0.0,
+   "kcal": 126.0,
+   "sodium": 397.0
+  },
+  "row": "Turkey breast, pre-basted, meat and skin, cooked, roasted"
+ },
+ {
+  "kind": "processed_meat",
+  "label": "ham",
+  "grams": 60,
+  "truth": {
+   "protein": 16.85,
+   "fat": 4.04,
+   "carbohydrate": 0.7,
+   "kcal": 107.0,
+   "sodium": 945.0
+  },
+  "row": "Ham, sliced, pre-packaged, deli meat (96%fat free, water added)"
+ },
+ {
+  "kind": "beef",
+  "label": "grilled beef",
+  "grams": 110,
+  "truth": {
+   "protein": 28.54,
+   "fat": 6.25,
+   "carbohydrate": 0.0,
+   "kcal": 178.0,
+   "sodium": 68.0
+  },
+  "row": "Beef, shoulder steak, boneless, separable lean only, trimmed to 0\" fat, choice, cooked, grilled"
+ },
+ {
+  "kind": "oil",
+  "label": "cooking oil",
+  "grams": 5,
+  "truth": {
+   "protein": 0.0,
+   "fat": 100.0,
+   "carbohydrate": 0.0,
+   "kcal": 884.0,
+   "sodium": 0.0
+  },
+  "row": "Oil, soybean, salad or cooking"
+ },
+ {
+  "kind": "vegetable",
+  "label": "wasabi",
+  "grams": 5,
+  "truth": {
+   "protein": 4.8,
+   "fat": 0.63,
+   "carbohydrate": 23.54,
+   "kcal": 109.0,
+   "sodium": 17.0
+  },
+  "row": "Wasabi, root, raw"
+ },
+ {
+  "kind": "egg",
+  "label": "boiled egg",
+  "grams": 50,
+  "truth": {
+   "protein": 12.58,
+   "fat": 10.61,
+   "carbohydrate": 1.12,
+   "kcal": 155.0,
+   "sodium": 124.0
+  },
+  "row": "Egg, whole, cooked, hard-boiled"
+ },
+ {
+  "kind": "bread_flatbread",
+  "label": "white bread",
+  "grams": 150,
+  "truth": {
+   "protein": 9.0,
+   "fat": 4.0,
+   "carbohydrate": 54.5,
+   "kcal": 290.0,
+   "sodium": 537.0
+  },
+  "row": "Bread, white, commercially prepared, toasted"
+ },
+ {
+  "kind": "egg",
+  "label": "egg",
+  "grams": 60,
+  "truth": {
+   "protein": 12.58,
+   "fat": 10.61,
+   "carbohydrate": 1.12,
+   "kcal": 155.0,
+   "sodium": 124.0
+  },
+  "row": "Egg, whole, cooked, hard-boiled"
+ },
+ {
+  "kind": "fruit",
+  "label": "banana",
+  "grams": 110,
+  "truth": {
+   "protein": 1.09,
+   "fat": 0.33,
+   "carbohydrate": 22.84,
+   "kcal": 89.0,
+   "sodium": 1.0
+  },
+  "row": "Bananas, raw"
+ },
+ {
+  "kind": "butter_margarine",
+  "label": "butter",
+  "grams": 15,
+  "truth": {
+   "protein": 0.85,
+   "fat": 81.11,
+   "carbohydrate": 0.06,
+   "kcal": 717.0,
+   "sodium": 643.0
+  },
+  "row": "Butter, salted"
+ },
+ {
+  "kind": "oil",
+  "label": "sesame oil",
+  "grams": 5,
+  "truth": {
+   "protein": 0.0,
+   "fat": 100.0,
+   "carbohydrate": 0.0,
+   "kcal": 884.0,
+   "sodium": 0.0
+  },
+  "row": "Oil, palm"
+ },
+ {
+  "kind": "poultry",
+  "label": "chicken",
+  "grams": 120,
+  "truth": {
+   "protein": 27.3,
+   "fat": 13.6,
+   "carbohydrate": 0.0,
+   "kcal": 239.0,
+   "sodium": 82.0
+  },
+  "row": "Chicken, broilers or fryers, meat and skin, cooked, roasted"
+ },
+ {
+  "kind": "beef",
+  "label": "beef",
+  "grams": 250,
+  "truth": {
+   "protein": 25.93,
+   "fat": 14.36,
+   "carbohydrate": 0.0,
+   "kcal": 240.0,
+   "sodium": 64.0
+  },
+  "row": "Beef, ground, 85% lean meat / 15% fat, loaf, cooked, baked"
+ },
+ {
+  "kind": "vegetable",
+  "label": "onion",
+  "grams": 80,
+  "truth": {
+   "protein": 1.1,
+   "fat": 0.1,
+   "carbohydrate": 9.34,
+   "kcal": 40.0,
+   "sodium": 4.0
+  },
+  "row": "Onions, raw"
+ },
+ {
+  "kind": "bread_flatbread",
+  "label": "bread",
+  "grams": 130,
+  "truth": {
+   "protein": 9.0,
+   "fat": 4.0,
+   "carbohydrate": 54.5,
+   "kcal": 290.0,
+   "sodium": 537.0
+  },
+  "row": "Bread, white, commercially prepared, toasted"
+ },
+ {
+  "kind": "milk",
+  "label": "milk",
+  "grams": 30,
+  "truth": {
+   "protein": 3.15,
+   "fat": 3.25,
+   "carbohydrate": 4.8,
+   "kcal": 61.0,
+   "sodium": 43.0
+  },
+  "row": "Milk, whole, 3.25% milkfat, with added vitamin D"
+ },
+ {
+  "kind": "oil",
+  "label": "olive oil",
+  "grams": 10,
+  "truth": {
+   "protein": 0.0,
+   "fat": 100.0,
+   "carbohydrate": 0.0,
+   "kcal": 884.0,
+   "sodium": 2.0
+  },
+  "row": "Oil, olive, salad or cooking"
+ },
+ {
+  "kind": "poultry",
+  "label": "fried chicken",
+  "grams": 120,
+  "truth": {
+   "protein": 22.54,
+   "fat": 17.35,
+   "carbohydrate": 9.42,
+   "kcal": 289.0,
+   "sodium": 292.0
+  },
+  "row": "Chicken, broilers or fryers, meat and skin, cooked, fried, batter"
+ },
+ {
+  "kind": "vegetable",
+  "label": "leafy greens",
+  "grams": 40,
+  "truth": {
+   "protein": 0.9,
+   "fat": 0.14,
+   "carbohydrate": 2.97,
+   "kcal": 14.0,
+   "sodium": 10.0
+  },
+  "row": "Lettuce, iceberg (includes crisphead types), raw"
+ },
+ {
+  "kind": "nuts_seeds",
+  "label": "peanuts",
+  "grams": 20,
+  "truth": {
+   "protein": 24.35,
+   "fat": 49.66,
+   "carbohydrate": 21.26,
+   "kcal": 587.0,
+   "sodium": 6.0
+  },
+  "row": "Peanuts, all types, dry-roasted, without salt"
+ }
+]

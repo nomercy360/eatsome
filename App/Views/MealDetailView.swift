@@ -43,7 +43,7 @@ struct MealDetailView: View {
     init(meal: MealEntry) {
         self.meal = meal
         _draft = State(initialValue: meal)
-        _dishes = State(initialValue: meal.storedDishes ?? [])
+        _dishes = State(initialValue: meal.dishes)
     }
 
     private var photo: UIImage? { PhotoStore.shared.image(for: meal.photoHash) }
@@ -100,10 +100,14 @@ struct MealDetailView: View {
             MealFixSheet(meal: meal, draft: $draft, dishes: $dishes) { dismiss() }
         }
         .sheet(item: $editing) { target in
-            if let index = draft.items.firstIndex(where: { $0.id == target.id }) {
+            // Items live inside dishes now, so the binding walks to the row
+            // rather than indexing a flat list that no longer exists.
+            if let place = draft.dishes.enumerated().compactMap({ dishIndex, dish in
+                dish.items.firstIndex { $0.id == target.id }.map { (dishIndex, $0) }
+            }).first {
                 FoodEditSheet(
-                    item: $draft.items[index],
-                    onRemove: { draft.items.removeAll { $0.id == target.id } }
+                    item: $draft.dishes[place.0].items[place.1],
+                    onRemove: { removeItem(target.id) }
                 )
             }
         }
@@ -113,7 +117,7 @@ struct MealDetailView: View {
                 onRename: { name in
                     guard let index = dishes.firstIndex(where: { $0.id == dish.id }) else { return }
                     dishes[index].name = name
-                    draft.items = dishes.flatMap { $0.flattened() }
+                    draft.dishes = dishes
                 },
                 onEditIngredient: { editing = EditingFood(id: $0) },
                 // Never the ingredient sheet: it is pickers only, and a row
@@ -128,19 +132,27 @@ struct MealDetailView: View {
                     // weighed dish already holds every serving that is present,
                     // so "one, not three" has to take two thirds of it back off.
                     dishes[index] = dishes[index].scaled(toCount: count)
-                    draft.items = dishes.flatMap { $0.flattened() }
+                    draft.dishes = dishes
                 },
                 onRemove: {
-                    let members = Set(dish.items.map(\.id))
-                    draft.items.removeAll { members.contains($0.id) }
+                    draft.dishes.removeAll { $0.id == dish.id }
+                    dishes = draft.dishes
                 }
             )
         }
-        .onChange(of: draft.items) { _, updated in
-            guard !dishes.isEmpty else { return }
-            dishes = MealDish.regrouped(updated, keeping: dishes)
+        .onChange(of: draft.dishes) { _, updated in
+            dishes = updated
         }
         .wellieScreen()
+    }
+
+    /// Drop one row wherever it lives, and the dish with it when it was the
+    /// last thing in it — an empty dish on the sentence is a name with no food.
+    private func removeItem(_ id: UUID) {
+        draft.dishes = draft.dishes
+            .map { $0.removing(id) }
+            .filter { !$0.items.isEmpty }
+        dishes = draft.dishes
     }
 
     // MARK: - The photograph
@@ -255,7 +267,7 @@ struct MealDetailView: View {
     @ViewBuilder
     private var figures: some View {
         if !draft.items.isEmpty {
-            let total = model.nutrients(in: draft)
+            let total = draft.nutrients
             let shown = shownFigures(total)
             if !shown.isEmpty {
                 HStack(alignment: .top, spacing: 0) {
@@ -271,14 +283,6 @@ struct MealDetailView: View {
                     Rectangle().fill(.white.opacity(0.09)).frame(height: 1)
                 }
                 .padding(.top, 22)
-
-                if let attention = total.foodMatchAttention {
-                    Text(attention + " Tap the highlighted food to name it more precisely.")
-                        .font(WellieTheme.font(12, weight: .regular))
-                        .foregroundStyle(WellieTheme.attention)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.top, 16)
-                }
             }
         }
     }
@@ -291,9 +295,9 @@ struct MealDetailView: View {
     /// person nothing they did not know, and a row of five zeros makes the two
     /// real numbers on that can harder to find rather than easier.
     private func shownFigures(
-        _ total: NutrientTotal
+        _ total: Nutrients
     ) -> [(name: String, value: String, unit: String)] {
-        let meal = total.nutrients
+        let meal = total
         var out: [(name: String, value: String, unit: String)] = []
         func add(_ name: String, _ value: Double, _ unit: String) {
             guard value.rounded() > 0 else { return }
@@ -310,11 +314,11 @@ struct MealDetailView: View {
         // deliberately no daily ceiling beside it — see `Nutrients.saltGrams`.
         let salt = meal.saltGrams
         if salt >= 0.05 {
-            out.append((
-                "Salt",
-                (total.saltIsFloor ? "≥" : "") + String(format: "%.1f", salt),
-                "g"
-            ))
+            // Printed and published figures are facts about this item; a model
+            // figure prices the food as eaten, seasoning included. Neither is
+            // the lower bound a composition table produced, so neither wears a
+            // `≥`. See `Nutrients.saltGrams`.
+            out.append(("Salt", String(format: "%.1f", salt), "g"))
         }
         return out
     }
@@ -350,18 +354,14 @@ struct MealDetailView: View {
     /// the sentence where a title goes and "salmon and tuna don" alone reads as
     /// a typo rather than as a style.
     private var sentenceWords: [FoodSentence.Word] {
-        let unresolved = Set(draft.items.compactMap { item -> UUID? in
-            guard item.resolution?.status == .unresolved
-                    || (item.resolution == nil
-                        && model.config.nutrientsPerGram?.food(for: item) == nil)
-            else { return nil }
-            return item.id
-        })
+        // A food the model was unsure of is one it offered rivals for. There is
+        // no unresolved state left to mark: every row carries its own figures.
+        let unresolved = Set(draft.items.filter { !$0.alternatives.isEmpty }.map(\.id))
         var words = dishes.isEmpty
             ? draft.items.map {
                 FoodSentence.Word(
                     id: $0.id,
-                    text: FoodPhrase.word(for: $0.kind, label: $0.label),
+                    text: FoodPhrase.word(for: $0),
                     isUncertain: unresolved.contains($0.id)
                 )
             }
@@ -409,13 +409,7 @@ struct MealDetailView: View {
     private var saveBar: some View {
         Button("Save changes") {
             Task {
-                var revised = draft
-                if !dishes.isEmpty {
-                    let regrouped = MealDish.regrouped(draft.items, keeping: dishes)
-                    revised.storedDishes = regrouped
-                    revised.items = regrouped.flatMap { $0.flattened() }
-                }
-                await model.reviseMeal(revised)
+                await model.reviseMeal(draft)
                 dismiss()
             }
         }

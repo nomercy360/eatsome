@@ -4,29 +4,26 @@ import Foundation
 ///
 /// A request first lands in private R2, then the Worker sends those exact bytes
 /// to the configured model. The phone never holds a model-provider credential:
-/// the shared token says the caller is the app, and the device id selects the
-/// account that owns and can erase the object.
+/// the account session proves who the caller is, and the device id preserves
+/// the source partition adopted during the first sign-in.
 public struct BackendSession: MealRecognizer, MealRefiner, Sendable {
     public struct Configuration: Sendable {
         public var baseURL: URL
-        public var token: String
         public var deviceID: String
-        /// Required for every production data request. The shared bearer token
-        /// identifies the build; only this token identifies the person.
+        /// Sent as the bearer credential on every authenticated request. Nil is
+        /// valid only while exchanging an Apple identity token for a session.
         public var sessionToken: String?
         public var provider: RecognitionProvider?
         public var timeout: TimeInterval
 
         public init(
             baseURL: URL,
-            token: String,
             deviceID: String,
             sessionToken: String? = nil,
             provider: RecognitionProvider? = nil,
             timeout: TimeInterval = 60
         ) {
             self.baseURL = baseURL
-            self.token = token
             self.deviceID = deviceID
             self.sessionToken = sessionToken
             self.provider = provider
@@ -86,7 +83,7 @@ public struct BackendSession: MealRecognizer, MealRefiner, Sendable {
     ) async throws -> MealRevision {
         let input = RefinementRequest(
             provider: configuration.provider?.rawValue,
-            current: current.map { .init(kind: $0.kind, grams: $0.grams, label: $0.label) },
+            current: current.map { .init(label: $0.label, grams: $0.grams) },
             note: note
         )
         let path = imageData
@@ -348,10 +345,9 @@ public struct BackendSession: MealRecognizer, MealRefiner, Sendable {
         var request = URLRequest(url: endpoint)
         request.httpMethod = "GET"
         request.timeoutInterval = configuration.timeout
-        request.setValue("Bearer \(configuration.token)", forHTTPHeaderField: "Authorization")
         request.setValue(configuration.deviceID, forHTTPHeaderField: "X-Device-Id")
         if let session = configuration.sessionToken, !session.isEmpty {
-            request.setValue(session, forHTTPHeaderField: "X-Session-Token")
+            request.setValue("Bearer \(session)", forHTTPHeaderField: "Authorization")
         }
 
         let (data, response) = try await session.data(for: request)
@@ -374,13 +370,12 @@ public struct BackendSession: MealRecognizer, MealRefiner, Sendable {
         var request = URLRequest(url: endpoint)
         request.httpMethod = method
         request.timeoutInterval = configuration.timeout
-        request.setValue("Bearer \(configuration.token)", forHTTPHeaderField: "Authorization")
         request.setValue(configuration.deviceID, forHTTPHeaderField: "X-Device-Id")
-        // Separate from Authorization, which carries the shared build token and
-        // says only "this is the app". Sign-in intentionally omits a stale
-        // session so an expired credential cannot prevent recovery.
+        // Sign-in intentionally omits a stale session so an expired credential
+        // cannot prevent recovery. Every other production route requires this
+        // account bearer; pinned evaluation deployments accept no bearer.
         if includeSession, let session = configuration.sessionToken, !session.isEmpty {
-            request.setValue(session, forHTTPHeaderField: "X-Session-Token")
+            request.setValue("Bearer \(session)", forHTTPHeaderField: "Authorization")
         }
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         if method != "DELETE" { request.httpBody = try encoder.encode(body) }
@@ -420,13 +415,8 @@ public struct BackendSession: MealRecognizer, MealRefiner, Sendable {
 
     private struct RefinementRequest: Encodable {
         struct Item: Encodable {
-            let kind: FoodKind
-            /// Nil for a meal logged before weights, or typed in by hand. Sent
-            /// as null rather than filled in: the prompt says "no weight
-            /// recorded" in words, and a model told a hand-typed row weighs 100 g
-            /// has been handed a fact nobody established.
-            let grams: Double?
-            let label: String?
+            let label: String
+            let grams: Double
         }
         let provider: String?
         let current: [Item]

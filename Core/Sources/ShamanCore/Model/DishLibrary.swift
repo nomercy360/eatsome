@@ -52,10 +52,10 @@ public enum DishLibrary {
         var latest: [String: (at: EpochMillis, dish: MealDish)] = [:]
 
         for meal in meals {
-            for dish in meal.storedDishes ?? [] {
-                let name = dish.name.trimmingCharacters(in: .whitespacesAndNewlines)
-                // Corrections land in an unnamed dish (see `MealDish.regrouped`),
-                // and "" is not something anyone would tap.
+            for dish in meal.dishes {
+                let name = (dish.name ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                // Food that belongs to no named dish has none, and "" is not
+                // something anyone would tap.
                 guard !name.isEmpty else { continue }
                 counts[name, default: 0] += 1
                 if (latest[name]?.at ?? 0) <= meal.eatenAt {
@@ -142,8 +142,8 @@ public enum DishLibrary {
         var result: [String: [Daypart: Int]] = [:]
         for meal in meals {
             let daypart = Daypart(at: meal.eatenAt, calendar: calendar)
-            for dish in meal.storedDishes ?? [] {
-                let name = dish.name.trimmingCharacters(in: .whitespacesAndNewlines)
+            for dish in meal.dishes {
+                let name = (dish.name ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !name.isEmpty else { continue }
                 result[name, default: [:]][daypart, default: 0] += 1
             }
@@ -165,17 +165,18 @@ extension DishLibrary.Entry {
         var dish = lastLogged
         dish.items = dish.items.map {
             MealItem(
-                kind: $0.kind,
-                portion: $0.portion,
                 label: $0.label,
-                grams: $0.grams
+                grams: $0.grams,
+                per100g: $0.per100g,
+                provenance: $0.provenance,
+                preparation: $0.preparation,
+                sourceRef: $0.sourceRef
             )
         }
         return MealEntry(
             eatenAt: eatenAt,
-            items: dish.flattened(),
+            dishes: [dish],
             source: .recipe,
-            storedDishes: [dish],
             messageID: messageID
         )
     }

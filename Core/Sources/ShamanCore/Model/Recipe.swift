@@ -14,7 +14,9 @@ import Foundation
 public struct Recipe: Codable, Sendable, Hashable, Identifiable {
     public let id: UUID
     public var name: String
-    public var items: [MealItem]
+    /// What it is made of, as dishes — the same shape a recognised meal stores,
+    /// so logging one is a copy rather than a conversion.
+    public var dishes: [MealDish]
     /// The line you would have written next to the photo: what it cannot show.
     /// Carried into recognition when the recipe is used with a picture.
     public var note: String?
@@ -23,25 +25,41 @@ public struct Recipe: Codable, Sendable, Hashable, Identifiable {
     public init(
         id: UUID = UUIDv7.generate(),
         name: String,
-        items: [MealItem],
+        dishes: [MealDish],
         note: String? = nil,
         updatedAt: EpochMillis = Date().epochMillis
     ) {
         self.id = id
         self.name = name
-        self.items = items
+        self.dishes = dishes
         self.note = note
         self.updatedAt = updatedAt
     }
 
-    /// A fresh meal from this recipe. Item ids are regenerated: two dinners of
-    /// the same dish are two events, and sharing item ids between them would
-    /// make the log lie about which one you corrected.
+    public var items: [MealItem] { dishes.flatMap(\.items) }
+
+    /// A fresh meal from this recipe. Ids are regenerated: two dinners of the
+    /// same dish are two events, and sharing ids between them would make the log
+    /// lie about which one you corrected.
     public func newMeal(eatenAt: EpochMillis, share: MealShare = .whole) -> MealEntry {
         MealEntry(
             eatenAt: eatenAt,
-            items: items.map {
-                MealItem(kind: $0.kind, portion: $0.portion, label: $0.label)
+            dishes: dishes.map { dish in
+                MealDish(
+                    name: dish.name,
+                    count: dish.count,
+                    panel: dish.panel,
+                    items: dish.items.map {
+                        MealItem(
+                            label: $0.label,
+                            grams: $0.grams,
+                            per100g: $0.per100g,
+                            provenance: $0.provenance,
+                            preparation: $0.preparation,
+                            sourceRef: $0.sourceRef
+                        )
+                    }
+                )
             },
             source: .recipe,
             note: note,
@@ -50,11 +68,12 @@ public struct Recipe: Codable, Sendable, Hashable, Identifiable {
         )
     }
 
-    /// The obvious name for a dish assembled from recognition, so saving one is
+    /// The obvious name for a meal assembled from recognition, so saving one is
     /// a tap rather than a typing exercise.
-    public static func suggestedName(for items: [MealItem]) -> String {
-        let labels = items.compactMap(\.label).filter { !$0.isEmpty }
-        if !labels.isEmpty { return labels.prefix(2).joined(separator: ", ") }
-        return items.prefix(2).map(\.kind.displayName).joined(separator: ", ")
+    public static func suggestedName(for dishes: [MealDish]) -> String {
+        let names = dishes.compactMap(\.name).filter { !$0.isEmpty }
+        if !names.isEmpty { return names.prefix(2).joined(separator: ", ") }
+        let labels = dishes.flatMap(\.items).map(\.label).filter { !$0.isEmpty }
+        return labels.prefix(2).joined(separator: ", ")
     }
 }

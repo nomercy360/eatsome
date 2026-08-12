@@ -1,54 +1,31 @@
 import ShamanCore
 import SwiftUI
 
-extension NutrientTotal {
-    /// Honest, actionable copy for incomplete nutrition. `unresolved` means we
-    /// know the weight and broad food kind but not the composition record; an
-    /// explicitly accepted class estimate is a different, less severe state.
-    var foodMatchAttention: String? {
-        var parts: [String] = []
-        if unresolvedGrams > 0.5 {
-            parts.append("\(Int(unresolvedGrams.rounded())) g needs a more specific food match")
-        }
-        if estimatedGrams > 0.5 {
-            parts.append("\(Int(estimatedGrams.rounded())) g is using a broad food estimate")
-        }
-        guard !parts.isEmpty else { return nil }
-        return parts.joined(separator: ". ") + "."
-    }
-}
-
 /// How a stored meal is named in a list.
 enum MealDisplay {
     /// The dish, not its parts. "French toast" is what you logged; "bread" is
     /// its first ingredient, and an ingredient label naming the card is how a
-    /// plate of french toast came to be titled "Bread". Dish names win when
-    /// recognition provided them; the label fallback stays for every meal
-    /// logged before dishes existed, which genuinely has no dish to name.
+    /// plate of french toast came to be titled "Bread". A dish assembled by
+    /// hand has no name, and falls back to what is in it.
     static func title(_ meal: MealEntry) -> String {
-        let dishNames = (meal.storedDishes ?? [])
-            .map { $0.name.trimmingCharacters(in: .whitespaces) }
+        let dishNames = meal.dishes
+            .compactMap { $0.name?.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
         if let first = dishNames.first {
             let title = first.capitalizedFirst
             return dishNames.count > 1 ? "\(title) +\(dishNames.count - 1)" : title
         }
-        // Then the dish an item was recognised under. `storedDishes` is nil on
-        // everything logged before dishes existed and on anything assembled by
-        // hand, but the rows themselves often still carry the name — and "Pork
-        // rice bowl" is what the person ate, where "Pork" is one row of it.
-        let dishes = meal.items.compactMap(\.dish).filter { !$0.isEmpty }
-        if let first = dishes.first { return first.capitalizedFirst }
-        let labels = meal.items.compactMap(\.label).filter { !$0.isEmpty }
-        if let first = labels.first { return first.capitalizedFirst }
-        return uniqueGroups(meal).first?.shortName ?? "Meal"
+        if let first = meal.items.map(\.label).first(where: { !$0.isEmpty }) {
+            return first.capitalizedFirst
+        }
+        return "Meal"
     }
 
     /// Time of day, then what the plate held — the two things that tell you
     /// which meal this was without opening it.
     static func subtitle(_ meal: MealEntry, calendar: Calendar = .current) -> String {
         var parts = [partOfDay(meal, calendar: calendar)]
-        let foods = uniqueGroups(meal).prefix(3).map(\.sentenceName).joined(separator: ", ")
+        let foods = uniqueGroups(meal).prefix(3).joined(separator: ", ")
         if !foods.isEmpty { parts.append(foods) }
         // A half-counted meal looks identical to a whole one otherwise, and the
         // difference is the whole point of the switch.
@@ -71,32 +48,35 @@ enum MealDisplay {
         return "\(partOfDay(meal, calendar: calendar)) · \(time)"
     }
 
-    /// What it counted for, as a phrase: "Eggs, dairy ×2, a sweet touch".
+    /// What was on it, as a phrase: "Bread, banana ×2, syrup".
     ///
-    /// Counted rather than deduplicated, because two dairy rows on one plate is
-    /// a fact about the plate — a glass of milk beside a yoghurt — and the line
-    /// under a meal card is the only place it is visible without opening it.
+    /// Counted rather than deduplicated, because two rows of the same food on
+    /// one plate is a fact about the plate — a glass of milk beside a yoghurt —
+    /// and the line under a meal card is the only place it is visible without
+    /// opening it.
     static func counted(_ meal: MealEntry) -> String {
-        var order: [FoodKind] = []
-        var counts: [FoodKind: Int] = [:]
-        for kind in meal.items.map(\.kind) {
-            if counts[kind] == nil { order.append(kind) }
-            counts[kind, default: 0] += 1
+        var order: [String] = []
+        var counts: [String: Int] = [:]
+        for label in meal.items.map({ $0.label.lowercased() }) {
+            if counts[label] == nil { order.append(label) }
+            counts[label, default: 0] += 1
         }
         guard !order.isEmpty else { return "Nothing recognised" }
 
-        let parts = order.prefix(4).enumerated().map { index, kind -> String in
-            let name = index == 0 ? kind.shortName : kind.sentenceName
-            let count = counts[kind] ?? 1
+        let parts = order.prefix(4).map { name -> String in
+            let count = counts[name] ?? 1
             return count > 1 ? "\(name) ×\(count)" : name
         }
         let phrase = parts.joined(separator: ", ")
         return order.count > 4 ? "\(phrase) and more" : phrase
     }
 
-    static func uniqueGroups(_ meal: MealEntry) -> [FoodKind] {
-        var seen = Set<FoodKind>()
-        return meal.items.map(\.kind).filter { seen.insert($0).inserted }
+    /// The foods on a plate, deduplicated, in the order they were recognised.
+    /// Labels rather than kinds: with the taxonomy gone, what a food is called
+    /// is what a food is.
+    static func uniqueGroups(_ meal: MealEntry) -> [String] {
+        var seen = Set<String>()
+        return meal.items.map(\.label).filter { seen.insert($0.lowercased()).inserted }
     }
 }
 

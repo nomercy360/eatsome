@@ -178,34 +178,42 @@ public struct GeminiSession: MealRecognizer, MealRefiner {
     /// type, and `propertyOrdering` is what keeps the emitted keys stable. Type
     /// names are the proto enum spellings, which every API version accepts.
     static var responseSchema: [String: Any] {
-        let kind: [String: Any] = ["type": "STRING", "enum": FoodKind.allCases.map(\.rawValue)]
+        let composition: [String: Any] = [
+            "type": "OBJECT",
+            "description": "Composition per 100 g of edible portion, as prepared. Never for the stated weight.",
+            "propertyOrdering": ["protein", "fat", "carbohydrate", "kcal", "sodium_mg"],
+            "required": ["protein", "fat", "carbohydrate", "kcal", "sodium_mg"],
+            "properties": [
+                "protein": ["type": "NUMBER", "description": "Grams per 100 g."],
+                "fat": ["type": "NUMBER", "description": "Grams per 100 g."],
+                "carbohydrate": ["type": "NUMBER", "description": "Grams per 100 g."],
+                "kcal": ["type": "NUMBER", "description": "Kilocalories per 100 g."],
+                "sodium_mg": ["type": "NUMBER", "description": "Milligrams per 100 g."]
+            ]
+        ]
         let ingredient: [String: Any] = [
             "type": "OBJECT",
-            "propertyOrdering": [
-                "kind", "grams", "label", "preparation", "composition_hints", "alternatives"
-            ],
-            "required": [
-                "kind", "grams", "label", "preparation", "composition_hints", "alternatives"
-            ],
+            "propertyOrdering": ["label", "grams", "per_100g", "preparation", "alternatives"],
+            "required": ["label", "grams", "per_100g", "preparation", "alternatives"],
             "properties": [
-                "kind": kind,
+                "label": [
+                    "type": "STRING",
+                    "description": "Short, specific food name. Required — it is the whole identity."
+                ],
                 "grams": ["type": "NUMBER", "description": MealPrompt.gramsDescription],
-                "label": ["type": "STRING", "description": "Short, specific food name."],
+                "per_100g": composition,
                 "preparation": [
                     "type": "ARRAY",
                     "items": ["type": "STRING", "enum": PreparationMethod.allCases.map(\.rawValue)]
                 ],
-                "composition_hints": [
-                    "type": "ARRAY",
-                    "items": ["type": "STRING", "enum": CompositionHint.allCases.map(\.rawValue)]
-                ],
                 "alternatives": [
                     "type": "ARRAY",
+                    "description": "Other plausible foods, most likely first, each priced. Empty when obvious. At most three.",
                     "items": [
                         "type": "OBJECT",
-                        "propertyOrdering": ["label", "kind"],
-                        "required": ["label", "kind"],
-                        "properties": ["label": ["type": "STRING"], "kind": kind]
+                        "propertyOrdering": ["label", "per_100g"],
+                        "required": ["label", "per_100g"],
+                        "properties": ["label": ["type": "STRING"], "per_100g": composition]
                     ]
                 ]
             ]
@@ -236,8 +244,8 @@ public struct GeminiSession: MealRecognizer, MealRefiner {
         ]
         return [
             "type": "OBJECT",
-            "propertyOrdering": ["dishes", "other_meals_visible", "notes"],
-            "required": ["dishes", "other_meals_visible", "notes"],
+            "propertyOrdering": ["dishes"],
+            "required": ["dishes"],
             "properties": [
                 "dishes": [
                     "type": "ARRAY",
@@ -252,15 +260,6 @@ public struct GeminiSession: MealRecognizer, MealRefiner {
                             "ingredients": ["type": "ARRAY", "items": ingredient]
                         ]
                     ]
-                ],
-                "other_meals_visible": [
-                    "type": "BOOLEAN",
-                    "description": "True when food on another tray or place setting was deliberately ignored."
-                ],
-                "notes": [
-                    "type": "STRING",
-                    "nullable": true,
-                    "description": "Ambiguities worth a human glance. Null if none."
                 ]
             ]
         ]

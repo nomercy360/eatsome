@@ -4,7 +4,7 @@ import type {
   RecognitionRequest,
   RerunRecognitionRequest,
 } from "../../src/contracts";
-import { flattenDishes } from "../../src/contracts";
+import { normalizePanels } from "../../src/contracts";
 import { decodeBase64Image, encodeBase64Image, sha256Hex } from "../ai/image";
 import { modelFor, requestMealRecognition, resolveProvider } from "../ai/recognize";
 import { createDb } from "../db/client";
@@ -167,7 +167,7 @@ async function recognizeInput(
     inputFingerprint: fingerprint,
     promptVersion: env.MEAL_PROMPT_VERSION,
     model,
-    result: flattenDishes(result.recognition),
+    result: normalizePanels(result.recognition),
     rawModelJson: result.rawModelJson,
     providerRequestId: result.requestId,
     inputTokens: result.inputTokens,
