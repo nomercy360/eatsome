@@ -137,8 +137,8 @@ private struct DayCard: View {
         }
     }
 
-    private var groups: [FoodGroup] {
-        var seen = Set<FoodGroup>()
-        return meals.flatMap(\.items).map(\.group).filter { seen.insert($0).inserted }
+    private var groups: [FoodKind] {
+        var seen = Set<FoodKind>()
+        return meals.flatMap(\.items).map(\.kind).filter { seen.insert($0).inserted }
     }
 }

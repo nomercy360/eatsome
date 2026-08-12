@@ -2,7 +2,9 @@ import Foundation
 
 public struct MealItem: Codable, Sendable, Hashable, Identifiable {
     public let id: UUID
-    public var group: FoodGroup
+    public var kind: FoodKind
+    public var preparation: [PreparationMethod]
+    public var compositionHints: [CompositionHint]
     /// How much of it there was, coarsely. Nothing sets this any more — no model
     /// is asked for one and no screen offers one — but it stays required and
     /// stays stored, because it is on every line of `events.jsonl` written
@@ -16,7 +18,10 @@ public struct MealItem: Codable, Sendable, Hashable, Identifiable {
     /// items and for items whose group was later changed by a human — once you
     /// have decided, the model's shortlist describes a different question.
     /// Empty means the model was asked and had no rival in mind.
-    public var modelAlternatives: [FoodGroup]?
+    public var modelAlternatives: [FoodAlternative]?
+    /// How this food was (or was not) connected to a composition record.
+    /// Nil on events from before provenance existed.
+    public var resolution: NutrientResolution?
     /// The dish this came out of, when recognition named one. Nil on every meal
     /// logged before dishes existed, which is why nothing may depend on it.
     public var dish: String?
@@ -40,7 +45,7 @@ public struct MealItem: Codable, Sendable, Hashable, Identifiable {
     /// where `servings` is arithmetic done upstream and `portion` is a bucket.
     /// Then the flattened `servings`, then the portion the picker offers.
     public func effectiveServings(servingGrams: [String: Double] = ServingWeight.defaultGrams) -> Double {
-        if let grams { return ServingWeight.servings(fromGrams: grams, of: group, table: servingGrams) }
+        if let grams { return ServingWeight.servings(fromGrams: grams, of: kind, table: servingGrams) }
         return servings ?? portion.servings
     }
 
@@ -51,32 +56,84 @@ public struct MealItem: Codable, Sendable, Hashable, Identifiable {
     public func withoutDishQuantity() -> MealItem {
         MealItem(
             id: id,
-            group: group,
+            kind: kind,
             portion: portion,
             label: label,
             modelAlternatives: modelAlternatives,
+            preparation: preparation,
+            compositionHints: compositionHints,
+            resolution: resolution,
             grams: grams
         )
     }
 
     public init(
         id: UUID = UUIDv7.generate(),
-        group: FoodGroup,
+        kind: FoodKind,
         portion: Portion = .medium,
         label: String? = nil,
-        modelAlternatives: [FoodGroup]? = nil,
+        modelAlternatives: [FoodAlternative]? = nil,
+        preparation: [PreparationMethod] = [],
+        compositionHints: [CompositionHint] = [],
+        resolution: NutrientResolution? = nil,
         dish: String? = nil,
         servings: Double? = nil,
         grams: Double? = nil
     ) {
         self.id = id
-        self.group = group
+        self.kind = kind
         self.portion = portion
         self.label = label
         self.modelAlternatives = modelAlternatives
+        self.preparation = preparation
+        self.compositionHints = compositionHints
+        self.resolution = resolution
         self.dish = dish
         self.servings = servings
         self.grams = grams
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, kind, group, portion, label, modelAlternatives
+        case preparation, compositionHints, resolution, dish, servings, grams
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        id = try values.decode(UUID.self, forKey: .id)
+        // TAXONOMY_BRIDGE_REMOVE_AFTER_V20_AUDIT: legacy `group` is decode-only.
+        kind = try values.decodeIfPresent(FoodKind.self, forKey: .kind)
+            ?? values.decode(FoodKind.self, forKey: .group)
+        portion = try values.decodeIfPresent(Portion.self, forKey: .portion) ?? .medium
+        label = try values.decodeIfPresent(String.self, forKey: .label)
+        if let structured = try? values.decodeIfPresent([FoodAlternative].self, forKey: .modelAlternatives) {
+            modelAlternatives = structured
+        } else if let legacy = try? values.decodeIfPresent([FoodKind].self, forKey: .modelAlternatives) {
+            modelAlternatives = legacy.map { FoodAlternative(label: $0.displayName, kind: $0) }
+        } else {
+            modelAlternatives = nil
+        }
+        preparation = try values.decodeIfPresent([PreparationMethod].self, forKey: .preparation) ?? []
+        compositionHints = try values.decodeIfPresent([CompositionHint].self, forKey: .compositionHints) ?? []
+        resolution = try values.decodeIfPresent(NutrientResolution.self, forKey: .resolution)
+        dish = try values.decodeIfPresent(String.self, forKey: .dish)
+        servings = try values.decodeIfPresent(Double.self, forKey: .servings)
+        grams = try values.decodeIfPresent(Double.self, forKey: .grams)
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var values = encoder.container(keyedBy: CodingKeys.self)
+        try values.encode(id, forKey: .id)
+        try values.encode(kind, forKey: .kind)
+        try values.encode(portion, forKey: .portion)
+        try values.encodeIfPresent(label, forKey: .label)
+        try values.encodeIfPresent(modelAlternatives, forKey: .modelAlternatives)
+        try values.encode(preparation, forKey: .preparation)
+        try values.encode(compositionHints, forKey: .compositionHints)
+        try values.encodeIfPresent(resolution, forKey: .resolution)
+        try values.encodeIfPresent(dish, forKey: .dish)
+        try values.encodeIfPresent(servings, forKey: .servings)
+        try values.encodeIfPresent(grams, forKey: .grams)
     }
 }
 
@@ -160,11 +217,11 @@ public enum MealShare: String, Codable, Sendable, CaseIterable {
     }
 }
 
-/// Shared serving arithmetic for meal summaries and olive ratings.
+/// Shared serving arithmetic for meal summaries.
 ///
-/// Kept here so every consumer applies the same per-meal group cap.
+/// Kept here so every consumer applies the same per-meal kind cap.
 public enum MealPortions {
-    /// The most any single meal can contribute for one food group, in servings.
+    /// The most any single meal can contribute for one food kind, in servings.
     ///
     /// Recognition splits a dish into as many rows as it sees — `cherry tomato`
     /// and `side salad`, or four kinds of fruit on one platter — and that is the
@@ -279,20 +336,20 @@ public struct MealEntry: Codable, Sendable, Hashable, Identifiable {
     /// What this meal contributes for one group: the plate, capped
     /// at one large portion per group, then scaled by how much of it you ate.
     public func servings(
-        of group: FoodGroup,
+        of kind: FoodKind,
         servingGrams: [String: Double] = ServingWeight.defaultGrams
     ) -> Double {
-        min(rawServings(of: group, servingGrams: servingGrams), MealPortions.perMealGroupCap)
+        min(rawServings(of: kind, servingGrams: servingGrams), MealPortions.perMealGroupCap)
             * eaten.factor
     }
 
     /// What is on the plate, before either rule applies. This is the number to
     /// show next to the food; `servings(of:)` applies the per-meal cap.
     public func rawServings(
-        of group: FoodGroup,
+        of kind: FoodKind,
         servingGrams: [String: Double] = ServingWeight.defaultGrams
     ) -> Double {
-        items.filter { $0.group == group }
+        items.filter { $0.kind == kind }
             .reduce(0) { $0 + $1.effectiveServings(servingGrams: servingGrams) }
     }
 

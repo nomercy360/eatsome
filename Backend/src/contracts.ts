@@ -1,37 +1,91 @@
 import * as z from "zod";
 
-export const foodGroups = [
-  "olive_oil",
-  "vegetables",
+export const foodKinds = [
+  "rice",
+  "pasta_noodles",
+  "bread_flatbread",
+  "cereal_porridge",
+  "potato",
+  "other_starchy_vegetable",
+  "vegetable",
+  "mushroom_seaweed",
   "fruit",
-  "legumes",
-  "fish",
-  "nuts",
-  "plant_fats",
-  "whole_grains",
-  "refined_grains",
-  "white_meat",
-  "red_meat",
+  "avocado_olive",
+  "legume",
+  "soy_product",
+  "nuts_seeds",
+  "beef",
+  "pork",
+  "lamb_game",
+  "poultry",
   "processed_meat",
-  "dairy",
+  "organ_meat",
+  "fish",
+  "shellfish",
   "egg",
-  "sweets",
+  "milk",
+  "yogurt",
+  "cheese",
+  "cream",
+  "plant_milk",
+  "oil",
+  "butter_margarine",
+  "mayonnaise_dressing",
+  "sauce_condiment",
+  "soup_broth",
+  "sugar_honey_syrup",
+  "chocolate_candy",
+  "cake_cookie",
   "pastry",
-  "sugary_drinks",
+  "frozen_dessert",
+  "savory_snack",
+  "nutrition_bar",
+  "water",
   "coffee",
   "tea",
   "juice",
-  "plant_milk",
   "smoothie",
-  "butter",
-  "vegetable_oil",
-  "alcohol",
-  "cooked_tomato_sauce",
-  "other",
+  "soft_sports_energy_drink",
+  "beer",
+  "wine",
+  "spirit_cocktail",
+  "supplement",
+  "meal_replacement",
+  "unknown",
+] as const;
+
+export const preparationMethods = [
+  "raw",
+  "boiled",
+  "steamed",
+  "baked",
+  "roasted",
+  "grilled",
+  "pan_fried",
+  "deep_fried",
+  "smoked",
+  "cured",
+  "fermented",
+  "dried",
+] as const;
+
+export const compositionHints = [
+  "whole_grain",
+  "refined_grain",
+  "breaded",
+  "sweetened",
+  "unsweetened",
+  "tomato_based",
+  "soy_based",
+  "dairy_based",
+  "oil_based",
+  "meat_based",
+  "creamy",
 ] as const;
 
 /**
- * What a food group used to be called on disk.
+ * TAXONOMY_BRIDGE_REMOVE_AFTER_V20_AUDIT: what a food group used to be called
+ * on disk. New writes use `kind`; remove after the D1/reinstall audit.
  *
  * The taxonomy audit renamed two groups — `sofrito` became
  * `cooked_tomato_sauce`, `healthy_fats` became `plant_fats` — because both
@@ -44,15 +98,37 @@ export const foodGroups = [
  * is a fault worth seeing, and silently accepting it is how a stale prompt
  * survives a deploy.
  */
-export const legacyFoodGroups: Record<string, (typeof foodGroups)[number]> = {
-  sofrito: "cooked_tomato_sauce",
-  healthy_fats: "plant_fats",
+export const legacyFoodKinds: Record<string, (typeof foodKinds)[number]> = {
+  olive_oil: "oil",
+  vegetable_oil: "oil",
+  vegetables: "vegetable",
+  legumes: "legume",
+  nuts: "nuts_seeds",
+  plant_fats: "avocado_olive",
+  healthy_fats: "avocado_olive",
+  whole_grains: "bread_flatbread",
+  refined_grains: "bread_flatbread",
+  whole_grain: "bread_flatbread",
+  refined_grain: "bread_flatbread",
+  white_meat: "poultry",
+  red_meat: "beef",
+  dairy: "milk",
+  sweets: "chocolate_candy",
+  sugary_drinks: "soft_sports_energy_drink",
+  butter: "butter_margarine",
+  butter_margarine_cream: "butter_margarine",
+  alcohol: "beer",
+  cooked_tomato_sauce: "sauce_condiment",
+  sofrito: "sauce_condiment",
+  potatoes: "potato",
+  sauce: "sauce_condiment",
+  other: "unknown",
 };
 
-export const storedFoodGroup = z.preprocess(
+export const storedFoodKind = z.preprocess(
   (value) =>
-    typeof value === "string" && value in legacyFoodGroups ? legacyFoodGroups[value] : value,
-  z.enum(foodGroups),
+    typeof value === "string" && value in legacyFoodKinds ? legacyFoodKinds[value] : value,
+  z.enum(foodKinds),
 );
 
 /**
@@ -103,7 +179,7 @@ const rawJsonSchema = z
   }, "Expected valid raw model JSON.");
 
 export const mealRecognitionItemSchema = z.strictObject({
-  group: z.enum(foodGroups),
+  kind: z.enum(foodKinds),
   // Edible weight on the plate, absolute: everything of this ingredient that is
   // there, across every serving present. Nothing multiplies it by the dish's
   // count afterwards.
@@ -114,12 +190,21 @@ export const mealRecognitionItemSchema = z.strictObject({
   // parsed, and every answer used the ladder grams had replaced. With
   // nothing behind it, a weightless answer is now a loud one.
   grams: z.number().min(0).max(20_000),
-  label: z.string().max(200).nullable(),
+  label: z.string().min(1).max(200),
+  preparation: z.array(z.enum(preparationMethods)).max(4),
+  composition_hints: z.array(z.enum(compositionHints)).max(5),
   // Uncertainty is a shortlist of rival groups, not a number. A model asked to
   // quantify its own certainty returns the same round value for every item on the
   // plate; asked what else the food could be, it answers about the food — and
   // the answer doubles as the one-tap correction in the client.
-  alternatives: z.array(z.enum(foodGroups)),
+  alternatives: z
+    .array(
+      z.strictObject({
+        label: z.string().min(1).max(200),
+        kind: z.enum(foodKinds),
+      }),
+    )
+    .max(3),
 });
 
 /**
@@ -362,7 +447,7 @@ export const rerunRecognitionRequestSchema = z.strictObject({
 export type RerunRecognitionRequest = z.infer<typeof rerunRecognitionRequestSchema>;
 
 export const refinementItemSchema = z.strictObject({
-  group: storedFoodGroup,
+  kind: storedFoodKind,
   // Nullable here and nowhere else in the recognition path: this is the list as
   // it stands on the person's phone, and a meal logged before grams — or added
   // by hand — genuinely has no weight to send. The prompt says so in words when
@@ -382,17 +467,28 @@ export type RefinementRequest = z.infer<typeof refinementRequestSchema>;
 export const mealRevisionSchema = z.strictObject({
   add: z.array(
     z.strictObject({
-      group: z.enum(foodGroups),
+      kind: z.enum(foodKinds),
       grams: z.number().min(0).max(20_000),
-      label: z.string().max(200).nullable(),
-      alternatives: z.array(z.enum(foodGroups)).max(3),
+      label: z.string().min(1).max(200),
+      preparation: z.array(z.enum(preparationMethods)).max(4),
+      composition_hints: z.array(z.enum(compositionHints)).max(5),
+      alternatives: z
+        .array(
+          z.strictObject({
+            label: z.string().min(1).max(200),
+            kind: z.enum(foodKinds),
+          }),
+        )
+        .max(3),
     }),
   ),
   revise: z.array(
     z.strictObject({
       index: z.number().int().min(1).max(64),
-      group: z.enum(foodGroups),
+      kind: z.enum(foodKinds),
       grams: z.number().min(0).max(20_000),
+      preparation: z.array(z.enum(preparationMethods)).max(4),
+      composition_hints: z.array(z.enum(compositionHints)).max(5),
     }),
   ),
   remove: z.array(z.number().int().min(1).max(64)),
@@ -407,27 +503,58 @@ export function mealRevisionJsonSchema(): Record<string, unknown> {
   return schema;
 }
 
-export const mealItemSchema = z.strictObject({
-  id: z.string().uuid(),
-  group: storedFoodGroup,
-  // Stored, not requested. `portion` stays required because it is on every line
-  // of every `events.jsonl` ever written and the log is append-only — v17 stops
-  // asking a model for one, it does not rewrite history. New items carry the
-  // schema default and use `grams`.
-  portion: z.enum(portions),
-  label: z.string().max(200).nullable().optional(),
-  modelAlternatives: z.array(storedFoodGroup).nullable().optional(),
-  // Events written before the alternatives contract still sync from devices
-  // that have them in their append-only log. Accept, do not require.
-  modelConfidence: z.number().min(0).max(1).nullable().optional(),
-  // A strict object rejects what it does not name, and `MealItem` has carried
-  // these three since dishes and grams landed. Without them here every weighed
-  // meal 400s on sync — invisible until now only because the production Gemini
-  // schema was never emitting a weight for one to carry.
-  grams: z.number().min(0).max(20_000).nullable().optional(),
-  servings: z.number().min(0).nullable().optional(),
-  dish: z.string().max(120).nullable().optional(),
+const storedAlternativeSchema = z.strictObject({
+  label: z.string().min(1).max(200),
+  kind: storedFoodKind,
 });
+
+const foodReferenceSchema = z.strictObject({
+  database: z.enum(["usda_fdc", "mext", "label"]),
+  id: z.string().min(1).max(120),
+  version: z.string().min(1).max(120),
+  canonicalName: z.string().min(1).max(300),
+});
+
+const nutrientResolutionSchema = z.strictObject({
+  status: z.enum(["label", "exact", "user_confirmed", "class_estimate", "unresolved"]),
+  foodRef: foodReferenceSchema.nullable().optional(),
+  reason: z.string().max(500).nullable().optional(),
+});
+
+export const mealItemSchema = z
+  .strictObject({
+    id: z.string().uuid(),
+    kind: storedFoodKind.optional(),
+    /** Accepted only while development builds with append-only `group` events
+     * are still syncing. New clients encode `kind`. */
+    group: storedFoodKind.optional(),
+    // Stored, not requested. `portion` stays required because it is on every line
+    // of every `events.jsonl` ever written and the log is append-only — v17 stops
+    // asking a model for one, it does not rewrite history. New items carry the
+    // schema default and use `grams`.
+    portion: z.enum(portions),
+    label: z.string().max(200).nullable().optional(),
+    modelAlternatives: z
+      .union([z.array(storedAlternativeSchema), z.array(storedFoodKind)])
+      .nullable()
+      .optional(),
+    preparation: z.array(z.enum(preparationMethods)).max(4).optional(),
+    compositionHints: z.array(z.enum(compositionHints)).max(5).optional(),
+    resolution: nutrientResolutionSchema.nullable().optional(),
+    // Events written before the alternatives contract still sync from devices
+    // that have them in their append-only log. Accept, do not require.
+    modelConfidence: z.number().min(0).max(1).nullable().optional(),
+    // A strict object rejects what it does not name, and `MealItem` has carried
+    // these three since dishes and grams landed. Without them here every weighed
+    // meal 400s on sync — invisible until now only because the production Gemini
+    // schema was never emitting a weight for one to carry.
+    grams: z.number().min(0).max(20_000).nullable().optional(),
+    servings: z.number().min(0).nullable().optional(),
+    dish: z.string().max(120).nullable().optional(),
+  })
+  .refine((item) => item.kind !== undefined || item.group !== undefined, {
+    message: "A stored meal item needs kind (or legacy group).",
+  });
 
 export const recognitionEvidenceSchema = z.strictObject({
   promptVersion: z.string().min(1).max(120),
@@ -600,7 +727,7 @@ export const tableVisibilitySchema = z.strictObject({
  * "what's in it", not "how did they do".
  */
 export const postIngredientSchema = z.strictObject({
-  group: z.enum(foodGroups),
+  kind: z.enum(foodKinds),
   grams: z.number().min(0).max(20_000).nullable(),
   label: z.string().max(200).nullable(),
 });

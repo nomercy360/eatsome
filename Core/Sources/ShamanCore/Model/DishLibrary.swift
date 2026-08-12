@@ -165,7 +165,7 @@ extension DishLibrary.Entry {
         var dish = lastLogged
         dish.items = dish.items.map {
             MealItem(
-                group: $0.group,
+                kind: $0.kind,
                 portion: $0.portion,
                 label: $0.label,
                 grams: $0.grams

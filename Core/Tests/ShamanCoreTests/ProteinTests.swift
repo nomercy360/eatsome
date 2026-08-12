@@ -2,401 +2,124 @@ import Foundation
 import Testing
 @testable import ShamanCore
 
-@Suite("Protein")
+@Suite("Nutrient totals")
 struct ProteinTests {
-    @Test("A meal sums its groups by portion")
-    func sumsAcrossItems() {
-        let dinner = MealEntry.fixture(daysAgo: 0, [
-            (.fish, .large),       // 22 × 2
-            (.wholeGrains, .medium), // 4 × 1
-            (.vegetables, .small)   // 2 × 0.5
-        ])
-        #expect(Protein.grams(in: dinner) == 44 + 4 + 1)
-    }
-
-    @Test("Eating half the plate is half the protein")
-    func sharedPlate() {
-        var shared = MealEntry.fixture(daysAgo: 0, [(.whiteMeat, .medium)])
-        shared.share = .part
-        #expect(Protein.grams(in: shared) == 13)
-    }
-
-    @Test("The summary per-meal cap does not apply to protein")
-    func capIsForPlateSummaryOnly() {
-        // Four fillets on one platter read as one plate of fish, but you still
-        // ate four fillets' worth of protein.
-        let platter = MealEntry.fixture(
-            daysAgo: 0,
-            Array(repeating: (FoodGroup.fish, Portion.medium), count: 4)
+    private var foods: FoodNutrientTable {
+        FoodNutrientTable(
+            version: "test",
+            foods: [
+                "fish|salmon": .init(
+                    per100g: Nutrients(protein: 20, fat: 8, kcal: 160, sodium: 50),
+                    source: "sr:salmon", basis: "analysed", name: "Salmon"
+                ),
+                "beef|beef": .init(
+                    per100g: Nutrients(protein: 24, fat: 10, kcal: 200, sodium: 40),
+                    source: "sr:beef", basis: "analysed", name: "Beef"
+                ),
+                "rice|rice": .init(
+                    per100g: Nutrients(protein: 2, carbohydrate: 28, kcal: 130, sodium: 1),
+                    source: "sr:rice", basis: "analysed", name: "Rice, cooked"
+                )
+            ]
         )
-        #expect(platter.servings(of: .fish) == MealPortions.perMealGroupCap)
-        #expect(Protein.grams(in: platter) == 88)
     }
 
-    @Test("A described dish is counted whole, with no share taken off it")
-    func dishIsOneServingOfItself() {
-        // The dishes screen counts a recipe as written. Halving belongs to the
-        // meal you log from it, which is where `share` lives.
-        let soup: [MealItem] = [
-            MealItem(group: .legumes, portion: .large),   // 8 × 2
-            MealItem(group: .vegetables, portion: .medium) // 2 × 1
+    @Test("Named, weighed foods sum from composition rows")
+    func sumsAcrossItems() {
+        let items = [
+            MealItem(kind: .beef, label: "beef", grams: 300),
+            MealItem(kind: .rice, label: "rice", grams: 400)
         ]
-        #expect(Protein.grams(in: soup) == 18)
-
-        var half = MealEntry.fixture(daysAgo: 0, [(.legumes, .large), (.vegetables, .medium)])
-        half.share = .part
-        #expect(Protein.grams(in: half) == 9)
+        #expect(Protein.grams(in: items, foods: foods) == 80)
+        #expect(Nutrition.total(in: items, foods: foods).exactGrams == 700)
     }
 
-    @Test("A counted dish contributes its count, not its portion")
-    func countedDish() {
-        // Three beers arrive as one dish with count 3, flattened to servings 3.0.
-        // No case of `Portion` can say three, which is why the field exists.
-        let beers = MealItem(group: .alcohol, portion: .medium, label: "beer", dish: "beer", servings: 3)
-        #expect(beers.effectiveServings() == 3)
-
-        // A meal from before dishes has no servings and is unchanged by any of this.
-        let legacy = MealItem(group: .fish, portion: .large)
-        #expect(legacy.effectiveServings() == Portion.large.servings)
-
-        let dinner = MealEntry(
+    @Test("Meal share scales nutrients and resolution coverage")
+    func sharedPlate() {
+        var shared = MealEntry(
             eatenAt: 0,
-            items: [
-                MealItem(group: .whiteMeat, portion: .medium, dish: "fried rice", servings: 2),
-                MealItem(group: .refinedGrains, portion: .medium, dish: "fried rice", servings: 2)
-            ],
+            items: [MealItem(kind: .fish, label: "salmon", grams: 200)],
             source: .photo
         )
-        // 26 × 2 for the meat, 3 × 2 for the rice.
-        #expect(Protein.grams(in: dinner) == 52 + 6)
+        shared.share = .part
+        let total = Nutrition.total(in: shared, foods: foods)
+        #expect(total.nutrients.protein == 20)
+        #expect(total.exactGrams == 100)
+
+        shared.share = .taste
+        #expect(Nutrition.total(in: shared, foods: foods).nutrients.protein == 10)
     }
 
-    @Test("A dish is worth the same whether it is read whole or as rows")
-    func dishAgreesWithItsRows() {
-        // The dish sheet reads the dish; the sentence above it reads the rows
-        // `flattened()` produced. A tester saw 38 g on one and 76 g on the
-        // other because only one of them applied `size` (TestFlight, build on
-        // 2026-08-06). The two must not be able to drift again.
-        for size in Portion.allCases {
-            for count in [1, 2, 5] {
-                let ramen = MealDish(
-                    name: "ramen",
-                    count: count,
-                    size: size,
-                    items: [
-                        MealItem(group: .refinedGrains, portion: .large, label: "ramen noodles"),
-                        MealItem(group: .redMeat, portion: .medium, label: "chashu pork"),
-                        MealItem(group: .whiteMeat, portion: .medium, label: "soft boiled egg"),
-                        MealItem(group: .vegetables, portion: .small, label: "scallions and spinach")
-                    ]
-                )
-                #expect(Protein.grams(in: ramen) == Protein.grams(in: ramen.flattened()))
-            }
-        }
-
-        // One normal serving is the ingredients as described; a large one is
-        // twice that. Reading `dish.items` alone reports the large plate as
-        // normal, which is precisely the bug.
-        let plate = [MealItem(group: .redMeat, portion: .medium, label: "steak")]
-        let large = MealDish(name: "steak", size: .large, items: plate)
-        #expect(Protein.grams(in: large) == Protein.grams(in: plate) * 2)
-    }
-
-    @Test("A label beats the food group, before saving and after")
-    func panelBeatsTheGroupOnBothSides() {
-        // A zero-calorie energy drink is `other`, which the table calls 2 g.
-        // The can says 0. A tester saw 2 g while composing and 0 g once it was
-        // saved, because the composing screen summed `flattened()` rows and a
-        // flat row carries no panel (TestFlight, 2026-08-06).
-        let monster = MealDish(
-            name: "Monster Energy Drink",
-            panel: NutritionPanel(protein: 0, calories: 0),
-            items: [MealItem(group: .other, portion: .medium, label: "zero-calorie energy drink")]
-        )
-        #expect(Protein.grams(in: [monster]) == 0)
-
-        let saved = MealEntry(
-            eatenAt: 0,
-            items: monster.flattened(),
-            source: .photo,
-            storedDishes: [monster]
-        )
-        #expect(Protein.grams(in: saved) == Protein.grams(in: [monster]))
-
-        // And the panel keeps winning as the two controls move: count multiplies
-        // the printed figure, size does not touch it.
-        var three = monster
-        three.count = 3
-        three.size = .large
-        three.panel = NutritionPanel(protein: 5, calories: 0)
-        #expect(Protein.grams(in: [three]) == 15)
-    }
-
-    @Test("A drink with no protein reads as the caffeine its label printed")
-    func caffeineTakesTheSlot() {
-        let monster = MealDish(
-            name: "Monster Energy Drink",
-            panel: NutritionPanel(protein: 0, caffeine: 142),
-            items: [MealItem(group: .other, portion: .medium, label: "zero-calorie energy drink")]
-        )
-        #expect(PlateFigure.forPlate([monster]) == .caffeine(milligrams: 142))
-        #expect(PlateFigure.forPlate([monster]).text == "142 mg caffeine")
-
-        // Two cans is twice the caffeine; a "large" can is not, because the
-        // printed figure is for what the container holds.
-        var two = monster
-        two.count = 2
-        two.size = .large
-        #expect(PlateFigure.forPlate([two]) == .caffeine(milligrams: 284))
-
-        // Half of it is half of it, exactly as protein is.
-        #expect(PlateFigure.forPlate([monster], share: .part) == .caffeine(milligrams: 71))
-
-        // Protein wins whenever there is any: caffeine is the fallback, not a
-        // second figure competing for the slot.
-        let withFood = [monster, MealDish(name: "onigiri", items: [
-            MealItem(group: .fish, portion: .small, label: "salmon")
-        ])]
-        #expect(PlateFigure.forPlate(withFood) == .protein(grams: 11))
-
-        // An unlabelled coffee alongside it would make 142 mg an understatement
-        // of the plate, so the figure stays on protein rather than lying.
-        let alsoCoffee = [monster, MealDish(name: "coffee", items: [
-            MealItem(group: .coffee, portion: .medium, label: "black coffee")
-        ])]
-        #expect(PlateFigure.forPlate(alsoCoffee) == .protein(grams: 0))
-
-        // No panel anywhere is the ordinary case and never mentions caffeine.
-        let ramen = MealDish(name: "ramen", items: [
-            MealItem(group: .refinedGrains, portion: .medium, label: "noodles")
-        ])
-        #expect(PlateFigure.forPlate([ramen]).text == "3 g protein")
-    }
-
-    @Test("A taste is a quarter, and an unknown share is not a lost meal")
-    func shareHasThreeAnswers() throws {
-        #expect(MealShare.whole.factor == 1.0)
-        #expect(MealShare.part.factor == 0.5)
-        #expect(MealShare.taste.factor == 0.25)
-        #expect(MealShare.allCases.map(\.chipName) == ["All of it", "Half", "A taste"])
-
-        let plate = MealEntry.fixture(daysAgo: 0, [(.whiteMeat, .medium)])
-        var picked = plate
-        picked.share = .taste
-        #expect(Protein.grams(in: picked) == 26 * 0.25)
-
-        // A share written by a newer build decodes to `whole` rather than
-        // throwing. Throwing would fail the whole `MealEntry`, and a meal that
-        // will not decode is a meal that disappears from the projection without
-        // saying so.
-        let future = try JSONDecoder().decode(MealShare.self, from: Data(#""nibbled""#.utf8))
-        #expect(future == .whole)
-        let known = try JSONDecoder().decode(MealShare.self, from: Data(#""taste""#.utf8))
-        #expect(known == .taste)
-    }
-
-    @Test("A weighed dish is its weight, and nothing multiplies it")
+    @Test("Dish size and count never multiply absolute grams")
     func gramsAreAbsolute() {
-        // 300 g of beef in a pan is three servings of red meat. The portion
-        // ladder could not say that at all — `large` caps at two — which is why
-        // a photograph of exactly this read low all evening.
         let pan = MealDish(
-            name: "beef fried rice",
-            count: 1,
+            name: "beef rice",
+            count: 3,
             size: .large,
             items: [
-                MealItem(group: .redMeat, portion: .large, label: "beef", grams: 300),
-                MealItem(group: .refinedGrains, portion: .large, label: "rice", grams: 400)
+                MealItem(kind: .beef, label: "beef", grams: 300),
+                MealItem(kind: .rice, label: "rice", grams: 400)
             ]
         )
         #expect(pan.weighed)
-        // 300/100 × 24 for the beef, 400/150 × 3 for the rice. `size: .large`
-        // is present and must change nothing.
-        #expect(Protein.grams(in: pan) == 72 + 8)
-
-        var normal = pan
-        normal.size = .medium
-        #expect(Protein.grams(in: normal) == Protein.grams(in: pan))
-
-        // The flat rows agree with the dish, as they must — that equality is
-        // what the 38-vs-76 bug broke.
-        #expect(Protein.grams(in: pan.flattened()) == Protein.grams(in: pan))
-        // And no `servings` is written beside the grams, or the two could drift.
-        #expect(pan.flattened().allSatisfy { $0.servings == nil && $0.grams != nil })
-
-        // A dish with no weights is unchanged: the ladder still multiplies.
-        let described = MealDish(name: "steak", size: .large,
-                                 items: [MealItem(group: .redMeat, portion: .medium)])
-        #expect(!described.weighed)
-        #expect(Protein.grams(in: described) == 48)
+        #expect(Protein.grams(in: pan, foods: foods) == 80)
+        #expect(Protein.grams(in: pan.flattened(), foods: foods) == 80)
     }
 
-    @Test("The count control rewrites the weight instead of multiplying it")
+    @Test("Changing a counted dish rewrites weight instead of stacking factors")
     func countScalesGrams() {
         let beers = MealDish(
-            name: "beer", count: 3,
-            items: [MealItem(group: .alcohol, portion: .medium, label: "beer", grams: 1500)]
+            name: "beer",
+            count: 3,
+            items: [MealItem(kind: .beer, label: "beer", grams: 1500)]
         )
-        // Three 500 ml beers. Saying you only had one takes the weight down to
-        // one, rather than leaving 1500 g behind a label that says "1".
-        let one = beers.scaled(toCount: 1)
-        #expect(one.count == 1)
-        #expect(one.items[0].grams == 500)
+        #expect(beers.scaled(toCount: 1).items[0].grams == 500)
         #expect(beers.scaled(toCount: 6).items[0].grams == 3000)
-
-        // A dish described in portions has no weight to rewrite, so only the
-        // count moves and the old arithmetic still applies.
-        let described = MealDish(name: "beer", count: 3,
-                                 items: [MealItem(group: .alcohol, portion: .medium)])
-        #expect(described.scaled(toCount: 1).count == 1)
-        #expect(described.scaled(toCount: 1).items[0].grams == nil)
     }
 
-    @Test("Grams outrank the ladder, and a meal without them is untouched")
-    func gramsWinOverPortion() {
-        let weighed = MealItem(group: .fish, portion: .small, grams: 200)
-        #expect(weighed.effectiveServings() == 2)          // 200/100, not 0.5
-        let described = MealItem(group: .fish, portion: .small)
-        #expect(described.effectiveServings() == 0.5)
+    @Test("Grams outrank legacy portion arithmetic")
+    func gramsWinOverPortion() throws {
+        let weighed = MealItem(kind: .fish, portion: .small, grams: 200)
+        #expect(weighed.effectiveServings() == 2)
 
-        // Every line in the log written before grams existed still decodes and
-        // still reads exactly as it did.
-        let legacy = try? JSONDecoder().decode(
+        let legacy = try JSONDecoder().decode(
             MealItem.self,
             from: Data(#"{"id":"\#(UUID().uuidString)","group":"fish","portion":"large"}"#.utf8)
         )
-        #expect(legacy?.grams == nil)
-        #expect(legacy?.effectiveServings() == 2.0)
+        #expect(legacy.grams == nil)
+        #expect(legacy.kind == .fish)
+        #expect(legacy.effectiveServings() == 2)
     }
 
-    @Test("Every food group has a value, and the fats have none")
-    func tableIsComplete() {
-        for group in FoodGroup.allCases {
-            #expect(
-                Protein.defaultGramsPerServing[group.rawValue] != nil,
-                "\(group.rawValue) is missing from the protein table"
-            )
-        }
-        #expect(Protein.defaultGramsPerServing[FoodGroup.oliveOil.rawValue] == 0)
-        #expect(Protein.defaultGramsPerServing[FoodGroup.alcohol.rawValue] == 0)
-        // `other` is the bucket for food that was not recognised, and a number
-        // there is invented rather than estimated. It read 2 g, which is how a
-        // black coffee came to be worth 2 g of protein before `coffee` existed.
-        #expect(Protein.defaultGramsPerServing[FoodGroup.other.rawValue] == 0)
-        #expect(Protein.defaultGramsPerServing[FoodGroup.coffee.rawValue] == 0)
-        #expect(Protein.defaultGramsPerServing[FoodGroup.tea.rawValue] == 0)
-        // A black coffee is worth nothing, and reads as nothing.
-        let coffee = MealDish(name: "black coffee", items: [
-            MealItem(group: .coffee, portion: .medium, label: "black coffee")
-        ])
-        #expect(PlateFigure.forPlate([coffee]).text == "0 g protein")
-    }
-
-    @Test("A configured table overrides the compiled one")
-    func configurableTable() {
-        let meal = MealEntry.fixture(daysAgo: 0, [(.egg, .medium)])
-        #expect(Protein.grams(in: meal) == 6)
-        #expect(Protein.grams(in: meal, gramsPerServing: ["egg": 13]) == 13)
-        #expect(AppConfig.fallback.proteinTable[FoodGroup.egg.rawValue] == 6)
-    }
-
-    @Test("A transcribed panel wins figure by figure, not wholesale")
-    func panelOverridesPerNutrient() throws {
-        // Energy used to be forbidden anywhere in this codebase, on the grounds
-        // that only packaged food carries a label and a total built from the
-        // packaged fraction of a meal looks exactly like a total. What retired
-        // that rule is `FoodNutrientTable`: energy is now derived for every food
-        // from a published row and an observed weight, the same way protein
-        // always was, so the baseline is complete and the total is a total.
-        //
-        // The guard that replaces it is `everyGroupHasARepresentative` in
-        // `FoodNutrientTableTests`, which is the condition that actually matters
-        // — every food group must answer, or the completeness argument fails.
+    @Test("A printed panel wins and settles the whole packaged dish")
+    func panelOverridesComposition() {
         let carton = MealDish(
             name: "protein drink",
             count: 2,
-            size: .small,
-            panel: NutritionPanel(protein: 15, calories: 103),
-            items: [MealItem(group: .dairy, portion: .medium, label: "milk protein")]
+            panel: NutritionPanel(protein: 15, calories: 103, sodium: 0.1),
+            items: [MealItem(kind: .mealReplacement, label: "protein drink", grams: 500)]
         )
-        let total = Nutrition.total(in: carton)
+        let total = Nutrition.total(in: carton, foods: foods)
         #expect(total.nutrients.protein == 30)
         #expect(total.nutrients.kcal == 206)
-        // Size is ignored for a packaged serving; the table would have said 4.
-        #expect(Protein.grams(in: MealDish(name: "x", size: .small, items: carton.items)) == 4)
-
-        // A panel that prints two figures and not the rest contributes two read
-        // numbers and leaves the others to the ingredients. Discarding the
-        // ingredients over a partial panel, or the panel over a missing field,
-        // would both throw away something true.
-        #expect(total.nutrients.fat == 0, "no fat row in the group table without a foods table")
-        #expect(total.isComplete, "a panel with energy answers for its whole dish")
+        #expect(total.nutrients.sodium == 200)
+        #expect(total.isComplete)
+        #expect(!total.saltIsFloor)
     }
 
-    @Test("A panel's sodium is grams; the table's is milligrams")
-    func panelSodiumCrossesTheUnitBoundary() {
-        // The Worker scales a Monster's per-100ml panel to the can and derives
-        // sodium from the printed salt IN GRAMS: 0.36 g of salt becomes 0.142 g
-        // of sodium. `Nutrients.sodium` is milligrams, because that is what
-        // every composition table publishes. Reading the panel field straight
-        // into it put the can at 0.142 mg — a thousandth of the truth, and
-        // invisible on a screen that rounds salt to one decimal.
-        let can = MealDish(
-            name: "energy drink",
-            count: 1,
-            panel: NutritionPanel(salt: 0.36, sodium: 0.142, basis: "per_container"),
-            items: [MealItem(group: .sugaryDrinks, label: "energy drink", grams: 355)]
-        )
-        let total = Nutrition.total(in: can)
-        #expect(total.nutrients.sodium == 142)
-        #expect(abs(total.nutrients.saltGrams - 0.361) < 0.005)
-
-        // Two cans is twice the printed figure, like every other panel field.
-        var two = can
-        two.count = 2
-        #expect(Nutrition.total(in: two).nutrients.sodium == 284)
-
-        // A panel that printed salt and nothing else — never scaled by the
-        // Worker — converts rather than reading zero.
-        let saltOnly = MealDish(
-            name: "miso soup",
-            panel: NutritionPanel(salt: 2.54, basis: "per_container"),
-            items: [MealItem(group: .legumes, label: "miso", grams: 20)]
-        )
-        #expect(abs(Nutrition.total(in: saltOnly).nutrients.sodium - 1000) < 2)
+    @Test("An unresolved item contributes no invented nutrition")
+    func unresolvedStaysVisible() {
+        let dip = MealItem(kind: .sauceCondiment, label: "dipping sauce", grams: 40)
+        let total = Nutrition.total(in: [dip], foods: foods)
+        #expect(total.nutrients == .zero)
+        #expect(total.unresolvedGrams == 40)
+        #expect(!total.isComplete)
     }
 
-    @Test("A label settles the salt; a table only bounds it")
-    func saltIsAFloorOnlyWhenDerived() {
-        // Monster Energy Zero Sugar, 355 ml: 食塩相当量 0.1 g per 100 ml, so the
-        // can is 0.36 g and it is exactly 0.36 g. Showing "≥ 0.4" would mark a
-        // number the label already settled as a lower bound.
-        let can = MealDish(
-            name: "Monster Energy Zero Sugar",
-            panel: NutritionPanel(
-                protein: 0, calories: 0, fat: 0, carbohydrate: 3.55,
-                salt: 0.36, sodium: 0.142, caffeine: 142, basis: "per_container"
-            ),
-            items: [MealItem(group: .sugaryDrinks, label: "energy drink", grams: 355)]
-        )
-        let labelled = Nutrition.total(in: can)
-        #expect(!labelled.saltIsFloor)
-        // And the carbohydrate really is on the label: 炭水化物 1.0 g per 100 ml
-        // with 糖類 0 g. Zero sugar is not zero carbohydrate.
-        #expect(labelled.nutrients.carbohydrate == 3.55)
-
-        // A bowl with no label derives its sodium from the tables, which know
-        // the salt in the food and not the salt in the cooking.
-        let bowl = MealDish(
-            name: "ramen",
-            items: [MealItem(group: .refinedGrains, label: "noodles", grams: 200)]
-        )
-        #expect(Nutrition.total(in: bowl).saltIsFloor)
-
-        // One unlabelled dish makes the whole plate a floor: the pessimistic
-        // side is the right side to round to on the figure where a confident
-        // understatement does the most harm.
-        #expect(Nutrition.total(in: [can, bowl]).saltIsFloor)
+    @Test("Future meal-share values do not erase a meal")
+    func shareDecodeFallback() throws {
+        let future = try JSONDecoder().decode(MealShare.self, from: Data(#""nibbled""#.utf8))
+        #expect(future == .whole)
+        #expect(MealShare.allCases.map(\.chipName) == ["All of it", "Half", "A taste"])
     }
-
 }

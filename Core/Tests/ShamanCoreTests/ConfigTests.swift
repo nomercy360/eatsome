@@ -11,6 +11,10 @@ struct ConfigTests {
             "shaman-config.json is missing from the target resources"
         )
         let config = try JSONDecoder().decode(AppConfig.self, from: Data(contentsOf: url))
+        let object = try #require(
+            JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any]
+        )
+        #expect(object["olives"] == nil, "the retired diet score must not survive in config")
 
         #expect(config.movements.map(\.id) == AppConfig.fallback.movements.map(\.id))
         #expect(config.recognition.model == "gpt-5.6-luna")

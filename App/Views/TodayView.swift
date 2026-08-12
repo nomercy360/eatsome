@@ -289,12 +289,12 @@ private struct NutrientCard: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-            } else if !total.isComplete {
+            } else if let attention = total.foodMatchAttention {
                 // A day totalled from the part of the plate that resolved is
                 // not a small error, it is a different number wearing the same
                 // label — and unlike a missing figure it is invisible. Every
                 // screen showing a total has to surface this.
-                Text("\(Int(total.unresolvedGrams.rounded())) g today wasn't recognised, so these are short by it.")
+                Text(attention + " Today's figures exclude unresolved food.")
                     .font(WellieTheme.font(12, weight: .regular))
                     .foregroundStyle(WellieTheme.attention)
                     .fixedSize(horizontal: false, vertical: true)

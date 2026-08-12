@@ -41,7 +41,7 @@ public struct Recipe: Codable, Sendable, Hashable, Identifiable {
         MealEntry(
             eatenAt: eatenAt,
             items: items.map {
-                MealItem(group: $0.group, portion: $0.portion, label: $0.label)
+                MealItem(kind: $0.kind, portion: $0.portion, label: $0.label)
             },
             source: .recipe,
             note: note,
@@ -55,6 +55,6 @@ public struct Recipe: Codable, Sendable, Hashable, Identifiable {
     public static func suggestedName(for items: [MealItem]) -> String {
         let labels = items.compactMap(\.label).filter { !$0.isEmpty }
         if !labels.isEmpty { return labels.prefix(2).joined(separator: ", ") }
-        return items.prefix(2).map(\.group.displayName).joined(separator: ", ")
+        return items.prefix(2).map(\.kind.displayName).joined(separator: ", ")
     }
 }

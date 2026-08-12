@@ -89,6 +89,28 @@ struct PhotoStore: @unchecked Sendable {
         return try? Data(contentsOf: url)
     }
 
+    func contains(_ hash: String?) -> Bool {
+        guard let hash, let url = url(for: hash.lowercased()) else { return false }
+        return FileManager.default.fileExists(atPath: url.path)
+    }
+
+    /// Rebuild a missing local cache entry from the account's private server
+    /// copy. Verify the content address before allowing remote bytes to choose a
+    /// local filename; the on-disk JPEG may then be resized independently.
+    @discardableResult
+    func restore(_ data: Data, for hash: String) -> Bool {
+        let hash = hash.lowercased()
+        guard ImageDigest.sha256(data) == hash, let url = url(for: hash) else { return false }
+        if FileManager.default.fileExists(atPath: url.path) { return true }
+        guard let downscaled = downscale(data) else { return false }
+        do {
+            try downscaled.write(to: url, options: .atomic)
+            return true
+        } catch {
+            return false
+        }
+    }
+
     func remove(_ hash: String?) {
         guard let hash, let url = url(for: hash) else { return }
         decoded.removeObject(forKey: hash as NSString)

@@ -157,13 +157,87 @@ LEGACY_GROUP_NAMES: dict[str, tuple[str, ...]] = {
     "plant_fats": ("healthy_fats",),
 }
 
-FOOD_GROUPS = {
+SOURCE_GROUPS = {
     "olive_oil", "vegetable_oil", "vegetables", "fruit", "legumes", "fish", "nuts",
     "plant_fats", "whole_grains", "refined_grains", "white_meat", "red_meat",
     "processed_meat", "dairy", "egg", "sweets", "pastry", "sugary_drinks", "coffee",
     "tea", "juice", "plant_milk", "smoothie", "butter", "alcohol",
-    "cooked_tomato_sauce", "other",
+    "cooked_tomato_sauce", "sauce", "other",
 }
+
+FOOD_KINDS = {
+    "rice", "pasta_noodles", "bread_flatbread", "cereal_porridge", "potato",
+    "other_starchy_vegetable", "vegetable", "mushroom_seaweed", "fruit",
+    "avocado_olive", "legume", "soy_product", "nuts_seeds", "beef", "pork",
+    "lamb_game", "poultry", "processed_meat", "organ_meat", "fish", "shellfish",
+    "egg", "milk", "yogurt", "cheese", "cream", "plant_milk", "oil",
+    "butter_margarine", "mayonnaise_dressing", "sauce_condiment", "soup_broth",
+    "sugar_honey_syrup", "chocolate_candy", "cake_cookie", "pastry",
+    "frozen_dessert", "savory_snack", "nutrition_bar", "water", "coffee", "tea",
+    "juice", "smoothie", "soft_sports_energy_drink", "beer", "wine",
+    "spirit_cocktail", "supplement", "meal_replacement", "unknown",
+}
+
+
+def food_kind(alias: str, source_group: str) -> str:
+    """Map the old MEDAS curation bucket to the composition-oriented kind.
+
+    The old value remains useful only while generating the already-reviewed
+    source-row curation. It is never emitted. Splits use the normalised food
+    name, so rice, pasta and bread no longer share one nutrient lookup guard.
+    """
+    name = normalise(alias)
+    contains = lambda *words: any(word in name for word in words)
+
+    if source_group in {"olive_oil", "vegetable_oil"}: return "oil"
+    if source_group == "vegetables":
+        if contains("potato", "yam"): return "potato"
+        if contains("mushroom", "seaweed", "nori", "kelp", "wakame"): return "mushroom_seaweed"
+        return "vegetable"
+    if source_group == "fruit": return "fruit"
+    if source_group == "legumes":
+        return "soy_product" if contains("soy", "tofu", "miso", "natto", "tempeh", "edamame") else "legume"
+    if source_group == "nuts": return "nuts_seeds"
+    if source_group == "plant_fats":
+        return "nuts_seeds" if contains("seed", "sesame", "nut") else "avocado_olive"
+    if source_group in {"whole_grains", "refined_grains"}:
+        if contains("rice"): return "rice"
+        if contains("pasta", "noodle", "spaghetti", "udon", "macaroni"): return "pasta_noodles"
+        if contains("bread", "bun", "roll", "pita", "tortilla", "flatbread"): return "bread_flatbread"
+        return "cereal_porridge"
+    if source_group == "white_meat": return "poultry"
+    if source_group == "red_meat":
+        if contains("pork"): return "pork"
+        if contains("lamb", "veal", "game", "venison", "goat"): return "lamb_game"
+        return "beef"
+    if source_group == "processed_meat": return "processed_meat"
+    if source_group == "fish":
+        return "shellfish" if contains("shrimp", "prawn", "crab", "lobster", "clam", "oyster", "mussel", "scallop", "squid", "octopus") else "fish"
+    if source_group == "dairy":
+        if contains("yogurt", "yoghurt"): return "yogurt"
+        if contains("cheese"): return "cheese"
+        if contains("cream"): return "cream"
+        if contains("egg"): return "egg"
+        return "milk"
+    if source_group == "egg": return "egg"
+    if source_group == "butter":
+        if contains("mayonnaise", "dressing"): return "mayonnaise_dressing"
+        if contains("cream"): return "cream"
+        return "butter_margarine"
+    if source_group == "sweets":
+        if contains("ice cream", "sorbet", "frozen"): return "frozen_dessert"
+        if contains("chocolate", "candy", "candies"): return "chocolate_candy"
+        if contains("sugar", "honey", "syrup", "jam"): return "sugar_honey_syrup"
+        return "cake_cookie"
+    if source_group == "pastry": return "pastry"
+    if source_group == "sugary_drinks": return "soft_sports_energy_drink"
+    if source_group in {"coffee", "tea", "juice", "plant_milk", "smoothie"}: return source_group
+    if source_group == "alcohol":
+        if contains("beer", "ale", "lager"): return "beer"
+        if contains("wine"): return "wine"
+        return "spirit_cocktail"
+    if source_group in {"cooked_tomato_sauce", "sauce"}: return "sauce_condiment"
+    return "unknown"
 
 # `alias` is what a model writes in `label`, normalised the way the client
 # normalises it: lower case, no punctuation, collapsed whitespace. `group` is
@@ -241,6 +315,8 @@ CURATION: list[tuple[str, str, str, str]] = [
     # model can only ever say `vegetables` for a potato anyway, since both
     # response schemas generate their enum from `FoodGroup.allCases`.
     ("potatoes", "vegetables", "sr", "170440"),
+    ("mashed potato", "vegetables", "sr", "168555"),
+    ("mashed potatoes", "vegetables", "sr", "168555"),
     ("banana", "fruit", "sr", "173944"),
     ("blueberries", "fruit", "sr", "171711"),
     ("cherries", "fruit", "sr", "171719"),
@@ -268,6 +344,9 @@ CURATION: list[tuple[str, str, str, str]] = [
     # labels are Zipf-distributed and the head is exactly where the ambiguity
     # that defeats mechanical resolution lives.
     ("tomato sauce", "cooked_tomato_sauce", "sr", "170054"),
+    ("soy sauce", "sauce", "sr", "174277"),
+    ("shoyu", "sauce", "sr", "174277"),
+    ("teriyaki sauce", "sauce", "sr", "171167"),
     ("tomato onion curry", "cooked_tomato_sauce", "sr", "170056"),
     ("flatbread", "refined_grains", "sr", "167535"),
     ("flour tortilla", "refined_grains", "sr", "167535"),
@@ -358,6 +437,8 @@ CURATION: list[tuple[str, str, str, str]] = [
     ("minced meat topping", "red_meat", "sr", "174035"),
     ("steak", "red_meat", "sr", "168731"),
     ("beef steak", "red_meat", "sr", "168731"),
+    ("grilled beef", "red_meat", "sr", "168731"),
+    ("grilled beef steak", "red_meat", "sr", "168731"),
     ("raw beef steak", "red_meat", "sr", "168731"),
     ("lamb", "red_meat", "sr", "172495"),
     ("chicken thigh", "white_meat", "sr", "173625"),
@@ -815,8 +896,8 @@ def main() -> None:
         against a `vegetables` ceiling of 12, and it is still the right row for
         a sheet of nori.
         """
-        if group not in FOOD_GROUPS:
-            missing.append(f"{what}: {group!r} is not a FoodGroup case")
+        if group not in SOURCE_GROUPS:
+            missing.append(f"{what}: {group!r} is not a known curation bucket")
             return None
         table, _ = tables[source]
         if row_id not in table:
@@ -851,12 +932,11 @@ def main() -> None:
     for group, source, row_id in GROUP_REPRESENTATIVE:
         entry = resolve(source, row_id, group, f"group {group}", chosen=True)
         if entry is not None:
-            groups[group] = entry
-            for legacy in LEGACY_GROUP_NAMES.get(group, ()):
-                groups[legacy] = entry
-    covered = set(groups) | {"other"}
-    for group in sorted(FOOD_GROUPS - covered):
-        missing.append(f"group {group} has no representative row")
+            kind = food_kind(entry["name"], group)
+            if kind not in FOOD_KINDS:
+                missing.append(f"group {group} mapped to unknown FoodKind {kind!r}")
+            else:
+                groups[kind] = entry
 
     generated = proposals(sr, categories)
     curated_keys = {(alias, group, source, row_id) for alias, group, source, row_id in CURATION}
@@ -867,11 +947,14 @@ def main() -> None:
         entry = resolve(source, row_id, group, f"{alias!r}", chosen=curated)
         if entry is None:
             continue
-        for name in (group, *LEGACY_GROUP_NAMES.get(group, ())):
-            key = f"{name}|{normalise(alias)}"
-            if key in foods and not curated and foods[key]["per100g"] != entry["per100g"]:
-                missing.append(f"duplicate alias {key} disagrees")
-            foods[key] = {**entry, "curated": curated}
+        kind = food_kind(alias, group)
+        if kind not in FOOD_KINDS:
+            missing.append(f"{alias!r} mapped to unknown FoodKind {kind!r}")
+            continue
+        key = f"{kind}|{normalise(alias)}"
+        if key in foods and not curated and foods[key]["per100g"] != entry["per100g"]:
+            missing.append(f"duplicate alias {key} disagrees")
+        foods[key] = {**entry, "curated": curated}
 
     if missing:
         # Hard failure. A row that silently defaults is how a table stops being
@@ -896,8 +979,11 @@ def main() -> None:
         return
 
     config.pop("proteinPerGram", None)
+    # The MEDAS/olive rating is retired. Do not preserve the legacy block just
+    # because this generator starts from the last bundled config.
+    config.pop("olives", None)
     config["nutrientsPerGram"] = table
-    CONFIG.write_text(json.dumps(config, indent=1, ensure_ascii=False) + "\n")
+    CONFIG.write_text(json.dumps(config, indent=2, ensure_ascii=False) + "\n")
 
     for name, path in (("sr_legacy.zip", sources / "sr_legacy.zip"), ("mext.xlsx", sources / "mext.xlsx")):
         if path.exists():

@@ -31,7 +31,7 @@ struct WeekRhythmTests {
         let calendar = calendar
         let now = Date(timeIntervalSince1970: 1_785_000_000)
         let days = WeekRhythm.days(
-            meals: [meal(noon(3, before: now, calendar: calendar), [MealItem(group: .fruit, portion: .medium)])],
+            meals: [meal(noon(3, before: now, calendar: calendar), [MealItem(kind: .fruit, portion: .medium)])],
             endingAt: windowEnd(now, calendar: calendar),
             days: 7,
             calendar: calendar
@@ -57,7 +57,7 @@ struct WeekRhythmTests {
         let calendar = calendar
         let now = Date(timeIntervalSince1970: 1_785_000_000)
         let today = noon(0, before: now, calendar: calendar)
-        let items = [MealItem(group: .vegetables, portion: .medium)]
+        let items = [MealItem(kind: .vegetable, portion: .medium)]
         let days = WeekRhythm.days(
             meals: (0..<5).map { _ in meal(today, items) },
             endingAt: windowEnd(now, calendar: calendar),
@@ -77,7 +77,7 @@ struct WeekRhythmTests {
         let now = Date(timeIntervalSince1970: 1_785_000_000)
         let platter = MealEntry(
             eatenAt: noon(0, before: now, calendar: calendar),
-            items: (0..<4).map { _ in MealItem(group: .fruit, portion: .large) },
+            items: (0..<4).map { _ in MealItem(kind: .fruit, portion: .large) },
             source: .photo,
             share: .part
         )

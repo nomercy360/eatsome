@@ -178,44 +178,78 @@ public struct GeminiSession: MealRecognizer, MealRefiner {
     /// type, and `propertyOrdering` is what keeps the emitted keys stable. Type
     /// names are the proto enum spellings, which every API version accepts.
     static var responseSchema: [String: Any] {
-        [
+        let kind: [String: Any] = ["type": "STRING", "enum": FoodKind.allCases.map(\.rawValue)]
+        let ingredient: [String: Any] = [
             "type": "OBJECT",
-            "propertyOrdering": ["items", "other_meals_visible", "notes"],
-            "required": ["items", "other_meals_visible", "notes"],
+            "propertyOrdering": [
+                "kind", "grams", "label", "preparation", "composition_hints", "alternatives"
+            ],
+            "required": [
+                "kind", "grams", "label", "preparation", "composition_hints", "alternatives"
+            ],
             "properties": [
-                "items": [
+                "kind": kind,
+                "grams": ["type": "NUMBER", "description": MealPrompt.gramsDescription],
+                "label": ["type": "STRING", "description": "Short, specific food name."],
+                "preparation": [
+                    "type": "ARRAY",
+                    "items": ["type": "STRING", "enum": PreparationMethod.allCases.map(\.rawValue)]
+                ],
+                "composition_hints": [
+                    "type": "ARRAY",
+                    "items": ["type": "STRING", "enum": CompositionHint.allCases.map(\.rawValue)]
+                ],
+                "alternatives": [
                     "type": "ARRAY",
                     "items": [
                         "type": "OBJECT",
-                        "propertyOrdering": ["group", "grams", "label", "alternatives"],
-                        "required": ["group", "grams", "label", "alternatives"],
+                        "propertyOrdering": ["label", "kind"],
+                        "required": ["label", "kind"],
+                        "properties": ["label": ["type": "STRING"], "kind": kind]
+                    ]
+                ]
+            ]
+        ]
+        let nullableNumber: [String: Any] = ["type": "NUMBER", "nullable": true]
+        let panel: [String: Any] = [
+            "type": "OBJECT",
+            "nullable": true,
+            "propertyOrdering": [
+                "protein", "calories", "fat", "carbohydrate", "salt", "sodium",
+                "caffeine", "basis", "net_ml", "net_g"
+            ],
+            "required": [
+                "protein", "calories", "fat", "carbohydrate", "salt", "sodium",
+                "caffeine", "basis", "net_ml", "net_g"
+            ],
+            "properties": [
+                "protein": nullableNumber, "calories": nullableNumber,
+                "fat": nullableNumber, "carbohydrate": nullableNumber,
+                "salt": nullableNumber, "sodium": nullableNumber,
+                "caffeine": nullableNumber,
+                "basis": [
+                    "type": "STRING", "nullable": true,
+                    "enum": ["per_100ml", "per_100g", "per_serving", "per_container"]
+                ],
+                "net_ml": nullableNumber, "net_g": nullableNumber
+            ]
+        ]
+        return [
+            "type": "OBJECT",
+            "propertyOrdering": ["dishes", "other_meals_visible", "notes"],
+            "required": ["dishes", "other_meals_visible", "notes"],
+            "properties": [
+                "dishes": [
+                    "type": "ARRAY",
+                    "items": [
+                        "type": "OBJECT",
+                        "propertyOrdering": ["name", "count", "panel", "ingredients"],
+                        "required": ["name", "count", "panel", "ingredients"],
                         "properties": [
-                            "group": [
-                                "type": "STRING",
-                                "enum": FoodGroup.allCases.map(\.rawValue),
-                                "description": "Your single best answer for this item."
-                            ],
-                            "grams": [
-                                "type": "NUMBER",
-                                "description": MealPrompt.gramsDescription
-                            ],
-                            "label": [
-                                "type": "STRING",
-                                "nullable": true,
-                                "description": """
-                                Short human name for one food, e.g. 'grilled sardines'. Never a \
-                                hedge like 'melon or pineapple' — forks belong in `alternatives`.
-                                """
-                            ],
-                            "alternatives": [
-                                "type": "ARRAY",
-                                "description": """
-                                Other groups that could plausibly be right for this item, most likely \
-                                first, at most \(MealPrompt.maxAlternatives). Empty when the group is \
-                                obvious. Never repeat `group` here.
-                                """,
-                                "items": ["type": "STRING", "enum": FoodGroup.allCases.map(\.rawValue)]
-                            ]
+                            "name": ["type": "STRING"],
+                            "count": ["type": "INTEGER"],
+                            "panel": panel,
+                            "ingredients": ["type": "ARRAY", "items": ingredient]
                         ]
                     ]
                 ],

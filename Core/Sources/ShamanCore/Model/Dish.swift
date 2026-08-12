@@ -204,10 +204,13 @@ public struct MealDish: Codable, Sendable, Hashable, Identifiable {
         items.map { item in
             MealItem(
                 id: item.id,
-                group: item.group,
+                kind: item.kind,
                 portion: item.portion,
                 label: item.label,
                 modelAlternatives: item.modelAlternatives,
+                preparation: item.preparation,
+                compositionHints: item.compositionHints,
+                resolution: item.resolution,
                 dish: name,
                 // A weighed ingredient already says how much is there. Writing a
                 // `servings` beside it would be a second answer to the same

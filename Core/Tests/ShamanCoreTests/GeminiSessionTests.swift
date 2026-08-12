@@ -44,29 +44,37 @@ struct GeminiSessionTests {
     func schemaIsGeminiShaped() throws {
         let schema = GeminiSession.responseSchema
         #expect(schema["type"] as? String == "OBJECT")
-        #expect(Set(try #require(schema["required"] as? [String])) == ["items", "other_meals_visible", "notes"])
+        #expect(Set(try #require(schema["required"] as? [String])) == ["dishes", "other_meals_visible", "notes"])
         // Gemini rejects this keyword outright rather than ignoring it.
         #expect(!schema.description.contains("additionalProperties"))
 
         let properties = try #require(schema["properties"] as? [String: Any])
-        let itemSchema = try #require((properties["items"] as? [String: Any])?["items"] as? [String: Any])
+        let dishSchema = try #require((properties["dishes"] as? [String: Any])?["items"] as? [String: Any])
+        let dishProperties = try #require(dishSchema["properties"] as? [String: Any])
+        let itemSchema = try #require((dishProperties["ingredients"] as? [String: Any])?["items"] as? [String: Any])
         let itemProperties = try #require(itemSchema["properties"] as? [String: Any])
-        #expect(Set(try #require(itemSchema["required"] as? [String])) == ["group", "grams", "label", "alternatives"])
+        #expect(Set(try #require(itemSchema["required"] as? [String])) == [
+            "kind", "grams", "label", "preparation", "composition_hints", "alternatives"
+        ])
         // Gemini emits exactly the properties this schema names, which is how a
         // missing `grams` went unnoticed for a version: the prompt asked for a
         // weight and the schema had nowhere to put one.
         #expect(itemProperties["grams"] != nil)
         #expect(itemProperties["portion"] == nil)
 
-        // The enum has to be the actual model, or the app silently drops groups.
-        let groups = try #require((itemProperties["group"] as? [String: Any])?["enum"] as? [String])
-        #expect(Set(groups) == Set(FoodGroup.allCases.map(\.rawValue)))
+        // The enum has to be the actual model, or the app silently drops foods.
+        let kinds = try #require((itemProperties["kind"] as? [String: Any])?["enum"] as? [String])
+        #expect(Set(kinds) == Set(FoodKind.allCases.map(\.rawValue)))
         let alternatives = try #require(itemProperties["alternatives"] as? [String: Any])
-        let alternativeGroups = try #require((alternatives["items"] as? [String: Any])?["enum"] as? [String])
-        #expect(Set(alternativeGroups) == Set(FoodGroup.allCases.map(\.rawValue)))
+        let alternative = try #require(alternatives["items"] as? [String: Any])
+        let alternativeProperties = try #require(alternative["properties"] as? [String: Any])
+        let alternativeKinds = try #require(
+            (alternativeProperties["kind"] as? [String: Any])?["enum"] as? [String]
+        )
+        #expect(Set(alternativeKinds) == Set(FoodKind.allCases.map(\.rawValue)))
 
-        // Nullability is a flag here, not a union type.
-        #expect((itemProperties["label"] as? [String: Any])?["nullable"] as? Bool == true)
+        // Ingredient labels are required; only the meal-level note is nullable.
+        #expect((itemProperties["label"] as? [String: Any])?["nullable"] == nil)
         #expect((properties["notes"] as? [String: Any])?["nullable"] as? Bool == true)
     }
 
@@ -75,14 +83,15 @@ struct GeminiSessionTests {
         let json = """
         {"candidates":[{"content":{"role":"model","parts":[
           {"thought":true,"text":"ignore me"},
-          {"text":"{\\"items\\":[{\\"group\\":\\"white_meat\\",\\"portion\\":\\"medium\\",\\"label\\":\\"minced meat topping\\",\\"alternatives\\":[\\"red_meat\\"]}],\\"other_meals_visible\\":false,\\"notes\\":null}"}
+          {"text":"{\\"dishes\\":[{\\"name\\":\\"beef bowl\\",\\"count\\":1,\\"panel\\":null,\\"ingredients\\":[{\\"kind\\":\\"beef\\",\\"grams\\":120,\\"label\\":\\"minced beef\\",\\"preparation\\":[\\"pan_fried\\"],\\"composition_hints\\":[],\\"alternatives\\":[{\\"label\\":\\"minced pork\\",\\"kind\\":\\"pork\\"}]}]}],\\"other_meals_visible\\":false,\\"notes\\":null}"}
         ]},"finishReason":"STOP"}]}
         """
         let artifact = try GeminiSession.parse(Data(json.utf8), promptVersion: "test/gemini")
-        let item = try #require(artifact.recognition.items.first)
+        let item = try #require(artifact.recognition.dishes?.first?.ingredients.first)
 
-        #expect(item.group == .whiteMeat)
-        #expect(item.alternatives == [.redMeat])
+        #expect(item.kind == .beef)
+        #expect(item.preparation == [.panFried])
+        #expect(item.alternatives == [.init(label: "minced pork", kind: .pork)])
         #expect(artifact.promptVersion == "test/gemini")
         #expect(!artifact.rawModelJSON.contains("ignore me"), "thought parts are not model output")
     }
@@ -124,7 +133,7 @@ struct GeminiSessionTests {
                 let call = await counter.increment()
                 return RecognitionArtifact(
                     recognition: MealRecognition(
-                        items: [.init(group: .vegetables, label: "call \(call)", grams: 90)],
+                        items: [.init(kind: .vegetable, label: "call \(call)", grams: 90)],
                         otherMealsVisible: false,
                         notes: nil
                     ),

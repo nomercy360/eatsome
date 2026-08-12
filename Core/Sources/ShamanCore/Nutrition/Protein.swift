@@ -1,6 +1,6 @@
 import Foundation
 
-/// Protein in grams, and the group table it falls back to.
+/// Protein in grams, read from the same composition result as every nutrient.
 ///
 /// Protein was the only macronutrient this app counted for its first three
 /// years, on the argument that it was the only one a photograph could estimate:
@@ -15,9 +15,8 @@ import Foundation
 /// whatever the weight is worth. Nothing asks a model for a calorie. See
 /// `Nutrition`, which computes all five and which this type now delegates to.
 ///
-/// Protein keeps its own name and its own group table because it is the figure
-/// with a history: every estimate ever shown was calculated against
-/// `defaultGramsPerServing`, and `pnpm eval:nutrients` measures changes to it.
+/// Protein keeps its own name because it is the figure with the longest product
+/// history and many UI call sites still ask for it directly.
 public enum Protein {
     /// Grams of protein in one serving of each group, where a serving is the
     /// same adult portion `Portion.medium` means everywhere else.
@@ -27,44 +26,10 @@ public enum Protein {
     /// than argued with in Swift. Per meal the error is large; summed over a day
     /// of countable sources it lands close enough to see whether you are near a
     /// target or nowhere near it.
-    public static let defaultGramsPerServing: [String: Double] = [
-        FoodGroup.fish.rawValue: 22,
-        FoodGroup.whiteMeat.rawValue: 26,
-        FoodGroup.redMeat.rawValue: 24,
-        FoodGroup.processedMeat.rawValue: 14,
-        FoodGroup.egg.rawValue: 6,
-        FoodGroup.dairy.rawValue: 8,
-        FoodGroup.legumes.rawValue: 8,
-        FoodGroup.nuts.rawValue: 5,
-        FoodGroup.wholeGrains.rawValue: 4,
-        FoodGroup.refinedGrains.rawValue: 3,
-        FoodGroup.vegetables.rawValue: 2,
-        FoodGroup.fruit.rawValue: 0.5,
-        FoodGroup.plantFats.rawValue: 1.5,
-        FoodGroup.pastry.rawValue: 4,
-        FoodGroup.sweets.rawValue: 2,
-        FoodGroup.cookedTomatoSauce.rawValue: 1,
-        FoodGroup.butter.rawValue: 0.5,
-        FoodGroup.oliveOil.rawValue: 0,
-        FoodGroup.vegetableOil.rawValue: 0,
-        FoodGroup.sugaryDrinks.rawValue: 0,
-        FoodGroup.alcohol.rawValue: 0,
-        // Calibrated against dairy, where one serving is about 200 ml of milk.
-        // Black coffee and unsweetened tea round to nothing. Plant milk spans
-        // oat at about 1 g to soy at about 7 g, so this is a midpoint and the
-        // least certain figure in the table.
-        FoodGroup.coffee.rawValue: 0,
-        FoodGroup.tea.rawValue: 0,
-        FoodGroup.juice.rawValue: 1,
-        FoodGroup.plantMilk.rawValue: 3,
-        FoodGroup.smoothie.rawValue: 2,
-        // Zero, because `other` is the bucket for food that was not recognised
-        // and a number here is invented rather than estimated. It read 2 g,
-        // which is how a black coffee came to be worth 2 g of protein. Under-
-        // reporting an unrecognised food is recoverable — the person can name
-        // it — while a figure the app made up is not visible as a mistake.
-        FoodGroup.other.rawValue: 0
-    ]
+    /// Retained as an API/config compatibility slot. Broad kind-level protein
+    /// estimates are no longer applied automatically; protein comes from the
+    /// same exact composition record as the other nutrients.
+    public static let defaultGramsPerServing: [String: Double] = [:]
 
     /// What a day should reach, from body weight and how hard you are training.
     /// Grams in a list of foods — a plate, or a dish as it is described.
@@ -75,10 +40,9 @@ public enum Protein {
     /// at forty call sites reads worse than this does, not because they do
     /// anything of their own.
     ///
-    /// The contract they document is still the contract: `foods` is consulted
-    /// first and only ever for a weighed, labelled item, and everything else
-    /// falls through to the group table. A food the table has never heard of
-    /// must cost what it cost before the table existed, never zero.
+    /// `foods` resolves a named composition row. A miss returns zero here while
+    /// `Nutrition.total` carries its weight in `unresolvedGrams`, so callers
+    /// presenting totals can say why the figure is incomplete.
     public static func grams(
         in items: [MealItem],
         gramsPerServing: [String: Double] = defaultGramsPerServing,
@@ -90,9 +54,8 @@ public enum Protein {
     /// Grams in one dish: what the label said, or what the table implies.
     ///
     /// A transcribed panel is a fact and wins; everything else is estimated from
-    /// food groups, which is why nothing stores the estimate — retuning the
-    /// table in `shaman-config.json` moves every derived figure in the history,
-    /// and must move none of the measured ones.
+    /// named foods. Resolution provenance is stored on meal items so an exact
+    /// match and a broad estimate can never look identical.
     public static func grams(
         in dish: MealDish,
         gramsPerServing: [String: Double] = defaultGramsPerServing,
@@ -105,8 +68,7 @@ public enum Protein {
     /// has no `MealEntry` yet.
     ///
     /// Not the same as summing `flattened()`: a flat row carries servings and
-    /// no panel, so a labelled drink flattens to whatever its food group is
-    /// worth. Anything that shows a figure before the meal is saved has to come
+    /// no panel. Anything that shows a figure before the meal is saved has to come
     /// through here, or the number moves when it is saved.
     public static func grams(
         in dishes: [MealDish],

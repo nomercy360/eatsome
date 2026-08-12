@@ -1,4 +1,10 @@
-import { foodGroups, mealRecognitionSchema, panelBases } from "../../src/contracts";
+import {
+  compositionHints,
+  foodKinds,
+  mealRecognitionSchema,
+  panelBases,
+  preparationMethods,
+} from "../../src/contracts";
 import type { Env } from "../env";
 import { HttpError } from "../lib/http-error";
 import { productionSpec, type RecognitionSpec } from "./spec";
@@ -13,10 +19,10 @@ const BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
  * OpenAI one: Gemini rejects `additionalProperties`, spells a nullable field as
  * a flag rather than a union type, and wants `propertyOrdering` to keep the
  * emitted keys stable. The enums come from the same constants, so a new food
- * group still reaches both providers from one edit.
+ * kind or facet still reaches both providers from one edit.
  */
 export function geminiResponseSchema(): Record<string, unknown> {
-  const group = { type: "STRING", enum: [...foodGroups] };
+  const kind = { type: "STRING", enum: [...foodKinds] };
   return {
     type: "OBJECT",
     propertyOrdering: ["dishes", "other_meals_visible", "notes"],
@@ -112,10 +118,24 @@ export function geminiResponseSchema(): Record<string, unknown> {
                 // ingredient, the eval schema had somewhere to put one and
                 // graded it well, and every answer the app actually received
                 // came back weightless and used the ladder grams replaced.
-                propertyOrdering: ["group", "grams", "label", "alternatives"],
-                required: ["group", "grams", "label", "alternatives"],
+                propertyOrdering: [
+                  "kind",
+                  "grams",
+                  "label",
+                  "preparation",
+                  "composition_hints",
+                  "alternatives",
+                ],
+                required: [
+                  "kind",
+                  "grams",
+                  "label",
+                  "preparation",
+                  "composition_hints",
+                  "alternatives",
+                ],
                 properties: {
-                  group: { ...group, description: "Your single best answer for this ingredient." },
+                  kind: { ...kind, description: "The ingredient's broad nutrition-oriented kind." },
                   grams: {
                     type: "NUMBER",
                     description:
@@ -123,15 +143,30 @@ export function geminiResponseSchema(): Record<string, unknown> {
                   },
                   label: {
                     type: "STRING",
-                    nullable: true,
                     description:
                       "Short human name for one food. Never a hedge like 'melon or pineapple'.",
+                  },
+                  preparation: {
+                    type: "ARRAY",
+                    items: { type: "STRING", enum: [...preparationMethods] },
+                    maxItems: 4,
+                  },
+                  composition_hints: {
+                    type: "ARRAY",
+                    items: { type: "STRING", enum: [...compositionHints] },
+                    maxItems: 5,
                   },
                   alternatives: {
                     type: "ARRAY",
                     description:
-                      "Other groups that could plausibly be right for this ingredient, most likely first, at most three. Empty when the group is obvious.",
-                    items: group,
+                      "Other foods that could plausibly be right, most likely first, at most three. Empty when obvious.",
+                    maxItems: 3,
+                    items: {
+                      type: "OBJECT",
+                      propertyOrdering: ["label", "kind"],
+                      required: ["label", "kind"],
+                      properties: { label: { type: "STRING" }, kind },
+                    },
                   },
                 },
               },

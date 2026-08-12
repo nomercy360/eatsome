@@ -8,25 +8,6 @@
     "geminiModel": "gemini-3.6-flash",
     "geminiThinkingLevel": "low"
   },
-  "olives": {
-    "weights": {
-      "fish": 1.0,
-      "legumes": 1.0,
-      "olive_oil": 0.8,
-      "vegetables": 0.7,
-      "nuts": 0.7,
-      "cooked_tomato_sauce": 0.5,
-      "whole_grains": 0.5,
-      "fruit": 0.5,
-      "processed_meat": -1.0,
-      "pastry": -0.8,
-      "red_meat": -0.8,
-      "sugary_drinks": -0.8,
-      "sweets": -0.7,
-      "butter": -0.6,
-      "sofrito": 0.5
-    }
-  },
   "movements": [
     {
       "id": "squat",
@@ -165,7 +146,31 @@
       }
     },
     "groups": {
-      "alcohol": {
+      "avocado_olive": {
+        "per100g": {
+          "protein": 2.0,
+          "fat": 14.66,
+          "carbohydrate": 8.53,
+          "kcal": 160.0,
+          "sodium": 7.0
+        },
+        "source": "sr:171705",
+        "basis": "analysed",
+        "name": "Avocados, raw, all commercial varieties"
+      },
+      "beef": {
+        "per100g": {
+          "protein": 25.93,
+          "fat": 14.36,
+          "carbohydrate": 0.0,
+          "kcal": 240.0,
+          "sodium": 64.0
+        },
+        "source": "sr:174035",
+        "basis": "analysed",
+        "name": "Beef, ground, 85% lean meat / 15% fat, loaf, cooked, baked"
+      },
+      "beer": {
         "per100g": {
           "protein": 0.46,
           "fat": 0.0,
@@ -177,7 +182,19 @@
         "basis": "analysed",
         "name": "Alcoholic beverage, beer, regular, all"
       },
-      "butter": {
+      "bread_flatbread": {
+        "per100g": {
+          "protein": 12.45,
+          "fat": 3.5,
+          "carbohydrate": 42.71,
+          "kcal": 252.0,
+          "sodium": 455.0
+        },
+        "source": "sr:172688",
+        "basis": "analysed",
+        "name": "Bread, whole-wheat, commercially prepared"
+      },
+      "butter_margarine": {
         "per100g": {
           "protein": 0.85,
           "fat": 81.11,
@@ -188,6 +205,18 @@
         "source": "sr:173410",
         "basis": "analysed",
         "name": "Butter, salted"
+      },
+      "chocolate_candy": {
+        "per100g": {
+          "protein": 7.65,
+          "fat": 29.66,
+          "carbohydrate": 59.4,
+          "kcal": 535.0,
+          "sodium": 79.0
+        },
+        "source": "sr:167587",
+        "basis": "analysed",
+        "name": "Candies, milk chocolate"
       },
       "coffee": {
         "per100g": {
@@ -200,30 +229,6 @@
         "source": "sr:171890",
         "basis": "analysed",
         "name": "Beverages, coffee, brewed, prepared with tap water"
-      },
-      "cooked_tomato_sauce": {
-        "per100g": {
-          "protein": 1.2,
-          "fat": 0.3,
-          "carbohydrate": 5.31,
-          "kcal": 24.0,
-          "sodium": 474.0
-        },
-        "source": "sr:170054",
-        "basis": "analysed",
-        "name": "Tomato products, canned, sauce"
-      },
-      "dairy": {
-        "per100g": {
-          "protein": 3.15,
-          "fat": 3.25,
-          "carbohydrate": 4.8,
-          "kcal": 61.0,
-          "sodium": 43.0
-        },
-        "source": "sr:171265",
-        "basis": "analysed",
-        "name": "Milk, whole, 3.25% milkfat, with added vitamin D"
       },
       "egg": {
         "per100g": {
@@ -261,18 +266,6 @@
         "basis": "analysed",
         "name": "Apples, raw, with skin (Includes foods for USDA's Food Distribution Program)"
       },
-      "healthy_fats": {
-        "per100g": {
-          "protein": 2.0,
-          "fat": 14.66,
-          "carbohydrate": 8.53,
-          "kcal": 160.0,
-          "sodium": 7.0
-        },
-        "source": "sr:171705",
-        "basis": "analysed",
-        "name": "Avocados, raw, all commercial varieties"
-      },
       "juice": {
         "per100g": {
           "protein": 0.68,
@@ -285,7 +278,7 @@
         "basis": "analysed",
         "name": "Orange juice, chilled, includes from concentrate"
       },
-      "legumes": {
+      "legume": {
         "per100g": {
           "protein": 8.86,
           "fat": 2.59,
@@ -297,7 +290,19 @@
         "basis": "analysed",
         "name": "Chickpeas (garbanzo beans, bengal gram), mature seeds, cooked, boiled, with salt"
       },
-      "nuts": {
+      "milk": {
+        "per100g": {
+          "protein": 3.15,
+          "fat": 3.25,
+          "carbohydrate": 4.8,
+          "kcal": 61.0,
+          "sodium": 43.0
+        },
+        "source": "sr:171265",
+        "basis": "analysed",
+        "name": "Milk, whole, 3.25% milkfat, with added vitamin D"
+      },
+      "nuts_seeds": {
         "per100g": {
           "protein": 21.15,
           "fat": 49.93,
@@ -309,17 +314,17 @@
         "basis": "analysed",
         "name": "Nuts, almonds"
       },
-      "olive_oil": {
+      "oil": {
         "per100g": {
           "protein": 0.0,
           "fat": 100.0,
           "carbohydrate": 0.0,
           "kcal": 884.0,
-          "sodium": 2.0
+          "sodium": 0.0
         },
-        "source": "sr:171413",
+        "source": "sr:171411",
         "basis": "analysed",
-        "name": "Oil, olive, salad or cooking"
+        "name": "Oil, soybean, salad or cooking"
       },
       "pastry": {
         "per100g": {
@@ -333,18 +338,6 @@
         "basis": "analysed",
         "name": "Danish pastry, fruit, enriched (includes apple, cinnamon, raisin, lemon, raspberry, strawberry)"
       },
-      "plant_fats": {
-        "per100g": {
-          "protein": 2.0,
-          "fat": 14.66,
-          "carbohydrate": 8.53,
-          "kcal": 160.0,
-          "sodium": 7.0
-        },
-        "source": "sr:171705",
-        "basis": "analysed",
-        "name": "Avocados, raw, all commercial varieties"
-      },
       "plant_milk": {
         "per100g": {
           "protein": 2.88,
@@ -356,6 +349,18 @@
         "source": "sr:175218",
         "basis": "analysed",
         "name": "SILK Plain, soymilk"
+      },
+      "poultry": {
+        "per100g": {
+          "protein": 27.3,
+          "fat": 13.6,
+          "carbohydrate": 0.0,
+          "kcal": 239.0,
+          "sodium": 82.0
+        },
+        "source": "sr:171450",
+        "basis": "analysed",
+        "name": "Chicken, broilers or fryers, meat and skin, cooked, roasted"
       },
       "processed_meat": {
         "per100g": {
@@ -369,19 +374,7 @@
         "basis": "analysed",
         "name": "Ham, sliced, pre-packaged, deli meat (96%fat free, water added)"
       },
-      "red_meat": {
-        "per100g": {
-          "protein": 25.93,
-          "fat": 14.36,
-          "carbohydrate": 0.0,
-          "kcal": 240.0,
-          "sodium": 64.0
-        },
-        "source": "sr:174035",
-        "basis": "analysed",
-        "name": "Beef, ground, 85% lean meat / 15% fat, loaf, cooked, baked"
-      },
-      "refined_grains": {
+      "rice": {
         "per100g": {
           "protein": 2.69,
           "fat": 0.28,
@@ -392,6 +385,18 @@
         "source": "sr:168878",
         "basis": "analysed",
         "name": "Rice, white, long-grain, regular, enriched, cooked"
+      },
+      "sauce_condiment": {
+        "per100g": {
+          "protein": 1.2,
+          "fat": 0.3,
+          "carbohydrate": 5.31,
+          "kcal": 24.0,
+          "sodium": 474.0
+        },
+        "source": "sr:170054",
+        "basis": "analysed",
+        "name": "Tomato products, canned, sauce"
       },
       "smoothie": {
         "per100g": {
@@ -405,19 +410,7 @@
         "basis": "analysed",
         "name": "Fruit juice smoothie, NAKED JUICE, MIGHTY MANGO"
       },
-      "sofrito": {
-        "per100g": {
-          "protein": 1.2,
-          "fat": 0.3,
-          "carbohydrate": 5.31,
-          "kcal": 24.0,
-          "sodium": 474.0
-        },
-        "source": "sr:170054",
-        "basis": "analysed",
-        "name": "Tomato products, canned, sauce"
-      },
-      "sugary_drinks": {
+      "soft_sports_energy_drink": {
         "per100g": {
           "protein": 0.0,
           "fat": 0.25,
@@ -428,18 +421,6 @@
         "source": "sr:174852",
         "basis": "analysed",
         "name": "Beverages, carbonated, cola, regular"
-      },
-      "sweets": {
-        "per100g": {
-          "protein": 7.65,
-          "fat": 29.66,
-          "carbohydrate": 59.4,
-          "kcal": 535.0,
-          "sodium": 79.0
-        },
-        "source": "sr:167587",
-        "basis": "analysed",
-        "name": "Candies, milk chocolate"
       },
       "tea": {
         "per100g": {
@@ -453,19 +434,7 @@
         "basis": "analysed",
         "name": "Beverages, tea, green, brewed, regular"
       },
-      "vegetable_oil": {
-        "per100g": {
-          "protein": 0.0,
-          "fat": 100.0,
-          "carbohydrate": 0.0,
-          "kcal": 884.0,
-          "sodium": 0.0
-        },
-        "source": "sr:171411",
-        "basis": "analysed",
-        "name": "Oil, soybean, salad or cooking"
-      },
-      "vegetables": {
+      "vegetable": {
         "per100g": {
           "protein": 2.86,
           "fat": 0.15,
@@ -476,20 +445,309 @@
         "source": "sr:170142",
         "basis": "analysed",
         "name": "Vegetables, mixed, frozen, cooked, boiled, drained, with salt"
-      },
-      "white_meat": {
+      }
+    },
+    "foods": {
+      "avocado_olive|avocado": {
         "per100g": {
-          "protein": 27.3,
-          "fat": 13.6,
-          "carbohydrate": 0.0,
-          "kcal": 239.0,
-          "sodium": 82.0
+          "protein": 2.0,
+          "fat": 14.66,
+          "carbohydrate": 8.53,
+          "kcal": 160.0,
+          "sodium": 7.0
         },
-        "source": "sr:171450",
+        "source": "sr:171705",
         "basis": "analysed",
-        "name": "Chicken, broilers or fryers, meat and skin, cooked, roasted"
+        "name": "Avocados, raw, all commercial varieties",
+        "curated": true
       },
-      "whole_grains": {
+      "avocado_olive|guacamole": {
+        "per100g": {
+          "protein": 1.96,
+          "fat": 15.41,
+          "carbohydrate": 8.64,
+          "kcal": 167.0,
+          "sodium": 8.0
+        },
+        "source": "sr:171706",
+        "basis": "analysed",
+        "name": "Avocados, raw, California",
+        "curated": true
+      },
+      "avocado_olive|olives": {
+        "per100g": {
+          "protein": 0.84,
+          "fat": 10.9,
+          "carbohydrate": 6.04,
+          "kcal": 116.0,
+          "sodium": 735.0
+        },
+        "source": "sr:169094",
+        "basis": "analysed",
+        "name": "Olives, ripe, canned (small-extra large)",
+        "curated": true
+      },
+      "beef|beef": {
+        "per100g": {
+          "protein": 25.93,
+          "fat": 14.36,
+          "carbohydrate": 0.0,
+          "kcal": 240.0,
+          "sodium": 64.0
+        },
+        "source": "sr:174035",
+        "basis": "analysed",
+        "name": "Beef, ground, 85% lean meat / 15% fat, loaf, cooked, baked",
+        "curated": true
+      },
+      "beef|beef composite": {
+        "per100g": {
+          "protein": 28.73,
+          "fat": 9.16,
+          "carbohydrate": 0.0,
+          "kcal": 203.0,
+          "sodium": 53.0
+        },
+        "source": "sr:174013",
+        "basis": "analysed",
+        "name": "Beef composite, separable lean only, trimmed to 1/8\" fat, choice, cooked",
+        "curated": false
+      },
+      "beef|beef patty": {
+        "per100g": {
+          "protein": 25.93,
+          "fat": 15.41,
+          "carbohydrate": 0.0,
+          "kcal": 250.0,
+          "sodium": 72.0
+        },
+        "source": "sr:174032",
+        "basis": "analysed",
+        "name": "Beef, ground, 85% lean meat / 15% fat, patty, cooked, broiled",
+        "curated": true
+      },
+      "beef|beef steak": {
+        "per100g": {
+          "protein": 28.54,
+          "fat": 6.25,
+          "carbohydrate": 0.0,
+          "kcal": 178.0,
+          "sodium": 68.0
+        },
+        "source": "sr:168731",
+        "basis": "analysed",
+        "name": "Beef, shoulder steak, boneless, separable lean only, trimmed to 0\" fat, choice, cooked, grilled",
+        "curated": true
+      },
+      "beef|bison": {
+        "per100g": {
+          "protein": 25.45,
+          "fat": 8.62,
+          "carbohydrate": 0.0,
+          "kcal": 179.0,
+          "sodium": 76.0
+        },
+        "source": "sr:173847",
+        "basis": "analysed",
+        "name": "Bison, ground, grass-fed, cooked",
+        "curated": false
+      },
+      "beef|canadian bacon": {
+        "per100g": {
+          "protein": 28.31,
+          "fat": 2.78,
+          "carbohydrate": 1.8,
+          "kcal": 146.0,
+          "sodium": 993.0
+        },
+        "source": "sr:168383",
+        "basis": "analysed",
+        "name": "Canadian bacon, cooked, pan-fried",
+        "curated": false
+      },
+      "beef|grilled beef": {
+        "per100g": {
+          "protein": 28.54,
+          "fat": 6.25,
+          "carbohydrate": 0.0,
+          "kcal": 178.0,
+          "sodium": 68.0
+        },
+        "source": "sr:168731",
+        "basis": "analysed",
+        "name": "Beef, shoulder steak, boneless, separable lean only, trimmed to 0\" fat, choice, cooked, grilled",
+        "curated": true
+      },
+      "beef|grilled beef steak": {
+        "per100g": {
+          "protein": 28.54,
+          "fat": 6.25,
+          "carbohydrate": 0.0,
+          "kcal": 178.0,
+          "sodium": 68.0
+        },
+        "source": "sr:168731",
+        "basis": "analysed",
+        "name": "Beef, shoulder steak, boneless, separable lean only, trimmed to 0\" fat, choice, cooked, grilled",
+        "curated": true
+      },
+      "beef|ground beef": {
+        "per100g": {
+          "protein": 25.93,
+          "fat": 14.36,
+          "carbohydrate": 0.0,
+          "kcal": 240.0,
+          "sodium": 64.0
+        },
+        "source": "sr:174035",
+        "basis": "analysed",
+        "name": "Beef, ground, 85% lean meat / 15% fat, loaf, cooked, baked",
+        "curated": true
+      },
+      "beef|minced meat": {
+        "per100g": {
+          "protein": 25.93,
+          "fat": 14.36,
+          "carbohydrate": 0.0,
+          "kcal": 240.0,
+          "sodium": 64.0
+        },
+        "source": "sr:174035",
+        "basis": "analysed",
+        "name": "Beef, ground, 85% lean meat / 15% fat, loaf, cooked, baked",
+        "curated": true
+      },
+      "beef|minced meat topping": {
+        "per100g": {
+          "protein": 25.93,
+          "fat": 14.36,
+          "carbohydrate": 0.0,
+          "kcal": 240.0,
+          "sodium": 64.0
+        },
+        "source": "sr:174035",
+        "basis": "analysed",
+        "name": "Beef, ground, 85% lean meat / 15% fat, loaf, cooked, baked",
+        "curated": true
+      },
+      "beef|raw beef steak": {
+        "per100g": {
+          "protein": 28.54,
+          "fat": 6.25,
+          "carbohydrate": 0.0,
+          "kcal": 178.0,
+          "sodium": 68.0
+        },
+        "source": "sr:168731",
+        "basis": "analysed",
+        "name": "Beef, shoulder steak, boneless, separable lean only, trimmed to 0\" fat, choice, cooked, grilled",
+        "curated": true
+      },
+      "beef|steak": {
+        "per100g": {
+          "protein": 28.54,
+          "fat": 6.25,
+          "carbohydrate": 0.0,
+          "kcal": 178.0,
+          "sodium": 68.0
+        },
+        "source": "sr:168731",
+        "basis": "analysed",
+        "name": "Beef, shoulder steak, boneless, separable lean only, trimmed to 0\" fat, choice, cooked, grilled",
+        "curated": true
+      },
+      "beer|beer": {
+        "per100g": {
+          "protein": 0.46,
+          "fat": 0.0,
+          "carbohydrate": 3.55,
+          "kcal": 43.0,
+          "sodium": 4.0
+        },
+        "source": "sr:168746",
+        "basis": "analysed",
+        "name": "Alcoholic beverage, beer, regular, all",
+        "curated": true
+      },
+      "beer|lager": {
+        "per100g": {
+          "protein": 0.46,
+          "fat": 0.0,
+          "carbohydrate": 3.55,
+          "kcal": 43.0,
+          "sodium": 4.0
+        },
+        "source": "sr:168746",
+        "basis": "analysed",
+        "name": "Alcoholic beverage, beer, regular, all",
+        "curated": true
+      },
+      "beer|lager beer": {
+        "per100g": {
+          "protein": 0.46,
+          "fat": 0.0,
+          "carbohydrate": 3.55,
+          "kcal": 43.0,
+          "sodium": 4.0
+        },
+        "source": "sr:168746",
+        "basis": "analysed",
+        "name": "Alcoholic beverage, beer, regular, all",
+        "curated": true
+      },
+      "bread_flatbread|bread": {
+        "per100g": {
+          "protein": 9.0,
+          "fat": 4.0,
+          "carbohydrate": 54.5,
+          "kcal": 290.0,
+          "sodium": 537.0
+        },
+        "source": "sr:174925",
+        "basis": "analysed",
+        "name": "Bread, white, commercially prepared, toasted",
+        "curated": true
+      },
+      "bread_flatbread|breadcrumbs": {
+        "per100g": {
+          "protein": 8.85,
+          "fat": 3.33,
+          "carbohydrate": 49.42,
+          "kcal": 266.0,
+          "sodium": 490.0
+        },
+        "source": "sr:174924",
+        "basis": "analysed",
+        "name": "Bread, white, commercially prepared (includes soft bread crumbs)",
+        "curated": true
+      },
+      "bread_flatbread|bun": {
+        "per100g": {
+          "protein": 9.0,
+          "fat": 4.0,
+          "carbohydrate": 54.5,
+          "kcal": 290.0,
+          "sodium": 537.0
+        },
+        "source": "sr:174925",
+        "basis": "analysed",
+        "name": "Bread, white, commercially prepared, toasted",
+        "curated": true
+      },
+      "bread_flatbread|burger bun": {
+        "per100g": {
+          "protein": 9.0,
+          "fat": 4.0,
+          "carbohydrate": 54.5,
+          "kcal": 290.0,
+          "sodium": 537.0
+        },
+        "source": "sr:174925",
+        "basis": "analysed",
+        "name": "Bread, white, commercially prepared, toasted",
+        "curated": true
+      },
+      "bread_flatbread|dark bread": {
         "per100g": {
           "protein": 12.45,
           "fat": 3.5,
@@ -499,102 +757,101 @@
         },
         "source": "sr:172688",
         "basis": "analysed",
-        "name": "Bread, whole-wheat, commercially prepared"
-      }
-    },
-    "foods": {
-      "alcohol|beer": {
-        "per100g": {
-          "protein": 0.46,
-          "fat": 0.0,
-          "carbohydrate": 3.55,
-          "kcal": 43.0,
-          "sodium": 4.0
-        },
-        "source": "sr:168746",
-        "basis": "analysed",
-        "name": "Alcoholic beverage, beer, regular, all",
+        "name": "Bread, whole-wheat, commercially prepared",
         "curated": true
       },
-      "alcohol|champagne": {
+      "bread_flatbread|flatbread": {
         "per100g": {
-          "protein": 0.07,
-          "fat": 0.0,
-          "carbohydrate": 2.72,
-          "kcal": 83.0,
-          "sodium": 5.0
+          "protein": 8.01,
+          "fat": 7.58,
+          "carbohydrate": 49.27,
+          "kcal": 297.0,
+          "sodium": 742.0
         },
-        "source": "sr:173185",
+        "source": "sr:167535",
         "basis": "analysed",
-        "name": "Alcoholic beverage, wine, table, all",
+        "name": "Tortillas, ready-to-bake or -fry, flour, shelf stable",
         "curated": true
       },
-      "alcohol|lager": {
+      "bread_flatbread|flour tortilla": {
         "per100g": {
-          "protein": 0.46,
-          "fat": 0.0,
-          "carbohydrate": 3.55,
-          "kcal": 43.0,
-          "sodium": 4.0
+          "protein": 8.01,
+          "fat": 7.58,
+          "carbohydrate": 49.27,
+          "kcal": 297.0,
+          "sodium": 742.0
         },
-        "source": "sr:168746",
+        "source": "sr:167535",
         "basis": "analysed",
-        "name": "Alcoholic beverage, beer, regular, all",
+        "name": "Tortillas, ready-to-bake or -fry, flour, shelf stable",
         "curated": true
       },
-      "alcohol|lager beer": {
+      "bread_flatbread|rye bread": {
         "per100g": {
-          "protein": 0.46,
-          "fat": 0.0,
-          "carbohydrate": 3.55,
-          "kcal": 43.0,
-          "sodium": 4.0
+          "protein": 12.45,
+          "fat": 3.5,
+          "carbohydrate": 42.71,
+          "kcal": 252.0,
+          "sodium": 455.0
         },
-        "source": "sr:168746",
+        "source": "sr:172688",
         "basis": "analysed",
-        "name": "Alcoholic beverage, beer, regular, all",
+        "name": "Bread, whole-wheat, commercially prepared",
         "curated": true
       },
-      "alcohol|red wine": {
+      "bread_flatbread|toast bread": {
         "per100g": {
-          "protein": 0.07,
-          "fat": 0.0,
-          "carbohydrate": 2.61,
-          "kcal": 85.0,
-          "sodium": 4.0
+          "protein": 9.0,
+          "fat": 4.0,
+          "carbohydrate": 54.5,
+          "kcal": 290.0,
+          "sodium": 537.0
         },
-        "source": "sr:173190",
+        "source": "sr:174925",
         "basis": "analysed",
-        "name": "Alcoholic beverage, wine, table, red",
+        "name": "Bread, white, commercially prepared, toasted",
         "curated": true
       },
-      "alcohol|white wine": {
+      "bread_flatbread|tortilla": {
         "per100g": {
-          "protein": 0.07,
-          "fat": 0.0,
-          "carbohydrate": 2.6,
-          "kcal": 82.0,
-          "sodium": 5.0
+          "protein": 8.01,
+          "fat": 7.58,
+          "carbohydrate": 49.27,
+          "kcal": 297.0,
+          "sodium": 742.0
         },
-        "source": "sr:174837",
+        "source": "sr:167535",
         "basis": "analysed",
-        "name": "Alcoholic beverage, wine, table, white",
+        "name": "Tortillas, ready-to-bake or -fry, flour, shelf stable",
         "curated": true
       },
-      "alcohol|wine": {
+      "bread_flatbread|white bread": {
         "per100g": {
-          "protein": 0.07,
-          "fat": 0.0,
-          "carbohydrate": 2.72,
-          "kcal": 83.0,
-          "sodium": 5.0
+          "protein": 9.0,
+          "fat": 4.0,
+          "carbohydrate": 54.5,
+          "kcal": 290.0,
+          "sodium": 537.0
         },
-        "source": "sr:173185",
+        "source": "sr:174925",
         "basis": "analysed",
-        "name": "Alcoholic beverage, wine, table, all",
+        "name": "Bread, white, commercially prepared, toasted",
         "curated": true
       },
-      "butter|butter": {
+      "bread_flatbread|whole grain bread": {
+        "per100g": {
+          "protein": 12.45,
+          "fat": 3.5,
+          "carbohydrate": 42.71,
+          "kcal": 252.0,
+          "sodium": 455.0
+        },
+        "source": "sr:172688",
+        "basis": "analysed",
+        "name": "Bread, whole-wheat, commercially prepared",
+        "curated": true
+      },
+      "butter_margarine|butter": {
         "per100g": {
           "protein": 0.85,
           "fat": 81.11,
@@ -607,20 +864,7 @@
         "name": "Butter, salted",
         "curated": true
       },
-      "butter|caesar dressing": {
-        "per100g": {
-          "protein": 2.17,
-          "fat": 57.85,
-          "carbohydrate": 3.3,
-          "kcal": 542.0,
-          "sodium": 1209.0
-        },
-        "source": "sr:169055",
-        "basis": "analysed",
-        "name": "Salad dressing, caesar dressing, regular",
-        "curated": true
-      },
-      "butter|cooking fat": {
+      "butter_margarine|cooking fat": {
         "per100g": {
           "protein": 0.85,
           "fat": 81.11,
@@ -633,30 +877,498 @@
         "name": "Butter, salted",
         "curated": true
       },
-      "butter|creamy dressing": {
+      "cake_cookie|brownie": {
         "per100g": {
-          "protein": 2.17,
-          "fat": 57.85,
-          "carbohydrate": 3.3,
-          "kcal": 542.0,
-          "sodium": 1209.0
+          "protein": 4.8,
+          "fat": 16.3,
+          "carbohydrate": 63.9,
+          "kcal": 405.0,
+          "sodium": 286.0
         },
-        "source": "sr:169055",
+        "source": "sr:172713",
         "basis": "analysed",
-        "name": "Salad dressing, caesar dressing, regular",
+        "name": "Cookies, brownies, commercially prepared",
         "curated": true
       },
-      "butter|mayonnaise": {
+      "cake_cookie|fruit butters": {
         "per100g": {
-          "protein": 0.96,
-          "fat": 74.85,
-          "carbohydrate": 0.57,
-          "kcal": 680.0,
-          "sodium": 635.0
+          "protein": 0.39,
+          "fat": 0.3,
+          "carbohydrate": 42.47,
+          "kcal": 173.0,
+          "sodium": 15.0
         },
-        "source": "sr:171009",
+        "source": "sr:168816",
         "basis": "analysed",
-        "name": "Salad dressing, mayonnaise, regular",
+        "name": "Fruit butters, apple",
+        "curated": false
+      },
+      "cake_cookie|marmalade": {
+        "per100g": {
+          "protein": 0.3,
+          "fat": 0.0,
+          "carbohydrate": 66.3,
+          "kcal": 246.0,
+          "sodium": 56.0
+        },
+        "source": "sr:168819",
+        "basis": "analysed",
+        "name": "Marmalade, orange",
+        "curated": false
+      },
+      "cake_cookie|milk dessert": {
+        "per100g": {
+          "protein": 4.3,
+          "fat": 1.0,
+          "carbohydrate": 37.7,
+          "kcal": 167.0,
+          "sodium": 97.0
+        },
+        "source": "sr:167686",
+        "basis": "analysed",
+        "name": "Milk dessert, frozen, milk-fat free, chocolate",
+        "curated": false
+      },
+      "cake_cookie|molasses": {
+        "per100g": {
+          "protein": 0.0,
+          "fat": 0.1,
+          "carbohydrate": 74.73,
+          "kcal": 290.0,
+          "sodium": 37.0
+        },
+        "source": "sr:168820",
+        "basis": "analysed",
+        "name": "Molasses",
+        "curated": false
+      },
+      "cake_cookie|pudding": {
+        "per100g": {
+          "protein": 0.65,
+          "fat": 1.12,
+          "carbohydrate": 24.2,
+          "kcal": 109.0,
+          "sodium": 63.0
+        },
+        "source": "sr:168832",
+        "basis": "analysed",
+        "name": "Pudding, lemon, dry mix, regular, prepared with sugar, egg yolk and water",
+        "curated": false
+      },
+      "cake_cookie|schiff": {
+        "per100g": {
+          "protein": 16.8,
+          "fat": 14.29,
+          "carbohydrate": 56.46,
+          "kcal": 387.0,
+          "sodium": 168.0
+        },
+        "source": "sr:167946",
+        "basis": "analysed",
+        "name": "SCHIFF,TIGER'S MILK BAR",
+        "curated": false
+      },
+      "cake_cookie|sherbet": {
+        "per100g": {
+          "protein": 1.1,
+          "fat": 2.0,
+          "carbohydrate": 30.4,
+          "kcal": 144.0,
+          "sodium": 46.0
+        },
+        "source": "sr:167577",
+        "basis": "analysed",
+        "name": "Sherbet, orange",
+        "curated": false
+      },
+      "cake_cookie|sweetener": {
+        "per100g": {
+          "protein": 0.09,
+          "fat": 0.45,
+          "carbohydrate": 76.37,
+          "kcal": 310.0,
+          "sodium": 4.0
+        },
+        "source": "sr:170277",
+        "basis": "analysed",
+        "name": "Sweetener, syrup, agave",
+        "curated": false
+      },
+      "cake_cookie|topping": {
+        "per100g": {
+          "protein": 2.94,
+          "fat": 44.1,
+          "carbohydrate": 50.07,
+          "kcal": 609.0,
+          "sodium": 29.0
+        },
+        "source": "sr:167956",
+        "basis": "analysed",
+        "name": "Topping, SMUCKER'S MAGIC SHELL",
+        "curated": false
+      },
+      "cereal_porridge|amaranth grain": {
+        "per100g": {
+          "protein": 3.8,
+          "fat": 1.58,
+          "carbohydrate": 18.69,
+          "kcal": 102.0,
+          "sodium": 6.0
+        },
+        "source": "sr:170683",
+        "basis": "analysed",
+        "name": "Amaranth grain, cooked",
+        "curated": false
+      },
+      "cereal_porridge|bagel": {
+        "per100g": {
+          "protein": 10.56,
+          "fat": 1.32,
+          "carbohydrate": 52.38,
+          "kcal": 264.0,
+          "sodium": 422.0
+        },
+        "source": "sr:174899",
+        "basis": "analysed",
+        "name": "Bagels, plain, enriched, with calcium propionate (includes onion, poppy, sesame)",
+        "curated": true
+      },
+      "cereal_porridge|barley": {
+        "per100g": {
+          "protein": 2.26,
+          "fat": 0.44,
+          "carbohydrate": 28.22,
+          "kcal": 123.0,
+          "sodium": 3.0
+        },
+        "source": "sr:170285",
+        "basis": "analysed",
+        "name": "Barley, pearled, cooked",
+        "curated": false
+      },
+      "cereal_porridge|buckwheat groats": {
+        "per100g": {
+          "protein": 3.38,
+          "fat": 0.62,
+          "carbohydrate": 19.94,
+          "kcal": 92.0,
+          "sodium": 4.0
+        },
+        "source": "sr:170686",
+        "basis": "analysed",
+        "name": "Buckwheat groats, roasted, cooked",
+        "curated": false
+      },
+      "cereal_porridge|bulgur": {
+        "per100g": {
+          "protein": 3.08,
+          "fat": 0.24,
+          "carbohydrate": 18.58,
+          "kcal": 83.0,
+          "sodium": 5.0
+        },
+        "source": "sr:170287",
+        "basis": "analysed",
+        "name": "Bulgur, cooked",
+        "curated": false
+      },
+      "cereal_porridge|cooked oats": {
+        "per100g": {
+          "protein": 2.54,
+          "fat": 1.52,
+          "carbohydrate": 12.0,
+          "kcal": 71.0,
+          "sodium": 4.0
+        },
+        "source": "sr:173905",
+        "basis": "analysed",
+        "name": "Cereals, oats, regular and quick, unenriched, cooked with water (includes boiling and microwaving), without salt",
+        "curated": true
+      },
+      "cereal_porridge|couscous": {
+        "per100g": {
+          "protein": 3.79,
+          "fat": 0.16,
+          "carbohydrate": 23.22,
+          "kcal": 112.0,
+          "sodium": 5.0
+        },
+        "source": "sr:169700",
+        "basis": "analysed",
+        "name": "Couscous, cooked",
+        "curated": false
+      },
+      "cereal_porridge|croutons": {
+        "per100g": {
+          "protein": 11.9,
+          "fat": 6.6,
+          "carbohydrate": 73.5,
+          "kcal": 407.0,
+          "sodium": 698.0
+        },
+        "source": "sr:172751",
+        "basis": "analysed",
+        "name": "Croutons, plain",
+        "curated": true
+      },
+      "cereal_porridge|grain porridge": {
+        "per100g": {
+          "protein": 2.54,
+          "fat": 1.52,
+          "carbohydrate": 12.0,
+          "kcal": 71.0,
+          "sodium": 4.0
+        },
+        "source": "sr:173905",
+        "basis": "analysed",
+        "name": "Cereals, oats, regular and quick, unenriched, cooked with water (includes boiling and microwaving), without salt",
+        "curated": true
+      },
+      "cereal_porridge|millet": {
+        "per100g": {
+          "protein": 3.51,
+          "fat": 1.0,
+          "carbohydrate": 23.67,
+          "kcal": 119.0,
+          "sodium": 2.0
+        },
+        "source": "sr:168871",
+        "basis": "analysed",
+        "name": "Millet, cooked",
+        "curated": false
+      },
+      "cereal_porridge|oladyi pancakes": {
+        "per100g": {
+          "protein": 6.4,
+          "fat": 9.7,
+          "carbohydrate": 28.3,
+          "kcal": 227.0,
+          "sodium": 439.0
+        },
+        "source": "sr:175009",
+        "basis": "analysed",
+        "name": "Pancakes, plain, prepared from recipe",
+        "curated": true
+      },
+      "cereal_porridge|pancakes": {
+        "per100g": {
+          "protein": 6.4,
+          "fat": 9.7,
+          "carbohydrate": 28.3,
+          "kcal": 227.0,
+          "sodium": 439.0
+        },
+        "source": "sr:175009",
+        "basis": "analysed",
+        "name": "Pancakes, plain, prepared from recipe",
+        "curated": true
+      },
+      "cereal_porridge|pizza crust": {
+        "per100g": {
+          "protein": 10.36,
+          "fat": 12.28,
+          "carbohydrate": 29.02,
+          "kcal": 268.0,
+          "sodium": 447.0
+        },
+        "source": "sr:170317",
+        "basis": "analysed",
+        "name": "Pizza, cheese topping, regular crust, frozen, cooked",
+        "curated": true
+      },
+      "cereal_porridge|pizza dough": {
+        "per100g": {
+          "protein": 10.36,
+          "fat": 12.28,
+          "carbohydrate": 29.02,
+          "kcal": 268.0,
+          "sodium": 447.0
+        },
+        "source": "sr:170317",
+        "basis": "analysed",
+        "name": "Pizza, cheese topping, regular crust, frozen, cooked",
+        "curated": true
+      },
+      "cereal_porridge|quinoa": {
+        "per100g": {
+          "protein": 4.4,
+          "fat": 1.92,
+          "carbohydrate": 21.3,
+          "kcal": 120.0,
+          "sodium": 7.0
+        },
+        "source": "sr:168917",
+        "basis": "analysed",
+        "name": "Quinoa, cooked",
+        "curated": false
+      },
+      "cereal_porridge|spelt": {
+        "per100g": {
+          "protein": 5.5,
+          "fat": 0.85,
+          "carbohydrate": 26.44,
+          "kcal": 127.0,
+          "sodium": 5.0
+        },
+        "source": "sr:169746",
+        "basis": "analysed",
+        "name": "Spelt, cooked",
+        "curated": false
+      },
+      "cereal_porridge|teff": {
+        "per100g": {
+          "protein": 3.87,
+          "fat": 0.65,
+          "carbohydrate": 19.86,
+          "kcal": 101.0,
+          "sodium": 8.0
+        },
+        "source": "sr:168918",
+        "basis": "analysed",
+        "name": "Teff, cooked",
+        "curated": false
+      },
+      "cereal_porridge|wheat": {
+        "per100g": {
+          "protein": 5.71,
+          "fat": 0.83,
+          "carbohydrate": 27.6,
+          "kcal": 132.0,
+          "sodium": 8.0
+        },
+        "source": "sr:169744",
+        "basis": "analysed",
+        "name": "Wheat, KAMUT khorasan, cooked",
+        "curated": false
+      },
+      "cheese|cheese": {
+        "per100g": {
+          "protein": 24.25,
+          "fat": 33.82,
+          "carbohydrate": 2.13,
+          "kcal": 410.0,
+          "sodium": 644.0
+        },
+        "source": "sr:170899",
+        "basis": "analysed",
+        "name": "Cheese, cheddar, sharp, sliced",
+        "curated": true
+      },
+      "cheese|cheese sauce": {
+        "per100g": {
+          "protein": 10.33,
+          "fat": 14.92,
+          "carbohydrate": 5.48,
+          "kcal": 197.0,
+          "sodium": 493.0
+        },
+        "source": "sr:172200",
+        "basis": "analysed",
+        "name": "Cheese sauce, prepared from recipe",
+        "curated": false
+      },
+      "cheese|cheese substitute": {
+        "per100g": {
+          "protein": 11.47,
+          "fat": 12.22,
+          "carbohydrate": 23.67,
+          "kcal": 248.0,
+          "sodium": 685.0
+        },
+        "source": "sr:172198",
+        "basis": "analysed",
+        "name": "Cheese substitute, mozzarella",
+        "curated": false
+      },
+      "cheese|cream cheese": {
+        "per100g": {
+          "protein": 6.15,
+          "fat": 34.44,
+          "carbohydrate": 5.52,
+          "kcal": 350.0,
+          "sodium": 314.0
+        },
+        "source": "sr:173418",
+        "basis": "analysed",
+        "name": "Cheese, cream",
+        "curated": true
+      },
+      "cheese|feta cheese": {
+        "per100g": {
+          "protein": 14.21,
+          "fat": 21.49,
+          "carbohydrate": 3.88,
+          "kcal": 265.0,
+          "sodium": 1139.0
+        },
+        "source": "sr:173420",
+        "basis": "analysed",
+        "name": "Cheese, feta",
+        "curated": true
+      },
+      "cheese|grated cheese": {
+        "per100g": {
+          "protein": 24.25,
+          "fat": 33.82,
+          "carbohydrate": 2.13,
+          "kcal": 410.0,
+          "sodium": 644.0
+        },
+        "source": "sr:170899",
+        "basis": "analysed",
+        "name": "Cheese, cheddar, sharp, sliced",
+        "curated": true
+      },
+      "cheese|imitation cheese": {
+        "per100g": {
+          "protein": 25.0,
+          "fat": 32.0,
+          "carbohydrate": 1.0,
+          "kcal": 390.0,
+          "sodium": 670.0
+        },
+        "source": "sr:168089",
+        "basis": "analysed",
+        "name": "Imitation cheese, american or cheddar, low cholesterol",
+        "curated": false
+      },
+      "cheese|shredded cheese": {
+        "per100g": {
+          "protein": 24.25,
+          "fat": 33.82,
+          "carbohydrate": 2.13,
+          "kcal": 410.0,
+          "sodium": 644.0
+        },
+        "source": "sr:170899",
+        "basis": "analysed",
+        "name": "Cheese, cheddar, sharp, sliced",
+        "curated": true
+      },
+      "cheese|sliced cheese": {
+        "per100g": {
+          "protein": 24.25,
+          "fat": 33.82,
+          "carbohydrate": 2.13,
+          "kcal": 410.0,
+          "sodium": 644.0
+        },
+        "source": "sr:170899",
+        "basis": "analysed",
+        "name": "Cheese, cheddar, sharp, sliced",
+        "curated": true
+      },
+      "chocolate_candy|chocolate sauce": {
+        "per100g": {
+          "protein": 1.4,
+          "fat": 0.97,
+          "carbohydrate": 34.56,
+          "kcal": 153.0,
+          "sodium": 100.0
+        },
+        "source": "sr:168834",
+        "basis": "analysed",
+        "name": "Syrups, chocolate, HERSHEY'S Genuine Chocolate Flavored Lite Syrup",
         "curated": true
       },
       "coffee|coffee": {
@@ -685,189 +1397,7 @@
         "name": "Beverages, coffee, brewed, espresso, restaurant-prepared",
         "curated": true
       },
-      "cooked_tomato_sauce|ketchup": {
-        "per100g": {
-          "protein": 1.04,
-          "fat": 0.1,
-          "carbohydrate": 27.4,
-          "kcal": 101.0,
-          "sodium": 907.0
-        },
-        "source": "sr:168556",
-        "basis": "analysed",
-        "name": "Catsup",
-        "curated": true
-      },
-      "cooked_tomato_sauce|tomato onion curry": {
-        "per100g": {
-          "protein": 1.56,
-          "fat": 0.19,
-          "carbohydrate": 9.94,
-          "kcal": 42.0,
-          "sodium": 551.0
-        },
-        "source": "sr:170056",
-        "basis": "analysed",
-        "name": "Tomato products, canned, sauce, with onions",
-        "curated": true
-      },
-      "cooked_tomato_sauce|tomato sauce": {
-        "per100g": {
-          "protein": 1.2,
-          "fat": 0.3,
-          "carbohydrate": 5.31,
-          "kcal": 24.0,
-          "sodium": 474.0
-        },
-        "source": "sr:170054",
-        "basis": "analysed",
-        "name": "Tomato products, canned, sauce",
-        "curated": true
-      },
-      "dairy|butter oil": {
-        "per100g": {
-          "protein": 0.28,
-          "fat": 99.48,
-          "carbohydrate": 0.0,
-          "kcal": 876.0,
-          "sodium": 2.0
-        },
-        "source": "sr:173412",
-        "basis": "analysed",
-        "name": "Butter oil, anhydrous",
-        "curated": false
-      },
-      "dairy|cheese": {
-        "per100g": {
-          "protein": 24.25,
-          "fat": 33.82,
-          "carbohydrate": 2.13,
-          "kcal": 410.0,
-          "sodium": 644.0
-        },
-        "source": "sr:170899",
-        "basis": "analysed",
-        "name": "Cheese, cheddar, sharp, sliced",
-        "curated": true
-      },
-      "dairy|cheese sauce": {
-        "per100g": {
-          "protein": 10.33,
-          "fat": 14.92,
-          "carbohydrate": 5.48,
-          "kcal": 197.0,
-          "sodium": 493.0
-        },
-        "source": "sr:172200",
-        "basis": "analysed",
-        "name": "Cheese sauce, prepared from recipe",
-        "curated": false
-      },
-      "dairy|cheese substitute": {
-        "per100g": {
-          "protein": 11.47,
-          "fat": 12.22,
-          "carbohydrate": 23.67,
-          "kcal": 248.0,
-          "sodium": 685.0
-        },
-        "source": "sr:172198",
-        "basis": "analysed",
-        "name": "Cheese substitute, mozzarella",
-        "curated": false
-      },
-      "dairy|cream cheese": {
-        "per100g": {
-          "protein": 6.15,
-          "fat": 34.44,
-          "carbohydrate": 5.52,
-          "kcal": 350.0,
-          "sodium": 314.0
-        },
-        "source": "sr:173418",
-        "basis": "analysed",
-        "name": "Cheese, cream",
-        "curated": true
-      },
-      "dairy|egg substitute": {
-        "per100g": {
-          "protein": 10.0,
-          "fat": 0.0,
-          "carbohydrate": 2.0,
-          "kcal": 48.0,
-          "sodium": 199.0
-        },
-        "source": "sr:173462",
-        "basis": "analysed",
-        "name": "Egg substitute, liquid or frozen, fat free",
-        "curated": false
-      },
-      "dairy|eggnog": {
-        "per100g": {
-          "protein": 4.55,
-          "fat": 4.19,
-          "carbohydrate": 8.05,
-          "kcal": 88.0,
-          "sodium": 54.0
-        },
-        "source": "sr:171258",
-        "basis": "analysed",
-        "name": "Eggnog",
-        "curated": false
-      },
-      "dairy|eggs": {
-        "per100g": {
-          "protein": 13.1,
-          "fat": 5.6,
-          "carbohydrate": 7.5,
-          "kcal": 131.0,
-          "sodium": 162.0
-        },
-        "source": "sr:169904",
-        "basis": "analysed",
-        "name": "Eggs, scrambled, frozen mixture",
-        "curated": false
-      },
-      "dairy|feta": {
-        "per100g": {
-          "protein": 14.21,
-          "fat": 21.49,
-          "carbohydrate": 3.88,
-          "kcal": 265.0,
-          "sodium": 1139.0
-        },
-        "source": "sr:173420",
-        "basis": "analysed",
-        "name": "Cheese, feta",
-        "curated": true
-      },
-      "dairy|feta cheese": {
-        "per100g": {
-          "protein": 14.21,
-          "fat": 21.49,
-          "carbohydrate": 3.88,
-          "kcal": 265.0,
-          "sodium": 1139.0
-        },
-        "source": "sr:173420",
-        "basis": "analysed",
-        "name": "Cheese, feta",
-        "curated": true
-      },
-      "dairy|grated cheese": {
-        "per100g": {
-          "protein": 24.25,
-          "fat": 33.82,
-          "carbohydrate": 2.13,
-          "kcal": 410.0,
-          "sodium": 644.0
-        },
-        "source": "sr:170899",
-        "basis": "analysed",
-        "name": "Cheese, cheddar, sharp, sliced",
-        "curated": true
-      },
-      "dairy|ice cream": {
+      "cream|ice cream": {
         "per100g": {
           "protein": 3.5,
           "fat": 11.0,
@@ -880,85 +1410,7 @@
         "name": "Ice creams, vanilla",
         "curated": true
       },
-      "dairy|imitation cheese": {
-        "per100g": {
-          "protein": 25.0,
-          "fat": 32.0,
-          "carbohydrate": 1.0,
-          "kcal": 390.0,
-          "sodium": 670.0
-        },
-        "source": "sr:168089",
-        "basis": "analysed",
-        "name": "Imitation cheese, american or cheddar, low cholesterol",
-        "curated": false
-      },
-      "dairy|milk": {
-        "per100g": {
-          "protein": 3.15,
-          "fat": 3.25,
-          "carbohydrate": 4.8,
-          "kcal": 61.0,
-          "sodium": 43.0
-        },
-        "source": "sr:171265",
-        "basis": "analysed",
-        "name": "Milk, whole, 3.25% milkfat, with added vitamin D",
-        "curated": true
-      },
-      "dairy|milk substitutes": {
-        "per100g": {
-          "protein": 1.75,
-          "fat": 3.41,
-          "carbohydrate": 6.16,
-          "kcal": 61.0,
-          "sodium": 78.0
-        },
-        "source": "sr:171264",
-        "basis": "analysed",
-        "name": "Milk substitutes, fluid, with lauric acid oil",
-        "curated": false
-      },
-      "dairy|mozzarella": {
-        "per100g": {
-          "protein": 22.17,
-          "fat": 22.14,
-          "carbohydrate": 2.4,
-          "kcal": 299.0,
-          "sodium": 486.0
-        },
-        "source": "sr:170845",
-        "basis": "analysed",
-        "name": "Cheese, mozzarella, whole milk",
-        "curated": true
-      },
-      "dairy|shredded cheese": {
-        "per100g": {
-          "protein": 24.25,
-          "fat": 33.82,
-          "carbohydrate": 2.13,
-          "kcal": 410.0,
-          "sodium": 644.0
-        },
-        "source": "sr:170899",
-        "basis": "analysed",
-        "name": "Cheese, cheddar, sharp, sliced",
-        "curated": true
-      },
-      "dairy|sliced cheese": {
-        "per100g": {
-          "protein": 24.25,
-          "fat": 33.82,
-          "carbohydrate": 2.13,
-          "kcal": 410.0,
-          "sodium": 644.0
-        },
-        "source": "sr:170899",
-        "basis": "analysed",
-        "name": "Cheese, cheddar, sharp, sliced",
-        "curated": true
-      },
-      "dairy|sour cream": {
+      "cream|sour cream": {
         "per100g": {
           "protein": 2.44,
           "fat": 19.35,
@@ -969,58 +1421,6 @@
         "source": "sr:171257",
         "basis": "analysed",
         "name": "Cream, sour, cultured",
-        "curated": true
-      },
-      "dairy|sour dressing": {
-        "per100g": {
-          "protein": 3.25,
-          "fat": 16.57,
-          "carbohydrate": 4.68,
-          "kcal": 178.0,
-          "sodium": 48.0
-        },
-        "source": "sr:171259",
-        "basis": "analysed",
-        "name": "Sour dressing, non-butterfat, cultured, filled cream-type",
-        "curated": false
-      },
-      "dairy|whipped topping": {
-        "per100g": {
-          "protein": 3.0,
-          "fat": 13.1,
-          "carbohydrate": 23.6,
-          "kcal": 224.0,
-          "sodium": 72.0
-        },
-        "source": "sr:167687",
-        "basis": "analysed",
-        "name": "Whipped topping, frozen, low fat",
-        "curated": false
-      },
-      "dairy|yoghurt": {
-        "per100g": {
-          "protein": 3.47,
-          "fat": 3.25,
-          "carbohydrate": 4.66,
-          "kcal": 61.0,
-          "sodium": 46.0
-        },
-        "source": "sr:171284",
-        "basis": "analysed",
-        "name": "Yogurt, plain, whole milk",
-        "curated": true
-      },
-      "dairy|yogurt": {
-        "per100g": {
-          "protein": 3.47,
-          "fat": 3.25,
-          "carbohydrate": 4.66,
-          "kcal": 61.0,
-          "sodium": 46.0
-        },
-        "source": "sr:171284",
-        "basis": "analysed",
-        "name": "Yogurt, plain, whole milk",
         "curated": true
       },
       "egg|boiled egg": {
@@ -1048,6 +1448,45 @@
         "basis": "analysed",
         "name": "Egg, whole, cooked, hard-boiled",
         "curated": true
+      },
+      "egg|egg substitute": {
+        "per100g": {
+          "protein": 10.0,
+          "fat": 0.0,
+          "carbohydrate": 2.0,
+          "kcal": 48.0,
+          "sodium": 199.0
+        },
+        "source": "sr:173462",
+        "basis": "analysed",
+        "name": "Egg substitute, liquid or frozen, fat free",
+        "curated": false
+      },
+      "egg|eggnog": {
+        "per100g": {
+          "protein": 4.55,
+          "fat": 4.19,
+          "carbohydrate": 8.05,
+          "kcal": 88.0,
+          "sodium": 54.0
+        },
+        "source": "sr:171258",
+        "basis": "analysed",
+        "name": "Eggnog",
+        "curated": false
+      },
+      "egg|eggs": {
+        "per100g": {
+          "protein": 13.1,
+          "fat": 5.6,
+          "carbohydrate": 7.5,
+          "kcal": 131.0,
+          "sodium": 162.0
+        },
+        "source": "sr:169904",
+        "basis": "analysed",
+        "name": "Eggs, scrambled, frozen mixture",
+        "curated": false
       },
       "egg|fried egg": {
         "per100g": {
@@ -1086,19 +1525,6 @@
         "source": "sr:171956",
         "basis": "analysed",
         "name": "Fish, cod, Atlantic, cooked, dry heat",
-        "curated": true
-      },
-      "fish|crab": {
-        "per100g": {
-          "protein": 23.72,
-          "fat": 1.51,
-          "carbohydrate": 0.0,
-          "kcal": 115.0,
-          "sodium": 691.0
-        },
-        "source": "sr:172008",
-        "basis": "analysed",
-        "name": "Crustaceans, crab, queen, cooked, moist heat",
         "curated": true
       },
       "fish|eel": {
@@ -1179,45 +1605,6 @@
         "name": "＜魚類＞ （たら類） すけとうだら からしめんたいこ",
         "curated": true
       },
-      "fish|mussels": {
-        "per100g": {
-          "protein": 23.8,
-          "fat": 4.48,
-          "carbohydrate": 7.39,
-          "kcal": 172.0,
-          "sodium": 369.0
-        },
-        "source": "sr:174217",
-        "basis": "analysed",
-        "name": "Mollusks, mussel, blue, cooked, moist heat",
-        "curated": true
-      },
-      "fish|octopus": {
-        "per100g": {
-          "protein": 29.82,
-          "fat": 2.08,
-          "carbohydrate": 4.4,
-          "kcal": 164.0,
-          "sodium": 460.0
-        },
-        "source": "sr:174249",
-        "basis": "analysed",
-        "name": "Mollusks, octopus, common, cooked, moist heat",
-        "curated": true
-      },
-      "fish|prawns": {
-        "per100g": {
-          "protein": 23.98,
-          "fat": 0.28,
-          "carbohydrate": 0.2,
-          "kcal": 99.0,
-          "sodium": 111.0
-        },
-        "source": "sr:175180",
-        "basis": "analysed",
-        "name": "Crustaceans, shrimp, cooked",
-        "curated": true
-      },
       "fish|salmon": {
         "per100g": {
           "protein": 25.82,
@@ -1257,19 +1644,6 @@
         "name": "Fish, sardine, Atlantic, canned in oil, drained solids with bone",
         "curated": true
       },
-      "fish|scallops": {
-        "per100g": {
-          "protein": 20.54,
-          "fat": 0.84,
-          "carbohydrate": 5.41,
-          "kcal": 111.0,
-          "sodium": 667.0
-        },
-        "source": "sr:167742",
-        "basis": "analysed",
-        "name": "Mollusks, scallop, (bay and sea), cooked, steamed",
-        "curated": true
-      },
       "fish|sea bream": {
         "per100g": {
           "protein": 22.83,
@@ -1296,19 +1670,6 @@
         "name": "Crustaceans, shrimp, cooked",
         "curated": true
       },
-      "fish|shrimp": {
-        "per100g": {
-          "protein": 23.98,
-          "fat": 0.28,
-          "carbohydrate": 0.2,
-          "kcal": 99.0,
-          "sodium": 111.0
-        },
-        "source": "sr:175180",
-        "basis": "analysed",
-        "name": "Crustaceans, shrimp, cooked",
-        "curated": true
-      },
       "fish|snail meat": {
         "per100g": {
           "protein": 29.82,
@@ -1320,19 +1681,6 @@
         "source": "sr:174249",
         "basis": "analysed",
         "name": "Mollusks, octopus, common, cooked, moist heat",
-        "curated": true
-      },
-      "fish|squid": {
-        "per100g": {
-          "protein": 17.94,
-          "fat": 7.48,
-          "carbohydrate": 7.79,
-          "kcal": 175.0,
-          "sodium": 306.0
-        },
-        "source": "sr:171982",
-        "basis": "analysed",
-        "name": "Mollusks, squid, mixed species, cooked, fried",
         "curated": true
       },
       "fish|tuna": {
@@ -2310,59 +2658,20 @@
         "name": "Watermelon, raw",
         "curated": false
       },
-      "healthy_fats|avocado": {
+      "lamb_game|lamb": {
         "per100g": {
-          "protein": 2.0,
-          "fat": 14.66,
-          "carbohydrate": 8.53,
-          "kcal": 160.0,
-          "sodium": 7.0
+          "protein": 26.16,
+          "fat": 13.31,
+          "carbohydrate": 0.0,
+          "kcal": 232.0,
+          "sodium": 81.0
         },
-        "source": "sr:171705",
+        "source": "sr:172495",
         "basis": "analysed",
-        "name": "Avocados, raw, all commercial varieties",
+        "name": "Lamb, rib, separable lean only, trimmed to 1/4\" fat, choice, cooked, roasted",
         "curated": true
       },
-      "healthy_fats|guacamole": {
-        "per100g": {
-          "protein": 1.96,
-          "fat": 15.41,
-          "carbohydrate": 8.64,
-          "kcal": 167.0,
-          "sodium": 8.0
-        },
-        "source": "sr:171706",
-        "basis": "analysed",
-        "name": "Avocados, raw, California",
-        "curated": true
-      },
-      "healthy_fats|olives": {
-        "per100g": {
-          "protein": 0.84,
-          "fat": 10.9,
-          "carbohydrate": 6.04,
-          "kcal": 116.0,
-          "sodium": 735.0
-        },
-        "source": "sr:169094",
-        "basis": "analysed",
-        "name": "Olives, ripe, canned (small-extra large)",
-        "curated": true
-      },
-      "healthy_fats|sesame seeds": {
-        "per100g": {
-          "protein": 17.73,
-          "fat": 49.67,
-          "carbohydrate": 23.45,
-          "kcal": 573.0,
-          "sodium": 11.0
-        },
-        "source": "sr:170150",
-        "basis": "analysed",
-        "name": "Seeds, sesame seeds, whole, dried",
-        "curated": true
-      },
-      "legumes|chickpeas": {
+      "legume|chickpeas": {
         "per100g": {
           "protein": 8.86,
           "fat": 2.59,
@@ -2375,85 +2684,176 @@
         "name": "Chickpeas (garbanzo beans, bengal gram), mature seeds, cooked, boiled, with salt",
         "curated": true
       },
-      "legumes|miso": {
+      "mayonnaise_dressing|caesar dressing": {
         "per100g": {
-          "protein": 9.7,
-          "fat": 3.0,
-          "carbohydrate": 37.9,
-          "kcal": 206.0,
-          "sodium": 2400.0
+          "protein": 2.17,
+          "fat": 57.85,
+          "carbohydrate": 3.3,
+          "kcal": 542.0,
+          "sodium": 1209.0
         },
-        "source": "mext:17044",
+        "source": "sr:169055",
         "basis": "analysed",
-        "name": "＜調味料類＞ （みそ類） 米みそ 甘みそ",
+        "name": "Salad dressing, caesar dressing, regular",
         "curated": true
       },
-      "legumes|miso broth": {
+      "mayonnaise_dressing|creamy dressing": {
         "per100g": {
-          "protein": 9.7,
-          "fat": 3.0,
-          "carbohydrate": 37.9,
-          "kcal": 206.0,
-          "sodium": 2400.0
+          "protein": 2.17,
+          "fat": 57.85,
+          "carbohydrate": 3.3,
+          "kcal": 542.0,
+          "sodium": 1209.0
         },
-        "source": "mext:17044",
+        "source": "sr:169055",
         "basis": "analysed",
-        "name": "＜調味料類＞ （みそ類） 米みそ 甘みそ",
+        "name": "Salad dressing, caesar dressing, regular",
         "curated": true
       },
-      "legumes|miso paste": {
+      "mayonnaise_dressing|mayonnaise": {
         "per100g": {
-          "protein": 9.7,
-          "fat": 3.0,
-          "carbohydrate": 37.9,
-          "kcal": 206.0,
-          "sodium": 2400.0
+          "protein": 0.96,
+          "fat": 74.85,
+          "carbohydrate": 0.57,
+          "kcal": 680.0,
+          "sodium": 635.0
         },
-        "source": "mext:17044",
+        "source": "sr:171009",
         "basis": "analysed",
-        "name": "＜調味料類＞ （みそ類） 米みそ 甘みそ",
+        "name": "Salad dressing, mayonnaise, regular",
         "curated": true
       },
-      "legumes|natto": {
+      "milk|butter oil": {
         "per100g": {
-          "protein": 16.5,
-          "fat": 10.0,
-          "carbohydrate": 12.1,
-          "kcal": 184.0,
+          "protein": 0.28,
+          "fat": 99.48,
+          "carbohydrate": 0.0,
+          "kcal": 876.0,
           "sodium": 2.0
         },
-        "source": "mext:04046",
+        "source": "sr:173412",
         "basis": "analysed",
-        "name": "だいず ［納豆類］ 糸引き納豆",
-        "curated": true
-      },
-      "legumes|tempeh": {
-        "per100g": {
-          "protein": 19.91,
-          "fat": 11.38,
-          "carbohydrate": 7.62,
-          "kcal": 195.0,
-          "sodium": 14.0
-        },
-        "source": "sr:172467",
-        "basis": "analysed",
-        "name": "Tempeh, cooked",
+        "name": "Butter oil, anhydrous",
         "curated": false
       },
-      "legumes|tofu": {
+      "milk|feta": {
         "per100g": {
-          "protein": 7.0,
-          "fat": 4.9,
-          "carbohydrate": 1.5,
-          "kcal": 73.0,
-          "sodium": 9.0
+          "protein": 14.21,
+          "fat": 21.49,
+          "carbohydrate": 3.88,
+          "kcal": 265.0,
+          "sodium": 1139.0
         },
-        "source": "mext:04032",
+        "source": "sr:173420",
         "basis": "analysed",
-        "name": "だいず ［豆腐・油揚げ類］ 木綿豆腐",
+        "name": "Cheese, feta",
         "curated": true
       },
-      "nuts|almonds": {
+      "milk|milk": {
+        "per100g": {
+          "protein": 3.15,
+          "fat": 3.25,
+          "carbohydrate": 4.8,
+          "kcal": 61.0,
+          "sodium": 43.0
+        },
+        "source": "sr:171265",
+        "basis": "analysed",
+        "name": "Milk, whole, 3.25% milkfat, with added vitamin D",
+        "curated": true
+      },
+      "milk|milk substitutes": {
+        "per100g": {
+          "protein": 1.75,
+          "fat": 3.41,
+          "carbohydrate": 6.16,
+          "kcal": 61.0,
+          "sodium": 78.0
+        },
+        "source": "sr:171264",
+        "basis": "analysed",
+        "name": "Milk substitutes, fluid, with lauric acid oil",
+        "curated": false
+      },
+      "milk|mozzarella": {
+        "per100g": {
+          "protein": 22.17,
+          "fat": 22.14,
+          "carbohydrate": 2.4,
+          "kcal": 299.0,
+          "sodium": 486.0
+        },
+        "source": "sr:170845",
+        "basis": "analysed",
+        "name": "Cheese, mozzarella, whole milk",
+        "curated": true
+      },
+      "milk|sour dressing": {
+        "per100g": {
+          "protein": 3.25,
+          "fat": 16.57,
+          "carbohydrate": 4.68,
+          "kcal": 178.0,
+          "sodium": 48.0
+        },
+        "source": "sr:171259",
+        "basis": "analysed",
+        "name": "Sour dressing, non-butterfat, cultured, filled cream-type",
+        "curated": false
+      },
+      "milk|whipped topping": {
+        "per100g": {
+          "protein": 3.0,
+          "fat": 13.1,
+          "carbohydrate": 23.6,
+          "kcal": 224.0,
+          "sodium": 72.0
+        },
+        "source": "sr:167687",
+        "basis": "analysed",
+        "name": "Whipped topping, frozen, low fat",
+        "curated": false
+      },
+      "mushroom_seaweed|mushroom": {
+        "per100g": {
+          "protein": 3.09,
+          "fat": 0.34,
+          "carbohydrate": 3.26,
+          "kcal": 22.0,
+          "sodium": 5.0
+        },
+        "source": "sr:169376",
+        "basis": "analysed",
+        "name": "Mushroom, white, exposed to ultraviolet light, raw",
+        "curated": false
+      },
+      "mushroom_seaweed|nori": {
+        "per100g": {
+          "protein": 41.4,
+          "fat": 3.7,
+          "carbohydrate": 44.3,
+          "kcal": 297.0,
+          "sodium": 530.0
+        },
+        "source": "mext:09004",
+        "basis": "analysed",
+        "name": "あまのり 焼きのり",
+        "curated": true
+      },
+      "mushroom_seaweed|nori seaweed": {
+        "per100g": {
+          "protein": 41.4,
+          "fat": 3.7,
+          "carbohydrate": 44.3,
+          "kcal": 297.0,
+          "sodium": 530.0
+        },
+        "source": "mext:09004",
+        "basis": "analysed",
+        "name": "あまのり 焼きのり",
+        "curated": true
+      },
+      "nuts_seeds|almonds": {
         "per100g": {
           "protein": 21.15,
           "fat": 49.93,
@@ -2466,7 +2866,7 @@
         "name": "Nuts, almonds",
         "curated": true
       },
-      "nuts|peanuts": {
+      "nuts_seeds|peanuts": {
         "per100g": {
           "protein": 24.35,
           "fat": 49.66,
@@ -2479,72 +2879,7 @@
         "name": "Peanuts, all types, dry-roasted, without salt",
         "curated": true
       },
-      "olive_oil|olive oil": {
-        "per100g": {
-          "protein": 0.0,
-          "fat": 100.0,
-          "carbohydrate": 0.0,
-          "kcal": 884.0,
-          "sodium": 2.0
-        },
-        "source": "sr:171413",
-        "basis": "analysed",
-        "name": "Oil, olive, salad or cooking",
-        "curated": true
-      },
-      "olive_oil|olive oil dressing": {
-        "per100g": {
-          "protein": 0.0,
-          "fat": 100.0,
-          "carbohydrate": 0.0,
-          "kcal": 884.0,
-          "sodium": 2.0
-        },
-        "source": "sr:171413",
-        "basis": "analysed",
-        "name": "Oil, olive, salad or cooking",
-        "curated": true
-      },
-      "plant_fats|avocado": {
-        "per100g": {
-          "protein": 2.0,
-          "fat": 14.66,
-          "carbohydrate": 8.53,
-          "kcal": 160.0,
-          "sodium": 7.0
-        },
-        "source": "sr:171705",
-        "basis": "analysed",
-        "name": "Avocados, raw, all commercial varieties",
-        "curated": true
-      },
-      "plant_fats|guacamole": {
-        "per100g": {
-          "protein": 1.96,
-          "fat": 15.41,
-          "carbohydrate": 8.64,
-          "kcal": 167.0,
-          "sodium": 8.0
-        },
-        "source": "sr:171706",
-        "basis": "analysed",
-        "name": "Avocados, raw, California",
-        "curated": true
-      },
-      "plant_fats|olives": {
-        "per100g": {
-          "protein": 0.84,
-          "fat": 10.9,
-          "carbohydrate": 6.04,
-          "kcal": 116.0,
-          "sodium": 735.0
-        },
-        "source": "sr:169094",
-        "basis": "analysed",
-        "name": "Olives, ripe, canned (small-extra large)",
-        "curated": true
-      },
-      "plant_fats|sesame seeds": {
+      "nuts_seeds|sesame seeds": {
         "per100g": {
           "protein": 17.73,
           "fat": 49.67,
@@ -2556,6 +2891,604 @@
         "basis": "analysed",
         "name": "Seeds, sesame seeds, whole, dried",
         "curated": true
+      },
+      "oil|canola oil": {
+        "per100g": {
+          "protein": 0.0,
+          "fat": 100.0,
+          "carbohydrate": 0.0,
+          "kcal": 884.0,
+          "sodium": 0.0
+        },
+        "source": "sr:172336",
+        "basis": "analysed",
+        "name": "Oil, canola",
+        "curated": true
+      },
+      "oil|cooking oil": {
+        "per100g": {
+          "protein": 0.0,
+          "fat": 100.0,
+          "carbohydrate": 0.0,
+          "kcal": 884.0,
+          "sodium": 0.0
+        },
+        "source": "sr:171411",
+        "basis": "analysed",
+        "name": "Oil, soybean, salad or cooking",
+        "curated": true
+      },
+      "oil|frying oil": {
+        "per100g": {
+          "protein": 0.0,
+          "fat": 100.0,
+          "carbohydrate": 0.0,
+          "kcal": 884.0,
+          "sodium": 0.0
+        },
+        "source": "sr:171411",
+        "basis": "analysed",
+        "name": "Oil, soybean, salad or cooking",
+        "curated": true
+      },
+      "oil|olive oil": {
+        "per100g": {
+          "protein": 0.0,
+          "fat": 100.0,
+          "carbohydrate": 0.0,
+          "kcal": 884.0,
+          "sodium": 2.0
+        },
+        "source": "sr:171413",
+        "basis": "analysed",
+        "name": "Oil, olive, salad or cooking",
+        "curated": true
+      },
+      "oil|olive oil dressing": {
+        "per100g": {
+          "protein": 0.0,
+          "fat": 100.0,
+          "carbohydrate": 0.0,
+          "kcal": 884.0,
+          "sodium": 2.0
+        },
+        "source": "sr:171413",
+        "basis": "analysed",
+        "name": "Oil, olive, salad or cooking",
+        "curated": true
+      },
+      "oil|rapeseed oil": {
+        "per100g": {
+          "protein": 0.0,
+          "fat": 100.0,
+          "carbohydrate": 0.0,
+          "kcal": 884.0,
+          "sodium": 0.0
+        },
+        "source": "sr:172336",
+        "basis": "analysed",
+        "name": "Oil, canola",
+        "curated": true
+      },
+      "oil|seed oil": {
+        "per100g": {
+          "protein": 0.0,
+          "fat": 100.0,
+          "carbohydrate": 0.0,
+          "kcal": 884.0,
+          "sodium": 0.0
+        },
+        "source": "sr:171411",
+        "basis": "analysed",
+        "name": "Oil, soybean, salad or cooking",
+        "curated": true
+      },
+      "oil|sesame oil": {
+        "per100g": {
+          "protein": 0.0,
+          "fat": 100.0,
+          "carbohydrate": 0.0,
+          "kcal": 884.0,
+          "sodium": 0.0
+        },
+        "source": "sr:171015",
+        "basis": "analysed",
+        "name": "Oil, palm",
+        "curated": true
+      },
+      "oil|soybean oil": {
+        "per100g": {
+          "protein": 0.0,
+          "fat": 100.0,
+          "carbohydrate": 0.0,
+          "kcal": 884.0,
+          "sodium": 0.0
+        },
+        "source": "sr:171411",
+        "basis": "analysed",
+        "name": "Oil, soybean, salad or cooking",
+        "curated": true
+      },
+      "oil|sunflower oil": {
+        "per100g": {
+          "protein": 0.0,
+          "fat": 100.0,
+          "carbohydrate": 0.0,
+          "kcal": 884.0,
+          "sodium": 0.0
+        },
+        "source": "sr:171025",
+        "basis": "analysed",
+        "name": "Oil, sunflower, linoleic, (approx. 65%)",
+        "curated": true
+      },
+      "oil|vegetable oil": {
+        "per100g": {
+          "protein": 0.0,
+          "fat": 100.0,
+          "carbohydrate": 0.0,
+          "kcal": 884.0,
+          "sodium": 0.0
+        },
+        "source": "sr:171411",
+        "basis": "analysed",
+        "name": "Oil, soybean, salad or cooking",
+        "curated": true
+      },
+      "pasta_noodles|macaroni": {
+        "per100g": {
+          "protein": 4.53,
+          "fat": 0.11,
+          "carbohydrate": 26.61,
+          "kcal": 128.0,
+          "sodium": 6.0
+        },
+        "source": "sr:168904",
+        "basis": "analysed",
+        "name": "Macaroni, vegetable, enriched, cooked",
+        "curated": false
+      },
+      "pasta_noodles|noodles": {
+        "per100g": {
+          "protein": 5.8,
+          "fat": 0.93,
+          "carbohydrate": 30.86,
+          "kcal": 158.0,
+          "sodium": 1.0
+        },
+        "source": "sr:169737",
+        "basis": "analysed",
+        "name": "Pasta, cooked, enriched, without added salt",
+        "curated": true
+      },
+      "pasta_noodles|pasta": {
+        "per100g": {
+          "protein": 5.8,
+          "fat": 0.93,
+          "carbohydrate": 30.86,
+          "kcal": 158.0,
+          "sodium": 1.0
+        },
+        "source": "sr:169737",
+        "basis": "analysed",
+        "name": "Pasta, cooked, enriched, without added salt",
+        "curated": true
+      },
+      "pasta_noodles|spaghetti": {
+        "per100g": {
+          "protein": 5.8,
+          "fat": 0.93,
+          "carbohydrate": 30.86,
+          "kcal": 158.0,
+          "sodium": 1.0
+        },
+        "source": "sr:169737",
+        "basis": "analysed",
+        "name": "Pasta, cooked, enriched, without added salt",
+        "curated": true
+      },
+      "pasta_noodles|udon noodles": {
+        "per100g": {
+          "protein": 5.8,
+          "fat": 0.93,
+          "carbohydrate": 30.86,
+          "kcal": 158.0,
+          "sodium": 1.0
+        },
+        "source": "sr:169737",
+        "basis": "analysed",
+        "name": "Pasta, cooked, enriched, without added salt",
+        "curated": true
+      },
+      "pork|pork": {
+        "per100g": {
+          "protein": 23.28,
+          "fat": 21.39,
+          "carbohydrate": 0.0,
+          "kcal": 292.0,
+          "sodium": 68.0
+        },
+        "source": "sr:167844",
+        "basis": "analysed",
+        "name": "Pork, fresh, shoulder, whole, separable lean and fat, cooked, roasted",
+        "curated": true
+      },
+      "pork|pork belly": {
+        "per100g": {
+          "protein": 23.28,
+          "fat": 21.39,
+          "carbohydrate": 0.0,
+          "kcal": 292.0,
+          "sodium": 68.0
+        },
+        "source": "sr:167844",
+        "basis": "analysed",
+        "name": "Pork, fresh, shoulder, whole, separable lean and fat, cooked, roasted",
+        "curated": true
+      },
+      "pork|pork loin": {
+        "per100g": {
+          "protein": 24.15,
+          "fat": 17.65,
+          "carbohydrate": 0.0,
+          "kcal": 255.0,
+          "sodium": 98.0
+        },
+        "source": "sr:168377",
+        "basis": "analysed",
+        "name": "Pork loin, fresh, backribs, bone-in, cooked-roasted, lean only",
+        "curated": false
+      },
+      "potato|mashed potato": {
+        "per100g": {
+          "protein": 1.86,
+          "fat": 4.22,
+          "carbohydrate": 16.81,
+          "kcal": 113.0,
+          "sodium": 317.0
+        },
+        "source": "sr:168555",
+        "basis": "analysed",
+        "name": "Potatoes, mashed, home-prepared, whole milk and butter added",
+        "curated": true
+      },
+      "potato|mashed potatoes": {
+        "per100g": {
+          "protein": 1.86,
+          "fat": 4.22,
+          "carbohydrate": 16.81,
+          "kcal": 113.0,
+          "sodium": 317.0
+        },
+        "source": "sr:168555",
+        "basis": "analysed",
+        "name": "Potatoes, mashed, home-prepared, whole milk and butter added",
+        "curated": true
+      },
+      "potato|potato pancakes": {
+        "per100g": {
+          "protein": 6.08,
+          "fat": 14.76,
+          "carbohydrate": 27.81,
+          "kcal": 268.0,
+          "sodium": 764.0
+        },
+        "source": "sr:170092",
+        "basis": "analysed",
+        "name": "Potato pancakes",
+        "curated": false
+      },
+      "potato|potato salad": {
+        "per100g": {
+          "protein": 2.68,
+          "fat": 8.2,
+          "carbohydrate": 11.17,
+          "kcal": 143.0,
+          "sodium": 529.0
+        },
+        "source": "sr:169269",
+        "basis": "analysed",
+        "name": "Potato salad, home-prepared",
+        "curated": false
+      },
+      "potato|potato wedges": {
+        "per100g": {
+          "protein": 2.7,
+          "fat": 2.2,
+          "carbohydrate": 25.46,
+          "kcal": 129.0,
+          "sodium": 49.0
+        },
+        "source": "sr:168443",
+        "basis": "analysed",
+        "name": "Potato wedges, frozen (Includes foods for USDA's Food Distribution Program)",
+        "curated": false
+      },
+      "potato|potatoes": {
+        "per100g": {
+          "protein": 1.71,
+          "fat": 0.1,
+          "carbohydrate": 20.01,
+          "kcal": 86.0,
+          "sodium": 5.0
+        },
+        "source": "sr:170440",
+        "basis": "analysed",
+        "name": "Potatoes, boiled, cooked without skin, flesh, without salt",
+        "curated": true
+      },
+      "poultry|battered chicken": {
+        "per100g": {
+          "protein": 22.54,
+          "fat": 17.35,
+          "carbohydrate": 9.42,
+          "kcal": 289.0,
+          "sodium": 292.0
+        },
+        "source": "sr:171448",
+        "basis": "analysed",
+        "name": "Chicken, broilers or fryers, meat and skin, cooked, fried, batter",
+        "curated": true
+      },
+      "poultry|chicken": {
+        "per100g": {
+          "protein": 27.3,
+          "fat": 13.6,
+          "carbohydrate": 0.0,
+          "kcal": 239.0,
+          "sodium": 82.0
+        },
+        "source": "sr:171450",
+        "basis": "analysed",
+        "name": "Chicken, broilers or fryers, meat and skin, cooked, roasted",
+        "curated": true
+      },
+      "poultry|chicken breast": {
+        "per100g": {
+          "protein": 31.02,
+          "fat": 3.57,
+          "carbohydrate": 0.0,
+          "kcal": 165.0,
+          "sodium": 74.0
+        },
+        "source": "sr:171477",
+        "basis": "analysed",
+        "name": "Chicken, broilers or fryers, breast, meat only, cooked, roasted",
+        "curated": true
+      },
+      "poultry|chicken leg": {
+        "per100g": {
+          "protein": 24.03,
+          "fat": 8.99,
+          "carbohydrate": 0.0,
+          "kcal": 184.0,
+          "sodium": 98.0
+        },
+        "source": "sr:173617",
+        "basis": "analysed",
+        "name": "Chicken, broilers or fryers, leg, meat and skin, cooked, roasted",
+        "curated": true
+      },
+      "poultry|chicken nugget": {
+        "per100g": {
+          "protein": 22.54,
+          "fat": 17.35,
+          "carbohydrate": 9.42,
+          "kcal": 289.0,
+          "sodium": 292.0
+        },
+        "source": "sr:171448",
+        "basis": "analysed",
+        "name": "Chicken, broilers or fryers, meat and skin, cooked, fried, batter",
+        "curated": true
+      },
+      "poultry|chicken patty": {
+        "per100g": {
+          "protein": 14.85,
+          "fat": 19.58,
+          "carbohydrate": 12.84,
+          "kcal": 287.0,
+          "sodium": 532.0
+        },
+        "source": "sr:171513",
+        "basis": "analysed",
+        "name": "Chicken patty, frozen, cooked",
+        "curated": false
+      },
+      "poultry|chicken piece": {
+        "per100g": {
+          "protein": 22.54,
+          "fat": 17.35,
+          "carbohydrate": 9.42,
+          "kcal": 289.0,
+          "sodium": 292.0
+        },
+        "source": "sr:171448",
+        "basis": "analysed",
+        "name": "Chicken, broilers or fryers, meat and skin, cooked, fried, batter",
+        "curated": true
+      },
+      "poultry|chicken roll": {
+        "per100g": {
+          "protein": 27.3,
+          "fat": 13.6,
+          "carbohydrate": 0.0,
+          "kcal": 239.0,
+          "sodium": 82.0
+        },
+        "source": "sr:171450",
+        "basis": "analysed",
+        "name": "Chicken, broilers or fryers, meat and skin, cooked, roasted",
+        "curated": true
+      },
+      "poultry|chicken schnitzel": {
+        "per100g": {
+          "protein": 22.54,
+          "fat": 17.35,
+          "carbohydrate": 9.42,
+          "kcal": 289.0,
+          "sodium": 292.0
+        },
+        "source": "sr:171448",
+        "basis": "analysed",
+        "name": "Chicken, broilers or fryers, meat and skin, cooked, fried, batter",
+        "curated": true
+      },
+      "poultry|chicken thigh": {
+        "per100g": {
+          "protein": 23.26,
+          "fat": 14.71,
+          "carbohydrate": 0.0,
+          "kcal": 232.0,
+          "sodium": 102.0
+        },
+        "source": "sr:173625",
+        "basis": "analysed",
+        "name": "Chicken, broilers or fryers, thigh, meat and skin, cooked, roasted",
+        "curated": true
+      },
+      "poultry|dove": {
+        "per100g": {
+          "protein": 23.9,
+          "fat": 13.0,
+          "carbohydrate": 0.0,
+          "kcal": 213.0,
+          "sodium": 57.0
+        },
+        "source": "sr:169905",
+        "basis": "analysed",
+        "name": "Dove, cooked (includes squab)",
+        "curated": false
+      },
+      "poultry|duck": {
+        "per100g": {
+          "protein": 18.99,
+          "fat": 28.35,
+          "carbohydrate": 0.0,
+          "kcal": 337.0,
+          "sodium": 59.0
+        },
+        "source": "sr:172409",
+        "basis": "analysed",
+        "name": "Duck, domesticated, meat and skin, cooked, roasted",
+        "curated": true
+      },
+      "poultry|fried chicken": {
+        "per100g": {
+          "protein": 22.54,
+          "fat": 17.35,
+          "carbohydrate": 9.42,
+          "kcal": 289.0,
+          "sodium": 292.0
+        },
+        "source": "sr:171448",
+        "basis": "analysed",
+        "name": "Chicken, broilers or fryers, meat and skin, cooked, fried, batter",
+        "curated": true
+      },
+      "poultry|fried chicken piece": {
+        "per100g": {
+          "protein": 22.54,
+          "fat": 17.35,
+          "carbohydrate": 9.42,
+          "kcal": 289.0,
+          "sodium": 292.0
+        },
+        "source": "sr:171448",
+        "basis": "analysed",
+        "name": "Chicken, broilers or fryers, meat and skin, cooked, fried, batter",
+        "curated": true
+      },
+      "poultry|karaage": {
+        "per100g": {
+          "protein": 22.54,
+          "fat": 17.35,
+          "carbohydrate": 9.42,
+          "kcal": 289.0,
+          "sodium": 292.0
+        },
+        "source": "sr:171448",
+        "basis": "analysed",
+        "name": "Chicken, broilers or fryers, meat and skin, cooked, fried, batter",
+        "curated": true
+      },
+      "poultry|kebab meat": {
+        "per100g": {
+          "protein": 23.26,
+          "fat": 14.71,
+          "carbohydrate": 0.0,
+          "kcal": 232.0,
+          "sodium": 102.0
+        },
+        "source": "sr:173625",
+        "basis": "analysed",
+        "name": "Chicken, broilers or fryers, thigh, meat and skin, cooked, roasted",
+        "curated": true
+      },
+      "poultry|pheasant": {
+        "per100g": {
+          "protein": 32.4,
+          "fat": 12.1,
+          "carbohydrate": 0.0,
+          "kcal": 239.0,
+          "sodium": 43.0
+        },
+        "source": "sr:169903",
+        "basis": "analysed",
+        "name": "Pheasant, cooked, total edible",
+        "curated": false
+      },
+      "poultry|quail": {
+        "per100g": {
+          "protein": 25.1,
+          "fat": 14.1,
+          "carbohydrate": 0.0,
+          "kcal": 227.0,
+          "sodium": 52.0
+        },
+        "source": "sr:169902",
+        "basis": "analysed",
+        "name": "Quail, cooked, total edible",
+        "curated": false
+      },
+      "poultry|turkey": {
+        "per100g": {
+          "protein": 28.55,
+          "fat": 7.39,
+          "carbohydrate": 0.06,
+          "kcal": 189.0,
+          "sodium": 103.0
+        },
+        "source": "sr:171479",
+        "basis": "analysed",
+        "name": "Turkey, whole, meat and skin, cooked, roasted",
+        "curated": true
+      },
+      "poultry|turkey breast": {
+        "per100g": {
+          "protein": 22.16,
+          "fat": 3.46,
+          "carbohydrate": 0.0,
+          "kcal": 126.0,
+          "sodium": 397.0
+        },
+        "source": "sr:171501",
+        "basis": "analysed",
+        "name": "Turkey breast, pre-basted, meat and skin, cooked, roasted",
+        "curated": false
+      },
+      "poultry|turkey thigh": {
+        "per100g": {
+          "protein": 18.8,
+          "fat": 8.54,
+          "carbohydrate": 0.0,
+          "kcal": 157.0,
+          "sodium": 437.0
+        },
+        "source": "sr:171502",
+        "basis": "analysed",
+        "name": "Turkey thigh, pre-basted, meat and skin, cooked, roasted",
+        "curated": false
       },
       "processed_meat|bacon": {
         "per100g": {
@@ -2986,241 +3919,7 @@
         "name": "Yachtwurst, with pistachio nuts, cooked",
         "curated": false
       },
-      "red_meat|beef": {
-        "per100g": {
-          "protein": 25.93,
-          "fat": 14.36,
-          "carbohydrate": 0.0,
-          "kcal": 240.0,
-          "sodium": 64.0
-        },
-        "source": "sr:174035",
-        "basis": "analysed",
-        "name": "Beef, ground, 85% lean meat / 15% fat, loaf, cooked, baked",
-        "curated": true
-      },
-      "red_meat|beef composite": {
-        "per100g": {
-          "protein": 28.73,
-          "fat": 9.16,
-          "carbohydrate": 0.0,
-          "kcal": 203.0,
-          "sodium": 53.0
-        },
-        "source": "sr:174013",
-        "basis": "analysed",
-        "name": "Beef composite, separable lean only, trimmed to 1/8\" fat, choice, cooked",
-        "curated": false
-      },
-      "red_meat|beef patty": {
-        "per100g": {
-          "protein": 25.93,
-          "fat": 15.41,
-          "carbohydrate": 0.0,
-          "kcal": 250.0,
-          "sodium": 72.0
-        },
-        "source": "sr:174032",
-        "basis": "analysed",
-        "name": "Beef, ground, 85% lean meat / 15% fat, patty, cooked, broiled",
-        "curated": true
-      },
-      "red_meat|beef steak": {
-        "per100g": {
-          "protein": 28.54,
-          "fat": 6.25,
-          "carbohydrate": 0.0,
-          "kcal": 178.0,
-          "sodium": 68.0
-        },
-        "source": "sr:168731",
-        "basis": "analysed",
-        "name": "Beef, shoulder steak, boneless, separable lean only, trimmed to 0\" fat, choice, cooked, grilled",
-        "curated": true
-      },
-      "red_meat|bison": {
-        "per100g": {
-          "protein": 25.45,
-          "fat": 8.62,
-          "carbohydrate": 0.0,
-          "kcal": 179.0,
-          "sodium": 76.0
-        },
-        "source": "sr:173847",
-        "basis": "analysed",
-        "name": "Bison, ground, grass-fed, cooked",
-        "curated": false
-      },
-      "red_meat|canadian bacon": {
-        "per100g": {
-          "protein": 28.31,
-          "fat": 2.78,
-          "carbohydrate": 1.8,
-          "kcal": 146.0,
-          "sodium": 993.0
-        },
-        "source": "sr:168383",
-        "basis": "analysed",
-        "name": "Canadian bacon, cooked, pan-fried",
-        "curated": false
-      },
-      "red_meat|ground beef": {
-        "per100g": {
-          "protein": 25.93,
-          "fat": 14.36,
-          "carbohydrate": 0.0,
-          "kcal": 240.0,
-          "sodium": 64.0
-        },
-        "source": "sr:174035",
-        "basis": "analysed",
-        "name": "Beef, ground, 85% lean meat / 15% fat, loaf, cooked, baked",
-        "curated": true
-      },
-      "red_meat|lamb": {
-        "per100g": {
-          "protein": 26.16,
-          "fat": 13.31,
-          "carbohydrate": 0.0,
-          "kcal": 232.0,
-          "sodium": 81.0
-        },
-        "source": "sr:172495",
-        "basis": "analysed",
-        "name": "Lamb, rib, separable lean only, trimmed to 1/4\" fat, choice, cooked, roasted",
-        "curated": true
-      },
-      "red_meat|minced meat": {
-        "per100g": {
-          "protein": 25.93,
-          "fat": 14.36,
-          "carbohydrate": 0.0,
-          "kcal": 240.0,
-          "sodium": 64.0
-        },
-        "source": "sr:174035",
-        "basis": "analysed",
-        "name": "Beef, ground, 85% lean meat / 15% fat, loaf, cooked, baked",
-        "curated": true
-      },
-      "red_meat|minced meat topping": {
-        "per100g": {
-          "protein": 25.93,
-          "fat": 14.36,
-          "carbohydrate": 0.0,
-          "kcal": 240.0,
-          "sodium": 64.0
-        },
-        "source": "sr:174035",
-        "basis": "analysed",
-        "name": "Beef, ground, 85% lean meat / 15% fat, loaf, cooked, baked",
-        "curated": true
-      },
-      "red_meat|pork": {
-        "per100g": {
-          "protein": 23.28,
-          "fat": 21.39,
-          "carbohydrate": 0.0,
-          "kcal": 292.0,
-          "sodium": 68.0
-        },
-        "source": "sr:167844",
-        "basis": "analysed",
-        "name": "Pork, fresh, shoulder, whole, separable lean and fat, cooked, roasted",
-        "curated": true
-      },
-      "red_meat|pork belly": {
-        "per100g": {
-          "protein": 23.28,
-          "fat": 21.39,
-          "carbohydrate": 0.0,
-          "kcal": 292.0,
-          "sodium": 68.0
-        },
-        "source": "sr:167844",
-        "basis": "analysed",
-        "name": "Pork, fresh, shoulder, whole, separable lean and fat, cooked, roasted",
-        "curated": true
-      },
-      "red_meat|pork loin": {
-        "per100g": {
-          "protein": 24.15,
-          "fat": 17.65,
-          "carbohydrate": 0.0,
-          "kcal": 255.0,
-          "sodium": 98.0
-        },
-        "source": "sr:168377",
-        "basis": "analysed",
-        "name": "Pork loin, fresh, backribs, bone-in, cooked-roasted, lean only",
-        "curated": false
-      },
-      "red_meat|raw beef steak": {
-        "per100g": {
-          "protein": 28.54,
-          "fat": 6.25,
-          "carbohydrate": 0.0,
-          "kcal": 178.0,
-          "sodium": 68.0
-        },
-        "source": "sr:168731",
-        "basis": "analysed",
-        "name": "Beef, shoulder steak, boneless, separable lean only, trimmed to 0\" fat, choice, cooked, grilled",
-        "curated": true
-      },
-      "red_meat|steak": {
-        "per100g": {
-          "protein": 28.54,
-          "fat": 6.25,
-          "carbohydrate": 0.0,
-          "kcal": 178.0,
-          "sodium": 68.0
-        },
-        "source": "sr:168731",
-        "basis": "analysed",
-        "name": "Beef, shoulder steak, boneless, separable lean only, trimmed to 0\" fat, choice, cooked, grilled",
-        "curated": true
-      },
-      "refined_grains|amaranth grain": {
-        "per100g": {
-          "protein": 3.8,
-          "fat": 1.58,
-          "carbohydrate": 18.69,
-          "kcal": 102.0,
-          "sodium": 6.0
-        },
-        "source": "sr:170683",
-        "basis": "analysed",
-        "name": "Amaranth grain, cooked",
-        "curated": false
-      },
-      "refined_grains|bagel": {
-        "per100g": {
-          "protein": 10.56,
-          "fat": 1.32,
-          "carbohydrate": 52.38,
-          "kcal": 264.0,
-          "sodium": 422.0
-        },
-        "source": "sr:174899",
-        "basis": "analysed",
-        "name": "Bagels, plain, enriched, with calcium propionate (includes onion, poppy, sesame)",
-        "curated": true
-      },
-      "refined_grains|barley": {
-        "per100g": {
-          "protein": 2.26,
-          "fat": 0.44,
-          "carbohydrate": 28.22,
-          "kcal": 123.0,
-          "sodium": 3.0
-        },
-        "source": "sr:170285",
-        "basis": "analysed",
-        "name": "Barley, pearled, cooked",
-        "curated": false
-      },
-      "refined_grains|basmati rice": {
+      "rice|basmati rice": {
         "per100g": {
           "protein": 2.69,
           "fat": 0.28,
@@ -3233,85 +3932,7 @@
         "name": "Rice, white, long-grain, regular, enriched, cooked",
         "curated": true
       },
-      "refined_grains|bread": {
-        "per100g": {
-          "protein": 9.0,
-          "fat": 4.0,
-          "carbohydrate": 54.5,
-          "kcal": 290.0,
-          "sodium": 537.0
-        },
-        "source": "sr:174925",
-        "basis": "analysed",
-        "name": "Bread, white, commercially prepared, toasted",
-        "curated": true
-      },
-      "refined_grains|breadcrumbs": {
-        "per100g": {
-          "protein": 8.85,
-          "fat": 3.33,
-          "carbohydrate": 49.42,
-          "kcal": 266.0,
-          "sodium": 490.0
-        },
-        "source": "sr:174924",
-        "basis": "analysed",
-        "name": "Bread, white, commercially prepared (includes soft bread crumbs)",
-        "curated": true
-      },
-      "refined_grains|buckwheat groats": {
-        "per100g": {
-          "protein": 3.38,
-          "fat": 0.62,
-          "carbohydrate": 19.94,
-          "kcal": 92.0,
-          "sodium": 4.0
-        },
-        "source": "sr:170686",
-        "basis": "analysed",
-        "name": "Buckwheat groats, roasted, cooked",
-        "curated": false
-      },
-      "refined_grains|bulgur": {
-        "per100g": {
-          "protein": 3.08,
-          "fat": 0.24,
-          "carbohydrate": 18.58,
-          "kcal": 83.0,
-          "sodium": 5.0
-        },
-        "source": "sr:170287",
-        "basis": "analysed",
-        "name": "Bulgur, cooked",
-        "curated": false
-      },
-      "refined_grains|bun": {
-        "per100g": {
-          "protein": 9.0,
-          "fat": 4.0,
-          "carbohydrate": 54.5,
-          "kcal": 290.0,
-          "sodium": 537.0
-        },
-        "source": "sr:174925",
-        "basis": "analysed",
-        "name": "Bread, white, commercially prepared, toasted",
-        "curated": true
-      },
-      "refined_grains|burger bun": {
-        "per100g": {
-          "protein": 9.0,
-          "fat": 4.0,
-          "carbohydrate": 54.5,
-          "kcal": 290.0,
-          "sodium": 537.0
-        },
-        "source": "sr:174925",
-        "basis": "analysed",
-        "name": "Bread, white, commercially prepared, toasted",
-        "curated": true
-      },
-      "refined_grains|cooked white rice": {
+      "rice|cooked white rice": {
         "per100g": {
           "protein": 2.69,
           "fat": 0.28,
@@ -3324,176 +3945,7 @@
         "name": "Rice, white, long-grain, regular, enriched, cooked",
         "curated": true
       },
-      "refined_grains|couscous": {
-        "per100g": {
-          "protein": 3.79,
-          "fat": 0.16,
-          "carbohydrate": 23.22,
-          "kcal": 112.0,
-          "sodium": 5.0
-        },
-        "source": "sr:169700",
-        "basis": "analysed",
-        "name": "Couscous, cooked",
-        "curated": false
-      },
-      "refined_grains|croutons": {
-        "per100g": {
-          "protein": 11.9,
-          "fat": 6.6,
-          "carbohydrate": 73.5,
-          "kcal": 407.0,
-          "sodium": 698.0
-        },
-        "source": "sr:172751",
-        "basis": "analysed",
-        "name": "Croutons, plain",
-        "curated": true
-      },
-      "refined_grains|flatbread": {
-        "per100g": {
-          "protein": 8.01,
-          "fat": 7.58,
-          "carbohydrate": 49.27,
-          "kcal": 297.0,
-          "sodium": 742.0
-        },
-        "source": "sr:167535",
-        "basis": "analysed",
-        "name": "Tortillas, ready-to-bake or -fry, flour, shelf stable",
-        "curated": true
-      },
-      "refined_grains|flour tortilla": {
-        "per100g": {
-          "protein": 8.01,
-          "fat": 7.58,
-          "carbohydrate": 49.27,
-          "kcal": 297.0,
-          "sodium": 742.0
-        },
-        "source": "sr:167535",
-        "basis": "analysed",
-        "name": "Tortillas, ready-to-bake or -fry, flour, shelf stable",
-        "curated": true
-      },
-      "refined_grains|macaroni": {
-        "per100g": {
-          "protein": 4.53,
-          "fat": 0.11,
-          "carbohydrate": 26.61,
-          "kcal": 128.0,
-          "sodium": 6.0
-        },
-        "source": "sr:168904",
-        "basis": "analysed",
-        "name": "Macaroni, vegetable, enriched, cooked",
-        "curated": false
-      },
-      "refined_grains|millet": {
-        "per100g": {
-          "protein": 3.51,
-          "fat": 1.0,
-          "carbohydrate": 23.67,
-          "kcal": 119.0,
-          "sodium": 2.0
-        },
-        "source": "sr:168871",
-        "basis": "analysed",
-        "name": "Millet, cooked",
-        "curated": false
-      },
-      "refined_grains|noodles": {
-        "per100g": {
-          "protein": 5.8,
-          "fat": 0.93,
-          "carbohydrate": 30.86,
-          "kcal": 158.0,
-          "sodium": 1.0
-        },
-        "source": "sr:169737",
-        "basis": "analysed",
-        "name": "Pasta, cooked, enriched, without added salt",
-        "curated": true
-      },
-      "refined_grains|oladyi pancakes": {
-        "per100g": {
-          "protein": 6.4,
-          "fat": 9.7,
-          "carbohydrate": 28.3,
-          "kcal": 227.0,
-          "sodium": 439.0
-        },
-        "source": "sr:175009",
-        "basis": "analysed",
-        "name": "Pancakes, plain, prepared from recipe",
-        "curated": true
-      },
-      "refined_grains|pancakes": {
-        "per100g": {
-          "protein": 6.4,
-          "fat": 9.7,
-          "carbohydrate": 28.3,
-          "kcal": 227.0,
-          "sodium": 439.0
-        },
-        "source": "sr:175009",
-        "basis": "analysed",
-        "name": "Pancakes, plain, prepared from recipe",
-        "curated": true
-      },
-      "refined_grains|pasta": {
-        "per100g": {
-          "protein": 5.8,
-          "fat": 0.93,
-          "carbohydrate": 30.86,
-          "kcal": 158.0,
-          "sodium": 1.0
-        },
-        "source": "sr:169737",
-        "basis": "analysed",
-        "name": "Pasta, cooked, enriched, without added salt",
-        "curated": true
-      },
-      "refined_grains|pizza crust": {
-        "per100g": {
-          "protein": 10.36,
-          "fat": 12.28,
-          "carbohydrate": 29.02,
-          "kcal": 268.0,
-          "sodium": 447.0
-        },
-        "source": "sr:170317",
-        "basis": "analysed",
-        "name": "Pizza, cheese topping, regular crust, frozen, cooked",
-        "curated": true
-      },
-      "refined_grains|pizza dough": {
-        "per100g": {
-          "protein": 10.36,
-          "fat": 12.28,
-          "carbohydrate": 29.02,
-          "kcal": 268.0,
-          "sodium": 447.0
-        },
-        "source": "sr:170317",
-        "basis": "analysed",
-        "name": "Pizza, cheese topping, regular crust, frozen, cooked",
-        "curated": true
-      },
-      "refined_grains|quinoa": {
-        "per100g": {
-          "protein": 4.4,
-          "fat": 1.92,
-          "carbohydrate": 21.3,
-          "kcal": 120.0,
-          "sodium": 7.0
-        },
-        "source": "sr:168917",
-        "basis": "analysed",
-        "name": "Quinoa, cooked",
-        "curated": false
-      },
-      "refined_grains|rice": {
+      "rice|rice": {
         "per100g": {
           "protein": 2.69,
           "fat": 0.28,
@@ -3506,7 +3958,7 @@
         "name": "Rice, white, long-grain, regular, enriched, cooked",
         "curated": true
       },
-      "refined_grains|rice noodles": {
+      "rice|rice noodles": {
         "per100g": {
           "protein": 1.79,
           "fat": 0.2,
@@ -3519,33 +3971,7 @@
         "name": "Rice noodles, cooked",
         "curated": false
       },
-      "refined_grains|spaghetti": {
-        "per100g": {
-          "protein": 5.8,
-          "fat": 0.93,
-          "carbohydrate": 30.86,
-          "kcal": 158.0,
-          "sodium": 1.0
-        },
-        "source": "sr:169737",
-        "basis": "analysed",
-        "name": "Pasta, cooked, enriched, without added salt",
-        "curated": true
-      },
-      "refined_grains|spelt": {
-        "per100g": {
-          "protein": 5.5,
-          "fat": 0.85,
-          "carbohydrate": 26.44,
-          "kcal": 127.0,
-          "sodium": 5.0
-        },
-        "source": "sr:169746",
-        "basis": "analysed",
-        "name": "Spelt, cooked",
-        "curated": false
-      },
-      "refined_grains|sushi rice": {
+      "rice|sushi rice": {
         "per100g": {
           "protein": 2.69,
           "fat": 0.28,
@@ -3558,85 +3984,7 @@
         "name": "Rice, white, long-grain, regular, enriched, cooked",
         "curated": true
       },
-      "refined_grains|teff": {
-        "per100g": {
-          "protein": 3.87,
-          "fat": 0.65,
-          "carbohydrate": 19.86,
-          "kcal": 101.0,
-          "sodium": 8.0
-        },
-        "source": "sr:168918",
-        "basis": "analysed",
-        "name": "Teff, cooked",
-        "curated": false
-      },
-      "refined_grains|toast bread": {
-        "per100g": {
-          "protein": 9.0,
-          "fat": 4.0,
-          "carbohydrate": 54.5,
-          "kcal": 290.0,
-          "sodium": 537.0
-        },
-        "source": "sr:174925",
-        "basis": "analysed",
-        "name": "Bread, white, commercially prepared, toasted",
-        "curated": true
-      },
-      "refined_grains|tortilla": {
-        "per100g": {
-          "protein": 8.01,
-          "fat": 7.58,
-          "carbohydrate": 49.27,
-          "kcal": 297.0,
-          "sodium": 742.0
-        },
-        "source": "sr:167535",
-        "basis": "analysed",
-        "name": "Tortillas, ready-to-bake or -fry, flour, shelf stable",
-        "curated": true
-      },
-      "refined_grains|udon noodles": {
-        "per100g": {
-          "protein": 5.8,
-          "fat": 0.93,
-          "carbohydrate": 30.86,
-          "kcal": 158.0,
-          "sodium": 1.0
-        },
-        "source": "sr:169737",
-        "basis": "analysed",
-        "name": "Pasta, cooked, enriched, without added salt",
-        "curated": true
-      },
-      "refined_grains|wheat": {
-        "per100g": {
-          "protein": 5.71,
-          "fat": 0.83,
-          "carbohydrate": 27.6,
-          "kcal": 132.0,
-          "sodium": 8.0
-        },
-        "source": "sr:169744",
-        "basis": "analysed",
-        "name": "Wheat, KAMUT khorasan, cooked",
-        "curated": false
-      },
-      "refined_grains|white bread": {
-        "per100g": {
-          "protein": 9.0,
-          "fat": 4.0,
-          "carbohydrate": 54.5,
-          "kcal": 290.0,
-          "sodium": 537.0
-        },
-        "source": "sr:174925",
-        "basis": "analysed",
-        "name": "Bread, white, commercially prepared, toasted",
-        "curated": true
-      },
-      "refined_grains|white rice": {
+      "rice|white rice": {
         "per100g": {
           "protein": 2.69,
           "fat": 0.28,
@@ -3649,7 +3997,7 @@
         "name": "Rice, white, long-grain, regular, enriched, cooked",
         "curated": true
       },
-      "refined_grains|wild rice": {
+      "rice|wild rice": {
         "per100g": {
           "protein": 3.99,
           "fat": 0.34,
@@ -3662,7 +4010,7 @@
         "name": "Wild rice, cooked",
         "curated": false
       },
-      "sofrito|ketchup": {
+      "sauce_condiment|ketchup": {
         "per100g": {
           "protein": 1.04,
           "fat": 0.1,
@@ -3675,7 +4023,46 @@
         "name": "Catsup",
         "curated": true
       },
-      "sofrito|tomato onion curry": {
+      "sauce_condiment|shoyu": {
+        "per100g": {
+          "protein": 8.14,
+          "fat": 0.57,
+          "carbohydrate": 4.93,
+          "kcal": 53.0,
+          "sodium": 5493.0
+        },
+        "source": "sr:174277",
+        "basis": "analysed",
+        "name": "Soy sauce made from soy and wheat (shoyu)",
+        "curated": true
+      },
+      "sauce_condiment|soy sauce": {
+        "per100g": {
+          "protein": 8.14,
+          "fat": 0.57,
+          "carbohydrate": 4.93,
+          "kcal": 53.0,
+          "sodium": 5493.0
+        },
+        "source": "sr:174277",
+        "basis": "analysed",
+        "name": "Soy sauce made from soy and wheat (shoyu)",
+        "curated": true
+      },
+      "sauce_condiment|teriyaki sauce": {
+        "per100g": {
+          "protein": 5.93,
+          "fat": 0.02,
+          "carbohydrate": 15.56,
+          "kcal": 89.0,
+          "sodium": 3833.0
+        },
+        "source": "sr:171167",
+        "basis": "analysed",
+        "name": "Sauce, teriyaki, ready-to-serve",
+        "curated": true
+      },
+      "sauce_condiment|tomato onion curry": {
         "per100g": {
           "protein": 1.56,
           "fat": 0.19,
@@ -3688,7 +4075,7 @@
         "name": "Tomato products, canned, sauce, with onions",
         "curated": true
       },
-      "sofrito|tomato sauce": {
+      "sauce_condiment|tomato sauce": {
         "per100g": {
           "protein": 1.2,
           "fat": 0.3,
@@ -3701,72 +4088,189 @@
         "name": "Tomato products, canned, sauce",
         "curated": true
       },
-      "sweets|berry jam": {
+      "shellfish|crab": {
         "per100g": {
-          "protein": 0.37,
-          "fat": 0.07,
-          "carbohydrate": 68.86,
-          "kcal": 278.0,
-          "sodium": 32.0
+          "protein": 23.72,
+          "fat": 1.51,
+          "carbohydrate": 0.0,
+          "kcal": 115.0,
+          "sodium": 691.0
         },
-        "source": "sr:169641",
+        "source": "sr:172008",
         "basis": "analysed",
-        "name": "Jams and preserves",
+        "name": "Crustaceans, crab, queen, cooked, moist heat",
         "curated": true
       },
-      "sweets|blueberry jam": {
+      "shellfish|mussels": {
         "per100g": {
-          "protein": 0.37,
-          "fat": 0.07,
-          "carbohydrate": 68.86,
-          "kcal": 278.0,
-          "sodium": 32.0
+          "protein": 23.8,
+          "fat": 4.48,
+          "carbohydrate": 7.39,
+          "kcal": 172.0,
+          "sodium": 369.0
         },
-        "source": "sr:169641",
+        "source": "sr:174217",
         "basis": "analysed",
-        "name": "Jams and preserves",
+        "name": "Mollusks, mussel, blue, cooked, moist heat",
         "curated": true
       },
-      "sweets|brownie": {
+      "shellfish|octopus": {
         "per100g": {
-          "protein": 4.8,
-          "fat": 16.3,
-          "carbohydrate": 63.9,
-          "kcal": 405.0,
-          "sodium": 286.0
+          "protein": 29.82,
+          "fat": 2.08,
+          "carbohydrate": 4.4,
+          "kcal": 164.0,
+          "sodium": 460.0
         },
-        "source": "sr:172713",
+        "source": "sr:174249",
         "basis": "analysed",
-        "name": "Cookies, brownies, commercially prepared",
+        "name": "Mollusks, octopus, common, cooked, moist heat",
         "curated": true
       },
-      "sweets|chocolate sauce": {
+      "shellfish|prawns": {
         "per100g": {
-          "protein": 1.4,
-          "fat": 0.97,
-          "carbohydrate": 34.56,
-          "kcal": 153.0,
-          "sodium": 100.0
+          "protein": 23.98,
+          "fat": 0.28,
+          "carbohydrate": 0.2,
+          "kcal": 99.0,
+          "sodium": 111.0
         },
-        "source": "sr:168834",
+        "source": "sr:175180",
         "basis": "analysed",
-        "name": "Syrups, chocolate, HERSHEY'S Genuine Chocolate Flavored Lite Syrup",
+        "name": "Crustaceans, shrimp, cooked",
         "curated": true
       },
-      "sweets|fruit butters": {
+      "shellfish|scallops": {
         "per100g": {
-          "protein": 0.39,
-          "fat": 0.3,
-          "carbohydrate": 42.47,
-          "kcal": 173.0,
-          "sodium": 15.0
+          "protein": 20.54,
+          "fat": 0.84,
+          "carbohydrate": 5.41,
+          "kcal": 111.0,
+          "sodium": 667.0
         },
-        "source": "sr:168816",
+        "source": "sr:167742",
         "basis": "analysed",
-        "name": "Fruit butters, apple",
+        "name": "Mollusks, scallop, (bay and sea), cooked, steamed",
+        "curated": true
+      },
+      "shellfish|shrimp": {
+        "per100g": {
+          "protein": 23.98,
+          "fat": 0.28,
+          "carbohydrate": 0.2,
+          "kcal": 99.0,
+          "sodium": 111.0
+        },
+        "source": "sr:175180",
+        "basis": "analysed",
+        "name": "Crustaceans, shrimp, cooked",
+        "curated": true
+      },
+      "shellfish|squid": {
+        "per100g": {
+          "protein": 17.94,
+          "fat": 7.48,
+          "carbohydrate": 7.79,
+          "kcal": 175.0,
+          "sodium": 306.0
+        },
+        "source": "sr:171982",
+        "basis": "analysed",
+        "name": "Mollusks, squid, mixed species, cooked, fried",
+        "curated": true
+      },
+      "soy_product|miso": {
+        "per100g": {
+          "protein": 9.7,
+          "fat": 3.0,
+          "carbohydrate": 37.9,
+          "kcal": 206.0,
+          "sodium": 2400.0
+        },
+        "source": "mext:17044",
+        "basis": "analysed",
+        "name": "＜調味料類＞ （みそ類） 米みそ 甘みそ",
+        "curated": true
+      },
+      "soy_product|miso broth": {
+        "per100g": {
+          "protein": 9.7,
+          "fat": 3.0,
+          "carbohydrate": 37.9,
+          "kcal": 206.0,
+          "sodium": 2400.0
+        },
+        "source": "mext:17044",
+        "basis": "analysed",
+        "name": "＜調味料類＞ （みそ類） 米みそ 甘みそ",
+        "curated": true
+      },
+      "soy_product|miso paste": {
+        "per100g": {
+          "protein": 9.7,
+          "fat": 3.0,
+          "carbohydrate": 37.9,
+          "kcal": 206.0,
+          "sodium": 2400.0
+        },
+        "source": "mext:17044",
+        "basis": "analysed",
+        "name": "＜調味料類＞ （みそ類） 米みそ 甘みそ",
+        "curated": true
+      },
+      "soy_product|natto": {
+        "per100g": {
+          "protein": 16.5,
+          "fat": 10.0,
+          "carbohydrate": 12.1,
+          "kcal": 184.0,
+          "sodium": 2.0
+        },
+        "source": "mext:04046",
+        "basis": "analysed",
+        "name": "だいず ［納豆類］ 糸引き納豆",
+        "curated": true
+      },
+      "soy_product|tempeh": {
+        "per100g": {
+          "protein": 19.91,
+          "fat": 11.38,
+          "carbohydrate": 7.62,
+          "kcal": 195.0,
+          "sodium": 14.0
+        },
+        "source": "sr:172467",
+        "basis": "analysed",
+        "name": "Tempeh, cooked",
         "curated": false
       },
-      "sweets|fruit jam": {
+      "soy_product|tofu": {
+        "per100g": {
+          "protein": 7.0,
+          "fat": 4.9,
+          "carbohydrate": 1.5,
+          "kcal": 73.0,
+          "sodium": 9.0
+        },
+        "source": "mext:04032",
+        "basis": "analysed",
+        "name": "だいず ［豆腐・油揚げ類］ 木綿豆腐",
+        "curated": true
+      },
+      "spirit_cocktail|champagne": {
+        "per100g": {
+          "protein": 0.07,
+          "fat": 0.0,
+          "carbohydrate": 2.72,
+          "kcal": 83.0,
+          "sodium": 5.0
+        },
+        "source": "sr:173185",
+        "basis": "analysed",
+        "name": "Alcoholic beverage, wine, table, all",
+        "curated": true
+      },
+      "sugar_honey_syrup|berry jam": {
         "per100g": {
           "protein": 0.37,
           "fat": 0.07,
@@ -3779,7 +4283,33 @@
         "name": "Jams and preserves",
         "curated": true
       },
-      "sweets|fruit syrup": {
+      "sugar_honey_syrup|blueberry jam": {
+        "per100g": {
+          "protein": 0.37,
+          "fat": 0.07,
+          "carbohydrate": 68.86,
+          "kcal": 278.0,
+          "sodium": 32.0
+        },
+        "source": "sr:169641",
+        "basis": "analysed",
+        "name": "Jams and preserves",
+        "curated": true
+      },
+      "sugar_honey_syrup|fruit jam": {
+        "per100g": {
+          "protein": 0.37,
+          "fat": 0.07,
+          "carbohydrate": 68.86,
+          "kcal": 278.0,
+          "sodium": 32.0
+        },
+        "source": "sr:169641",
+        "basis": "analysed",
+        "name": "Jams and preserves",
+        "curated": true
+      },
+      "sugar_honey_syrup|fruit syrup": {
         "per100g": {
           "protein": 0.0,
           "fat": 0.0,
@@ -3792,7 +4322,7 @@
         "name": "Fruit syrup",
         "curated": false
       },
-      "sweets|honey": {
+      "sugar_honey_syrup|honey": {
         "per100g": {
           "protein": 0.3,
           "fat": 0.0,
@@ -3805,7 +4335,7 @@
         "name": "Honey",
         "curated": false
       },
-      "sweets|jam": {
+      "sugar_honey_syrup|jam": {
         "per100g": {
           "protein": 0.37,
           "fat": 0.07,
@@ -3818,85 +4348,7 @@
         "name": "Jams and preserves",
         "curated": true
       },
-      "sweets|marmalade": {
-        "per100g": {
-          "protein": 0.3,
-          "fat": 0.0,
-          "carbohydrate": 66.3,
-          "kcal": 246.0,
-          "sodium": 56.0
-        },
-        "source": "sr:168819",
-        "basis": "analysed",
-        "name": "Marmalade, orange",
-        "curated": false
-      },
-      "sweets|milk dessert": {
-        "per100g": {
-          "protein": 4.3,
-          "fat": 1.0,
-          "carbohydrate": 37.7,
-          "kcal": 167.0,
-          "sodium": 97.0
-        },
-        "source": "sr:167686",
-        "basis": "analysed",
-        "name": "Milk dessert, frozen, milk-fat free, chocolate",
-        "curated": false
-      },
-      "sweets|molasses": {
-        "per100g": {
-          "protein": 0.0,
-          "fat": 0.1,
-          "carbohydrate": 74.73,
-          "kcal": 290.0,
-          "sodium": 37.0
-        },
-        "source": "sr:168820",
-        "basis": "analysed",
-        "name": "Molasses",
-        "curated": false
-      },
-      "sweets|pudding": {
-        "per100g": {
-          "protein": 0.65,
-          "fat": 1.12,
-          "carbohydrate": 24.2,
-          "kcal": 109.0,
-          "sodium": 63.0
-        },
-        "source": "sr:168832",
-        "basis": "analysed",
-        "name": "Pudding, lemon, dry mix, regular, prepared with sugar, egg yolk and water",
-        "curated": false
-      },
-      "sweets|schiff": {
-        "per100g": {
-          "protein": 16.8,
-          "fat": 14.29,
-          "carbohydrate": 56.46,
-          "kcal": 387.0,
-          "sodium": 168.0
-        },
-        "source": "sr:167946",
-        "basis": "analysed",
-        "name": "SCHIFF,TIGER'S MILK BAR",
-        "curated": false
-      },
-      "sweets|sherbet": {
-        "per100g": {
-          "protein": 1.1,
-          "fat": 2.0,
-          "carbohydrate": 30.4,
-          "kcal": 144.0,
-          "sodium": 46.0
-        },
-        "source": "sr:167577",
-        "basis": "analysed",
-        "name": "Sherbet, orange",
-        "curated": false
-      },
-      "sweets|sugar": {
+      "sugar_honey_syrup|sugar": {
         "per100g": {
           "protein": 0.0,
           "fat": 0.0,
@@ -3909,20 +4361,7 @@
         "name": "Sugar, turbinado",
         "curated": false
       },
-      "sweets|sweetener": {
-        "per100g": {
-          "protein": 0.09,
-          "fat": 0.45,
-          "carbohydrate": 76.37,
-          "kcal": 310.0,
-          "sodium": 4.0
-        },
-        "source": "sr:170277",
-        "basis": "analysed",
-        "name": "Sweetener, syrup, agave",
-        "curated": false
-      },
-      "sweets|syrup": {
+      "sugar_honey_syrup|syrup": {
         "per100g": {
           "protein": 0.0,
           "fat": 0.0,
@@ -3935,137 +4374,7 @@
         "name": "Syrups, table blends, pancake",
         "curated": true
       },
-      "sweets|topping": {
-        "per100g": {
-          "protein": 2.94,
-          "fat": 44.1,
-          "carbohydrate": 50.07,
-          "kcal": 609.0,
-          "sodium": 29.0
-        },
-        "source": "sr:167956",
-        "basis": "analysed",
-        "name": "Topping, SMUCKER'S MAGIC SHELL",
-        "curated": false
-      },
-      "vegetable_oil|canola oil": {
-        "per100g": {
-          "protein": 0.0,
-          "fat": 100.0,
-          "carbohydrate": 0.0,
-          "kcal": 884.0,
-          "sodium": 0.0
-        },
-        "source": "sr:172336",
-        "basis": "analysed",
-        "name": "Oil, canola",
-        "curated": true
-      },
-      "vegetable_oil|cooking oil": {
-        "per100g": {
-          "protein": 0.0,
-          "fat": 100.0,
-          "carbohydrate": 0.0,
-          "kcal": 884.0,
-          "sodium": 0.0
-        },
-        "source": "sr:171411",
-        "basis": "analysed",
-        "name": "Oil, soybean, salad or cooking",
-        "curated": true
-      },
-      "vegetable_oil|frying oil": {
-        "per100g": {
-          "protein": 0.0,
-          "fat": 100.0,
-          "carbohydrate": 0.0,
-          "kcal": 884.0,
-          "sodium": 0.0
-        },
-        "source": "sr:171411",
-        "basis": "analysed",
-        "name": "Oil, soybean, salad or cooking",
-        "curated": true
-      },
-      "vegetable_oil|rapeseed oil": {
-        "per100g": {
-          "protein": 0.0,
-          "fat": 100.0,
-          "carbohydrate": 0.0,
-          "kcal": 884.0,
-          "sodium": 0.0
-        },
-        "source": "sr:172336",
-        "basis": "analysed",
-        "name": "Oil, canola",
-        "curated": true
-      },
-      "vegetable_oil|seed oil": {
-        "per100g": {
-          "protein": 0.0,
-          "fat": 100.0,
-          "carbohydrate": 0.0,
-          "kcal": 884.0,
-          "sodium": 0.0
-        },
-        "source": "sr:171411",
-        "basis": "analysed",
-        "name": "Oil, soybean, salad or cooking",
-        "curated": true
-      },
-      "vegetable_oil|sesame oil": {
-        "per100g": {
-          "protein": 0.0,
-          "fat": 100.0,
-          "carbohydrate": 0.0,
-          "kcal": 884.0,
-          "sodium": 0.0
-        },
-        "source": "sr:171015",
-        "basis": "analysed",
-        "name": "Oil, palm",
-        "curated": true
-      },
-      "vegetable_oil|soybean oil": {
-        "per100g": {
-          "protein": 0.0,
-          "fat": 100.0,
-          "carbohydrate": 0.0,
-          "kcal": 884.0,
-          "sodium": 0.0
-        },
-        "source": "sr:171411",
-        "basis": "analysed",
-        "name": "Oil, soybean, salad or cooking",
-        "curated": true
-      },
-      "vegetable_oil|sunflower oil": {
-        "per100g": {
-          "protein": 0.0,
-          "fat": 100.0,
-          "carbohydrate": 0.0,
-          "kcal": 884.0,
-          "sodium": 0.0
-        },
-        "source": "sr:171025",
-        "basis": "analysed",
-        "name": "Oil, sunflower, linoleic, (approx. 65%)",
-        "curated": true
-      },
-      "vegetable_oil|vegetable oil": {
-        "per100g": {
-          "protein": 0.0,
-          "fat": 100.0,
-          "carbohydrate": 0.0,
-          "kcal": 884.0,
-          "sodium": 0.0
-        },
-        "source": "sr:171411",
-        "basis": "analysed",
-        "name": "Oil, soybean, salad or cooking",
-        "curated": true
-      },
-      "vegetables|alfalfa seeds": {
+      "vegetable|alfalfa seeds": {
         "per100g": {
           "protein": 3.99,
           "fat": 0.69,
@@ -4078,7 +4387,7 @@
         "name": "Alfalfa seeds, sprouted, raw",
         "curated": false
       },
-      "vegetables|arrowroot": {
+      "vegetable|arrowroot": {
         "per100g": {
           "protein": 4.24,
           "fat": 0.2,
@@ -4091,7 +4400,7 @@
         "name": "Arrowroot, raw",
         "curated": false
       },
-      "vegetables|arugula": {
+      "vegetable|arugula": {
         "per100g": {
           "protein": 2.58,
           "fat": 0.66,
@@ -4104,7 +4413,7 @@
         "name": "Arugula, raw",
         "curated": true
       },
-      "vegetables|cabbage": {
+      "vegetable|cabbage": {
         "per100g": {
           "protein": 1.28,
           "fat": 0.1,
@@ -4117,7 +4426,7 @@
         "name": "Cabbage, raw",
         "curated": true
       },
-      "vegetables|carrot": {
+      "vegetable|carrot": {
         "per100g": {
           "protein": 0.93,
           "fat": 0.24,
@@ -4130,7 +4439,7 @@
         "name": "Carrots, raw",
         "curated": true
       },
-      "vegetables|carrot juice": {
+      "vegetable|carrot juice": {
         "per100g": {
           "protein": 0.95,
           "fat": 0.15,
@@ -4143,7 +4452,7 @@
         "name": "Carrot juice, canned",
         "curated": false
       },
-      "vegetables|cassava": {
+      "vegetable|cassava": {
         "per100g": {
           "protein": 1.36,
           "fat": 0.28,
@@ -4156,7 +4465,7 @@
         "name": "Cassava, raw",
         "curated": false
       },
-      "vegetables|celtuce": {
+      "vegetable|celtuce": {
         "per100g": {
           "protein": 0.85,
           "fat": 0.3,
@@ -4169,7 +4478,7 @@
         "name": "Celtuce, raw",
         "curated": false
       },
-      "vegetables|cherry tomato": {
+      "vegetable|cherry tomato": {
         "per100g": {
           "protein": 0.88,
           "fat": 0.2,
@@ -4182,7 +4491,7 @@
         "name": "Tomatoes, red, ripe, raw, year round average",
         "curated": true
       },
-      "vegetables|chicory": {
+      "vegetable|chicory": {
         "per100g": {
           "protein": 0.9,
           "fat": 0.1,
@@ -4195,7 +4504,7 @@
         "name": "Chicory, witloof, raw",
         "curated": false
       },
-      "vegetables|chicory greens": {
+      "vegetable|chicory greens": {
         "per100g": {
           "protein": 1.7,
           "fat": 0.3,
@@ -4208,7 +4517,7 @@
         "name": "Chicory greens, raw",
         "curated": false
       },
-      "vegetables|chicory roots": {
+      "vegetable|chicory roots": {
         "per100g": {
           "protein": 1.4,
           "fat": 0.2,
@@ -4221,7 +4530,7 @@
         "name": "Chicory roots, raw",
         "curated": false
       },
-      "vegetables|chives": {
+      "vegetable|chives": {
         "per100g": {
           "protein": 3.27,
           "fat": 0.73,
@@ -4234,7 +4543,7 @@
         "name": "Chives, raw",
         "curated": false
       },
-      "vegetables|chrysanthemum leaves": {
+      "vegetable|chrysanthemum leaves": {
         "per100g": {
           "protein": 3.36,
           "fat": 0.56,
@@ -4247,7 +4556,7 @@
         "name": "Chrysanthemum leaves, raw",
         "curated": false
       },
-      "vegetables|corn": {
+      "vegetable|corn": {
         "per100g": {
           "protein": 3.27,
           "fat": 1.35,
@@ -4260,7 +4569,7 @@
         "name": "Corn, sweet, yellow, raw",
         "curated": true
       },
-      "vegetables|corn pudding": {
+      "vegetable|corn pudding": {
         "per100g": {
           "protein": 4.42,
           "fat": 5.04,
@@ -4273,7 +4582,7 @@
         "name": "Corn pudding, home prepared",
         "curated": false
       },
-      "vegetables|cornsalad": {
+      "vegetable|cornsalad": {
         "per100g": {
           "protein": 2.0,
           "fat": 0.4,
@@ -4286,7 +4595,7 @@
         "name": "Cornsalad, raw",
         "curated": false
       },
-      "vegetables|cucumber": {
+      "vegetable|cucumber": {
         "per100g": {
           "protein": 0.65,
           "fat": 0.11,
@@ -4299,7 +4608,7 @@
         "name": "Cucumber, with peel, raw",
         "curated": true
       },
-      "vegetables|eggplant": {
+      "vegetable|eggplant": {
         "per100g": {
           "protein": 0.83,
           "fat": 0.23,
@@ -4312,7 +4621,7 @@
         "name": "Eggplant, cooked, boiled, drained, without salt",
         "curated": true
       },
-      "vegetables|endive": {
+      "vegetable|endive": {
         "per100g": {
           "protein": 1.25,
           "fat": 0.2,
@@ -4325,7 +4634,7 @@
         "name": "Endive, raw",
         "curated": false
       },
-      "vegetables|epazote": {
+      "vegetable|epazote": {
         "per100g": {
           "protein": 0.33,
           "fat": 0.52,
@@ -4338,7 +4647,7 @@
         "name": "Epazote, raw",
         "curated": false
       },
-      "vegetables|eppaw": {
+      "vegetable|eppaw": {
         "per100g": {
           "protein": 4.6,
           "fat": 1.8,
@@ -4351,7 +4660,7 @@
         "name": "Eppaw, raw",
         "curated": false
       },
-      "vegetables|escarole": {
+      "vegetable|escarole": {
         "per100g": {
           "protein": 1.15,
           "fat": 0.18,
@@ -4364,7 +4673,7 @@
         "name": "Escarole, cooked, boiled, drained, no salt added",
         "curated": false
       },
-      "vegetables|fennel": {
+      "vegetable|fennel": {
         "per100g": {
           "protein": 1.24,
           "fat": 0.2,
@@ -4377,7 +4686,7 @@
         "name": "Fennel, bulb, raw",
         "curated": false
       },
-      "vegetables|fireweed": {
+      "vegetable|fireweed": {
         "per100g": {
           "protein": 4.71,
           "fat": 2.75,
@@ -4390,7 +4699,7 @@
         "name": "Fireweed, leaves, raw",
         "curated": false
       },
-      "vegetables|garlic": {
+      "vegetable|garlic": {
         "per100g": {
           "protein": 6.36,
           "fat": 0.5,
@@ -4403,7 +4712,7 @@
         "name": "Garlic, raw",
         "curated": false
       },
-      "vegetables|herbs": {
+      "vegetable|herbs": {
         "per100g": {
           "protein": 2.97,
           "fat": 0.79,
@@ -4416,7 +4725,7 @@
         "name": "Parsley, fresh",
         "curated": true
       },
-      "vegetables|jerusalem artichokes": {
+      "vegetable|jerusalem artichokes": {
         "per100g": {
           "protein": 2.0,
           "fat": 0.01,
@@ -4429,7 +4738,7 @@
         "name": "Jerusalem-artichokes, raw",
         "curated": false
       },
-      "vegetables|leafy greens": {
+      "vegetable|leafy greens": {
         "per100g": {
           "protein": 0.9,
           "fat": 0.14,
@@ -4442,7 +4751,7 @@
         "name": "Lettuce, iceberg (includes crisphead types), raw",
         "curated": true
       },
-      "vegetables|lettuce": {
+      "vegetable|lettuce": {
         "per100g": {
           "protein": 0.9,
           "fat": 0.14,
@@ -4455,7 +4764,7 @@
         "name": "Lettuce, iceberg (includes crisphead types), raw",
         "curated": true
       },
-      "vegetables|malabar spinach": {
+      "vegetable|malabar spinach": {
         "per100g": {
           "protein": 2.98,
           "fat": 0.78,
@@ -4468,7 +4777,7 @@
         "name": "Malabar spinach, cooked",
         "curated": false
       },
-      "vegetables|mixed salad greens": {
+      "vegetable|mixed salad greens": {
         "per100g": {
           "protein": 0.9,
           "fat": 0.14,
@@ -4481,7 +4790,7 @@
         "name": "Lettuce, iceberg (includes crisphead types), raw",
         "curated": true
       },
-      "vegetables|mixed vegetables": {
+      "vegetable|mixed vegetables": {
         "per100g": {
           "protein": 2.86,
           "fat": 0.15,
@@ -4494,46 +4803,7 @@
         "name": "Vegetables, mixed, frozen, cooked, boiled, drained, with salt",
         "curated": true
       },
-      "vegetables|mushroom": {
-        "per100g": {
-          "protein": 3.09,
-          "fat": 0.34,
-          "carbohydrate": 3.26,
-          "kcal": 22.0,
-          "sodium": 5.0
-        },
-        "source": "sr:169376",
-        "basis": "analysed",
-        "name": "Mushroom, white, exposed to ultraviolet light, raw",
-        "curated": false
-      },
-      "vegetables|nori": {
-        "per100g": {
-          "protein": 41.4,
-          "fat": 3.7,
-          "carbohydrate": 44.3,
-          "kcal": 297.0,
-          "sodium": 530.0
-        },
-        "source": "mext:09004",
-        "basis": "analysed",
-        "name": "あまのり 焼きのり",
-        "curated": true
-      },
-      "vegetables|nori seaweed": {
-        "per100g": {
-          "protein": 41.4,
-          "fat": 3.7,
-          "carbohydrate": 44.3,
-          "kcal": 297.0,
-          "sodium": 530.0
-        },
-        "source": "mext:09004",
-        "basis": "analysed",
-        "name": "あまのり 焼きのり",
-        "curated": true
-      },
-      "vegetables|onion": {
+      "vegetable|onion": {
         "per100g": {
           "protein": 1.1,
           "fat": 0.1,
@@ -4546,7 +4816,7 @@
         "name": "Onions, raw",
         "curated": true
       },
-      "vegetables|parsley": {
+      "vegetable|parsley": {
         "per100g": {
           "protein": 2.97,
           "fat": 0.79,
@@ -4559,7 +4829,7 @@
         "name": "Parsley, fresh",
         "curated": true
       },
-      "vegetables|pepper": {
+      "vegetable|pepper": {
         "per100g": {
           "protein": 1.66,
           "fat": 0.45,
@@ -4572,7 +4842,7 @@
         "name": "Pepper, banana, raw",
         "curated": false
       },
-      "vegetables|pimento": {
+      "vegetable|pimento": {
         "per100g": {
           "protein": 1.1,
           "fat": 0.3,
@@ -4585,7 +4855,7 @@
         "name": "Pimento, canned",
         "curated": false
       },
-      "vegetables|poi": {
+      "vegetable|poi": {
         "per100g": {
           "protein": 0.38,
           "fat": 0.14,
@@ -4598,59 +4868,7 @@
         "name": "Poi",
         "curated": false
       },
-      "vegetables|potato pancakes": {
-        "per100g": {
-          "protein": 6.08,
-          "fat": 14.76,
-          "carbohydrate": 27.81,
-          "kcal": 268.0,
-          "sodium": 764.0
-        },
-        "source": "sr:170092",
-        "basis": "analysed",
-        "name": "Potato pancakes",
-        "curated": false
-      },
-      "vegetables|potato salad": {
-        "per100g": {
-          "protein": 2.68,
-          "fat": 8.2,
-          "carbohydrate": 11.17,
-          "kcal": 143.0,
-          "sodium": 529.0
-        },
-        "source": "sr:169269",
-        "basis": "analysed",
-        "name": "Potato salad, home-prepared",
-        "curated": false
-      },
-      "vegetables|potato wedges": {
-        "per100g": {
-          "protein": 2.7,
-          "fat": 2.2,
-          "carbohydrate": 25.46,
-          "kcal": 129.0,
-          "sodium": 49.0
-        },
-        "source": "sr:168443",
-        "basis": "analysed",
-        "name": "Potato wedges, frozen (Includes foods for USDA's Food Distribution Program)",
-        "curated": false
-      },
-      "vegetables|potatoes": {
-        "per100g": {
-          "protein": 1.71,
-          "fat": 0.1,
-          "carbohydrate": 20.01,
-          "kcal": 86.0,
-          "sodium": 5.0
-        },
-        "source": "sr:170440",
-        "basis": "analysed",
-        "name": "Potatoes, boiled, cooked without skin, flesh, without salt",
-        "curated": true
-      },
-      "vegetables|radicchio": {
+      "vegetable|radicchio": {
         "per100g": {
           "protein": 1.43,
           "fat": 0.25,
@@ -4663,7 +4881,7 @@
         "name": "Radicchio, raw",
         "curated": false
       },
-      "vegetables|radish seeds": {
+      "vegetable|radish seeds": {
         "per100g": {
           "protein": 3.81,
           "fat": 2.53,
@@ -4676,7 +4894,7 @@
         "name": "Radish seeds, sprouted, raw",
         "curated": false
       },
-      "vegetables|rocket": {
+      "vegetable|rocket": {
         "per100g": {
           "protein": 2.58,
           "fat": 0.66,
@@ -4689,7 +4907,7 @@
         "name": "Arugula, raw",
         "curated": true
       },
-      "vegetables|salad leaves": {
+      "vegetable|salad leaves": {
         "per100g": {
           "protein": 0.9,
           "fat": 0.14,
@@ -4702,7 +4920,7 @@
         "name": "Lettuce, iceberg (includes crisphead types), raw",
         "curated": true
       },
-      "vegetables|sauerkraut": {
+      "vegetable|sauerkraut": {
         "per100g": {
           "protein": 0.91,
           "fat": 0.14,
@@ -4715,7 +4933,7 @@
         "name": "Sauerkraut, canned, solids and liquids",
         "curated": false
       },
-      "vegetables|shallots": {
+      "vegetable|shallots": {
         "per100g": {
           "protein": 2.5,
           "fat": 0.1,
@@ -4728,7 +4946,7 @@
         "name": "Shallots, raw",
         "curated": false
       },
-      "vegetables|shredded cabbage": {
+      "vegetable|shredded cabbage": {
         "per100g": {
           "protein": 1.28,
           "fat": 0.1,
@@ -4741,7 +4959,7 @@
         "name": "Cabbage, raw",
         "curated": true
       },
-      "vegetables|shredded lettuce": {
+      "vegetable|shredded lettuce": {
         "per100g": {
           "protein": 0.9,
           "fat": 0.14,
@@ -4754,7 +4972,7 @@
         "name": "Lettuce, iceberg (includes crisphead types), raw",
         "curated": true
       },
-      "vegetables|spinach souffle": {
+      "vegetable|spinach souffle": {
         "per100g": {
           "protein": 7.89,
           "fat": 12.95,
@@ -4767,7 +4985,7 @@
         "name": "Spinach souffle",
         "curated": false
       },
-      "vegetables|sweetcorn": {
+      "vegetable|sweetcorn": {
         "per100g": {
           "protein": 3.27,
           "fat": 1.35,
@@ -4780,7 +4998,7 @@
         "name": "Corn, sweet, yellow, raw",
         "curated": true
       },
-      "vegetables|tomatillos": {
+      "vegetable|tomatillos": {
         "per100g": {
           "protein": 0.96,
           "fat": 1.02,
@@ -4793,7 +5011,7 @@
         "name": "Tomatillos, raw",
         "curated": false
       },
-      "vegetables|tomato": {
+      "vegetable|tomato": {
         "per100g": {
           "protein": 0.88,
           "fat": 0.2,
@@ -4806,7 +5024,7 @@
         "name": "Tomatoes, red, ripe, raw, year round average",
         "curated": true
       },
-      "vegetables|tomato sauce": {
+      "vegetable|tomato sauce": {
         "per100g": {
           "protein": 1.2,
           "fat": 0.3,
@@ -4819,7 +5037,7 @@
         "name": "Tomato sauce, canned, no salt added",
         "curated": false
       },
-      "vegetables|tomatoes": {
+      "vegetable|tomatoes": {
         "per100g": {
           "protein": 0.88,
           "fat": 0.2,
@@ -4832,7 +5050,7 @@
         "name": "Tomatoes, red, ripe, raw, year round average",
         "curated": true
       },
-      "vegetables|vegetable juice": {
+      "vegetable|vegetable juice": {
         "per100g": {
           "protein": 0.49,
           "fat": 0.04,
@@ -4845,7 +5063,7 @@
         "name": "Vegetable juice, BOLTHOUSE FARMS, DAILY GREENS",
         "curated": false
       },
-      "vegetables|vegetables": {
+      "vegetable|vegetables": {
         "per100g": {
           "protein": 2.86,
           "fat": 0.15,
@@ -4858,7 +5076,7 @@
         "name": "Vegetables, mixed, frozen, cooked, boiled, drained, with salt",
         "curated": true
       },
-      "vegetables|vinespinach": {
+      "vegetable|vinespinach": {
         "per100g": {
           "protein": 1.8,
           "fat": 0.3,
@@ -4871,7 +5089,7 @@
         "name": "Vinespinach, (basella), raw",
         "curated": false
       },
-      "vegetables|wasabi": {
+      "vegetable|wasabi": {
         "per100g": {
           "protein": 4.8,
           "fat": 0.63,
@@ -4884,7 +5102,7 @@
         "name": "Wasabi, root, raw",
         "curated": false
       },
-      "vegetables|watercress": {
+      "vegetable|watercress": {
         "per100g": {
           "protein": 2.3,
           "fat": 0.1,
@@ -4897,7 +5115,7 @@
         "name": "Watercress, raw",
         "curated": false
       },
-      "vegetables|winged bean": {
+      "vegetable|winged bean": {
         "per100g": {
           "protein": 5.31,
           "fat": 0.66,
@@ -4910,7 +5128,7 @@
         "name": "Winged bean, immature seeds, cooked, boiled, drained, with salt",
         "curated": false
       },
-      "vegetables|yautia tannier": {
+      "vegetable|yautia tannier": {
         "per100g": {
           "protein": 1.46,
           "fat": 0.4,
@@ -4923,342 +5141,69 @@
         "name": "Yautia (tannier), raw",
         "curated": false
       },
-      "white_meat|battered chicken": {
+      "wine|red wine": {
         "per100g": {
-          "protein": 22.54,
-          "fat": 17.35,
-          "carbohydrate": 9.42,
-          "kcal": 289.0,
-          "sodium": 292.0
-        },
-        "source": "sr:171448",
-        "basis": "analysed",
-        "name": "Chicken, broilers or fryers, meat and skin, cooked, fried, batter",
-        "curated": true
-      },
-      "white_meat|chicken": {
-        "per100g": {
-          "protein": 27.3,
-          "fat": 13.6,
-          "carbohydrate": 0.0,
-          "kcal": 239.0,
-          "sodium": 82.0
-        },
-        "source": "sr:171450",
-        "basis": "analysed",
-        "name": "Chicken, broilers or fryers, meat and skin, cooked, roasted",
-        "curated": true
-      },
-      "white_meat|chicken breast": {
-        "per100g": {
-          "protein": 31.02,
-          "fat": 3.57,
-          "carbohydrate": 0.0,
-          "kcal": 165.0,
-          "sodium": 74.0
-        },
-        "source": "sr:171477",
-        "basis": "analysed",
-        "name": "Chicken, broilers or fryers, breast, meat only, cooked, roasted",
-        "curated": true
-      },
-      "white_meat|chicken leg": {
-        "per100g": {
-          "protein": 24.03,
-          "fat": 8.99,
-          "carbohydrate": 0.0,
-          "kcal": 184.0,
-          "sodium": 98.0
-        },
-        "source": "sr:173617",
-        "basis": "analysed",
-        "name": "Chicken, broilers or fryers, leg, meat and skin, cooked, roasted",
-        "curated": true
-      },
-      "white_meat|chicken nugget": {
-        "per100g": {
-          "protein": 22.54,
-          "fat": 17.35,
-          "carbohydrate": 9.42,
-          "kcal": 289.0,
-          "sodium": 292.0
-        },
-        "source": "sr:171448",
-        "basis": "analysed",
-        "name": "Chicken, broilers or fryers, meat and skin, cooked, fried, batter",
-        "curated": true
-      },
-      "white_meat|chicken patty": {
-        "per100g": {
-          "protein": 14.85,
-          "fat": 19.58,
-          "carbohydrate": 12.84,
-          "kcal": 287.0,
-          "sodium": 532.0
-        },
-        "source": "sr:171513",
-        "basis": "analysed",
-        "name": "Chicken patty, frozen, cooked",
-        "curated": false
-      },
-      "white_meat|chicken piece": {
-        "per100g": {
-          "protein": 22.54,
-          "fat": 17.35,
-          "carbohydrate": 9.42,
-          "kcal": 289.0,
-          "sodium": 292.0
-        },
-        "source": "sr:171448",
-        "basis": "analysed",
-        "name": "Chicken, broilers or fryers, meat and skin, cooked, fried, batter",
-        "curated": true
-      },
-      "white_meat|chicken roll": {
-        "per100g": {
-          "protein": 27.3,
-          "fat": 13.6,
-          "carbohydrate": 0.0,
-          "kcal": 239.0,
-          "sodium": 82.0
-        },
-        "source": "sr:171450",
-        "basis": "analysed",
-        "name": "Chicken, broilers or fryers, meat and skin, cooked, roasted",
-        "curated": true
-      },
-      "white_meat|chicken schnitzel": {
-        "per100g": {
-          "protein": 22.54,
-          "fat": 17.35,
-          "carbohydrate": 9.42,
-          "kcal": 289.0,
-          "sodium": 292.0
-        },
-        "source": "sr:171448",
-        "basis": "analysed",
-        "name": "Chicken, broilers or fryers, meat and skin, cooked, fried, batter",
-        "curated": true
-      },
-      "white_meat|chicken thigh": {
-        "per100g": {
-          "protein": 23.26,
-          "fat": 14.71,
-          "carbohydrate": 0.0,
-          "kcal": 232.0,
-          "sodium": 102.0
-        },
-        "source": "sr:173625",
-        "basis": "analysed",
-        "name": "Chicken, broilers or fryers, thigh, meat and skin, cooked, roasted",
-        "curated": true
-      },
-      "white_meat|dove": {
-        "per100g": {
-          "protein": 23.9,
-          "fat": 13.0,
-          "carbohydrate": 0.0,
-          "kcal": 213.0,
-          "sodium": 57.0
-        },
-        "source": "sr:169905",
-        "basis": "analysed",
-        "name": "Dove, cooked (includes squab)",
-        "curated": false
-      },
-      "white_meat|duck": {
-        "per100g": {
-          "protein": 18.99,
-          "fat": 28.35,
-          "carbohydrate": 0.0,
-          "kcal": 337.0,
-          "sodium": 59.0
-        },
-        "source": "sr:172409",
-        "basis": "analysed",
-        "name": "Duck, domesticated, meat and skin, cooked, roasted",
-        "curated": true
-      },
-      "white_meat|fried chicken": {
-        "per100g": {
-          "protein": 22.54,
-          "fat": 17.35,
-          "carbohydrate": 9.42,
-          "kcal": 289.0,
-          "sodium": 292.0
-        },
-        "source": "sr:171448",
-        "basis": "analysed",
-        "name": "Chicken, broilers or fryers, meat and skin, cooked, fried, batter",
-        "curated": true
-      },
-      "white_meat|fried chicken piece": {
-        "per100g": {
-          "protein": 22.54,
-          "fat": 17.35,
-          "carbohydrate": 9.42,
-          "kcal": 289.0,
-          "sodium": 292.0
-        },
-        "source": "sr:171448",
-        "basis": "analysed",
-        "name": "Chicken, broilers or fryers, meat and skin, cooked, fried, batter",
-        "curated": true
-      },
-      "white_meat|karaage": {
-        "per100g": {
-          "protein": 22.54,
-          "fat": 17.35,
-          "carbohydrate": 9.42,
-          "kcal": 289.0,
-          "sodium": 292.0
-        },
-        "source": "sr:171448",
-        "basis": "analysed",
-        "name": "Chicken, broilers or fryers, meat and skin, cooked, fried, batter",
-        "curated": true
-      },
-      "white_meat|kebab meat": {
-        "per100g": {
-          "protein": 23.26,
-          "fat": 14.71,
-          "carbohydrate": 0.0,
-          "kcal": 232.0,
-          "sodium": 102.0
-        },
-        "source": "sr:173625",
-        "basis": "analysed",
-        "name": "Chicken, broilers or fryers, thigh, meat and skin, cooked, roasted",
-        "curated": true
-      },
-      "white_meat|pheasant": {
-        "per100g": {
-          "protein": 32.4,
-          "fat": 12.1,
-          "carbohydrate": 0.0,
-          "kcal": 239.0,
-          "sodium": 43.0
-        },
-        "source": "sr:169903",
-        "basis": "analysed",
-        "name": "Pheasant, cooked, total edible",
-        "curated": false
-      },
-      "white_meat|quail": {
-        "per100g": {
-          "protein": 25.1,
-          "fat": 14.1,
-          "carbohydrate": 0.0,
-          "kcal": 227.0,
-          "sodium": 52.0
-        },
-        "source": "sr:169902",
-        "basis": "analysed",
-        "name": "Quail, cooked, total edible",
-        "curated": false
-      },
-      "white_meat|turkey": {
-        "per100g": {
-          "protein": 28.55,
-          "fat": 7.39,
-          "carbohydrate": 0.06,
-          "kcal": 189.0,
-          "sodium": 103.0
-        },
-        "source": "sr:171479",
-        "basis": "analysed",
-        "name": "Turkey, whole, meat and skin, cooked, roasted",
-        "curated": true
-      },
-      "white_meat|turkey breast": {
-        "per100g": {
-          "protein": 22.16,
-          "fat": 3.46,
-          "carbohydrate": 0.0,
-          "kcal": 126.0,
-          "sodium": 397.0
-        },
-        "source": "sr:171501",
-        "basis": "analysed",
-        "name": "Turkey breast, pre-basted, meat and skin, cooked, roasted",
-        "curated": false
-      },
-      "white_meat|turkey thigh": {
-        "per100g": {
-          "protein": 18.8,
-          "fat": 8.54,
-          "carbohydrate": 0.0,
-          "kcal": 157.0,
-          "sodium": 437.0
-        },
-        "source": "sr:171502",
-        "basis": "analysed",
-        "name": "Turkey thigh, pre-basted, meat and skin, cooked, roasted",
-        "curated": false
-      },
-      "whole_grains|cooked oats": {
-        "per100g": {
-          "protein": 2.54,
-          "fat": 1.52,
-          "carbohydrate": 12.0,
-          "kcal": 71.0,
+          "protein": 0.07,
+          "fat": 0.0,
+          "carbohydrate": 2.61,
+          "kcal": 85.0,
           "sodium": 4.0
         },
-        "source": "sr:173905",
+        "source": "sr:173190",
         "basis": "analysed",
-        "name": "Cereals, oats, regular and quick, unenriched, cooked with water (includes boiling and microwaving), without salt",
+        "name": "Alcoholic beverage, wine, table, red",
         "curated": true
       },
-      "whole_grains|dark bread": {
+      "wine|white wine": {
         "per100g": {
-          "protein": 12.45,
-          "fat": 3.5,
-          "carbohydrate": 42.71,
-          "kcal": 252.0,
-          "sodium": 455.0
+          "protein": 0.07,
+          "fat": 0.0,
+          "carbohydrate": 2.6,
+          "kcal": 82.0,
+          "sodium": 5.0
         },
-        "source": "sr:172688",
+        "source": "sr:174837",
         "basis": "analysed",
-        "name": "Bread, whole-wheat, commercially prepared",
+        "name": "Alcoholic beverage, wine, table, white",
         "curated": true
       },
-      "whole_grains|grain porridge": {
+      "wine|wine": {
         "per100g": {
-          "protein": 2.54,
-          "fat": 1.52,
-          "carbohydrate": 12.0,
-          "kcal": 71.0,
-          "sodium": 4.0
+          "protein": 0.07,
+          "fat": 0.0,
+          "carbohydrate": 2.72,
+          "kcal": 83.0,
+          "sodium": 5.0
         },
-        "source": "sr:173905",
+        "source": "sr:173185",
         "basis": "analysed",
-        "name": "Cereals, oats, regular and quick, unenriched, cooked with water (includes boiling and microwaving), without salt",
+        "name": "Alcoholic beverage, wine, table, all",
         "curated": true
       },
-      "whole_grains|rye bread": {
+      "yogurt|yoghurt": {
         "per100g": {
-          "protein": 12.45,
-          "fat": 3.5,
-          "carbohydrate": 42.71,
-          "kcal": 252.0,
-          "sodium": 455.0
+          "protein": 3.47,
+          "fat": 3.25,
+          "carbohydrate": 4.66,
+          "kcal": 61.0,
+          "sodium": 46.0
         },
-        "source": "sr:172688",
+        "source": "sr:171284",
         "basis": "analysed",
-        "name": "Bread, whole-wheat, commercially prepared",
+        "name": "Yogurt, plain, whole milk",
         "curated": true
       },
-      "whole_grains|whole grain bread": {
+      "yogurt|yogurt": {
         "per100g": {
-          "protein": 12.45,
-          "fat": 3.5,
-          "carbohydrate": 42.71,
-          "kcal": 252.0,
-          "sodium": 455.0
+          "protein": 3.47,
+          "fat": 3.25,
+          "carbohydrate": 4.66,
+          "kcal": 61.0,
+          "sodium": 46.0
         },
-        "source": "sr:172688",
+        "source": "sr:171284",
         "basis": "analysed",
-        "name": "Bread, whole-wheat, commercially prepared",
+        "name": "Yogurt, plain, whole milk",
         "curated": true
       }
     }

@@ -93,6 +93,24 @@ struct BackendSessionTests {
         #expect(events[0]["sourceDeviceId"] == nil)
     }
 
+    @Test("A fresh install can download a private meal photo")
+    func downloadsMealPhoto() async throws {
+        let expected = Data("private-photo".utf8)
+        let hash = String(repeating: "A", count: 64)
+        var request: URLRequest?
+        StubURLProtocol.install { value in
+            request = value
+            return (200, expected)
+        }
+        defer { StubURLProtocol.reset() }
+
+        let received = try await backend().mealPhoto(hash: hash)
+
+        #expect(received == expected)
+        #expect(request?.url?.path == "/api/v1/media/\(hash.lowercased())")
+        #expect(request?.value(forHTTPHeaderField: "X-Session-Token") == "account-session")
+    }
+
     private func backend() -> BackendSession {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [StubURLProtocol.self]

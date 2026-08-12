@@ -1,4 +1,10 @@
-import { foodGroups, mealRevisionJsonSchema, type RefinementRequest } from "../../src/contracts";
+import {
+  compositionHints,
+  foodKinds,
+  mealRevisionJsonSchema,
+  preparationMethods,
+  type RefinementRequest,
+} from "../../src/contracts";
 import { MEAL_REVISION_SYSTEM_PROMPT } from "./revision.generated";
 import type { RecognitionSpec } from "./spec";
 
@@ -7,7 +13,7 @@ function userPrompt(input: RefinementRequest): string {
     .map((item, index) => {
       const name = item.label ? `${item.label} — ` : "";
       const weight = item.grams == null ? "no weight recorded" : `${Math.round(item.grams)} g`;
-      return `${index + 1}. ${name}${item.group}, ${weight}`;
+      return `${index + 1}. ${name}${item.kind}, ${weight}`;
     })
     .join("\n");
   return `Current items:
@@ -22,7 +28,17 @@ Return only what to add, revise, or remove. Keep everything else.`;
 }
 
 function geminiSchema(): Record<string, unknown> {
-  const group = { type: "STRING", enum: [...foodGroups] };
+  const kind = { type: "STRING", enum: [...foodKinds] };
+  const preparation = {
+    type: "ARRAY",
+    items: { type: "STRING", enum: [...preparationMethods] },
+    maxItems: 4,
+  };
+  const hints = {
+    type: "ARRAY",
+    items: { type: "STRING", enum: [...compositionHints] },
+    maxItems: 5,
+  };
   const grams = {
     type: "NUMBER",
     description: "Edible weight in grams — everything of this ingredient the person ate.",
@@ -36,13 +52,31 @@ function geminiSchema(): Record<string, unknown> {
         type: "ARRAY",
         items: {
           type: "OBJECT",
-          propertyOrdering: ["group", "grams", "label", "alternatives"],
-          required: ["group", "grams", "label", "alternatives"],
+          propertyOrdering: [
+            "kind",
+            "grams",
+            "label",
+            "preparation",
+            "composition_hints",
+            "alternatives",
+          ],
+          required: ["kind", "grams", "label", "preparation", "composition_hints", "alternatives"],
           properties: {
-            group,
+            kind,
             grams,
-            label: { type: "STRING", nullable: true },
-            alternatives: { type: "ARRAY", items: group, maxItems: 3 },
+            label: { type: "STRING" },
+            preparation,
+            composition_hints: hints,
+            alternatives: {
+              type: "ARRAY",
+              maxItems: 3,
+              items: {
+                type: "OBJECT",
+                propertyOrdering: ["label", "kind"],
+                required: ["label", "kind"],
+                properties: { label: { type: "STRING" }, kind },
+              },
+            },
           },
         },
       },
@@ -50,9 +84,15 @@ function geminiSchema(): Record<string, unknown> {
         type: "ARRAY",
         items: {
           type: "OBJECT",
-          propertyOrdering: ["index", "group", "grams"],
-          required: ["index", "group", "grams"],
-          properties: { index: { type: "INTEGER" }, group, grams },
+          propertyOrdering: ["index", "kind", "grams", "preparation", "composition_hints"],
+          required: ["index", "kind", "grams", "preparation", "composition_hints"],
+          properties: {
+            index: { type: "INTEGER" },
+            kind,
+            grams,
+            preparation,
+            composition_hints: hints,
+          },
         },
       },
       remove: { type: "ARRAY", items: { type: "INTEGER" } },

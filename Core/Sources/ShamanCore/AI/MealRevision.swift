@@ -9,34 +9,65 @@ import Foundation
 /// right, and everything it does not mention survives untouched.
 public struct MealRevision: Codable, Sendable, Hashable {
     public struct Addition: Codable, Sendable, Hashable {
-        public let group: FoodGroup
+        public let kind: FoodKind
         /// Edible weight of everything of this ingredient the person ate.
         public let grams: Double
         public let label: String?
-        public let alternatives: [FoodGroup]
+        public let preparation: [PreparationMethod]
+        public let compositionHints: [CompositionHint]
+        public let alternatives: [FoodAlternative]
 
-        public init(group: FoodGroup, grams: Double, label: String?, alternatives: [FoodGroup] = []) {
-            self.group = group
+        public init(
+            kind: FoodKind,
+            grams: Double,
+            label: String?,
+            preparation: [PreparationMethod] = [],
+            compositionHints: [CompositionHint] = [],
+            alternatives: [FoodAlternative] = []
+        ) {
+            self.kind = kind
             self.grams = grams
             self.label = label
+            self.preparation = preparation
+            self.compositionHints = compositionHints
             self.alternatives = alternatives
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case kind, grams, label, preparation, alternatives
+            case compositionHints = "composition_hints"
         }
     }
 
     public struct Change: Codable, Sendable, Hashable {
         /// 1-based, matching the numbered list the model was shown.
         public let index: Int
-        public let group: FoodGroup
+        public let kind: FoodKind
         /// The corrected weight, repeated unchanged when only the group was
         /// wrong. A revision used to carry a `Portion` here, which could not move
         /// a weighed item at all — `effectiveServings` prefers grams, so the
         /// delta applied cleanly and changed nothing anyone could see.
         public let grams: Double
+        public let preparation: [PreparationMethod]
+        public let compositionHints: [CompositionHint]
 
-        public init(index: Int, group: FoodGroup, grams: Double) {
+        public init(
+            index: Int,
+            kind: FoodKind,
+            grams: Double,
+            preparation: [PreparationMethod] = [],
+            compositionHints: [CompositionHint] = []
+        ) {
             self.index = index
-            self.group = group
+            self.kind = kind
             self.grams = grams
+            self.preparation = preparation
+            self.compositionHints = compositionHints
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case index, kind, grams, preparation
+            case compositionHints = "composition_hints"
         }
     }
 
@@ -63,9 +94,12 @@ public struct MealRevision: Codable, Sendable, Hashable {
         for change in revise {
             let index = change.index - 1
             guard result.indices.contains(index) else { continue }
-            if result[index].group != change.group { result[index].modelAlternatives = nil }
-            result[index].group = change.group
+            if result[index].kind != change.kind { result[index].modelAlternatives = nil }
+            result[index].kind = change.kind
             result[index].grams = change.grams
+            result[index].preparation = change.preparation
+            result[index].compositionHints = change.compositionHints
+            result[index].resolution = nil
             // A row flattened before grams carries the ladder's arithmetic in
             // `servings`, and that would outrank nothing but still sit there
             // contradicting the weight just written. Clearing it leaves one
@@ -77,7 +111,14 @@ public struct MealRevision: Codable, Sendable, Hashable {
         result = result.enumerated().filter { !removals.contains($0.offset) }.map(\.element)
 
         result += add.map {
-            MealItem(group: $0.group, label: $0.label, modelAlternatives: $0.alternatives, grams: $0.grams)
+            MealItem(
+                kind: $0.kind,
+                label: $0.label,
+                modelAlternatives: $0.alternatives,
+                preparation: $0.preparation,
+                compositionHints: $0.compositionHints,
+                grams: $0.grams
+            )
         }
         return result
     }
@@ -105,7 +146,7 @@ public protocol MealRefiner: Sendable {
 }
 
 public enum MealRevisionPrompt {
-    // `system` is generated from `prompts/revision-v2.md` into
+    // `system` is generated from `prompts/revision-v3.md` into
     // MealRevisionPrompt+Generated.swift. It was a string literal here and a
     // second string literal in `Backend/worker/ai/revision.ts`, and the two had
     // drifted apart in three rules while both claimed to be the same
@@ -116,7 +157,7 @@ public enum MealRevisionPrompt {
         let list = current.enumerated().map { index, item in
             let name = item.label.map { "\($0) — " } ?? ""
             let weight = item.grams.map { "\(Int($0.rounded())) g" } ?? "no weight recorded"
-            return "\(index + 1). \(name)\(item.group.rawValue), \(weight)"
+            return "\(index + 1). \(name)\(item.kind.rawValue), \(weight)"
         }.joined(separator: "\n")
 
         return """
@@ -134,7 +175,22 @@ public enum MealRevisionPrompt {
 
     /// Strict JSON Schema, OpenAI flavour.
     public static var jsonSchema: [String: Any] {
-        [
+        let kind: [String: Any] = ["type": "string", "enum": FoodKind.allCases.map(\.rawValue)]
+        let preparation: [String: Any] = [
+            "type": "array",
+            "items": ["type": "string", "enum": PreparationMethod.allCases.map(\.rawValue)]
+        ]
+        let hints: [String: Any] = [
+            "type": "array",
+            "items": ["type": "string", "enum": CompositionHint.allCases.map(\.rawValue)]
+        ]
+        let alternative: [String: Any] = [
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["label", "kind"],
+            "properties": ["label": ["type": "string"], "kind": kind]
+        ]
+        return [
             "type": "object",
             "additionalProperties": false,
             "required": ["add", "revise", "remove", "notes"],
@@ -145,30 +201,36 @@ public enum MealRevisionPrompt {
                     "items": [
                         "type": "object",
                         "additionalProperties": false,
-                        "required": ["group", "grams", "label", "alternatives"],
+                        "required": [
+                            "kind", "grams", "label", "preparation", "composition_hints", "alternatives"
+                        ],
                         "properties": [
-                            "group": ["type": "string", "enum": FoodGroup.allCases.map(\.rawValue)],
+                            "kind": kind,
                             "grams": ["type": "number", "description": "\(MealPrompt.gramsDescription)"],
-                            "label": ["type": ["string", "null"], "description": "Short human name for one food."],
+                            "label": ["type": "string", "description": "Short human name for one food."],
+                            "preparation": preparation,
+                            "composition_hints": hints,
                             "alternatives": [
                                 "type": "array",
-                                "description": "Other groups this could plausibly be. Empty when obvious.",
-                                "items": ["type": "string", "enum": FoodGroup.allCases.map(\.rawValue)]
+                                "description": "Other foods this could plausibly be. Empty when obvious.",
+                                "items": alternative
                             ]
                         ]
                     ]
                 ],
                 "revise": [
                     "type": "array",
-                    "description": "Items whose group or weight is wrong.",
+                    "description": "Items whose identity, preparation, or weight is wrong.",
                     "items": [
                         "type": "object",
                         "additionalProperties": false,
-                        "required": ["index", "group", "grams"],
+                        "required": ["index", "kind", "grams", "preparation", "composition_hints"],
                         "properties": [
                             "index": ["type": "integer", "description": "The item's number in the list above, starting at 1."],
-                            "group": ["type": "string", "enum": FoodGroup.allCases.map(\.rawValue)],
-                            "grams": ["type": "number", "description": "\(MealPrompt.gramsDescription)"]
+                            "kind": kind,
+                            "grams": ["type": "number", "description": "\(MealPrompt.gramsDescription)"],
+                            "preparation": preparation,
+                            "composition_hints": hints
                         ]
                     ]
                 ],
@@ -184,7 +246,22 @@ public enum MealRevisionPrompt {
 
     /// The same contract in Gemini's OpenAPI subset.
     public static var geminiResponseSchema: [String: Any] {
-        [
+        let kind: [String: Any] = ["type": "STRING", "enum": FoodKind.allCases.map(\.rawValue)]
+        let preparation: [String: Any] = [
+            "type": "ARRAY",
+            "items": ["type": "STRING", "enum": PreparationMethod.allCases.map(\.rawValue)]
+        ]
+        let hints: [String: Any] = [
+            "type": "ARRAY",
+            "items": ["type": "STRING", "enum": CompositionHint.allCases.map(\.rawValue)]
+        ]
+        let alternative: [String: Any] = [
+            "type": "OBJECT",
+            "propertyOrdering": ["label", "kind"],
+            "required": ["label", "kind"],
+            "properties": ["label": ["type": "STRING"], "kind": kind]
+        ]
+        return [
             "type": "OBJECT",
             "propertyOrdering": ["add", "revise", "remove", "notes"],
             "required": ["add", "revise", "remove", "notes"],
@@ -194,35 +271,39 @@ public enum MealRevisionPrompt {
                     "description": "Food that is present but missing from the list.",
                     "items": [
                         "type": "OBJECT",
-                        "propertyOrdering": ["group", "grams", "label", "alternatives"],
-                        "required": ["group", "grams", "label", "alternatives"],
+                        "propertyOrdering": [
+                            "kind", "grams", "label", "preparation", "composition_hints", "alternatives"
+                        ],
+                        "required": [
+                            "kind", "grams", "label", "preparation", "composition_hints", "alternatives"
+                        ],
                         "properties": [
-                            "group": ["type": "STRING", "enum": FoodGroup.allCases.map(\.rawValue)],
+                            "kind": kind,
                             "grams": ["type": "NUMBER", "description": "\(MealPrompt.gramsDescription)"],
-                            "label": [
-                                "type": "STRING",
-                                "nullable": true,
-                                "description": "Short human name for one food."
-                            ],
+                            "label": ["type": "STRING", "description": "Short human name for one food."],
+                            "preparation": preparation,
+                            "composition_hints": hints,
                             "alternatives": [
                                 "type": "ARRAY",
-                                "description": "Other groups this could plausibly be. Empty when obvious.",
-                                "items": ["type": "STRING", "enum": FoodGroup.allCases.map(\.rawValue)]
+                                "description": "Other foods this could plausibly be. Empty when obvious.",
+                                "items": alternative
                             ]
                         ]
                     ]
                 ],
                 "revise": [
                     "type": "ARRAY",
-                    "description": "Items whose group or weight is wrong.",
+                    "description": "Items whose identity, preparation, or weight is wrong.",
                     "items": [
                         "type": "OBJECT",
-                        "propertyOrdering": ["index", "group", "grams"],
-                        "required": ["index", "group", "grams"],
+                        "propertyOrdering": ["index", "kind", "grams", "preparation", "composition_hints"],
+                        "required": ["index", "kind", "grams", "preparation", "composition_hints"],
                         "properties": [
                             "index": ["type": "INTEGER", "description": "The item's number in the list above, starting at 1."],
-                            "group": ["type": "STRING", "enum": FoodGroup.allCases.map(\.rawValue)],
-                            "grams": ["type": "NUMBER", "description": "\(MealPrompt.gramsDescription)"]
+                            "kind": kind,
+                            "grams": ["type": "NUMBER", "description": "\(MealPrompt.gramsDescription)"],
+                            "preparation": preparation,
+                            "composition_hints": hints
                         ]
                     ]
                 ],

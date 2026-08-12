@@ -86,7 +86,7 @@ public struct BackendSession: MealRecognizer, MealRefiner, Sendable {
     ) async throws -> MealRevision {
         let input = RefinementRequest(
             provider: configuration.provider?.rawValue,
-            current: current.map { .init(group: $0.group, grams: $0.grams, label: $0.label) },
+            current: current.map { .init(kind: $0.kind, grams: $0.grams, label: $0.label) },
             note: note
         )
         let path = imageData
@@ -309,6 +309,16 @@ public struct BackendSession: MealRecognizer, MealRefiner, Sendable {
         try await bytes(path: "tables/\(tableID)/media/\(postID)")
     }
 
+    /// A private meal photograph previously uploaded by this account.
+    ///
+    /// Account history contains hashes rather than image bytes. A fresh install
+    /// uses those hashes to rebuild its local photo cache after the event union
+    /// has been downloaded. The Worker checks every device partition adopted by
+    /// the signed-in account, so photographs made before sign-in are included.
+    public func mealPhoto(hash: String) async throws -> Data {
+        try await bytes(path: "media/\(hash.lowercased())")
+    }
+
     private struct EmptyResponse: Decodable {
         init(from decoder: any Decoder) throws {}
     }
@@ -410,7 +420,7 @@ public struct BackendSession: MealRecognizer, MealRefiner, Sendable {
 
     private struct RefinementRequest: Encodable {
         struct Item: Encodable {
-            let group: FoodGroup
+            let kind: FoodKind
             /// Nil for a meal logged before weights, or typed in by hand. Sent
             /// as null rather than filled in: the prompt says "no weight
             /// recorded" in words, and a model told a hand-typed row weighs 100 g

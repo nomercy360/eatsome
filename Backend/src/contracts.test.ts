@@ -21,10 +21,12 @@ describe("meal recognition contract", () => {
           panel: null,
           ingredients: [
             {
-              group: "white_meat",
+              kind: "poultry",
               grams: 140,
               label: "minced meat",
-              alternatives: ["red_meat"],
+              preparation: [],
+              composition_hints: [],
+              alternatives: [{ label: "beef mince", kind: "beef" }],
             },
           ],
         },
@@ -33,7 +35,9 @@ describe("meal recognition contract", () => {
       notes: "Could be pork.",
     });
 
-    expect(parsed.dishes[0]?.ingredients[0]?.alternatives).toEqual(["red_meat"]);
+    expect(parsed.dishes[0]?.ingredients[0]?.alternatives).toEqual([
+      { label: "beef mince", kind: "beef" },
+    ]);
     expect(parsed.other_meals_visible).toBe(true);
 
     const jsonSchema = mealRecognitionJsonSchema();
@@ -53,7 +57,15 @@ describe("meal recognition contract", () => {
             name: "beer",
             count: 1,
             panel: null,
-            ingredients: [{ group: "alcohol", label: "beer", alternatives: [] }],
+            ingredients: [
+              {
+                kind: "beer",
+                label: "beer",
+                preparation: [],
+                composition_hints: [],
+                alternatives: [],
+              },
+            ],
           },
         ],
         other_meals_visible: false,
@@ -72,7 +84,16 @@ describe("meal recognition contract", () => {
           name: "beer",
           count: 3,
           panel: null,
-          ingredients: [{ group: "alcohol", grams: 1_200, label: "beer", alternatives: [] }],
+          ingredients: [
+            {
+              kind: "beer",
+              grams: 1_200,
+              label: "beer",
+              preparation: [],
+              composition_hints: [],
+              alternatives: [],
+            },
+          ],
         },
         // One salad: mostly leaves, a drizzle of oil. Two dressed salads must
         // not clear the 4 tbsp/day olive oil criterion between them.
@@ -81,8 +102,22 @@ describe("meal recognition contract", () => {
           count: 1,
           panel: null,
           ingredients: [
-            { group: "vegetables", grams: 90, label: "leaves", alternatives: [] },
-            { group: "olive_oil", grams: 8, label: "dressing", alternatives: [] },
+            {
+              kind: "vegetable",
+              grams: 90,
+              label: "leaves",
+              preparation: ["raw"],
+              composition_hints: [],
+              alternatives: [],
+            },
+            {
+              kind: "oil",
+              grams: 8,
+              label: "olive oil",
+              preparation: [],
+              composition_hints: ["oil_based"],
+              alternatives: [],
+            },
           ],
         },
       ],
@@ -90,10 +125,10 @@ describe("meal recognition contract", () => {
       notes: null,
     });
 
-    expect(flat.items.map((item) => [item.dish, item.group, item.grams])).toEqual([
-      ["beer", "alcohol", 1_200],
-      ["green salad", "vegetables", 90],
-      ["green salad", "olive_oil", 8],
+    expect(flat.items.map((item) => [item.dish, item.kind, item.grams])).toEqual([
+      ["beer", "beer", 1_200],
+      ["green salad", "vegetable", 90],
+      ["green salad", "oil", 8],
     ]);
     // No arithmetic left to record. A client that finds a number here is
     // reading a server that still multiplied.
@@ -109,15 +144,24 @@ describe("meal refinement contract", () => {
       // A hand-typed row has no weight to send, and says so rather than
       // inventing one for the field.
       current: [
-        { group: "white_meat", grams: 160, label: "chicken" },
-        { group: "vegetables", grams: null, label: "salad" },
+        { kind: "poultry", grams: 160, label: "chicken" },
+        { kind: "vegetable", grams: null, label: "salad" },
       ],
       note: "fried in butter",
     });
     expect(request.current).toHaveLength(2);
     expect(
       mealRevisionSchema.parse({
-        add: [{ group: "butter", grams: 12, label: "butter", alternatives: [] }],
+        add: [
+          {
+            kind: "butter_margarine",
+            grams: 12,
+            label: "butter",
+            preparation: [],
+            composition_hints: [],
+            alternatives: [],
+          },
+        ],
         revise: [],
         remove: [],
         notes: null,
@@ -130,7 +174,7 @@ describe("meal refinement contract", () => {
     // `effectiveServings`, so the delta applied and changed no quantity.
     const revision = mealRevisionSchema.parse({
       add: [],
-      revise: [{ index: 1, group: "egg", grams: 100 }],
+      revise: [{ index: 1, kind: "egg", grams: 100, preparation: [], composition_hints: [] }],
       remove: [],
       notes: null,
     });
@@ -230,7 +274,7 @@ describe("event sync contract", () => {
               items: [
                 {
                   id: itemId,
-                  group: "red_meat",
+                  kind: "beef",
                   portion: "medium",
                   label: "minced meat",
                 },
@@ -243,10 +287,10 @@ describe("event sync contract", () => {
                 initialItems: [
                   {
                     id: itemId,
-                    group: "white_meat",
+                    kind: "poultry",
                     portion: "medium",
                     label: "minced meat",
-                    modelAlternatives: ["red_meat"],
+                    modelAlternatives: [{ label: "beef mince", kind: "beef" }],
                   },
                 ],
                 otherMealsVisible: true,
@@ -281,7 +325,7 @@ describe("event sync contract", () => {
               items: [
                 {
                   id: "0198f222-aadb-7e00-8000-000000000006",
-                  group: "legumes",
+                  kind: "legume",
                   portion: "medium",
                   label: "lentil soup",
                   grams: 400,
@@ -314,7 +358,7 @@ describe("event sync contract", () => {
               items: [
                 {
                   id: "0198f222-aadb-7e00-8000-000000000010",
-                  group: "fruit",
+                  kind: "fruit",
                   portion: "medium",
                   dish: "Fruit plate",
                   grams: 80,
@@ -333,7 +377,7 @@ describe("event sync contract", () => {
                   items: [
                     {
                       id: "0198f222-aadb-7e00-8000-000000000010",
-                      group: "fruit",
+                      kind: "fruit",
                       portion: "medium",
                       grams: 80,
                     },

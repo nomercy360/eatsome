@@ -1,4 +1,4 @@
-import { foodGroups } from "../src/contracts";
+import { foodKinds } from "../src/contracts";
 
 /**
  * The golden set speaks a richer vocabulary than the app does, and the gap has
@@ -10,7 +10,7 @@ import { foodGroups } from "../src/contracts";
  *
  *   renamed    — the same idea, a different string. Mapped silently.
  *   lossy      — mapped, but something is lost. Reported.
- *   unmapped   — no home in `FoodGroup` at all. These items cannot be scored,
+ *   unmapped   — no home in `FoodKind` at all. These items cannot be scored,
  *                and every trap that depends on them is unmeasurable until the
  *                taxonomy changes. `pnpm eval:coverage` counts them.
  */
@@ -21,40 +21,79 @@ export type Mapping =
   | { kind: "unmapped"; why: string };
 
 const table: Record<string, Mapping> = {
-  refined_grain: { kind: "renamed", group: "refined_grains" },
-  whole_grain: { kind: "renamed", group: "whole_grains" },
-  butter_margarine_cream: { kind: "renamed", group: "butter" },
-
-  // The taxonomy audit renamed two groups the app had named after one diet's
-  // opinion rather than after food. The golden set was annotated under the old
-  // vocabulary and is not rewritten — a dataset that moves when the app moves
-  // has stopped being a fixed point — so the old names resolve here, silently,
-  // which is exactly what `renamed` is for.
-  sofrito: { kind: "renamed", group: "cooked_tomato_sauce" },
-  healthy_fats: { kind: "renamed", group: "plant_fats" },
-
-  potatoes: {
-    kind: "unmapped",
-    why: "Not vegetables in MEDAS terms — counting them there would credit an item 3 serving for chips. Needs its own group or an explicit decision to score them nowhere.",
+  refined_grain: {
+    kind: "lossy",
+    group: "bread_flatbread",
+    why: "The old annotation does not say rice, pasta, bread, or cereal; map by food name before scoring.",
   },
-  sauce: {
-    kind: "unmapped",
-    why: "The prompt deliberately routes sauces to what they are made of — mayonnaise to butter, oil dressings to olive_oil or vegetable_oil, cooked tomato to cooked_tomato_sauce, yoghurt to dairy. The dataset keeps `sauce` as a category, so these items disagree by design rather than by error.",
+  whole_grain: {
+    kind: "lossy",
+    group: "bread_flatbread",
+    why: "Whole grain is now a composition hint; the food still needs a rice/pasta/bread/cereal kind.",
   },
+  white_meat: { kind: "renamed", group: "poultry" },
+  red_meat: {
+    kind: "lossy",
+    group: "beef",
+    why: "The old annotation does not distinguish beef, pork, or lamb/game.",
+  },
+  processed_meat: { kind: "exact", group: "processed_meat" },
+  fish: { kind: "lossy", group: "fish", why: "The old annotation combines finfish and shellfish." },
+  egg: { kind: "exact", group: "egg" },
+  dairy: {
+    kind: "lossy",
+    group: "milk",
+    why: "The old annotation combines milk, yogurt, cheese, and cream.",
+  },
+  legumes: {
+    kind: "lossy",
+    group: "legume",
+    why: "The old annotation combines legumes and soy products.",
+  },
+  vegetables: {
+    kind: "lossy",
+    group: "vegetable",
+    why: "The old annotation combines vegetables, mushrooms, and seaweed.",
+  },
+  fruit: { kind: "exact", group: "fruit" },
+  nuts: { kind: "renamed", group: "nuts_seeds" },
+  sweets: {
+    kind: "lossy",
+    group: "chocolate_candy",
+    why: "The old annotation combines sugar, candy, cake, and frozen desserts.",
+  },
+  pastry: { kind: "exact", group: "pastry" },
+  olive_oil: { kind: "renamed", group: "oil" },
+  sofrito: { kind: "renamed", group: "sauce_condiment" },
+  sugary_drinks: { kind: "renamed", group: "soft_sports_energy_drink" },
+  butter_margarine_cream: {
+    kind: "lossy",
+    group: "butter_margarine",
+    why: "Cream is now a distinct food kind.",
+  },
+  healthy_fats: { kind: "renamed", group: "avocado_olive" },
+  potatoes: { kind: "renamed", group: "potato" },
+  sauce: { kind: "renamed", group: "sauce_condiment" },
+  alcohol: {
+    kind: "lossy",
+    group: "beer",
+    why: "The old annotation combines beer, wine, spirits, and cocktails.",
+  },
+  other: { kind: "renamed", group: "unknown" },
 };
 // `juice`, `smoothie` and `plant_milk` were unmapped here until the app grew
 // groups for them, and `coffee` and `tea` never reached this table because the
 // golden set has no drink-only meal — they fell through to `other`, which is
 // how a black coffee came to be worth 2 g of protein. All five now resolve
-// through `foodGroups` as exact matches.
+// through `foodKinds` as exact matches.
 
 export function mapGroup(goldenGroup: string): Mapping {
   const known = table[goldenGroup];
   if (known) return known;
-  if ((foodGroups as readonly string[]).includes(goldenGroup)) {
+  if ((foodKinds as readonly string[]).includes(goldenGroup)) {
     return { kind: "exact", group: goldenGroup };
   }
-  return { kind: "unmapped", why: "not in the app's FoodGroup and not in the mapping table" };
+  return { kind: "unmapped", why: "not in the app's FoodKind and not in the mapping table" };
 }
 
 /**

@@ -37,54 +37,56 @@ struct LunaSessionTests {
         let properties = try #require(schema["properties"] as? [String: Any])
         #expect(Set(required) == Set(properties.keys), "strict mode requires every property to be listed")
 
+        let dishSchema = try #require(
+            ((properties["dishes"] as? [String: Any])?["items"]) as? [String: Any]
+        )
+        let dishProperties = try #require(dishSchema["properties"] as? [String: Any])
         let itemSchema = try #require(
-            ((properties["items"] as? [String: Any])?["items"]) as? [String: Any]
+            ((dishProperties["ingredients"] as? [String: Any])?["items"]) as? [String: Any]
         )
         #expect(itemSchema["additionalProperties"] as? Bool == false)
-        #expect(Set(try #require(itemSchema["required"] as? [String])) == ["group", "grams", "label", "alternatives"])
+        #expect(Set(try #require(itemSchema["required"] as? [String])) == [
+            "kind", "grams", "label", "preparation", "composition_hints", "alternatives"
+        ])
         // One quantity. `portion` stood beside `grams` until v17 and always lost
         // to it — asking for both spent tokens on an answer nothing read.
         #expect(itemSchema.description.contains("portion") == false)
 
-        // The enum has to be the actual model, or the app silently drops groups.
+        // The enum has to be the actual model, or the app silently drops foods.
         let itemProperties = try #require(itemSchema["properties"] as? [String: Any])
-        let groups = try #require((itemProperties["group"] as? [String: Any])?["enum"] as? [String])
-        #expect(Set(groups) == Set(FoodGroup.allCases.map(\.rawValue)))
+        let kinds = try #require((itemProperties["kind"] as? [String: Any])?["enum"] as? [String])
+        #expect(Set(kinds) == Set(FoodKind.allCases.map(\.rawValue)))
 
         // Uncertainty is a shortlist of rival groups, not a number.
         let alternatives = try #require(itemProperties["alternatives"] as? [String: Any])
         #expect(alternatives["type"] as? String == "array")
-        let alternativeGroups = try #require(
-            (alternatives["items"] as? [String: Any])?["enum"] as? [String]
+        let alternative = try #require(alternatives["items"] as? [String: Any])
+        let alternativeProperties = try #require(alternative["properties"] as? [String: Any])
+        let alternativeKinds = try #require(
+            (alternativeProperties["kind"] as? [String: Any])?["enum"] as? [String]
         )
-        #expect(Set(alternativeGroups) == Set(FoodGroup.allCases.map(\.rawValue)))
+        #expect(Set(alternativeKinds) == Set(FoodKind.allCases.map(\.rawValue)))
     }
 
-    @Test("The prompt never asks for calories")
+    @Test("The prompt never asks the model to estimate nutrition")
     func promptDoesNotRequestCalories() {
         let prompt = MealPrompt.system.lowercased()
-        #expect(prompt.contains("never estimate calories"))
-        #expect(prompt.contains("closest to the camera"))
+        #expect(prompt.contains("never report calories or macros from memory"))
+        #expect(prompt.contains("closest place setting"))
         #expect(prompt.contains("other_meals_visible"))
-        #expect(prompt.contains("soups"))
-        #expect(prompt.contains("miso soup contains legumes"))
+        #expect(prompt.contains("sauces and soups"))
+        #expect(prompt.contains("generic dipping sauce remains `sauce_condiment`"))
         #expect(prompt.contains("`alternatives`"))
-        #expect(prompt.contains("an empty list is the"))
-        #expect(prompt.contains("never leave it to the user"))
+        #expect(prompt.contains("empty is normal"))
         #expect(!prompt.contains("confidence"))
 
         // The failures that survived the first field test: skipped sauces,
         // avocado filed as produce, and hedging smuggled into the label.
         #expect(prompt.contains("mayonnaise"))
         #expect(prompt.contains("dressings"))
-        #expect(prompt.contains("`plant_fats`, never fruit or"))
-        // An unnamed frying oil goes to the commoner oil rather than guessing
-        // that olive oil was used.
-        #expect(prompt.contains("`olive_oil` needs evidence that it was olive oil"))
-        #expect(prompt.contains("`vegetable_oil`"))
-        #expect(prompt.contains("alcohol-free beer"))
-        #expect(prompt.contains("is not a label"))
-        #expect(!MealPrompt.jsonSchema.description.lowercased().contains("calorie"))
+        #expect(prompt.contains("potato is never `vegetable`"))
+        #expect(prompt.contains("do not guess its recipe"))
+        #expect(prompt.contains("a food database supplies nutrient composition"))
 
         // It names food without turning the recognition response into a health
         // verdict. "Healthy" and "balanced" are verdicts too — a model told to
@@ -92,7 +94,7 @@ struct LunaSessionTests {
         for verdict in ["mediterranean", "medas", "adherence", "healthy", "balanced"] {
             #expect(!prompt.contains(verdict), "the prompt still says \(verdict)")
         }
-        #expect(prompt.contains("the food groups it is made of"))
+        #expect(prompt.contains("kind` is a broad lookup constraint"))
     }
 
 
@@ -145,27 +147,28 @@ struct LunaSessionTests {
         {"status":"completed","output":[
           {"type":"reasoning","summary":[]},
           {"type":"message","content":[{"type":"output_text","text":
-            "{\\"items\\":[{\\"group\\":\\"fish\\",\\"grams\\":180,\\"label\\":\\"grilled sardines\\",\\"alternatives\\":[\\"white_meat\\"]},{\\"group\\":\\"olive_oil\\",\\"grams\\":9,\\"label\\":null,\\"alternatives\\":[]}],\\"other_meals_visible\\":true,\\"notes\\":null}"
+            "{\\"dishes\\":[{\\"name\\":\\"sardines\\",\\"count\\":1,\\"panel\\":null,\\"ingredients\\":[{\\"kind\\":\\"fish\\",\\"grams\\":180,\\"label\\":\\"grilled sardines\\",\\"preparation\\":[\\"grilled\\"],\\"composition_hints\\":[],\\"alternatives\\":[{\\"label\\":\\"grilled mackerel\\",\\"kind\\":\\"fish\\"}]},{\\"kind\\":\\"oil\\",\\"grams\\":9,\\"label\\":\\"cooking oil\\",\\"preparation\\":[],\\"composition_hints\\":[],\\"alternatives\\":[]}]}],\\"other_meals_visible\\":true,\\"notes\\":null}"
           }]}
         ]}
         """
         let artifact = try LunaSession.parse(Data(json.utf8), promptVersion: "test-v17")
         let recognition = artifact.recognition
-        #expect(recognition.items.count == 2)
-        #expect(recognition.items[0].group == .fish)
-        #expect(recognition.items[0].grams == 180)
-        #expect(recognition.items[0].alternatives == [.whiteMeat])
-        #expect(recognition.items[1].group == .oliveOil)
-        #expect(recognition.items[1].alternatives.isEmpty)
+        let ingredients = try #require(recognition.dishes?.first?.ingredients)
+        #expect(ingredients.count == 2)
+        #expect(ingredients[0].kind == .fish)
+        #expect(ingredients[0].grams == 180)
+        #expect(ingredients[0].alternatives == [.init(label: "grilled mackerel", kind: .fish)])
+        #expect(ingredients[1].kind == .oil)
+        #expect(ingredients[1].alternatives.isEmpty)
         #expect(recognition.otherMealsVisible)
         #expect(artifact.promptVersion == "test-v17")
         #expect(artifact.rawModelJSON.contains("grilled sardines"))
 
-        let mealItems = recognition.asMealItems()
+        let mealItems = try #require(recognition.asMealDishes()).flatMap { $0.flattened() }
         #expect(mealItems.count == 2)
         #expect(mealItems[0].label == "grilled sardines")
         #expect(mealItems[0].grams == 180)
-        #expect(mealItems[0].modelAlternatives == [.whiteMeat])
+        #expect(mealItems[0].modelAlternatives == [.init(label: "grilled mackerel", kind: .fish)])
     }
 
     @Test("An answer cached under an older prompt keeps its original portions")
@@ -187,16 +190,15 @@ struct LunaSessionTests {
         #expect(recognition.asMealItems()[0].effectiveServings() == Portion.large.servings)
     }
 
-    @Test("Legacy confidence caches become the rivals the model never named")
+    @Test("Legacy group caches decode through the transition bridge")
     func parsesLegacyRecognitionCache() throws {
         let legacy = Data(
             #"{"items":[{"group":"white_meat","portion":"medium","label":"minced meat"}],"confidence":0.56,"notes":null}"#.utf8
         )
         let recognition = try JSONDecoder().decode(MealRecognition.self, from: legacy)
 
-        // 0.56 meant "unsure", so the groups white meat is habitually confused
-        // with stand in for a shortlist that build never asked for.
-        #expect(recognition.items.first?.alternatives == [.fish, .redMeat])
+        #expect(recognition.items.first?.kind == .poultry)
+        #expect(recognition.items.first?.alternatives.isEmpty == true)
         #expect(recognition.otherMealsVisible == false)
 
         let confident = Data(
@@ -242,7 +244,7 @@ struct LunaSessionTests {
                 await counter.increment()
                 let recognition = MealRecognition(
                     items: [.init(
-                        group: .vegetables,
+                        kind: .vegetable,
                         label: "salad",
                         alternatives: [],
                         grams: 90

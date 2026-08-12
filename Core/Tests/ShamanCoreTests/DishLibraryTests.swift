@@ -9,7 +9,7 @@ struct DishLibraryTests {
         _ name: String,
         daysAgo: Double,
         hour: Int,
-        group: FoodGroup = .legumes,
+        kind: FoodKind = .legume,
         grams: Double = 300
     ) -> MealEntry {
         var day = Date(epochMillis: MealEntry.referenceNow - EpochMillis(daysAgo * 86_400_000))
@@ -18,7 +18,7 @@ struct DishLibraryTests {
         parts.minute = 0
         day = Calendar.current.date(from: parts) ?? day
 
-        let dish = MealDish(name: name, items: [MealItem(group: group, grams: grams)])
+        let dish = MealDish(name: name, items: [MealItem(kind: kind, grams: grams)])
         return MealEntry(
             eatenAt: day.epochMillis,
             items: dish.flattened(),
@@ -97,7 +97,7 @@ struct DishLibraryTests {
     func unnamedDishesAreSkipped() {
         // `MealDish.regrouped` files anything a correction added under "", and
         // an empty chip is not something anyone can tap.
-        let dish = MealDish(name: "", items: [MealItem(group: .oliveOil, grams: 10)])
+        let dish = MealDish(name: "", items: [MealItem(kind: .oil, grams: 10)])
         let orphan = MealEntry(
             eatenAt: MealEntry.referenceNow,
             items: dish.flattened(),

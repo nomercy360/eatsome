@@ -19,6 +19,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate:local": "wrangler d1 migrations apply eatsome --local",
     "db:migrate:remote": "wrangler d1 migrations apply eatsome --remote",
+    "taxonomy:audit": "node scripts/migrate-food-taxonomy.mjs --audit",
+    "taxonomy:migrate": "node scripts/migrate-food-taxonomy.mjs --apply",
     "cf:typegen": "wrangler types",
     "eval": "promptfoo eval -c promptfooconfig.yaml --repeat 3 --output eval/runs/latest.json",
     "eval:coverage": "tsx eval/coverage.ts",

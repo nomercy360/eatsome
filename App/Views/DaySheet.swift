@@ -4,7 +4,7 @@ import SwiftUI
 /// Screen `7f`. The old Today screen's job, one tap deep.
 ///
 /// "How much have I eaten today" lives in the pinned strip as a glance, and
-/// expands into this: the day's olives, what today counted for, and the meals —
+/// expands into this: what today contained and the meals —
 /// each row opening `2e`. The thread stays visible behind it; swiping down goes
 /// back to logging.
 ///
@@ -29,7 +29,6 @@ struct DaySheet: View {
                     if meals.isEmpty {
                         emptyDay
                     } else {
-                        olivesCard
                         countedCard
                         mealsCard
                     }
@@ -68,37 +67,6 @@ struct DaySheet: View {
         .wellieScreen()
     }
 
-    // MARK: - The day's olives
-
-    /// The headline, and the one line that stops it reading as a verdict:
-    /// a day is not finished until it is finished.
-    private var olivesCard: some View {
-        let rating = model.olives(on: day)
-        return VStack(alignment: .leading, spacing: 14) {
-            Text(headline(rating))
-                .font(WellieTheme.font(26, weight: .bold))
-                .foregroundStyle(WellieTheme.ink)
-                .fixedSize(horizontal: false, vertical: true)
-
-            if let rating {
-                // The headline of this screen, so it carries the size. Elsewhere
-                // the olives annotate a meal and stay small.
-                OliveRow(olives: rating.olives, size: 36)
-                WellieProse(
-                    isToday
-                        ? "Portion-weighted across the day — it settles as the day does."
-                        : "Portion-weighted across the day."
-                )
-            }
-        }
-        .wellieCard(color: WellieTheme.ice, padding: 24)
-    }
-
-    private func headline(_ rating: OliveRating?) -> String {
-        guard let rating else { return "Nothing logged yet." }
-        return isToday ? "\(rating.spelled) so far" : rating.spelled
-    }
-
     // MARK: - Counted today
 
     private var countedCard: some View {
@@ -107,7 +75,7 @@ struct DaySheet: View {
             WellieSectionTitle(text: isToday ? "Counted today" : "Counted")
 
             FlowLayout(spacing: 7, lineSpacing: 7) {
-                ForEach(counted, id: \.group) { entry in
+                ForEach(counted, id: \.kind) { entry in
                     WellieChip(text: entry.label)
                 }
                 // Protein sits in the same row as the food it came from, as one
@@ -118,11 +86,10 @@ struct DaySheet: View {
                 WellieChip(text: "Protein \(Int(total.nutrients.protein.rounded())) g", style: .outline)
             }
 
-            if !total.isComplete {
+            if let attention = total.foodMatchAttention {
                 // A partial total that does not say it is partial is the exact
                 // failure this whole design is arranged against.
-                Text("\(Int(total.unresolvedGrams.rounded())) g not recognised — "
-                     + "this is short by whatever it was.")
+                Text(attention + " Edit that food to complete these figures.")
                     .font(WellieTheme.font(12, weight: .medium))
                     .foregroundStyle(WellieTheme.attention)
                     .fixedSize(horizontal: false, vertical: true)
@@ -131,25 +98,25 @@ struct DaySheet: View {
         .wellieCard()
     }
 
-    /// Each group with the number of times it appeared, in the order it was
+    /// Each food kind with the number of times it appeared, in the order it was
     /// first eaten. "Sweets ½" in the mock is a half serving, so the count is
     /// servings rather than rows.
-    private var counted: [(group: FoodGroup, label: String)] {
-        var order: [FoodGroup] = []
-        var servings: [FoodGroup: Double] = [:]
+    private var counted: [(kind: FoodKind, label: String)] {
+        var order: [FoodKind] = []
+        var servings: [FoodKind: Double] = [:]
         for meal in meals.sorted(by: { $0.eatenAt < $1.eatenAt }) {
-            for group in meal.items.map(\.group) where servings[group] == nil {
-                order.append(group)
-                servings[group] = 0
+            for kind in meal.items.map(\.kind) where servings[kind] == nil {
+                order.append(kind)
+                servings[kind] = 0
             }
         }
-        for group in order {
-            servings[group] = meals.reduce(0) { $0 + $1.servings(of: group) }
+        for kind in order {
+            servings[kind] = meals.reduce(0) { $0 + $1.servings(of: kind) }
         }
 
-        return order.compactMap { group in
-            guard let amount = servings[group], amount > 0 else { return nil }
-            return (group, "\(group.shortName)\(Self.quantity(amount))")
+        return order.compactMap { kind in
+            guard let amount = servings[kind], amount > 0 else { return nil }
+            return (kind, "\(kind.shortName)\(Self.quantity(amount))")
         }
     }
 
@@ -180,7 +147,6 @@ struct DaySheet: View {
                                 .lineLimit(1)
                         }
                         Spacer(minLength: 6)
-                        OliveRow(olives: model.olives(for: meal).olives, size: 15)
                         Image(systemName: "chevron.right")
                             .font(.system(size: 12, weight: .bold))
                             .foregroundStyle(WellieTheme.faint)
@@ -223,7 +189,7 @@ struct DaySheet: View {
     /// Sleep, workouts and weight are properties of a day, so they live on the
     /// day. They were on the old Today screen and `7f` does not draw them —
     /// dropping them silently would have been the wrong way to read a mock that
-    /// is about the olives.
+    /// is about the meal log.
     private var healthCard: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {

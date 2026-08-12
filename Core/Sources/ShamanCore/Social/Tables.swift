@@ -146,7 +146,7 @@ public struct TablePost: Codable, Sendable, Hashable, Identifiable {
         var seen: [String] = []
         for row in ingredients {
             let name = row.label?.trimmingCharacters(in: .whitespaces)
-            let text = (name?.isEmpty == false ? name! : row.group.shortName)
+            let text = (name?.isEmpty == false ? name! : row.kind.shortName)
             if !seen.contains(where: { $0.caseInsensitiveCompare(text) == .orderedSame }) {
                 seen.append(text)
             }
@@ -156,18 +156,35 @@ public struct TablePost: Codable, Sendable, Hashable, Identifiable {
 }
 
 /// One shared ingredient, and the whole of what a friend's card may say about
-/// food: group, weight, label. No portion, no alternatives, no evidence, and
+/// food: kind, weight, label. No portion, no alternatives, no evidence, and
 /// nothing derived — a friend's card answers "what's in it", never "how did
 /// they do".
 public struct PostIngredient: Codable, Sendable, Hashable {
-    public let group: FoodGroup
+    public let kind: FoodKind
     public let grams: Double?
     public let label: String?
 
-    public init(group: FoodGroup, grams: Double?, label: String?) {
-        self.group = group
+    public init(kind: FoodKind, grams: Double?, label: String?) {
+        self.kind = kind
         self.grams = grams
         self.label = label
+    }
+
+    private enum CodingKeys: String, CodingKey { case kind, group, grams, label }
+
+    public init(from decoder: any Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        kind = try values.decodeIfPresent(FoodKind.self, forKey: .kind)
+            ?? values.decode(FoodKind.self, forKey: .group)
+        grams = try values.decodeIfPresent(Double.self, forKey: .grams)
+        label = try values.decodeIfPresent(String.self, forKey: .label)
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var values = encoder.container(keyedBy: CodingKeys.self)
+        try values.encode(kind, forKey: .kind)
+        try values.encodeIfPresent(grams, forKey: .grams)
+        try values.encodeIfPresent(label, forKey: .label)
     }
 }
 
@@ -352,11 +369,9 @@ extension MealEntry {
     ///
     /// `showsIngredients` is the switch on the share sheet and the whole of the
     /// privacy decision: off, and the post carries a name and a photograph and
-    /// nothing about the food. The olives are not a parameter — there is no
-    /// argument that would make a personal meal rating travel to somebody
-    /// else's feed.
+    /// nothing about the food.
     public func shareable(showingIngredients: Bool) -> [PostIngredient]? {
         guard showingIngredients else { return nil }
-        return items.map { PostIngredient(group: $0.group, grams: $0.grams, label: $0.label) }
+        return items.map { PostIngredient(kind: $0.kind, grams: $0.grams, label: $0.label) }
     }
 }

@@ -137,7 +137,7 @@ struct DishSheet: View {
     private var descriptor: String {
         var parts: [String] = []
         if dish.items.count == 1, let only = dish.items.first {
-            parts.append(FoodPhrase.word(for: only.group, label: only.label).localizedCapitalized)
+            parts.append(FoodPhrase.word(for: only.kind, label: only.label).localizedCapitalized)
         } else if !dish.items.isEmpty {
             parts.append("\(dish.items.count) ingredients")
         }
@@ -148,8 +148,8 @@ struct DishSheet: View {
     }
 
     private var groupSummary: String? {
-        var seen: [FoodGroup] = []
-        for item in dish.items where !seen.contains(item.group) { seen.append(item.group) }
+        var seen: [FoodKind] = []
+        for item in dish.items where !seen.contains(item.kind) { seen.append(item.kind) }
         switch seen.count {
         case 0: return nil
         case 1: return seen[0].plainName.lowercased()
@@ -240,7 +240,7 @@ struct DishSheet: View {
                     onEditIngredient(item.id)
                 } label: {
                     WellieChevronRow(
-                        title: FoodPhrase.word(for: item.group, label: item.label),
+                        title: FoodPhrase.word(for: item.kind, label: item.label),
                         // The weight, read-only. The size chip that used to
                         // stand here on an unweighed row was the second answer
                         // to a question that now has one. A meal old enough to

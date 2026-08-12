@@ -272,9 +272,8 @@ struct MealDetailView: View {
                 }
                 .padding(.top, 22)
 
-                if !total.isComplete {
-                    Text("\(Int(total.unresolvedGrams.rounded())) g here wasn't recognised. "
-                         + "Name it under Edit and these fill in.")
+                if let attention = total.foodMatchAttention {
+                    Text(attention + " Tap the highlighted food to name it more precisely.")
                         .font(WellieTheme.font(12, weight: .regular))
                         .foregroundStyle(WellieTheme.attention)
                         .fixedSize(horizontal: false, vertical: true)
@@ -351,11 +350,22 @@ struct MealDetailView: View {
     /// the sentence where a title goes and "salmon and tuna don" alone reads as
     /// a typo rather than as a style.
     private var sentenceWords: [FoodSentence.Word] {
+        let unresolved = Set(draft.items.compactMap { item -> UUID? in
+            guard item.resolution?.status == .unresolved
+                    || (item.resolution == nil
+                        && model.config.nutrientsPerGram?.food(for: item) == nil)
+            else { return nil }
+            return item.id
+        })
         var words = dishes.isEmpty
             ? draft.items.map {
-                FoodSentence.Word(id: $0.id, text: FoodPhrase.word(for: $0.group, label: $0.label))
+                FoodSentence.Word(
+                    id: $0.id,
+                    text: FoodPhrase.word(for: $0.kind, label: $0.label),
+                    isUncertain: unresolved.contains($0.id)
+                )
             }
-            : FoodSentence.words(for: dishes)
+            : FoodSentence.words(for: dishes, uncertain: unresolved)
         if let first = words.first {
             words[0] = FoodSentence.Word(
                 id: first.id,

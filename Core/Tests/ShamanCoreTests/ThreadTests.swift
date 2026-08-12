@@ -40,7 +40,7 @@ struct ThreadTests {
         let breakfast = LogMessage(sentAt: MealEntry.referenceNow, said: "french toast")
         let snack = LogMessage(sentAt: MealEntry.referenceNow + 60_000, said: "2 of this")
 
-        var snackMeal = MealEntry.fixture(daysAgo: 0, [(.dairy, .medium)])
+        var snackMeal = MealEntry.fixture(daysAgo: 0, [(.yogurt, .medium)])
         snackMeal.messageID = snack.id
         var breakfastMeal = MealEntry.fixture(daysAgo: 0, [(.egg, .medium)])
         breakfastMeal.messageID = breakfast.id
@@ -74,7 +74,7 @@ struct ThreadTests {
         // A changed id would animate the whole row out and back in at exactly
         // the moment the meal card appears.
         let message = LogMessage(sentAt: MealEntry.referenceNow, said: "lentil soup")
-        var meal = MealEntry.fixture(daysAgo: 0, [(.legumes, .medium)])
+        var meal = MealEntry.fixture(daysAgo: 0, [(.legume, .medium)])
         meal.messageID = message.id
 
         let reading = projection([.messageSent(message)]).thread(from: start, to: end)

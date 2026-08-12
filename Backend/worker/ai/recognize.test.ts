@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { foodGroups, mealRecognitionJsonSchema } from "../../src/contracts";
+import { foodKinds, mealRecognitionJsonSchema } from "../../src/contracts";
 import type { Env } from "../env";
 import { HttpError } from "../lib/http-error";
 import { geminiResponseSchema, requestGeminiRecognition } from "./gemini";
@@ -48,7 +48,7 @@ describe("provider selection", () => {
 
 describe("a correction with no photograph", () => {
   const spec = revisionSpec({
-    current: [{ group: "fish", grams: 120, label: null }],
+    current: [{ kind: "fish", grams: 120, label: null }],
     note: "there were two eggs in it",
   });
   const answer = { add: [], revise: [], remove: [], notes: null };
@@ -110,7 +110,7 @@ describe("gemini response schema", () => {
     expect(schema.type).toBe("OBJECT");
   });
 
-  it("carries the same food groups as the rest of the app", () => {
+  it("carries the same food kinds and facets as the rest of the app", () => {
     const properties = schema.properties as Record<string, Record<string, unknown>>;
     const dish = (properties.dishes as { items: Record<string, unknown> }).items;
     const dishProperties = dish.properties as Record<string, Record<string, unknown>>;
@@ -118,11 +118,20 @@ describe("gemini response schema", () => {
     const item = (dishProperties.ingredients as { items: Record<string, unknown> }).items;
     const itemProperties = item.properties as Record<string, Record<string, unknown>>;
 
-    expect(itemProperties.group.enum).toEqual([...foodGroups]);
-    expect((itemProperties.alternatives.items as { enum: string[] }).enum).toEqual([...foodGroups]);
-    expect(item.required).toEqual(["group", "grams", "label", "alternatives"]);
-    // Nullability is a flag here, not a union type.
-    expect(itemProperties.label.nullable).toBe(true);
+    expect(itemProperties.kind.enum).toEqual([...foodKinds]);
+    const alternative = itemProperties.alternatives.items as {
+      properties: { kind: { enum: string[] } };
+    };
+    expect(alternative.properties.kind.enum).toEqual([...foodKinds]);
+    expect(item.required).toEqual([
+      "kind",
+      "grams",
+      "label",
+      "preparation",
+      "composition_hints",
+      "alternatives",
+    ]);
+    expect(itemProperties.label.nullable).toBeUndefined();
     expect(properties.notes.nullable).toBe(true);
   });
 

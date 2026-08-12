@@ -121,15 +121,15 @@ extension FoodSentence {
     /// after a fix that had worked perfectly. Those foods are said one by one
     /// instead, which also means tapping one opens the food rather than a dish
     /// sheet titled "Untitled dish".
-    static func words(for dishes: [MealDish], uncertain: UUID? = nil) -> [Word] {
+    static func words(for dishes: [MealDish], uncertain: Set<UUID> = []) -> [Word] {
         dishes.flatMap { dish -> [Word] in
             let name = dish.name.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !name.isEmpty else {
                 return dish.items.map { item in
                     Word(
                         id: item.id,
-                        text: FoodPhrase.word(for: item.group, label: item.label),
-                        isUncertain: item.id == uncertain
+                        text: FoodPhrase.word(for: item.kind, label: item.label),
+                        isUncertain: uncertain.contains(item.id)
                     )
                 }
             }
@@ -139,7 +139,7 @@ extension FoodSentence {
                     text: dish.count > 1 ? "\(dish.count) × \(name)" : name,
                     // The question is about an ingredient, so the dish holding
                     // it is what carries the mark.
-                    isUncertain: dish.items.contains { $0.id == uncertain }
+                    isUncertain: dish.items.contains { uncertain.contains($0.id) }
                 )
             ]
         }
@@ -150,9 +150,9 @@ extension FoodSentence {
 /// meal is. The model's own label wins when it has one — "french toast" is
 /// what you recognise; "Refined grains" is what it counts as.
 enum FoodPhrase {
-    static func word(for group: FoodGroup, label: String?) -> String {
+    static func word(for kind: FoodKind, label: String?) -> String {
         let trimmed = label?.trimmingCharacters(in: .whitespacesAndNewlines)
         if let trimmed, !trimmed.isEmpty { return trimmed.lowercased() }
-        return group.sentenceName
+        return kind.sentenceName
     }
 }

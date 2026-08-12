@@ -6,26 +6,26 @@ import Testing
 struct MealRevisionTests {
     private func current() -> [MealItem] {
         [
-            MealItem(group: .refinedGrains, label: "French toast", grams: 180),
-            MealItem(group: .fruit, label: "sliced banana", grams: 90),
+            MealItem(kind: .breadFlatbread, label: "French toast", grams: 180),
+            MealItem(kind: .fruit, label: "sliced banana", grams: 90),
             // No weight: typed in by hand, or logged before v17.
-            MealItem(group: .sweets, label: "syrup drizzle")
+            MealItem(kind: .sugarHoneySyrup, label: "syrup drizzle")
         ]
     }
 
     @Test("A delta adds what the photo could not show and leaves the rest alone")
     func appliesAdditions() {
         let revision = MealRevision(add: [
-            .init(group: .egg, grams: 100, label: "eggs in the batter"),
-            .init(group: .butter, grams: 12, label: "butter for frying"),
-            .init(group: .dairy, grams: 60, label: "milk in the batter")
+            .init(kind: .egg, grams: 100, label: "eggs in the batter"),
+            .init(kind: .butterMargarine, grams: 12, label: "butter for frying"),
+            .init(kind: .milk, grams: 60, label: "milk in the batter")
         ])
         let result = revision.applied(to: current())
 
         #expect(result.count == 6)
-        #expect(result.map(\.group).prefix(3) == [.refinedGrains, .fruit, .sweets])
-        #expect(result.first { $0.group == .egg }?.grams == 100)
-        #expect(result.first { $0.group == .butter }?.grams == 12)
+        #expect(result.map(\.kind).prefix(3) == [.breadFlatbread, .fruit, .sugarHoneySyrup])
+        #expect(result.first { $0.kind == .egg }?.grams == 100)
+        #expect(result.first { $0.kind == .butterMargarine }?.grams == 12)
         #expect(revision.summary == "3 added")
     }
 
@@ -36,13 +36,13 @@ struct MealRevisionTests {
         var items = current()
         items[1].grams = 200
 
-        let revision = MealRevision(revise: [.init(index: 1, group: .pastry, grams: 150)])
+        let revision = MealRevision(revise: [.init(index: 1, kind: .pastry, grams: 150)])
         let result = revision.applied(to: items)
 
-        #expect(result[0].group == .pastry)
+        #expect(result[0].kind == .pastry)
         #expect(result[0].grams == 150)
         #expect(result[1].grams == 200, "row 2 was never mentioned")
-        #expect(result[2].group == .sweets)
+        #expect(result[2].kind == .sugarHoneySyrup)
     }
 
     @Test("A revision moves the effective serving count")
@@ -50,9 +50,9 @@ struct MealRevisionTests {
         // The point of carrying grams. A revise used to set `portion`, which
         // `effectiveServings` never reached on a weighed row: the delta applied,
         // the summary said "1 changed", and the quantity did not move an inch.
-        let items = [MealItem(group: .whiteMeat, label: "chicken", grams: 200)]
+        let items = [MealItem(kind: .poultry, label: "chicken", grams: 200)]
         let before = items[0].effectiveServings()
-        let result = MealRevision(revise: [.init(index: 1, group: .whiteMeat, grams: 100)]).applied(to: items)
+        let result = MealRevision(revise: [.init(index: 1, kind: .poultry, grams: 100)]).applied(to: items)
 
         #expect(result[0].grams == 100)
         #expect(result[0].effectiveServings() < before)
@@ -63,26 +63,31 @@ struct MealRevisionTests {
         // A row flattened under the old ladder carries its arithmetic in
         // `servings`. Writing a weight beside it would leave the item saying
         // two different things about how much there was.
-        let items = [MealItem(group: .fish, label: "salmon", servings: 2, grams: nil)]
-        let result = MealRevision(revise: [.init(index: 1, group: .fish, grams: 140)]).applied(to: items)
+        let items = [MealItem(kind: .fish, label: "salmon", servings: 2, grams: nil)]
+        let result = MealRevision(revise: [.init(index: 1, kind: .fish, grams: 140)]).applied(to: items)
 
         #expect(result[0].grams == 140)
         #expect(result[0].servings == nil)
     }
 
-    @Test("Revising a group drops the model's stale shortlist")
+    @Test("Revising a kind drops the model's stale shortlist")
     func revisionClearsAlternatives() {
-        let items = [MealItem(group: .whiteMeat, label: "kebab", modelAlternatives: [.redMeat], grams: 150)]
-        let result = MealRevision(revise: [.init(index: 1, group: .redMeat, grams: 150)]).applied(to: items)
+        let items = [MealItem(
+            kind: .poultry,
+            label: "kebab",
+            modelAlternatives: [.init(label: "beef kebab", kind: .beef)],
+            grams: 150
+        )]
+        let result = MealRevision(revise: [.init(index: 1, kind: .beef, grams: 150)]).applied(to: items)
 
-        #expect(result[0].group == .redMeat)
+        #expect(result[0].kind == .beef)
         #expect(result[0].modelAlternatives == nil)
     }
 
     @Test("Removals are applied by position, after revisions")
     func appliesRemovals() {
         let result = MealRevision(
-            revise: [.init(index: 3, group: .sweets, grams: 25)],
+            revise: [.init(index: 3, kind: .sugarHoneySyrup, grams: 25)],
             remove: [2]
         ).applied(to: current())
 
@@ -95,7 +100,7 @@ struct MealRevisionTests {
     func boundsAreChecked() {
         let items = current()
         let revision = MealRevision(
-            revise: [.init(index: 99, group: .redMeat, grams: 200), .init(index: 0, group: .redMeat, grams: 200)],
+            revise: [.init(index: 99, kind: .beef, grams: 200), .init(index: 0, kind: .beef, grams: 200)],
             remove: [42, -1]
         )
         #expect(revision.applied(to: items) == items)
@@ -107,22 +112,21 @@ struct MealRevisionTests {
             current: current(),
             note: "fried in butter, two eggs in the batter"
         )
-        #expect(message.contains("1. French toast — refined_grains, 180 g"))
+        #expect(message.contains("1. French toast — bread_flatbread, 180 g"))
         // An unweighed row says so rather than being given a number nobody
         // established — the model is told to leave it alone if the words do not
         // settle it.
-        #expect(message.contains("3. syrup drizzle — sweets, no weight recorded"))
+        #expect(message.contains("3. syrup drizzle — sugar_honey_syrup, no weight recorded"))
         #expect(message.contains("two eggs in the batter"))
         #expect(message.contains("Keep everything else"))
 
         let system = MealRevisionPrompt.system.lowercased()
-        #expect(system.contains("change as little as possible"))
-        #expect(system.contains("destroys the person's own corrections"))
-        #expect(system.contains("weight is the only number"))
+        #expect(system.contains("smallest possible delta"))
+        #expect(system.contains("weight is the only numeric estimate"))
         #expect(!system.contains("coarse portions"))
     }
 
-    @Test("Both revision schemas match the food groups the app knows")
+    @Test("Both revision schemas match the food kinds the app knows")
     func revisionSchemas() throws {
         let openAI = MealRevisionPrompt.jsonSchema
         #expect(openAI["additionalProperties"] as? Bool == false)
@@ -130,10 +134,10 @@ struct MealRevisionTests {
         #expect(Set(try #require(openAI["required"] as? [String])) == Set(properties.keys))
 
         let addition = try #require((properties["add"] as? [String: Any])?["items"] as? [String: Any])
-        let groups = try #require(
-            ((addition["properties"] as? [String: Any])?["group"] as? [String: Any])?["enum"] as? [String]
+        let kinds = try #require(
+            ((addition["properties"] as? [String: Any])?["kind"] as? [String: Any])?["enum"] as? [String]
         )
-        #expect(Set(groups) == Set(FoodGroup.allCases.map(\.rawValue)))
+        #expect(Set(kinds) == Set(FoodKind.allCases.map(\.rawValue)))
 
         // Gemini rejects `additionalProperties`, so the mirror must not carry it.
         #expect(!MealRevisionPrompt.geminiResponseSchema.description.contains("additionalProperties"))
@@ -196,13 +200,13 @@ struct MealRevisionTests {
     @Test("A model's delta decodes from either provider")
     func parsesRevisionResponses() throws {
         let payload =
-            #"{\"add\":[{\"group\":\"egg\",\"grams\":100,\"label\":\"eggs in the batter\",\"alternatives\":[]}],\"revise\":[{\"index\":1,\"group\":\"refined_grains\",\"grams\":180}],\"remove\":[],\"notes\":null}"#
+            #"{\"add\":[{\"kind\":\"egg\",\"grams\":100,\"label\":\"eggs in the batter\",\"preparation\":[],\"composition_hints\":[],\"alternatives\":[]}],\"revise\":[{\"index\":1,\"kind\":\"bread_flatbread\",\"grams\":180,\"preparation\":[],\"composition_hints\":[]}],\"remove\":[],\"notes\":null}"#
 
         let luna = """
         {"status":"completed","output":[{"type":"message","content":[{"type":"output_text","text":"\(payload)"}]}]}
         """
         let fromLuna = try LunaSession.parseRevision(Data(luna.utf8))
-        #expect(fromLuna.add.first?.group == .egg)
+        #expect(fromLuna.add.first?.kind == .egg)
         #expect(fromLuna.revise.first?.index == 1)
 
         let gemini = """

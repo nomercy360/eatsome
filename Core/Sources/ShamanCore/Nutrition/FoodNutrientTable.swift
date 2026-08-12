@@ -3,13 +3,14 @@ import Foundation
 /// Protein, fat, carbohydrate, energy and sodium per 100 g for a named food,
 /// from a published composition table.
 ///
-/// The group table cannot be right for rice and pasta and bread at once — one
-/// `refined_grains` row is 2.0 g of protein per 100 g, which is a rice number,
-/// and against two labelled meals it read a mentaiko pasta 42% low and a
-/// sauced-meat bowl 23% high. The weights were right both times.
+/// A broad class cannot be right for rice, pasta, and bread at once. The old
+/// `refined_grains` row was a rice number, and against two labelled meals it
+/// read a mentaiko pasta 42% low and a sauced-meat bowl 23% high. The weights
+/// were right both times.
 ///
-/// So a food-level lookup sits in front of the group table, and the group table
-/// stays exactly where it is behind it. Every row here came out of USDA SR
+/// Food-level lookup is therefore the normal path. Broad representatives remain
+/// available only for an explicitly accepted `class_estimate`. Every row came
+/// out of USDA SR
 /// Legacy or the MEXT standard tables and carries the row it came from; see
 /// `scripts/build-food-table.py`, which cannot emit a number it did not find in
 /// a source file.
@@ -43,7 +44,7 @@ public struct FoodNutrientTable: Codable, Sendable, Equatable {
     }
 
     public let version: String
-    /// One representative row per food group, keyed by `FoodGroup.rawValue`.
+    /// Optional representatives for explicitly requested class estimates.
     ///
     /// What a label lands on when the food table has never heard of it. Protein
     /// could do without this, because a miss falls through to
@@ -51,11 +52,8 @@ public struct FoodNutrientTable: Codable, Sendable, Equatable {
     /// cannot, and a miss reading zero would build a daily figure out of the
     /// fraction of the plate that happened to resolve.
     ///
-    /// `other` is deliberately absent, and stays absent. It is the bucket for
-    /// food the model did not recognise, so any figure filed under it is
-    /// invented rather than estimated — the argument that put 0 in the protein
-    /// table after a black coffee came to be worth 2 g. Unrecognised food
-    /// contributes nothing and is counted in `NutrientTotal.unresolvedGrams`.
+    /// No caller reaches this table on a plain miss. Unresolved food contributes
+    /// nothing and is counted in `NutrientTotal.unresolvedGrams`.
     public let groups: [String: Food]
     public let foods: [String: Food]
 
@@ -65,30 +63,86 @@ public struct FoodNutrientTable: Codable, Sendable, Equatable {
         self.foods = foods
     }
 
-    /// The key is `group|label`, and the group half is a guard rather than a
-    /// lookup: a row is only used when the model's own food group agrees with
+    /// The key is `kind|label`, and the kind half is a guard rather than a
+    /// lookup: a row is only used when the model's broad identity agrees with
     /// the one the table was curated under. Without it "cream" filed as `dairy`
     /// would pick up the `butter` row, which is the silent mismatch that makes
     /// fuzzy matching unusable here.
-    public func food(for label: String, group: FoodGroup) -> Food? {
+    public func food(for label: String, kind: FoodKind) -> Food? {
         for candidate in FoodLabel.candidates(for: label) {
-            for name in group.storedNames {
-                if let hit = foods["\(name)|\(candidate)"] { return hit }
-            }
+            if let hit = foods["\(kind.rawValue)|\(candidate)"] { return hit }
         }
         return nil
     }
 
-    /// The stand-in for a food group, or nil for a group with no honest answer.
-    public func representative(of group: FoodGroup) -> Food? { group.value(in: groups) }
+    /// Resolve the structured identity. Facets only choose a row when their
+    /// meaning is deterministic; a generic sauce with no composition hint
+    /// remains unresolved instead of becoming an arbitrary condiment.
+    public func food(for item: MealItem) -> Food? {
+        if let reference = item.resolution?.foodRef {
+            let prefix = reference.database == .mext ? "mext" : "sr"
+            if let pinned = foods.values.first(where: { $0.source == "\(prefix):\(reference.id)" }) {
+                return pinned
+            }
+        }
+        if let label = item.label, let exact = food(for: label, kind: item.kind) {
+            return exact
+        }
+        switch item.kind {
+        case .sauceCondiment where item.compositionHints.contains(.soyBased):
+            return food(for: "soy sauce", kind: .sauceCondiment)
+        case .sauceCondiment where item.compositionHints.contains(.tomatoBased):
+            return food(for: "tomato sauce", kind: .sauceCondiment)
+        case .beef where item.preparation.contains(.grilled):
+            return food(for: "grilled beef", kind: .beef)
+        case .poultry where item.preparation.contains(.deepFried):
+            return food(for: "fried chicken", kind: .poultry)
+        default:
+            return nil
+        }
+    }
+
+    /// The stand-in for a kind, used only when an item explicitly carries a
+    /// `class_estimate` resolution. A table miss never opts into this itself.
+    public func representative(of kind: FoodKind) -> Food? { groups[kind.rawValue] }
 
     /// Everything known about a weighed, labelled item, or nil when the food is
     /// not in the table — nil means "ask the group", never zero. A miss has to
     /// cost exactly what it cost before this file existed.
     public func nutrients(in item: MealItem) -> Nutrients? {
-        guard let grams = item.grams, let label = item.label else { return nil }
-        guard let food = food(for: label, group: item.group) else { return nil }
+        guard let grams = item.grams, let food = food(for: item) else { return nil }
         return food.per100g.forGrams(grams)
+    }
+
+    public func resolution(for item: MealItem) -> NutrientResolution {
+        guard let food = food(for: item) else {
+            return .unresolved("No composition record matches \(item.label ?? item.kind.displayName.lowercased()).")
+        }
+        let parts = food.source.split(separator: ":", maxSplits: 1).map(String.init)
+        let database: FoodDatabase = parts.first == "mext" ? .mext : .usdaFDC
+        return NutrientResolution(
+            status: .exact,
+            foodRef: FoodReference(
+                database: database,
+                id: parts.count > 1 ? parts[1] : food.source,
+                version: version,
+                canonicalName: food.name
+            )
+        )
+    }
+
+    /// Attach lookup provenance before an event is written. Nutrition can be
+    /// recomputed, but the reason a row was accepted should not be implicit in
+    /// whichever table happens to ship later.
+    public func resolving(
+        _ item: MealItem,
+        status: NutrientResolutionStatus = .exact
+    ) -> MealItem {
+        var resolved = item
+        var answer = resolution(for: item)
+        if answer.foodRef != nil { answer.status = status }
+        resolved.resolution = answer
+        return resolved
     }
 
     /// Grams of protein in a weighed item, kept as its own name because protein

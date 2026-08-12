@@ -3,6 +3,59 @@ import Foundation
 import Observation
 import ShamanCore
 
+/// `AVAudioConverter` calls its input provider synchronously during one
+/// conversion. Keeping the one-shot state in this object avoids capturing and
+/// mutating a local variable from the provider's `@Sendable` closure. The
+/// buffer never escapes that synchronous conversion call.
+private final class VoiceConverterInput: @unchecked Sendable {
+    private let buffer: AVAudioPCMBuffer
+    private var wasSupplied = false
+
+    init(buffer: AVAudioPCMBuffer) {
+        self.buffer = buffer
+    }
+
+    func next(status: UnsafeMutablePointer<AVAudioConverterInputStatus>) -> AVAudioBuffer? {
+        guard !wasSupplied else {
+            status.pointee = .noDataNow
+            return nil
+        }
+        wasSupplied = true
+        status.pointee = .haveData
+        return buffer
+    }
+}
+
+private struct SonioxStartRequest: Encodable {
+    let apiKey: String
+    let model: String
+    let audioFormat: String
+    let sampleRate: Int
+    let numChannels: Int
+    let context: SonioxContext
+    let enableEndpointDetection: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case apiKey = "api_key"
+        case model
+        case audioFormat = "audio_format"
+        case sampleRate = "sample_rate"
+        case numChannels = "num_channels"
+        case context
+        case enableEndpointDetection = "enable_endpoint_detection"
+    }
+}
+
+private struct SonioxContext: Encodable {
+    let general: [SonioxContextItem]
+    let text: String
+}
+
+private struct SonioxContextItem: Encodable {
+    let key: String
+    let value: String
+}
+
 /// Live dictation, transcribed by Soniox as you speak.
 ///
 /// It sends as *text*, which is the whole point of `7b`: what the transcriber
@@ -37,7 +90,6 @@ final class VoiceDictation {
     private var keySource: VoiceKeySource?
     private var socket: URLSessionWebSocketTask?
     private let engine = AVAudioEngine()
-    private var converter: AVAudioConverter?
     /// Words the model has committed to. Non-final tokens are appended after
     /// these for display and replaced wholesale on the next message, which is
     /// what makes the text settle rather than flicker.
@@ -91,7 +143,7 @@ final class VoiceDictation {
                 }
                 let key = try await keySource.temporaryKey()
                 guard self.takeID == take, self.isRecording else { return }
-                try openSocket(with: key)
+                try await openSocket(with: key)
                 try startCapture()
             } catch {
                 guard self.takeID == take else { return }
@@ -141,36 +193,40 @@ final class VoiceDictation {
         socket?.send(.string("")) { _ in }
         socket?.cancel(with: .goingAway, reason: nil)
         socket = nil
-        converter = nil
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 
     // MARK: - The socket
 
-    private func openSocket(with key: String) throws {
+    private func openSocket(with key: String) async throws {
         let task = URLSession.shared.webSocketTask(with: Self.endpoint)
         socket = task
         task.resume()
 
-        let config: [String: Any] = [
-            "api_key": key,
-            "model": Self.model,
-            "audio_format": "s16le",
-            "sample_rate": Int(Self.sampleRate),
-            "num_channels": 1,
-            // Food words, given to the recognizer as context so "krapao" and
-            // "shakshuka" come back spelled as themselves rather than as the
-            // nearest English phrase.
-            "context": ["general": Self.foodContext],
+        let config = SonioxStartRequest(
+            apiKey: key,
+            model: Self.model,
+            audioFormat: "pcm_s16le",
+            sampleRate: Int(Self.sampleRate),
+            numChannels: 1,
+            context: SonioxContext(
+                general: [
+                    SonioxContextItem(key: "domain", value: "Food and nutrition"),
+                    SonioxContextItem(key: "intent", value: "Describe a meal"),
+                ],
+                // Food words, given to the recognizer as context so "krapao"
+                // and "shakshuka" come back spelled as themselves rather than
+                // as the nearest everyday phrase.
+                text: Self.foodContext
+            ),
             // Left off deliberately: it ends the session on a pause, and people
             // pause mid-sentence while remembering what they had for lunch.
-            "enable_endpoint_detection": false
-        ]
-        let data = try JSONSerialization.data(withJSONObject: config)
-        task.send(.string(String(decoding: data, as: UTF8.self))) { [weak self] error in
-            guard let error else { return }
-            Task { @MainActor in self?.fail(error) }
-        }
+            enableEndpointDetection: false
+        )
+        let data = try JSONEncoder().encode(config)
+        // Soniox requires the start request to be the first WebSocket message.
+        // Wait until it is enqueued before the audio tap can emit binary frames.
+        try await task.send(.string(String(decoding: data, as: UTF8.self)))
         listen()
     }
 
@@ -280,14 +336,19 @@ final class VoiceDictation {
             interleaved: true
         ) else { throw VoiceError.microphoneUnavailable }
 
-        converter = AVAudioConverter(from: format, to: target)
-        guard let converter else { throw VoiceError.microphoneUnavailable }
+        guard let converter = AVAudioConverter(from: format, to: target) else {
+            throw VoiceError.microphoneUnavailable
+        }
 
-        input.installTap(onBus: 0, bufferSize: 4_096, format: format) { [weak self] buffer, _ in
-            guard let self else { return }
+        // AVAudioNode invokes this block on its real-time audio queue. Its
+        // Objective-C block type is not annotated `@Sendable`, so without the
+        // explicit annotation Swift inherits this method's MainActor isolation
+        // and traps in `_swift_task_checkIsolatedSwift` on the first buffer.
+        input.installTap(onBus: 0, bufferSize: 4_096, format: format) { @Sendable [weak self] buffer, _ in
             let level = Self.peak(of: buffer)
             guard let converted = Self.convert(buffer, using: converter, to: target) else { return }
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
+                guard let self, self.isRecording else { return }
                 self.note(level)
                 self.socket?.send(.data(converted)) { _ in }
             }
@@ -302,7 +363,7 @@ final class VoiceDictation {
         if levels.count > 48 { levels.removeFirst(levels.count - 48) }
     }
 
-    private static func peak(of buffer: AVAudioPCMBuffer) -> Float {
+    nonisolated private static func peak(of buffer: AVAudioPCMBuffer) -> Float {
         guard let channel = buffer.floatChannelData?[0] else { return 0 }
         var peak: Float = 0
         for index in 0..<Int(buffer.frameLength) {
@@ -311,7 +372,7 @@ final class VoiceDictation {
         return min(1, peak * 2.2)
     }
 
-    private static func convert(
+    nonisolated private static func convert(
         _ buffer: AVAudioPCMBuffer,
         using converter: AVAudioConverter,
         to format: AVAudioFormat
@@ -322,16 +383,10 @@ final class VoiceDictation {
             return nil
         }
 
-        var supplied = false
+        let input = VoiceConverterInput(buffer: buffer)
         var conversionError: NSError?
         converter.convert(to: output, error: &conversionError) { _, status in
-            if supplied {
-                status.pointee = .noDataNow
-                return nil
-            }
-            supplied = true
-            status.pointee = .haveData
-            return buffer
+            input.next(status: status)
         }
         guard conversionError == nil,
               let channel = output.int16ChannelData,

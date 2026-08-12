@@ -16,8 +16,8 @@ import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
-const activeVersion = "meal-v19-2026-08-10";
-const promptFile = "meal-v19.md";
+const activeVersion = "meal-v20-2026-08-12";
+const promptFile = "meal-v20.md";
 
 // The correction prompt has no version of its own: it is not on the evals and
 // nothing keys a cache on it. It is generated for the other reason this script
@@ -26,7 +26,7 @@ const promptFile = "meal-v19.md";
 // instructions. The taxonomy prose in it is the same prose as above, so a rename
 // that reaches one copy and not the other is a model told two different things
 // about the same food.
-const revisionFile = "revision-v2.md";
+const revisionFile = "revision-v3.md";
 
 const prompt = readFileSync(join(root, "prompts", promptFile), "utf8").trimEnd();
 const revision = readFileSync(join(root, "prompts", revisionFile), "utf8").trimEnd();

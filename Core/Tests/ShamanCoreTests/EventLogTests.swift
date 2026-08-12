@@ -16,7 +16,7 @@ struct EventLogTests {
         let log = try EventLog(url: url)
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
 
-        let meal = MealEntry.fixture(daysAgo: 1, [(.fish, .medium), (.vegetables, .large)])
+        let meal = MealEntry.fixture(daysAgo: 1, [(.fish, .medium), (.vegetable, .large)])
         try await log.append(LoggedEvent(occurredAt: meal.eatenAt, payload: .mealLogged(meal)))
         try await log.append(LoggedEvent(
             occurredAt: meal.eatenAt,
@@ -25,7 +25,7 @@ struct EventLogTests {
 
         let projection = try await log.projection()
         #expect(projection.meals.count == 1)
-        #expect(projection.meals[meal.id]?.servings(of: .vegetables) == 2.0)
+        #expect(projection.meals[meal.id]?.servings(of: .vegetable) == 2.0)
         #expect(projection.sets.first?.reps == 12)
     }
 
@@ -35,11 +35,11 @@ struct EventLogTests {
         let log = try EventLog(url: url)
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
 
-        var meal = MealEntry.fixture(daysAgo: 1, [(.whiteMeat, .medium)])
+        var meal = MealEntry.fixture(daysAgo: 1, [(.poultry, .medium)])
         try await log.append(LoggedEvent(occurredAt: meal.eatenAt, payload: .mealLogged(meal)))
 
         // The correction that matters: the model said chicken, it was fish.
-        meal.items = [MealItem(group: .fish, portion: .medium)]
+        meal.items = [MealItem(kind: .fish, portion: .medium)]
         meal.wasCorrected = true
         try await log.append(LoggedEvent(occurredAt: meal.eatenAt, payload: .mealRevised(meal)))
 
@@ -47,7 +47,7 @@ struct EventLogTests {
         #expect(events.count == 2, "the original is still on disk — that is the point of append-only")
 
         let projection = Projection(replaying: events)
-        #expect(projection.meals[meal.id]?.items.first?.group == .fish)
+        #expect(projection.meals[meal.id]?.items.first?.kind == .fish)
         #expect(projection.meals[meal.id]?.wasCorrected == true)
     }
 
@@ -59,14 +59,14 @@ struct EventLogTests {
 
         let photoHash = ImageDigest.sha256(Data("photo".utf8))
         let initial = MealItem(
-            group: .whiteMeat,
+            kind: .poultry,
             portion: .medium,
             label: "minced meat",
-            modelAlternatives: [.redMeat]
+            modelAlternatives: [.init(label: "beef", kind: .beef)]
         )
         let meal = MealEntry(
             eatenAt: MealEntry.referenceNow,
-            items: [MealItem(group: .redMeat, portion: .medium, label: "minced meat")],
+            items: [MealItem(kind: .beef, portion: .medium, label: "minced meat")],
             source: .photo,
             photoHash: photoHash,
             recognitionEvidence: MealRecognitionEvidence(
@@ -84,11 +84,13 @@ struct EventLogTests {
         #expect(saved.photoHash == photoHash)
         #expect(saved.recognitionEvidence?.promptVersion == "meal-v3-test")
         #expect(saved.recognitionEvidence?.rawModelJSON.contains("white_meat") == true)
-        #expect(saved.recognitionEvidence?.initialItems.first?.group == .whiteMeat)
+        #expect(saved.recognitionEvidence?.initialItems.first?.kind == .poultry)
         // The correction the model itself offered is the one you took: that is
         // the eval row worth having.
-        #expect(saved.recognitionEvidence?.initialItems.first?.modelAlternatives == [.redMeat])
-        #expect(saved.items.first?.group == .redMeat)
+        #expect(saved.recognitionEvidence?.initialItems.first?.modelAlternatives == [
+            .init(label: "beef", kind: .beef)
+        ])
+        #expect(saved.items.first?.kind == .beef)
         #expect(saved.recognitionEvidence?.otherMealsVisible == true)
     }
 
@@ -101,9 +103,9 @@ struct EventLogTests {
         let recipe = Recipe(
             name: "French toast",
             items: [
-                MealItem(group: .refinedGrains, portion: .large, label: "French toast"),
-                MealItem(group: .egg, portion: .medium, label: "eggs in the batter"),
-                MealItem(group: .butter, portion: .small, label: "butter for frying")
+                MealItem(kind: .breadFlatbread, portion: .large, label: "French toast"),
+                MealItem(kind: .egg, portion: .medium, label: "eggs in the batter"),
+                MealItem(kind: .butterMargarine, portion: .small, label: "butter for frying")
             ],
             note: "fried in butter, two eggs and milk in the batter",
             updatedAt: MealEntry.referenceNow
@@ -168,7 +170,7 @@ struct EventLogTests {
         let log = try EventLog(url: url)
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
 
-        let meal = MealEntry.fixture(daysAgo: 1, [(.sweets, .large)])
+        let meal = MealEntry.fixture(daysAgo: 1, [(.cakeCookie, .large)])
         try await log.append(LoggedEvent(occurredAt: meal.eatenAt, payload: .mealLogged(meal)))
         try await log.append(LoggedEvent(occurredAt: meal.eatenAt, payload: .mealDeleted(mealID: meal.id)))
 
@@ -181,9 +183,9 @@ struct EventLogTests {
         let log = try EventLog(url: url)
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
 
-        let meal = MealEntry.fixture(daysAgo: 1, [(.whiteMeat, .medium)])
+        let meal = MealEntry.fixture(daysAgo: 1, [(.poultry, .medium)])
         var revised = meal
-        revised.items = [MealItem(group: .fish)]
+        revised.items = [MealItem(kind: .fish)]
         revised.wasCorrected = true
 
         // A pulled remote correction can be appended before an older local
@@ -201,7 +203,7 @@ struct EventLogTests {
         ))
 
         let projection = try await log.projection()
-        #expect(projection.meals[meal.id]?.items.first?.group == .fish)
+        #expect(projection.meals[meal.id]?.items.first?.kind == .fish)
     }
 
     @Test("A corrupt line costs one record, not the file")
@@ -210,7 +212,7 @@ struct EventLogTests {
         let log = try EventLog(url: url)
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
 
-        let meal = MealEntry.fixture(daysAgo: 1, [(.legumes, .medium)])
+        let meal = MealEntry.fixture(daysAgo: 1, [(.legume, .medium)])
         try await log.append(LoggedEvent(occurredAt: meal.eatenAt, payload: .mealLogged(meal)))
         await log.close()
 
@@ -243,7 +245,7 @@ struct EventLogTests {
             encoding: .utf8
         )
 
-        let meal = MealEntry.fixture(daysAgo: 1, [(.legumes, .medium)])
+        let meal = MealEntry.fixture(daysAgo: 1, [(.legume, .medium)])
         try await log.append(LoggedEvent(occurredAt: meal.eatenAt, payload: .mealLogged(meal)))
 
         let (events, skipped) = try await log.load()
@@ -267,7 +269,7 @@ struct EventLogTests {
         let base = MealEntry.referenceNow
         let events = [0, 1, 2].map { offset in
             let meal = MealEntry(eatenAt: base + EpochMillis(offset) * 1000,
-                                 items: [MealItem(group: .fruit, portion: .medium)], source: .manual)
+                                 items: [MealItem(kind: .fruit, portion: .medium)], source: .manual)
             return LoggedEvent(occurredAt: meal.eatenAt, payload: .mealLogged(meal))
         }
         let projection = Projection(replaying: events)

@@ -31,11 +31,11 @@ struct FoodEditSheet: View {
                             detail: item.label.map { "The photo looked like \($0.lowercased())." }
                         )
                         FlowLayout(spacing: 7, lineSpacing: 7) {
-                            ForEach(shortlist, id: \.self) { group in
-                                Button { choose(group) } label: {
+                            ForEach(shortlist, id: \.self) { kind in
+                                Button { choose(kind) } label: {
                                     WellieChip(
-                                        text: group.plainName,
-                                        style: group == item.group ? .selected : .soft,
+                                        text: kind.plainName,
+                                        style: kind == item.kind ? .selected : .soft,
                                         size: 14
                                     )
                                 }
@@ -46,6 +46,19 @@ struct FoodEditSheet: View {
                             }
                             .buttonStyle(.plain)
                         }
+
+                        TextField("Specific food name", text: label)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .font(WellieTheme.font(15, weight: .medium))
+                            .foregroundStyle(WellieTheme.ink)
+                            .padding(.horizontal, 14)
+                            .frame(height: 48)
+                            .background(WellieTheme.well, in: RoundedRectangle(cornerRadius: 13))
+
+                        Text("Use the actual food when you know it — for example soy sauce, mayonnaise, or teriyaki sauce.")
+                            .font(WellieTheme.font(12, weight: .regular))
+                            .foregroundStyle(WellieTheme.muted)
                     }
                     .wellieCard()
 
@@ -72,7 +85,7 @@ struct FoodEditSheet: View {
                 .wellieColumn()
             }
             .background(WellieTheme.background)
-            .navigationTitle(FoodPhrase.word(for: item.group, label: item.label).capitalizedFirst)
+            .navigationTitle(FoodPhrase.word(for: item.kind, label: item.label).capitalizedFirst)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -81,7 +94,7 @@ struct FoodEditSheet: View {
                 }
             }
             .sheet(isPresented: $showingEverything) {
-                FoodGroupPicker { choose($0) }
+                FoodKindPicker { choose($0) }
             }
         }
         .presentationDetents([.medium, .large])
@@ -101,22 +114,35 @@ struct FoodEditSheet: View {
             : "Read off the photo. Wrong? Say so on the fix screen — \"only half of that\"."
     }
 
+    private var label: Binding<String> {
+        Binding(
+            get: { item.label ?? "" },
+            set: { value in
+                let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+                item.label = trimmed.isEmpty ? nil : trimmed
+                item.resolution = nil
+                onChange?()
+            }
+        )
+    }
+
     /// The model's rivals, then the ones it habitually confuses, then nothing
     /// else — the long tail lives behind "Something else".
-    private var shortlist: [FoodGroup] {
-        var seen = Set<FoodGroup>()
-        let likely = [item.group]
-            + (item.modelAlternatives ?? [])
-            + item.group.commonlyConfusedWith
+    private var shortlist: [FoodKind] {
+        var seen = Set<FoodKind>()
+        let likely = [item.kind]
+            + (item.modelAlternatives ?? []).map(\.kind)
+            + item.kind.commonlyConfusedWith
         return likely.filter { seen.insert($0).inserted }
     }
 
-    private func choose(_ group: FoodGroup) {
-        guard group != item.group else { return }
-        item.group = group
+    private func choose(_ kind: FoodKind) {
+        guard kind != item.kind else { return }
+        item.kind = kind
         // Once you have overruled the model, its shortlist was an answer to a
         // different question and should not be stored as evidence here.
         item.modelAlternatives = nil
+        item.resolution = nil
         onChange?()
     }
 }
@@ -124,8 +150,8 @@ struct FoodEditSheet: View {
 /// Every group, with the plain name on the row and the group it counts as
 /// underneath — the same pairing the by-hand screen uses, because it is the
 /// same question.
-struct FoodGroupPicker: View {
-    let onPick: (FoodGroup) -> Void
+struct FoodKindPicker: View {
+    let onPick: (FoodKind) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var query = ""
@@ -179,10 +205,10 @@ struct FoodGroupPicker: View {
         .wellieScreen()
     }
 
-    private var matches: [FoodGroup] {
+    private var matches: [FoodKind] {
         let needle = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard !needle.isEmpty else { return FoodGroup.allCases }
-        return FoodGroup.allCases.filter {
+        guard !needle.isEmpty else { return FoodKind.allCases }
+        return FoodKind.allCases.filter {
             $0.plainName.lowercased().contains(needle) || $0.displayName.lowercased().contains(needle)
         }
     }

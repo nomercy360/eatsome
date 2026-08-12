@@ -99,22 +99,18 @@ public struct Nutrients: Codable, Sendable, Equatable {
 /// The second half is not decoration. A daily energy figure built from the two
 /// thirds of a plate that resolved is not a small error, it is a different
 /// number wearing the same label — and unlike a missing figure, it is invisible.
-/// Protein survived without this because a miss fell through to
-/// `Protein.defaultGramsPerServing`, which covers every food group; energy has no
-/// such hand-calibrated table, so `FoodNutrientTable.groups` stands behind it and
-/// `unresolvedGrams` counts the weight that even that could not answer for.
-///
-/// In practice the only food that lands here is `FoodGroup.other`, the bucket for
-/// something the model did not recognise. That is deliberate: `other` has no
-/// representative row precisely because a figure for unrecognised food would be
-/// invented rather than estimated, and the honest response is to report the
-/// total as short by this much and let the person name the food.
+/// `unresolvedGrams` counts food with no exact or explicitly accepted broad
+/// match. That includes a known broad identity such as `sauce_condiment` when
+/// the exact sauce composition is genuinely unavailable.
 public struct NutrientTotal: Sendable, Equatable {
     public var nutrients: Nutrients
     /// Grams of food that produced no figure at all.
     public var unresolvedGrams: Double
-    /// Grams of food that did produce one.
-    public var resolvedGrams: Double
+    /// Grams connected to a named composition record or a printed panel.
+    public var exactGrams: Double
+    /// Grams calculated from an explicitly accepted broad-class estimate.
+    public var estimatedGrams: Double
+    public var resolvedGrams: Double { exactGrams + estimatedGrams }
     /// Whether any of the sodium above was derived from a composition table
     /// rather than read off a printed panel.
     ///
@@ -131,32 +127,35 @@ public struct NutrientTotal: Sendable, Equatable {
     public init(
         nutrients: Nutrients = .zero,
         unresolvedGrams: Double = 0,
-        resolvedGrams: Double = 0,
+        exactGrams: Double = 0,
+        estimatedGrams: Double = 0,
         saltIsFloor: Bool = false
     ) {
         self.nutrients = nutrients
         self.unresolvedGrams = unresolvedGrams
-        self.resolvedGrams = resolvedGrams
+        self.exactGrams = exactGrams
+        self.estimatedGrams = estimatedGrams
         self.saltIsFloor = saltIsFloor
     }
 
     public static let zero = NutrientTotal()
 
     /// Whether every gram of food on the plate produced a figure.
-    public var isComplete: Bool { unresolvedGrams == 0 }
+    public var isComplete: Bool { unresolvedGrams == 0 && estimatedGrams == 0 }
 
     /// The share of the weight that answered, 0...1. One when there was no food
     /// at all, because a total of nothing is not an incomplete total.
     public var coverage: Double {
-        let weighed = resolvedGrams + unresolvedGrams
-        return weighed > 0 ? resolvedGrams / weighed : 1
+        let weighed = exactGrams + estimatedGrams + unresolvedGrams
+        return weighed > 0 ? exactGrams / weighed : 1
     }
 
     public func scaled(by factor: Double) -> NutrientTotal {
         NutrientTotal(
             nutrients: nutrients.scaled(by: factor),
             unresolvedGrams: unresolvedGrams * factor,
-            resolvedGrams: resolvedGrams * factor,
+            exactGrams: exactGrams * factor,
+            estimatedGrams: estimatedGrams * factor,
             saltIsFloor: saltIsFloor
         )
     }
@@ -165,7 +164,8 @@ public struct NutrientTotal: Sendable, Equatable {
         NutrientTotal(
             nutrients: lhs.nutrients + rhs.nutrients,
             unresolvedGrams: lhs.unresolvedGrams + rhs.unresolvedGrams,
-            resolvedGrams: lhs.resolvedGrams + rhs.resolvedGrams,
+            exactGrams: lhs.exactGrams + rhs.exactGrams,
+            estimatedGrams: lhs.estimatedGrams + rhs.estimatedGrams,
             // One unlabelled dish makes the whole plate a floor. Salt is the
             // figure where a confident understatement does the most damage, so
             // the pessimistic side is the right side to round to.

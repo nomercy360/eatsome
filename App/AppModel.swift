@@ -183,13 +183,48 @@ final class AppModel {
     }
 
     func logMeal(_ meal: MealEntry) async {
-        await record(.mealLogged(meal), occurredAt: meal.eatenAt)
+        let resolved = resolveNutrition(in: meal, newStatus: .exact)
+        await record(.mealLogged(resolved), occurredAt: resolved.eatenAt)
     }
 
     func reviseMeal(_ meal: MealEntry) async {
-        var revised = meal
+        var revised = resolveNutrition(in: meal, newStatus: .userConfirmed)
         revised.wasCorrected = true
         await record(.mealRevised(revised), occurredAt: revised.eatenAt)
+    }
+
+    /// Resolve every stored representation with the same pinned composition
+    /// table before writing the event. Existing exact provenance survives;
+    /// rows whose identity the person changed arrive with no resolution and
+    /// are marked `user_confirmed` on a revision.
+    private func resolveNutrition(
+        in meal: MealEntry,
+        newStatus: NutrientResolutionStatus
+    ) -> MealEntry {
+        guard let table = config.nutrientsPerGram else { return meal }
+        func resolve(_ item: MealItem) -> MealItem {
+            let status: NutrientResolutionStatus
+            if let previous = item.resolution, previous.foodRef != nil {
+                status = previous.status
+            } else if item.resolution == nil {
+                status = newStatus
+            } else {
+                status = .exact
+            }
+            return table.resolving(item, status: status)
+        }
+
+        var result = meal
+        if var dishes = result.storedDishes {
+            for index in dishes.indices {
+                dishes[index].items = dishes[index].items.map(resolve)
+            }
+            result.storedDishes = dishes
+            result.items = dishes.flatMap { $0.flattened() }
+        } else {
+            result.items = result.items.map(resolve)
+        }
+        return result
     }
 
     /// The event log keeps the deletion; the photograph does not get to outlive
@@ -418,18 +453,6 @@ final class AppModel {
     /// for this time of day, narrowed by what you have typed so far.
     func dishSuggestions(typed: String = "", limit: Int = 3) -> [DishLibrary.Entry] {
         DishLibrary.suggestions(in: projection.meals.values, typed: typed, limit: limit)
-    }
-
-    // MARK: - Olives
-
-    func olives(for meal: MealEntry) -> OliveRating {
-        OliveRating.forMeal(meal, configuration: config.oliveConfiguration)
-    }
-
-    /// The day so far, portion-weighted. Nil on a day with nothing logged —
-    /// which the pinned strip must draw differently from a three-olive day.
-    func olives(on day: Date = Date(), calendar: Calendar = .current) -> OliveRating? {
-        OliveRating.forDay(meals(on: day, calendar: calendar), configuration: config.oliveConfiguration)
     }
 
     // MARK: - Dishes
@@ -1105,7 +1128,7 @@ final class AppModel {
     /// records where it came from so the provenance survives a correction.
     func saveSharedDish(_ post: TablePost, ingredients: [PostIngredient]) async {
         let items = ingredients.map {
-            MealItem(group: $0.group, label: $0.label, dish: post.dishName, grams: $0.grams)
+            MealItem(kind: $0.kind, label: $0.label, dish: post.dishName, grams: $0.grams)
         }
         let meal = MealEntry(
             eatenAt: Date().epochMillis,
@@ -1217,9 +1240,38 @@ final class AppModel {
                 }.map(\.element)
                 projection = Projection(replaying: loadedEvents)
             }
+            await restoreMissingMealPhotos(using: backend)
             cloudError = nil
         } catch {
             handleAccountError(error, prefix: "Cloud sync")
+        }
+    }
+
+    /// Event sync restores the durable meal records; photographs are private R2
+    /// objects addressed by the hashes in those records. Rehydrate only absent
+    /// local files and keep a small concurrency ceiling so a reinstall with a
+    /// long history does not burst every download at the Worker at once.
+    private func restoreMissingMealPhotos(using backend: BackendSession) async {
+        let hashes = Set(projection.meals.values.compactMap(\.photoHash))
+            .filter { !PhotoStore.shared.contains($0) }
+            .sorted()
+        guard !hashes.isEmpty else { return }
+
+        var pending = hashes.makeIterator()
+        await withTaskGroup(of: (String, Data?).self) { group in
+            func add(_ hash: String) {
+                group.addTask {
+                    (hash, try? await backend.mealPhoto(hash: hash))
+                }
+            }
+
+            for _ in 0..<min(4, hashes.count) {
+                if let hash = pending.next() { add(hash) }
+            }
+            while let (hash, data) = await group.next() {
+                if let data { PhotoStore.shared.restore(data, for: hash) }
+                if let next = pending.next() { add(next) }
+            }
         }
     }
 

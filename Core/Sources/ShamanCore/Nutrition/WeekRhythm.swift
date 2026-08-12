@@ -10,9 +10,9 @@ public struct DayLog: Sendable, Hashable, Identifiable {
     public let id: Int
     public let start: Date
     public let mealCount: Int
-    public let servings: [FoodGroup: Double]
+    public let servings: [FoodKind: Double]
 
-    public init(id: Int, start: Date, mealCount: Int, servings: [FoodGroup: Double]) {
+    public init(id: Int, start: Date, mealCount: Int, servings: [FoodKind: Double]) {
         self.id = id
         self.start = start
         self.mealCount = mealCount
@@ -21,7 +21,7 @@ public struct DayLog: Sendable, Hashable, Identifiable {
 
     public var isLogged: Bool { mealCount > 0 }
 
-    public func servings(of group: FoodGroup) -> Double { servings[group] ?? 0 }
+    public func servings(of kind: FoodKind) -> Double { servings[kind] ?? 0 }
 
     /// How full the dot is drawn, 0…1.
     ///
@@ -50,13 +50,13 @@ public enum WeekRhythm {
         // One step back from the exclusive end lands inside the final day.
         let lastDay = calendar.startOfDay(for: Date(epochMillis: windowEnd - 1))
 
-        var byDay: [Int: (meals: Int, servings: [FoodGroup: Double])] = [:]
+        var byDay: [Int: (meals: Int, servings: [FoodKind: Double])] = [:]
         for meal in meals {
             let day = dayIndex(of: Date(epochMillis: meal.eatenAt), calendar: calendar)
             var bucket = byDay[day] ?? (0, [:])
             bucket.meals += 1
-            for group in Set(meal.items.map(\.group)) {
-                bucket.servings[group, default: 0] += meal.servings(of: group)
+            for kind in Set(meal.items.map(\.kind)) {
+                bucket.servings[kind, default: 0] += meal.servings(of: kind)
             }
             byDay[day] = bucket
         }

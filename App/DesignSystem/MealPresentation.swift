@@ -1,6 +1,23 @@
 import ShamanCore
 import SwiftUI
 
+extension NutrientTotal {
+    /// Honest, actionable copy for incomplete nutrition. `unresolved` means we
+    /// know the weight and broad food kind but not the composition record; an
+    /// explicitly accepted class estimate is a different, less severe state.
+    var foodMatchAttention: String? {
+        var parts: [String] = []
+        if unresolvedGrams > 0.5 {
+            parts.append("\(Int(unresolvedGrams.rounded())) g needs a more specific food match")
+        }
+        if estimatedGrams > 0.5 {
+            parts.append("\(Int(estimatedGrams.rounded())) g is using a broad food estimate")
+        }
+        guard !parts.isEmpty else { return nil }
+        return parts.joined(separator: ". ") + "."
+    }
+}
+
 /// How a stored meal is named in a list.
 enum MealDisplay {
     /// The dish, not its parts. "French toast" is what you logged; "bread" is
@@ -60,26 +77,26 @@ enum MealDisplay {
     /// a fact about the plate — a glass of milk beside a yoghurt — and the line
     /// under a meal card is the only place it is visible without opening it.
     static func counted(_ meal: MealEntry) -> String {
-        var order: [FoodGroup] = []
-        var counts: [FoodGroup: Int] = [:]
-        for group in meal.items.map(\.group) {
-            if counts[group] == nil { order.append(group) }
-            counts[group, default: 0] += 1
+        var order: [FoodKind] = []
+        var counts: [FoodKind: Int] = [:]
+        for kind in meal.items.map(\.kind) {
+            if counts[kind] == nil { order.append(kind) }
+            counts[kind, default: 0] += 1
         }
         guard !order.isEmpty else { return "Nothing recognised" }
 
-        let parts = order.prefix(4).enumerated().map { index, group -> String in
-            let name = index == 0 ? group.shortName : group.sentenceName
-            let count = counts[group] ?? 1
+        let parts = order.prefix(4).enumerated().map { index, kind -> String in
+            let name = index == 0 ? kind.shortName : kind.sentenceName
+            let count = counts[kind] ?? 1
             return count > 1 ? "\(name) ×\(count)" : name
         }
         let phrase = parts.joined(separator: ", ")
         return order.count > 4 ? "\(phrase) and more" : phrase
     }
 
-    static func uniqueGroups(_ meal: MealEntry) -> [FoodGroup] {
-        var seen = Set<FoodGroup>()
-        return meal.items.map(\.group).filter { seen.insert($0).inserted }
+    static func uniqueGroups(_ meal: MealEntry) -> [FoodKind] {
+        var seen = Set<FoodKind>()
+        return meal.items.map(\.kind).filter { seen.insert($0).inserted }
     }
 }
 

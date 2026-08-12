@@ -68,7 +68,7 @@ describe("table privacy and notes", () => {
       mealId: "99999999-2222-4333-8444-555555555555",
       dishName: "Salmon bowl",
       caption: null,
-      ingredients: [{ group: "fish", grams: 140, label: "salmon" }],
+      ingredients: [{ kind: "fish", grams: 140, label: "salmon" }],
       photoHash: "a".repeat(64),
     });
     if (share.kind !== "share") throw new Error("Expected a share");
@@ -142,7 +142,7 @@ describe("the share contract is the redaction", () => {
     mealId: "99999999-2222-4333-8444-555555555555",
     dishName: "Blueberry buns",
     caption: "still warm",
-    ingredients: [{ group: "pastry", grams: 120, label: "sweet dough" }],
+    ingredients: [{ kind: "pastry", grams: 120, label: "sweet dough" }],
     photoHash: "a".repeat(64),
   };
 
@@ -163,7 +163,7 @@ describe("the share contract is the redaction", () => {
     }
   });
 
-  it("rejects ingredient fields beyond group, grams and label", () => {
+  it("rejects ingredient fields beyond kind, grams and label", () => {
     for (const extra of [{ portion: "large" }, { alternatives: ["fish"] }, { servings: 2 }]) {
       const leaked = { ...share, ingredients: [{ ...share.ingredients[0], ...extra }] };
       expect(createPostRequestSchema.safeParse(leaked).success).toBe(false);

@@ -6,20 +6,14 @@ import Foundation
 /// accessor onto it rather than a second implementation, because two routes to
 /// the same number is how the number starts depending on which screen asked.
 ///
-/// Three sources, in a fixed order of authority, applied per figure:
+/// Two ordinary sources, in a fixed order of authority, applied per figure:
 ///
 ///   1. a transcribed panel, which is a printed fact and always wins;
 ///   2. the food table, `grams x per 100 g` for a food named and weighed;
-///   3. the food group, for a label the table has never heard of.
 ///
-/// Step 3 is where protein and the rest deliberately part company. Protein falls
-/// back to `Protein.defaultGramsPerServing`, a hand-calibrated per-serving table
-/// that predates all of this and that every protein figure in the history was
-/// calculated against; moving it would silently restate months of estimates to buy
-/// consistency with a table that did not exist when they were written. The other
-/// four fall back to `FoodNutrientTable.groups`, a sourced row per group. The
-/// two disagree slightly — cod is 22.8 g of protein per 100 g against the fish
-/// row's 22 — and that seam is the price of not rewriting history.
+/// A broad kind representative is a third source only when the item explicitly
+/// records `class_estimate`. A plain miss stays unresolved; it never silently
+/// turns a specific food into an arbitrary class average.
 ///
 /// What is *not* a source: a model's estimate. Recognition reports weight and
 /// nothing else numeric, exactly as it did when protein was the only figure
@@ -36,36 +30,31 @@ public enum Nutrition {
         servingGrams: [String: Double] = ServingWeight.defaultGrams,
         foods: FoodNutrientTable? = nil
     ) -> NutrientTotal {
-        items.reduce(into: NutrientTotal.zero) { total, item in
+        _ = gramsPerServing
+        return items.reduce(into: NutrientTotal.zero) { total, item in
             let servings = item.effectiveServings(servingGrams: servingGrams)
-            let weight = item.grams ?? servings * (item.group.value(in: servingGrams) ?? 100)
+            let weight = item.grams ?? servings * (servingGrams[item.kind.rawValue] ?? 100)
 
             if let named = foods?.nutrients(in: item) {
                 // Table sodium: the salt in the food, not the salt in the
                 // cooking. See `Nutrients.saltGrams`.
-                total += NutrientTotal(nutrients: named, resolvedGrams: weight, saltIsFloor: true)
+                total += NutrientTotal(nutrients: named, exactGrams: weight, saltIsFloor: true)
                 return
             }
 
-            // The group fallback. Protein keeps its own table; see the note on
-            // the type. A group with no representative — `other`, and only
-            // `other` — contributes its protein estimate of zero and marks the
-            // weight unresolved, rather than inventing an energy figure for
-            // food nobody has identified.
-            let protein = (item.group.value(in: gramsPerServing) ?? 0) * servings
-            guard let group = foods?.representative(of: item.group) else {
-                // Contributes no sodium at all, which is certainly less than
-                // the food contains — a floor, and the weakest kind.
+            // A broad representative is opt-in and remains visibly estimated.
+            // A plain table miss is unresolved; it must never silently turn
+            // mashed potato into mixed vegetables or grilled beef into mince.
+            if item.resolution?.status == .classEstimate,
+               let representative = foods?.representative(of: item.kind) {
                 total += NutrientTotal(
-                    nutrients: Nutrients(protein: protein),
-                    unresolvedGrams: weight,
+                    nutrients: representative.per100g.forGrams(weight),
+                    estimatedGrams: weight,
                     saltIsFloor: true
                 )
-                return
+            } else {
+                total += NutrientTotal(unresolvedGrams: weight, saltIsFloor: true)
             }
-            var derived = group.per100g.forGrams(weight)
-            derived.protein = protein
-            total += NutrientTotal(nutrients: derived, resolvedGrams: weight, saltIsFloor: true)
         }
     }
 
@@ -129,8 +118,9 @@ public enum Nutrition {
         // protein drink would mark the day incomplete because "milk protein" is
         // not a row in the food table.
         if panel.calories != nil {
-            result.resolvedGrams += result.unresolvedGrams
+            result.exactGrams += result.unresolvedGrams + result.estimatedGrams
             result.unresolvedGrams = 0
+            result.estimatedGrams = 0
         }
         return result
     }
