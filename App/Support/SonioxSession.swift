@@ -32,6 +32,10 @@ private struct SonioxStartRequest: Encodable {
     let audioFormat: String
     let sampleRate: Int
     let numChannels: Int
+    /// Nil deliberately leaves Soniox in automatic multilingual detection.
+    /// Hints improve a known language but would bias short meal descriptions
+    /// toward the phone's UI language, which is not necessarily what was said.
+    let languageHints: [String]?
     let context: SonioxContext
     let enableEndpointDetection: Bool
 
@@ -41,6 +45,7 @@ private struct SonioxStartRequest: Encodable {
         case audioFormat = "audio_format"
         case sampleRate = "sample_rate"
         case numChannels = "num_channels"
+        case languageHints = "language_hints"
         case context
         case enableEndpointDetection = "enable_endpoint_detection"
     }
@@ -71,10 +76,19 @@ private struct SonioxContextItem: Encodable {
 @MainActor
 @Observable
 final class VoiceDictation {
+    enum Phase: Equatable {
+        case idle
+        /// Permission, temporary-key minting and WebSocket configuration. The
+        /// microphone is not capturing yet, so the UI must not invite speech.
+        case preparing
+        /// The audio engine is running and every new buffer is being sent.
+        case listening
+    }
+
     /// Everything heard so far: the settled words plus whatever is still being
     /// revised. Shown live, and handed to the composer when you accept.
     private(set) var heard = ""
-    private(set) var isRecording = false
+    private(set) var phase: Phase = .idle
     private(set) var error: String?
     /// Seconds recorded, for the timer beside the waveform.
     private(set) var elapsed: TimeInterval = 0
@@ -83,7 +97,12 @@ final class VoiceDictation {
     /// distinguish from a broken session.
     private(set) var levels: [Float] = []
 
-    /// False when the build has no backend to mint a key from, which greys the
+    /// The composer stays open while a take is preparing or listening.
+    var isRecording: Bool { phase != .idle }
+    var isPreparing: Bool { phase == .preparing }
+    var isListening: Bool { phase == .listening }
+
+    /// False when the app has no backend to mint a key from, which greys the
     /// mic rather than letting it fail after the tap.
     var isAvailable: Bool { keySource != nil }
 
@@ -112,23 +131,15 @@ final class VoiceDictation {
     }
 
     func start() {
-        guard !isRecording, let keySource else { return }
+        guard phase == .idle, let keySource else { return }
         error = nil
         heard = ""
         settled = ""
         levels = []
         elapsed = 0
-        isRecording = true
+        phase = .preparing
         let take = UUID()
         takeID = take
-        startedAt = Date()
-        ticker = Task { [weak self] in
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .milliseconds(200))
-                guard let self, let startedAt = self.startedAt else { return }
-                self.elapsed = Date().timeIntervalSince(startedAt)
-            }
-        }
 
         Task {
             do {
@@ -144,7 +155,11 @@ final class VoiceDictation {
                 let key = try await keySource.temporaryKey()
                 guard self.takeID == take, self.isRecording else { return }
                 try await openSocket(with: key)
+                // Cancel can happen while the WebSocket handshake/config send
+                // is suspended. Never open audio for an abandoned take.
+                guard self.takeID == take, self.isRecording else { return }
                 try startCapture()
+                beginListening()
             } catch {
                 guard self.takeID == take else { return }
                 self.error = error.localizedDescription
@@ -178,7 +193,7 @@ final class VoiceDictation {
 
     private func stop() {
         takeID = nil
-        isRecording = false
+        phase = .idle
         startedAt = nil
         ticker?.cancel()
         ticker = nil
@@ -196,6 +211,20 @@ final class VoiceDictation {
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 
+    /// This is the readiness boundary shown on screen: the timer and the
+    /// invitation to speak start only after AVAudioEngine is actually running.
+    private func beginListening() {
+        phase = .listening
+        startedAt = Date()
+        ticker = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(200))
+                guard let self, let startedAt = self.startedAt else { return }
+                self.elapsed = Date().timeIntervalSince(startedAt)
+            }
+        }
+    }
+
     // MARK: - The socket
 
     private func openSocket(with key: String) async throws {
@@ -209,10 +238,21 @@ final class VoiceDictation {
             audioFormat: "pcm_s16le",
             sampleRate: Int(Self.sampleRate),
             numChannels: 1,
+            // Omitting hints is Soniox's documented automatic mode: it detects
+            // 60+ languages and language switches without preselection.
+            languageHints: nil,
             context: SonioxContext(
                 general: [
                     SonioxContextItem(key: "domain", value: "Food and nutrition"),
                     SonioxContextItem(key: "intent", value: "Describe a meal"),
+                    SonioxContextItem(
+                        key: "language",
+                        value: "Automatic; preserve the spoken language and script"
+                    ),
+                    SonioxContextItem(
+                        key: "instructions",
+                        value: "Transcribe what was spoken; do not translate it"
+                    ),
                 ],
                 // Food words, given to the recognizer as context so "krapao"
                 // and "shakshuka" come back spelled as themselves rather than
@@ -231,8 +271,9 @@ final class VoiceDictation {
     }
 
     private static let foodContext = """
-    The speaker is describing a meal they ate: foods, dishes, drinks, quantities \
-    and times. Expect dish names from many cuisines.
+    The speaker may use any supported language or mix languages. Preserve their \
+    words and writing system. They are describing a meal they ate: foods, dishes, \
+    drinks, quantities and times. Expect dish names from many cuisines.
     """
 
     private func listen() {
@@ -348,7 +389,7 @@ final class VoiceDictation {
             let level = Self.peak(of: buffer)
             guard let converted = Self.convert(buffer, using: converter, to: target) else { return }
             Task { @MainActor [weak self] in
-                guard let self, self.isRecording else { return }
+                guard let self, self.isListening else { return }
                 self.note(level)
                 self.socket?.send(.data(converted)) { _ in }
             }

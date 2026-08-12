@@ -19,10 +19,24 @@ struct VoiceComposer: View {
                     Text(error)
                         .font(WellieTheme.font(14.5, weight: .medium))
                         .foregroundStyle(WellieTheme.attention)
+                } else if voice.isPreparing {
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: 9) {
+                            ProgressView()
+                                .controlSize(.small)
+                                .tint(WellieTheme.accent)
+                            Text("Getting microphone ready…")
+                                .font(WellieTheme.font(17, weight: .medium))
+                                .foregroundStyle(WellieTheme.ink)
+                        }
+                        Text("Wait for “Start talking” before you speak.")
+                            .font(WellieTheme.font(12.5, weight: .regular))
+                            .foregroundStyle(WellieTheme.muted)
+                    }
                 } else if voice.heard.isEmpty {
-                    Text("Listening…")
+                    Text("Start talking…")
                         .font(WellieTheme.font(17, weight: .medium))
-                        .foregroundStyle(WellieTheme.muted)
+                        .foregroundStyle(WellieTheme.accent)
                 } else {
                     Text(voice.heard)
                         .font(WellieTheme.font(17, weight: .medium))
@@ -32,6 +46,7 @@ struct VoiceComposer: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .fixedSize(horizontal: false, vertical: true)
             .animation(.easeOut(duration: 0.15), value: voice.heard)
+            .animation(.easeOut(duration: 0.15), value: voice.phase)
 
             HStack(spacing: 14) {
                 Button { voice.cancel() } label: {
@@ -44,13 +59,20 @@ struct VoiceComposer: View {
                 }
                 .accessibilityLabel("Discard")
 
-                Waveform(levels: voice.levels)
-                    .frame(maxWidth: .infinity)
+                if voice.isPreparing {
+                    Text("Connecting securely…")
+                        .font(WellieTheme.font(13, weight: .medium))
+                        .foregroundStyle(WellieTheme.muted)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                } else {
+                    Waveform(levels: voice.levels)
+                        .frame(maxWidth: .infinity)
 
-                Text(timer)
-                    .font(WellieTheme.font(14, weight: .semibold))
-                    .foregroundStyle(WellieTheme.muted)
-                    .monospacedDigit()
+                    Text(timer)
+                        .font(WellieTheme.font(14, weight: .semibold))
+                        .foregroundStyle(WellieTheme.muted)
+                        .monospacedDigit()
+                }
 
                 Button { accept(voice.accept()) } label: {
                     Image(systemName: "checkmark")
@@ -70,7 +92,8 @@ struct VoiceComposer: View {
     }
 
     private var canAccept: Bool {
-        !voice.heard.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        voice.isListening
+            && !voice.heard.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     private var timer: String {
