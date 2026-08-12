@@ -37,163 +37,112 @@ Anything that touches a framework goes in `App/`. HealthKit is isolated in
   derived at render time.
 - **IDs are `UUIDv7.generate()`.** Never `UUID()` for anything persisted.
 - **Storage is append-only.** Corrections are `mealRevised` events, not
-  mutations. Nothing rewrites a line of `events.jsonl`. New fields on stored
-  types must be optional, or every existing line fails to decode and the meal
-  silently disappears from the projection.
-- **A text correction is a delta, never a re-run.** `MealRefiner` returns a
-  `MealRevision` that touches only the rows the model names; hand edits survive.
-  It is also the *only* way a quantity is corrected by hand — an `add` and a
-  `revise` both carry `grams`. They carried a `Portion` until v17, which could
-  not move a weighed row at all: the delta applied, the summary said "1 changed",
-  and `effectiveServings` went on reading the weight.
-- **Nothing asks a model for a number except a weight.** That rule is
-  unchanged and is the one the rest rests on. A model asked how many calories
-  are on a plate returns a figure with 30–50% error that is indistinguishable
-  from data; a model asked what something weighs is reading the photograph.
-  `LunaSessionTests` still fails if the prompt or either schema mentions
-  calories.
+  mutations. Nothing rewrites a line of `events.jsonl`. The one exception is
+  `Backend/scripts/migrate-v21.mjs`, which rewrote stored payloads once, from a
+  backup, and is the reason nothing has to again.
 
-- **The other four figures are looked up, never estimated.** Energy,
-  carbohydrate, fat and sodium are `grams × per 100 g` from a published
-  composition row, exactly the arithmetic protein has always used, and they come
-  off the *same* source row as the protein figure — see `FoodNutrientTable` and
-  `scripts/build-food-table.py`. This replaced a two-year ban on calories in
-  August 2026. What lifted the ban was not a change of opinion but the arrival
-  of a complete baseline: the objection to totalling a transcribed panel was
-  that only packaged food carries one, so the total would be built from the
-  packaged fraction of a meal while looking exactly like a total.
+- **Composition is stored, not derived.** A `MealItem` carries `per100g` and the
+  app multiplies it by `grams`. That is the whole of the nutrition arithmetic:
+  no table, no taxonomy, no config file, no lookup that can miss.
 
-- **A total is only allowed when every food group can answer.** That is the
-  condition the paragraph above turns on, so it is a test rather than a
-  convention: `FoodNutrientTableTests.everyGroupHasARepresentative` requires a
-  sourced `GROUP_REPRESENTATIVE` row for all 27 groups but `other`. `other` has
-  none on purpose — it is the bucket for food that was not recognised, and a
-  figure for it would be invented rather than estimated. Its weight lands in
-  `NutrientTotal.unresolvedGrams`, which every screen showing a total must
-  surface; a partial total that does not say it is partial is the exact failure
-  this whole design is arranged against.
+  This replaced a shipped composition table in August 2026, on measurement. The
+  table was keyed `kind|label` and matched exactly; recognition writes free text,
+  so **78% of logged grams resolved to nothing** and a Subway sandwich showed
+  62 kcal because only its cheese matched a row. Asked for the same figures the
+  table published, the model reproduced them at **0–3% median error** — 0% when
+  the food was named unambiguously (`Backend/eval/composition-recall-poc.ts`).
+  The table was not buying accuracy. It was buying auditability, and paying for
+  it in silence.
 
-- **Salt is a floor, and no screen may score it against the ceiling.**
-  Composition tables publish plain preparations — cooked white rice is 1 mg of
-  sodium per 100 g — while the salt in cooked food is added in sauces and
-  seasoning that carry no weight on the plate and appear in no ingredient list.
-  Measured against a canteen bibimbap that printed 4 g, the derived figure was
-  0.7 g: 82% low, and structurally so. `Nutrients.saltGrams` is therefore the
-  salt *in the food*, displayed as `≥`, with `DailyTargets.saltCeilingGrams`
-  deliberately not shown beside it. A salt reading of "well under" on a 4 g
-  lunch would be a confident, complete-looking, wrong number.
+- **Weight is still the only hard number, and still the only one worth
+  arguing about.** A photograph shows an amount of food; composition is a food
+  database's answer and the model has evidently read the database. Measured
+  against Nutrition5k, grams beat the old portion ladder by 11 points of median
+  error. That is where the remaining error lives and where measurement should go.
 
-- **Protein keeps its own group table, and it does not move.** On a table miss
-  protein falls back to `Protein.defaultGramsPerServing` while the other four
-  fall back to `FoodNutrientTable.groups`, so the two disagree slightly — cod is
-  22.8 g per 100 g against the `fish` row's 22. That seam is deliberate: every
-  protein figure in the history was scored against the hand-calibrated table,
-  and `pnpm eval:nutrients` measures changes to it. Consistency with a table
-  that did not exist when those figures were written is not worth restating
-  them.
+- **Grams are absolute, and nothing multiplies them.** An ingredient's `grams`
+  is everything of it present, across every serving. `MealDish.count` is a label
+  and a control: changing it rewrites the weights (`scaled(toCount:)`) rather
+  than scaling at score time. The old `count × size × portion` product is what
+  made one bowl of ramen worth 126 g of protein.
 
-- **`Nutrition` is the only place any of the five is computed.**
-  `Protein.grams` is a thin accessor onto it, not a second implementation. Two
-  routes to the same number is how the number starts depending on which screen
-  asked.
-- **Recognition asks for weight, and for nothing else numeric.** An ingredient
-  carries `grams` — the edible weight of it on the plate. Fat, carbohydrate and
-  calories are still never requested: a weight is something a photograph shows,
-  and those are a food database's answer rather than a model's.
+- **One food per `label`, and it is the whole identity.** No kind, no group, no
+  code to fall back to. 18% of the distinct labels the table failed to resolve
+  named two foods — "ham and bacon", "shredded cabbage and lettuce" — and a row
+  that is two foods cannot be priced as either. The prompt forbids "and" as well
+  as "or", and `mealRecognitionItemSchema` requires the label.
 
-  This replaced a three-step portion ladder in August 2026, on evidence rather
-  than taste. Scored against Nutrition5k, whose ingredients were weighed on a
-  scale as they went onto the plate, the ladder ran 37% median error against
-  grams' 26%, and systematically under-read: ×0.68 on plates over 45 g of
-  protein. Grams also express what the ladder could not say at all — `large`
-  caps at two servings, so 300 g of beef in a pan had no representation.
-- **Weight is the only quantity, and it is required.** `portion` and `size` were
-  asked for alongside `grams` from v16 and always lost to it in
-  `effectiveServings`, so from v17 neither is in a prompt, a response schema, or
-  a control. `grams` is non-nullable in `mealRecognitionItemSchema`, which is the
-  point: while a coarse fallback stood behind it, the production Gemini schema
-  omitted the field entirely for a month, every answer still parsed, and every
-  meal was quietly scored on the ladder grams had replaced. A fallback for a
-  required measurement is a way to not notice it is missing.
+- **A revision restates the figures it moves.** Stored numbers and editable rows
+  can desync: a row renamed from "chicken" to "fried chicken" whose composition
+  stayed behind is worse than an uncorrected one, because it looks corrected.
+  `per_100g` is required on every `add` and every `revise`, in the Swift type,
+  in the Zod contract, and in both provider schemas. A corrected row is stamped
+  `user`.
 
-  Both stored fields survive on `MealItem` and `MealDish` because the log is
-  append-only and a meal from before v17 must score the way it scored the day it
-  was written. Nothing sets them on a new item.
+- **A rename that cannot re-price does not happen in the UI.** The food sheet
+  (`2d`) offers only the model's own `alternatives`, and each one arrives priced
+  — that is why `FoodAlternative` carries a composition block. Anything else is
+  a correction in words on the fix screen, where `MealRefiner` re-prices what it
+  renames. The v20 picker swapped a food's *name* while a table decided its
+  *worth*; with the table gone that is a silent lie.
+
+- **A panel wins figure by figure, not wholesale.** A carton printing protein
+  and energy but no sodium contributes two read figures and three from the
+  model. `MealDish.nutrients` substitutes; `panelSources` records which.
+
+- **Provenance is per figure: `panel | published | model | user`.** There is no
+  `table` case because there is no table — the migration re-priced history
+  through the same path a new meal takes, so no stored figure anywhere came from
+  a lookup. `published` carries a `SourceRef` with the URL, the market and the
+  `scaleBasis`, because a Footlong priced by doubling a Regular is a different
+  claim from a printed one.
+
+- **Salt is no longer a floor.** It was one for two years because composition
+  tables publish plain preparations — cooked white rice is 1 mg of sodium per
+  100 g — and the derived figure ran 82% low on a canteen bibimbap. The prompt
+  now says to price food as eaten, seasoning included; asked about guacamole the
+  model answers 430 mg where the unsalted avocado row said 8. `saltGrams` is
+  shown as a figure, still with no ceiling beside it.
+
+- **The Atwater check replaced unresolved grams as the loud failure.** With a
+  table, a bad answer showed up as weight that resolved to nothing. With
+  stored composition it would be silent, so `protein × 4 + carbohydrate × 4 +
+  fat × 9` against `kcal` is the self-check — stated in the prompt, exported as
+  `atwaterDelta` / `ATWATER_TOLERANCE`, tested in `contracts.test.ts`. It read
+  2.3% against an official Subway panel.
+
+- **`schemaVersion` is on every meal event, and v21 reads only v21.** No legacy
+  decode anywhere in Core. An unversioned event throws rather than decoding to
+  something plausible: v20 had no version, guessed, and showed 62 kcal for a
+  sandwich instead of an error anyone could see. `ThreadTests` asserts the
+  refusal.
+
+- **`dishes` is the only stored form.** `MealEntry.items`, `grams` and
+  `nutrients` are computed. v20 stored a flattened list beside the dishes
+  because meals predated dishes, and two representations of one thing is how
+  they come to disagree.
+
 - **The Gemini response schema is hand-written; everything else is derived.**
   `geminiResponseSchema()` in `Backend/worker/ai/gemini.ts` is the one contract
   not generated from Zod — Gemini rejects `additionalProperties` and spells
   nullable as a flag — and it emits *exactly* the properties it names, dropping
   anything the prompt asks for and it does not declare. That is how v16 shipped
-  a weighing prompt that returned no weights. `recognize.test.ts` now compares
-  its ingredient fields against `mealRecognitionJsonSchema()`; keep that guard.
-- **Grams are absolute, and nothing multiplies them.** An ingredient's `grams`
-  is everything of it present, across every serving in the photograph. The dish
-  still carries `count`, but as a label and a control: changing it rewrites the
-  weights (`MealDish.scaled(toCount:)`) rather than scaling at score time. The
-  old `count × size × portion` product is what made one bowl of ramen worth
-  126 g of protein — the model called the bowl large and the noodles large, and
-  the two compounded. Measured, that structure cost 7 points of median error and
-  half again as many gross misses. `MealDish.weighed` is the switch; a meal
-  logged before grams keeps the ladder and scores exactly as it always did.
-  `flattenDishes` now writes `servings: null` on every row: there is no
-  arithmetic left for the server to do.
-- **`ServingWeight` converts weight to display servings, and is not a nutrition
-  table.** It says how much one serving of a group weighs, nothing about what is
-  in it. Its alcohol row is approximate by construction: a drink is defined by
-  ethanol rather than volume.
-- **A transcribed panel wins figure by figure, not wholesale.** A printed
-  number is a fact and beats the table for that nutrient only; a carton printing
-  protein and energy but no sodium contributes two read figures and three
-  derived ones. Discarding the ingredients over a partial panel, or the panel
-  over a missing field, both throw away something true. Everything derived is
-  computed on read and never written, so retuning `shaman-config.json` moves
-  every estimate in the history and no measurement.
+  a weighing prompt that returned no weights. `recognize.test.ts` guards the
+  ingredient fields against `mealRecognitionJsonSchema()`, and now guards
+  `per_100g` for the same reason: a missing composition block would be a meal
+  worth zero calories.
 
-- **Daily references require a complete adult profile.** `NutritionProfile`
-  holds age, published sex-reference equation, height, weight, optional body
-  fat, activity, and goal. HealthKit values win at the app boundary and manual
-  values fill gaps; neither is part of a meal event. `DailyTargets` uses the
-  2023 adult DRI equations, retains carbohydrate/fat/protein AMDR ranges, and
-  shows a goal adjustment separately from maintenance. Missing inputs return
-  `nil`, never an imaginary default. Body fat supplies approximate lean mass and
-  does not enter the official energy equation.
-- **A meal is dishes; a dish is ingredients.** `count` is how many servings of
-  the dish; `size` is a stored leftover that only multiplies on a meal described
-  in portions, which is every meal logged before August 2026 and everything added
-  by hand. `MealEntry` stores the dishes and the flat list both, and
-  `MealDish.flattened()` is the only thing that writes the flat list; a build
-  from before dishes scores an old meal and a new one alike from it.
-- **Quantity is shown, not picked.** The dish sheet (`2d`) offers a count
-  stepper and nothing else; the ingredient sheet shows a weight and does not
-  edit it. Both offered portion chips until v17, and on a weighed row the chips
-  changed no number while looking exactly like a control that did. A wrong weight
-  is corrected in words on the fix screen, which is what `MealRefiner` is for.
-- **Items are what was seen; `MealEntry.servings(of:)` is what counts.** A meal
-  contributes at most one large portion of any single group
-  (`MealPortions.perMealGroupCap`), scaled by `MealShare`. Never sum
-  `item.portion.servings` directly into a summary — four fruit rows on one
-  platter are one plate of fruit. `MealItem.effectiveServings()` is the one
-  place that decides which of `grams`, `servings` and `portion` is authoritative.
-
-- **Two food groups were renamed, and both spellings still resolve.**
-  `sofrito` → `cooked_tomato_sauce` and `healthy_fats` → `plant_fats`, because
-  both carried a judgement rather than a food description. The raw value moved, so new
-  writes use the new spelling; `FoodGroup.init(from:)` and `FoodGroup.value(in:)`
-  make the old one keep resolving, for events *and* for the string-keyed tables.
-  That second half is the load-bearing one: `shaman-config.json` is fetched from
-  one URL by builds of every age, a missed key there is a wrong number with no
-  error anywhere, and so the generated table deliberately carries both spellings
-  (`LEGACY_GROUP_NAMES` in `build-food-table.py`). `vegetable_oil` is the one
-  addition — without it every non-olive oil vanished into nothing, and an
-  invisible frying fat was guessed as olive oil.
+- **Recognition asks for weight and composition, and nothing else numeric.** No
+  daily totals, no scores, no confidence. `alternatives` is a shortlist of
+  priced rivals, which is what uncertainty looks like when it is useful.
 
 - **Thresholds and prompts belong in `shaman-config.json`,** not in Swift
-  literals, so they can change without a rebuild.
-- **Three names per food group, and they are not interchangeable.**
-  `displayName` is the formal taxonomy vocabulary and belongs in details or an
-  eval; `plainName` is the picker row; `shortName` is a chip and the middle
-  of a sentence. Raw values are the on-disk format and move only under the
-  both-spellings discipline above — twice ever, and never silently.
+  literals, so they can change without a rebuild. It no longer carries a food
+  table: `nutrientsPerGram` and `proteinPerServing` went with v21.
+- **A food has one name, and the model wrote it.** `FoodGroup` had three
+  (`displayName`, `plainName`, `shortName`) and `FoodKind` inherited them; both
+  are gone. A chip, a sentence and a history row all say `label`, because there
+  is no vocabulary left to translate between.
 - **Sentences, not forms.** The recognised meal is one tappable sentence
   (`FoodSentence`), and at most one ambiguity is ever raised as a question.
   Saving is never blocked on answering it — an ignored question is itself
@@ -230,11 +179,11 @@ Anything that touches a framework goes in `App/`. HealthKit is isolated in
   a *goal* rather than a reference range — a protein bar can honestly be full,
   where an energy bar can only be long or less long.
 
-- **Salt is not on Today.** It is the invariant above ("a floor, and no screen
-  may score it against the ceiling") in its load-bearing form: the day card
-  draws four meters and salt is deliberately not one of them, because a meter
-  implies a ceiling. It appears on the meal detail, printed as `≥`, with
-  nothing to compare it to.
+- **Salt is not on Today.** The day card draws four meters and salt is
+  deliberately not one of them, because a meter implies a ceiling and no
+  reference here is one worth scoring against. It appears on the meal detail as
+  a plain figure — the `≥` went with the table that made it a floor — still with
+  nothing beside it to compare it to.
 
 - **Carbohydrate and fat show a range, not a target.** `DailyTargets` publishes
   AMDR *ranges* for both and declines to collapse them, because picking a point
@@ -277,8 +226,9 @@ The app sends its provider on every request, so it overrides the Worker's
 
 Both send the same `MealPrompt.system`. The schemas are separate because the
 subsets differ — Gemini rejects `additionalProperties` and spells nullable as a
-flag — but both group enums are generated from `FoodGroup.allCases`, so adding a
-case propagates to both.
+flag — and both are now hand-listed field by field, so a field added to one must
+be added to the other. `recognize.test.ts` and the two session tests are what
+catch it when it is not; there is no generated enum left to propagate.
 
 `promptVersion` is `<prompt>/<model>`, and the recognition cache is namespaced by
 it: the same photo re-read by the other provider costs a real call, which is the

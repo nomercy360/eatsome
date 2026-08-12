@@ -44,7 +44,7 @@ struct GeminiSessionTests {
     func schemaIsGeminiShaped() throws {
         let schema = GeminiSession.responseSchema
         #expect(schema["type"] as? String == "OBJECT")
-        #expect(Set(try #require(schema["required"] as? [String])) == ["dishes", "other_meals_visible", "notes"])
+        #expect(Set(try #require(schema["required"] as? [String])) == ["dishes"])
         // Gemini rejects this keyword outright rather than ignoring it.
         #expect(!schema.description.contains("additionalProperties"))
 
@@ -54,7 +54,7 @@ struct GeminiSessionTests {
         let itemSchema = try #require((dishProperties["ingredients"] as? [String: Any])?["items"] as? [String: Any])
         let itemProperties = try #require(itemSchema["properties"] as? [String: Any])
         #expect(Set(try #require(itemSchema["required"] as? [String])) == [
-            "kind", "grams", "label", "preparation", "composition_hints", "alternatives"
+            "label", "grams", "per_100g", "preparation", "alternatives"
         ])
         // Gemini emits exactly the properties this schema names, which is how a
         // missing `grams` went unnoticed for a version: the prompt asked for a
@@ -62,20 +62,23 @@ struct GeminiSessionTests {
         #expect(itemProperties["grams"] != nil)
         #expect(itemProperties["portion"] == nil)
 
-        // The enum has to be the actual model, or the app silently drops foods.
-        let kinds = try #require((itemProperties["kind"] as? [String: Any])?["enum"] as? [String])
-        #expect(Set(kinds) == Set(FoodKind.allCases.map(\.rawValue)))
+        // With no table behind the app, a silently missing composition block is
+        // a meal worth zero calories — the `grams` failure again, one field over.
+        let composition = try #require(itemProperties["per_100g"] as? [String: Any])
+        #expect(Set(try #require(composition["required"] as? [String])) == [
+            "protein", "fat", "carbohydrate", "kcal", "sodium_mg"
+        ])
+        // An alternative is priced with the same block, or choosing one in the
+        // client swaps the name and leaves the old numbers behind.
         let alternatives = try #require(itemProperties["alternatives"] as? [String: Any])
         let alternative = try #require(alternatives["items"] as? [String: Any])
         let alternativeProperties = try #require(alternative["properties"] as? [String: Any])
-        let alternativeKinds = try #require(
-            (alternativeProperties["kind"] as? [String: Any])?["enum"] as? [String]
-        )
-        #expect(Set(alternativeKinds) == Set(FoodKind.allCases.map(\.rawValue)))
+        #expect(alternativeProperties["per_100g"] != nil)
 
-        // Ingredient labels are required; only the meal-level note is nullable.
+        // Labels are required — they are the whole identity now.
         #expect((itemProperties["label"] as? [String: Any])?["nullable"] == nil)
-        #expect((properties["notes"] as? [String: Any])?["nullable"] as? Bool == true)
+        #expect(properties["notes"] == nil)
+        #expect(properties["other_meals_visible"] == nil)
     }
 
     @Test("A well-formed response decodes")
@@ -83,15 +86,17 @@ struct GeminiSessionTests {
         let json = """
         {"candidates":[{"content":{"role":"model","parts":[
           {"thought":true,"text":"ignore me"},
-          {"text":"{\\"dishes\\":[{\\"name\\":\\"beef bowl\\",\\"count\\":1,\\"panel\\":null,\\"ingredients\\":[{\\"kind\\":\\"beef\\",\\"grams\\":120,\\"label\\":\\"minced beef\\",\\"preparation\\":[\\"pan_fried\\"],\\"composition_hints\\":[],\\"alternatives\\":[{\\"label\\":\\"minced pork\\",\\"kind\\":\\"pork\\"}]}]}],\\"other_meals_visible\\":false,\\"notes\\":null}"}
+          {"text":"{\\"dishes\\":[{\\"name\\":\\"beef bowl\\",\\"count\\":1,\\"panel\\":null,\\"ingredients\\":[{\\"grams\\":120,\\"label\\":\\"minced beef\\",\\"per_100g\\":{\\"protein\\":26.1,\\"fat\\":15.4,\\"carbohydrate\\":0,\\"kcal\\":250,\\"sodium_mg\\":72},\\"preparation\\":[\\"pan_fried\\"],\\"alternatives\\":[{\\"label\\":\\"minced pork\\",\\"per_100g\\":{\\"protein\\":25.7,\\"fat\\":20.8,\\"carbohydrate\\":0,\\"kcal\\":297,\\"sodium_mg\\":70}}]}]}]}"}
         ]},"finishReason":"STOP"}]}
         """
         let artifact = try GeminiSession.parse(Data(json.utf8), promptVersion: "test/gemini")
-        let item = try #require(artifact.recognition.dishes?.first?.ingredients.first)
+        let item = try #require(artifact.recognition.dishes.first?.ingredients.first)
 
-        #expect(item.kind == .beef)
+        #expect(item.label == "minced beef")
+        #expect(item.per100g.kcal == 250)
         #expect(item.preparation == [.panFried])
-        #expect(item.alternatives == [.init(label: "minced pork", kind: .pork)])
+        #expect(item.alternatives.first?.label == "minced pork")
+        #expect(item.alternatives.first?.per100g.fat == 20.8)
         #expect(artifact.promptVersion == "test/gemini")
         #expect(!artifact.rawModelJSON.contains("ignore me"), "thought parts are not model output")
     }
@@ -132,11 +137,18 @@ struct GeminiSessionTests {
             func recognize(_ message: MealMessage) async throws -> RecognitionArtifact {
                 let call = await counter.increment()
                 return RecognitionArtifact(
-                    recognition: MealRecognition(
-                        items: [.init(kind: .vegetable, label: "call \(call)", grams: 90)],
-                        otherMealsVisible: false,
-                        notes: nil
-                    ),
+                    recognition: MealRecognition(dishes: [
+                        .init(
+                            name: "salad",
+                            ingredients: [
+                                .init(
+                                    label: "call \(call)",
+                                    grams: 90,
+                                    per100g: Fixture.composition
+                                )
+                            ]
+                        )
+                    ]),
                     rawModelJSON: "{}",
                     promptVersion: "stub"
                 )

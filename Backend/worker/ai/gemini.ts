@@ -1,10 +1,4 @@
-import {
-  compositionHints,
-  foodKinds,
-  mealRecognitionSchema,
-  panelBases,
-  preparationMethods,
-} from "../../src/contracts";
+import { mealRecognitionSchema, panelBases, preparationMethods } from "../../src/contracts";
 import type { Env } from "../env";
 import { HttpError } from "../lib/http-error";
 import { productionSpec, type RecognitionSpec } from "./spec";
@@ -22,11 +16,28 @@ const BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
  * kind or facet still reaches both providers from one edit.
  */
 export function geminiResponseSchema(): Record<string, unknown> {
-  const kind = { type: "STRING", enum: [...foodKinds] };
+  // Declared once and reused for the ingredient and each alternative. Gemini
+  // emits exactly the properties a schema names and silently drops the rest,
+  // which is how v16 shipped a weighing prompt that returned no weights — so
+  // every field the prompt asks for has to appear here too.
+  const composition = {
+    type: "OBJECT",
+    description:
+      "Composition per 100 g of edible portion, as the food will be eaten. Never for the stated weight and never per serving.",
+    propertyOrdering: ["protein", "fat", "carbohydrate", "kcal", "sodium_mg"],
+    required: ["protein", "fat", "carbohydrate", "kcal", "sodium_mg"],
+    properties: {
+      protein: { type: "NUMBER", description: "Grams per 100 g." },
+      fat: { type: "NUMBER", description: "Grams per 100 g." },
+      carbohydrate: { type: "NUMBER", description: "Grams per 100 g." },
+      kcal: { type: "NUMBER", description: "Kilocalories per 100 g." },
+      sodium_mg: { type: "NUMBER", description: "Milligrams per 100 g." },
+    },
+  };
   return {
     type: "OBJECT",
-    propertyOrdering: ["dishes", "other_meals_visible", "notes"],
-    required: ["dishes", "other_meals_visible", "notes"],
+    propertyOrdering: ["dishes"],
+    required: ["dishes"],
     properties: {
       dishes: {
         type: "ARRAY",
@@ -118,24 +129,9 @@ export function geminiResponseSchema(): Record<string, unknown> {
                 // ingredient, the eval schema had somewhere to put one and
                 // graded it well, and every answer the app actually received
                 // came back weightless and used the ladder grams replaced.
-                propertyOrdering: [
-                  "kind",
-                  "grams",
-                  "label",
-                  "preparation",
-                  "composition_hints",
-                  "alternatives",
-                ],
-                required: [
-                  "kind",
-                  "grams",
-                  "label",
-                  "preparation",
-                  "composition_hints",
-                  "alternatives",
-                ],
+                propertyOrdering: ["label", "grams", "per_100g", "preparation", "alternatives"],
+                required: ["label", "grams", "per_100g", "preparation", "alternatives"],
                 properties: {
-                  kind: { ...kind, description: "The ingredient's broad nutrition-oriented kind." },
                   grams: {
                     type: "NUMBER",
                     description:
@@ -144,17 +140,13 @@ export function geminiResponseSchema(): Record<string, unknown> {
                   label: {
                     type: "STRING",
                     description:
-                      "Short human name for one food. Never a hedge like 'melon or pineapple'.",
+                      "Short human name for exactly ONE food. Never 'melon or pineapple', never 'ham and bacon' — two foods are two ingredients.",
                   },
+                  per_100g: composition,
                   preparation: {
                     type: "ARRAY",
                     items: { type: "STRING", enum: [...preparationMethods] },
                     maxItems: 4,
-                  },
-                  composition_hints: {
-                    type: "ARRAY",
-                    items: { type: "STRING", enum: [...compositionHints] },
-                    maxItems: 5,
                   },
                   alternatives: {
                     type: "ARRAY",
@@ -163,9 +155,9 @@ export function geminiResponseSchema(): Record<string, unknown> {
                     maxItems: 3,
                     items: {
                       type: "OBJECT",
-                      propertyOrdering: ["label", "kind"],
-                      required: ["label", "kind"],
-                      properties: { label: { type: "STRING" }, kind },
+                      propertyOrdering: ["label", "per_100g"],
+                      required: ["label", "per_100g"],
+                      properties: { label: { type: "STRING" }, per_100g: composition },
                     },
                   },
                 },
@@ -173,15 +165,6 @@ export function geminiResponseSchema(): Record<string, unknown> {
             },
           },
         },
-      },
-      other_meals_visible: {
-        type: "BOOLEAN",
-        description: "True when food on another tray or place setting was deliberately ignored.",
-      },
-      notes: {
-        type: "STRING",
-        nullable: true,
-        description: "Ambiguities worth a human glance. Null if none.",
       },
     },
   };

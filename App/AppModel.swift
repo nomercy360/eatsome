@@ -45,6 +45,31 @@ final class AppModel {
     /// Surfaced in Settings. A silently skipped line is how you lose trust in
     /// your own data six months later.
     private(set) var skippedLogLines = 0
+
+    /// A local log holding events this build cannot read.
+    ///
+    /// v21 stores composition on every food and reads only v21, so every meal
+    /// line written by v20 fails to decode. `EventLog.load` skips a line it
+    /// cannot read — which is right for one corrupt record after a crash and
+    /// very wrong for an entire history after a schema change, because the app
+    /// then opens on an empty Today and says nothing.
+    ///
+    /// Recovery works: a skipped line never reaches `loadedEvents`, so its id is
+    /// not in the set `synchronizeAccountHistory` dedupes against, and the
+    /// server's migrated copy of that id is seen as missing and appended. What
+    /// was missing is any of that being *deliberate* — it fired only when Today
+    /// happened to appear, only when signed in, and reported nothing either way.
+    enum HistoryRestore: Equatable {
+        case notNeeded
+        /// Lines this build cannot read, waiting on a restore.
+        case pending(lines: Int)
+        case restoring
+        case restored(events: Int)
+        /// Nothing can be done from here, and the reason.
+        case blocked(String)
+    }
+
+    private(set) var historyRestore: HistoryRestore = .notNeeded
     private(set) var cloudError: String?
     private(set) var isDeletingCloudData = false
     private(set) var hasAcceptedPhotoProcessing =
@@ -76,8 +101,6 @@ final class AppModel {
     /// means changing both — a deployment that disagrees with the build loses
     /// to the build, silently.
     private(set) var provider: RecognitionProvider = .gemini
-
-    var hasBackendAccess: Bool { backendBaseURL != nil && backendToken != nil }
 
     var activeModel: String { config.model(for: provider) }
 
@@ -121,6 +144,10 @@ final class AppModel {
             })
             projection = Projection(replaying: events)
             skippedLogLines = skipped
+            // Said out loud before anything renders. An empty Today with no
+            // explanation is the same silent failure as a partial total that
+            // does not say it is partial.
+            historyRestore = skipped > 0 ? .pending(lines: skipped) : .notNeeded
         } catch {
             loadError = error.localizedDescription
         }
@@ -131,6 +158,11 @@ final class AppModel {
         if let cache {
             (config, configSource) = await ConfigLoader(remoteURL: configURL, cacheURL: cache).load()
         }
+
+        // Kicked from bootstrap rather than left to whichever screen appears
+        // first. A history this build cannot read is not something to recover
+        // opportunistically.
+        if case .pending = historyRestore { Task { await synchronizeAccount() } }
 
         provider = UserDefaults.standard.string(forKey: Self.providerDefaultsKey)
             .flatMap(RecognitionProvider.init(rawValue:))
@@ -143,6 +175,10 @@ final class AppModel {
             // unambiguous choice forward without inventing the missing body data.
             manualNutritionProfile.goal = .gainMuscle
         }
+        // The pre-account builds stored one shared app secret here. Sessions
+        // replaced it; remove the residue rather than carrying a credential no
+        // request is allowed to use.
+        try? keychain.remove(.legacyBackendAPIToken)
         hasSessionToken = ((try? keychain.get(.sessionToken)) ?? nil)?.isEmpty == false
         // An interrupted credential write is not half a sign-in. Normalize the
         // pair so the root cannot enter the app with identity metadata but no
@@ -183,46 +219,33 @@ final class AppModel {
     }
 
     func logMeal(_ meal: MealEntry) async {
-        let resolved = resolveNutrition(in: meal, newStatus: .exact)
+        let resolved = markUserConfirmed(meal)
         await record(.mealLogged(resolved), occurredAt: resolved.eatenAt)
     }
 
     func reviseMeal(_ meal: MealEntry) async {
-        var revised = resolveNutrition(in: meal, newStatus: .userConfirmed)
+        var revised = markUserConfirmed(meal)
         revised.wasCorrected = true
         await record(.mealRevised(revised), occurredAt: revised.eatenAt)
     }
 
-    /// Resolve every stored representation with the same pinned composition
-    /// table before writing the event. Existing exact provenance survives;
-    /// rows whose identity the person changed arrive with no resolution and
-    /// are marked `user_confirmed` on a revision.
-    private func resolveNutrition(
-        in meal: MealEntry,
-        newStatus: NutrientResolutionStatus
-    ) -> MealEntry {
-        guard let table = config.nutrientsPerGram else { return meal }
-        func resolve(_ item: MealItem) -> MealItem {
-            let status: NutrientResolutionStatus
-            if let previous = item.resolution, previous.foodRef != nil {
-                status = previous.status
-            } else if item.resolution == nil {
-                status = newStatus
-            } else {
-                status = .exact
-            }
-            return table.resolving(item, status: status)
-        }
-
+    /// Mark every figure on a meal as settled by the person.
+    ///
+    /// This is all that remains of `resolveNutrition`, which used to pin each
+    /// row to a composition-table row before writing the event. There is no
+    /// table to pin to: composition arrives with the food. What is still worth
+    /// recording is *who* settled a figure, because a correction outranks a
+    /// model answer and a later re-price must not quietly undo one.
+    private func markUserConfirmed(_ meal: MealEntry) -> MealEntry {
         var result = meal
-        if var dishes = result.storedDishes {
-            for index in dishes.indices {
-                dishes[index].items = dishes[index].items.map(resolve)
+        result.dishes = result.dishes.map { dish in
+            var copy = dish
+            copy.items = dish.items.map {
+                var item = $0
+                item.provenance = .all(.user)
+                return item
             }
-            result.storedDishes = dishes
-            result.items = dishes.flatMap { $0.flattened() }
-        } else {
-            result.items = result.items.map(resolve)
+            return copy
         }
         return result
     }
@@ -378,16 +401,13 @@ final class AppModel {
             let artifact = try await recognize(
                 MealMessage(said: message.said, imageData: bytes)
             )
-            let dishes = artifact.recognition.asMealDishes() ?? []
-            let items = dishes.isEmpty
-                ? artifact.recognition.asMealItems()
-                : dishes.flatMap { $0.flattened() }
+            let dishes = artifact.recognition.asMealDishes()
 
             let meal = MealEntry(
                 // The sentence may say when: "half a kebab at 2 am". Read in
                 // code rather than asked of the model — see `SpokenTime`.
                 eatenAt: SpokenTime.eatenAt(in: message.said, sentAt: message.sentAt),
-                items: items,
+                dishes: dishes,
                 // A photo with a caption is still a photograph: the picture is
                 // the stronger evidence and the words are what it could not show.
                 source: bytes == nil ? .text : .photo,
@@ -396,10 +416,8 @@ final class AppModel {
                 recognitionEvidence: MealRecognitionEvidence(
                     promptVersion: artifact.promptVersion,
                     rawModelJSON: artifact.rawModelJSON,
-                    initialItems: artifact.recognition.asMealItems(),
-                    otherMealsVisible: artifact.recognition.otherMealsVisible
+                    initialDishes: dishes
                 ),
-                storedDishes: dishes.isEmpty ? nil : dishes,
                 messageID: message.id
             )
             await logMeal(meal)
@@ -425,13 +443,28 @@ final class AppModel {
                 current: meal.items,
                 note: text
             )
+            // The delta addresses rows by their position in the flat list, so
+            // it is applied there and the survivors are put back where they
+            // came from by id. Anything the correction added has no dish of its
+            // own and lands in one unnamed dish, because guessing which dish a
+            // new food joined would silently change a count.
             var revised = meal
-            revised.items = revision.applied(to: meal.items)
-            if let dishes = meal.storedDishes {
-                let regrouped = MealDish.regrouped(revised.items, keeping: dishes)
-                revised.storedDishes = regrouped
-                revised.items = regrouped.flatMap { $0.flattened() }
+            let corrected = revision.applied(to: meal.items)
+            let byID = Dictionary(uniqueKeysWithValues: corrected.map { ($0.id, $0) })
+            var placed = Set<UUID>()
+            var dishes = meal.dishes.map { dish -> MealDish in
+                var copy = dish
+                copy.items = dish.items.compactMap { original in
+                    guard let updated = byID[original.id] else { return nil }
+                    placed.insert(original.id)
+                    return updated
+                }
+                return copy
             }
+            .filter { !$0.items.isEmpty }
+            let added = corrected.filter { !placed.contains($0.id) }
+            if !added.isEmpty { dishes.append(MealDish(name: nil, items: added)) }
+            revised.dishes = dishes
             revised.note = text
             await reviseMeal(revised)
         } catch {
@@ -487,7 +520,7 @@ final class AppModel {
     func recentDays(_ count: Int, endingAt end: Date = Date(), calendar: Calendar = .current) -> [DayLog] {
         let windowEnd = calendar.startOfDay(for: end).addingTimeInterval(86_400).epochMillis
         let windowStart = windowEnd - EpochMillis(count) * 86_400_000
-        return WeekRhythm.days(
+        return DayLog.days(
             meals: projection.meals(from: windowStart, to: windowEnd),
             endingAt: windowEnd,
             days: count,
@@ -548,11 +581,11 @@ final class AppModel {
         let id: Int
         let start: Date
         let mealCount: Int
-        let total: NutrientTotal
+        let total: Nutrients
 
         var isLogged: Bool { mealCount > 0 }
-        var kcal: Double { total.nutrients.kcal }
-        var protein: Double { total.nutrients.protein }
+        var kcal: Double { total.kcal }
+        var protein: Double { total.protein }
     }
 
     /// The last `count` days, oldest first, each totalled once.
@@ -734,70 +767,55 @@ final class AppModel {
         return health
     }
 
-    /// Everything today came to, with the share of the weight that answered.
+    /// Everything today came to.
     ///
     /// One computation for all five figures, so nothing on any screen can
-    /// disagree with anything on another about the same day.
-    var nutrientsToday: NutrientTotal {
+    /// disagree with anything on another about the same day. Since v21 there is
+    /// no lookup behind this and no way for it to be partial: every food carries
+    /// its own composition, so a total is a total.
+    var nutrientsToday: Nutrients {
         nutrients(in: mealsToday())
     }
 
-    func nutrients(in meals: [MealEntry]) -> NutrientTotal {
-        Nutrition.total(in: meals, gramsPerServing: config.proteinTable, foods: config.nutrientsPerGram)
+    func nutrients(in meals: [MealEntry]) -> Nutrients {
+        meals.reduce(Nutrients.zero) { $0 + $1.nutrients }
     }
 
-    func nutrients(in meal: MealEntry) -> NutrientTotal {
-        Nutrition.total(in: meal, gramsPerServing: config.proteinTable, foods: config.nutrientsPerGram)
+    func nutrients(in dishes: [MealDish]) -> Nutrients {
+        dishes.reduce(Nutrients.zero) { $0 + $1.nutrients }
     }
 
-    func nutrients(in dishes: [MealDish]) -> NutrientTotal {
-        Nutrition.total(in: dishes, gramsPerServing: config.proteinTable, foods: config.nutrientsPerGram)
-    }
-
-    func nutrients(in dish: MealDish) -> NutrientTotal {
-        Nutrition.total(in: dish, gramsPerServing: config.proteinTable, foods: config.nutrientsPerGram)
-    }
-
-    var proteinToday: Double { nutrientsToday.nutrients.protein }
+    var proteinToday: Double { nutrientsToday.protein }
 
     /// What a described dish contributes, for the dishes screen. No share
     /// factor: a recipe is one serving of itself, and how much of it you ate is
     /// a property of the meal you log, not of the dish.
     func protein(in items: [MealItem]) -> Double {
-        Protein.grams(in: items, gramsPerServing: config.proteinTable, foods: config.nutrientsPerGram)
+        items.reduce(0) { $0 + $1.nutrients.protein }
     }
 
     /// What one dish contributes at its own quantity — the figure the dish
-    /// sheet shows while the count stepper is being turned. On a meal old
-    /// enough to be described in portions the ingredients alone are one normal
-    /// serving of it, so anything reading them directly reports a large plate
-    /// as a normal one.
-    func protein(in dish: MealDish) -> Double {
-        Protein.grams(in: dish, gramsPerServing: config.proteinTable, foods: config.nutrientsPerGram)
-    }
+    /// sheet shows while the count stepper is being turned.
+    func protein(in dish: MealDish) -> Double { dish.nutrients.protein }
 
     /// What a meal being composed is worth, before it is saved. The flat rows
     /// cannot answer this: they carry no panel, so a labelled drink would be
-    /// worth its food group here and its label afterwards.
+    /// worth its ingredients here and its label afterwards.
     func protein(in dishes: [MealDish]) -> Double {
-        Protein.grams(in: dishes, gramsPerServing: config.proteinTable, foods: config.nutrientsPerGram)
+        dishes.reduce(0) { $0 + $1.nutrients.protein }
     }
 
     /// The one figure above a plate — protein, or the caffeine a label printed
     /// when there is no protein to report. See `PlateFigure`.
     func figure(for dishes: [MealDish], share: MealShare = .whole) -> PlateFigure {
-        PlateFigure.forPlate(dishes, share: share, gramsPerServing: config.proteinTable, foods: config.nutrientsPerGram)
+        PlateFigure.forPlate(dishes, share: share)
     }
 
-    func figure(for meal: MealEntry) -> PlateFigure {
-        PlateFigure.forMeal(meal, gramsPerServing: config.proteinTable, foods: config.nutrientsPerGram)
-    }
+    func figure(for meal: MealEntry) -> PlateFigure { PlateFigure.forMeal(meal) }
 
     /// What one saved meal contributed, share included — half a plate is half
     /// the protein, and that is the number the day was built from.
-    func protein(in meal: MealEntry) -> Double {
-        Protein.grams(in: meal, gramsPerServing: config.proteinTable, foods: config.nutrientsPerGram)
-    }
+    func protein(in meal: MealEntry) -> Double { meal.nutrients.protein }
 
     /// Nil until all required profile inputs are known. A missing input produces
     /// no reference rather than a default belonging to an imaginary person.
@@ -891,16 +909,10 @@ final class AppModel {
         )
     }
 
-    /// Where live dictation gets its short-lived key. Nil on a build with no
-    /// backend, which greys the mic rather than letting it fail after the tap.
+    /// Where live dictation gets its short-lived key. The account session in
+    /// this backend is the bearer credential used to mint it.
     var voiceKeySource: (any VoiceKeySource)? {
         backend.map(BackendVoiceKeys.init(backend:))
-    }
-
-    func setBackendToken(_ token: String?) {
-        try? keychain.set(token, for: .backendAPIToken)
-        rebuildRecognizer()
-        if token?.isEmpty == false, isSignedIn { syncEvents(loadedEvents) }
     }
 
     /// Persist the opaque proof and update the observable root gate. Kept as two
@@ -1128,11 +1140,11 @@ final class AppModel {
     /// records where it came from so the provenance survives a correction.
     func saveSharedDish(_ post: TablePost, ingredients: [PostIngredient]) async {
         let items = ingredients.map {
-            MealItem(kind: $0.kind, label: $0.label, dish: post.dishName, grams: $0.grams)
+            MealItem(label: $0.label, grams: $0.grams, per100g: $0.per100g)
         }
         let meal = MealEntry(
             eatenAt: Date().epochMillis,
-            items: items,
+            dishes: [MealDish(name: post.dishName, items: items)],
             source: .recipe,
             note: "Saved from \(post.authorName)'s \(post.dishName ?? "dish")",
             wasCorrected: false
@@ -1151,7 +1163,6 @@ final class AppModel {
 
     private func rebuildRecognizer() {
         guard let baseURL = backendBaseURL,
-              let token = backendToken,
               let deviceID = stableDeviceID()
         else {
             backend = nil
@@ -1161,7 +1172,6 @@ final class AppModel {
         }
         let session = BackendSession(configuration: .init(
             baseURL: baseURL,
-            token: token,
             deviceID: deviceID,
             sessionToken: (try? keychain.get(.sessionToken)) ?? nil,
             provider: provider
@@ -1176,15 +1186,6 @@ final class AppModel {
               !value.isEmpty
         else { return nil }
         return URL(string: value)
-    }
-
-    private var backendToken: String? {
-        if let saved = (try? keychain.get(.backendAPIToken)) ?? nil, !saved.isEmpty { return saved }
-        guard let bundled = Bundle.main.object(forInfoDictionaryKey: "EatsomeAPIToken") as? String,
-              !bundled.isEmpty,
-              !bundled.contains("$(")
-        else { return nil }
-        return bundled
     }
 
     private func stableDeviceID() -> String? {
@@ -1222,9 +1223,20 @@ final class AppModel {
     }
 
     private func synchronizeAccountHistory() async {
-        guard isSignedIn, !isSynchronizingAccount, let backend else { return }
+        guard isSignedIn, !isSynchronizingAccount, let backend else {
+            // Without an account there is no second copy, and a line this build
+            // cannot read can never be uploaded either — it cannot be decoded to
+            // send. Signing in is genuinely the only route back.
+            if case .pending = historyRestore, !isSignedIn {
+                historyRestore = .blocked(
+                    "Sign in to restore meals this version cannot read from local storage."
+                )
+            }
+            return
+        }
         isSynchronizingAccount = true
         defer { isSynchronizingAccount = false }
+        if case .pending = historyRestore { historyRestore = .restoring }
         do {
             if !loadedEvents.isEmpty { try await backend.syncEvents(loadedEvents) }
             let remote = try await backend.events()
@@ -1240,9 +1252,21 @@ final class AppModel {
                 }.map(\.element)
                 projection = Projection(replaying: loadedEvents)
             }
+            if historyRestore == .restoring {
+                // A restore that recovered nothing is not a restore. It means
+                // those events never reached the server — the device wrote them
+                // and was never signed in, or never synced — and no amount of
+                // retrying will produce them.
+                historyRestore = missing.isEmpty
+                    ? .blocked("\(skippedLogLines) meals could not be restored: they never reached the cloud.")
+                    : .restored(events: missing.count)
+            }
             await restoreMissingMealPhotos(using: backend)
             cloudError = nil
         } catch {
+            // A failed restore is still a pending one: the network is the
+            // reason, not the data, and the next launch should try again.
+            if historyRestore == .restoring { historyRestore = .pending(lines: skippedLogLines) }
             handleAccountError(error, prefix: "Cloud sync")
         }
     }

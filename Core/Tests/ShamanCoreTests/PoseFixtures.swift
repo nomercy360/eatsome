@@ -64,10 +64,10 @@ extension MealEntry {
     /// the wall clock.
     static let referenceNow: EpochMillis = 1_700_000_000_000
 
-    static func fixture(daysAgo: Double, _ items: [(FoodKind, Portion)]) -> MealEntry {
+    static func fixture(daysAgo: Double, _ foods: [(String, Double)]) -> MealEntry {
         MealEntry(
             eatenAt: referenceNow - EpochMillis(daysAgo * 86_400_000),
-            items: items.map { MealItem(kind: $0.0, portion: $0.1) },
+            dishes: [Fixture.dish(nil, foods.map { Fixture.item($0.0, grams: $0.1) })],
             source: .photo
         )
     }

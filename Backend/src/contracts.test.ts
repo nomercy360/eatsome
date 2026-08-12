@@ -1,18 +1,28 @@
 import { describe, expect, it } from "vitest";
 import {
+  ATWATER_TOLERANCE,
+  atwaterDelta,
   corpusItemRequestSchema,
-  flattenDishes,
   ingestEventsRequestSchema,
   mealRecognitionJsonSchema,
   mealRecognitionSchema,
   mealRevisionSchema,
+  normalizePanels,
   panelPerContainer,
   recognitionRequestSchema,
   refinementRequestSchema,
 } from "./contracts";
 
+const composition = {
+  protein: 4.5,
+  fat: 3.2,
+  carbohydrate: 12.1,
+  kcal: 95,
+  sodium_mg: 210,
+};
+
 describe("meal recognition contract", () => {
-  it("requires per-ingredient alternatives and the other-meals flag", () => {
+  it("requires a weight and a composition on every ingredient", () => {
     const parsed = mealRecognitionSchema.parse({
       dishes: [
         {
@@ -21,29 +31,26 @@ describe("meal recognition contract", () => {
           panel: null,
           ingredients: [
             {
-              kind: "poultry",
               grams: 140,
               label: "minced meat",
+              per_100g: composition,
               preparation: [],
-              composition_hints: [],
-              alternatives: [{ label: "beef mince", kind: "beef" }],
+              alternatives: [{ label: "beef mince", per_100g: composition }],
             },
           ],
         },
       ],
-      other_meals_visible: true,
-      notes: "Could be pork.",
     });
 
-    expect(parsed.dishes[0]?.ingredients[0]?.alternatives).toEqual([
-      { label: "beef mince", kind: "beef" },
-    ]);
-    expect(parsed.other_meals_visible).toBe(true);
+    expect(parsed.dishes[0]?.ingredients[0]?.per_100g.kcal).toBe(95);
+    // An alternative is priced too, so answering the one question the sentence
+    // raises is a local swap rather than a second call.
+    expect(parsed.dishes[0]?.ingredients[0]?.alternatives[0]?.per_100g).toEqual(composition);
 
     const jsonSchema = mealRecognitionJsonSchema();
     expect(jsonSchema).not.toHaveProperty("$schema");
-    expect(JSON.stringify(jsonSchema)).toContain("other_meals_visible");
-    expect(JSON.stringify(jsonSchema)).toContain("ingredients");
+    expect(JSON.stringify(jsonSchema)).toContain("per_100g");
+    expect(JSON.stringify(jsonSchema)).toContain("sodium_mg");
   });
 
   it("rejects an ingredient with no weight", () => {
@@ -58,24 +65,44 @@ describe("meal recognition contract", () => {
             count: 1,
             panel: null,
             ingredients: [
-              {
-                kind: "beer",
-                label: "beer",
-                preparation: [],
-                composition_hints: [],
-                alternatives: [],
-              },
+              { label: "beer", per_100g: composition, preparation: [], alternatives: [] },
             ],
           },
         ],
-        other_meals_visible: false,
-        notes: null,
       }),
     ).toThrow();
   });
 
+  it("rejects an ingredient with no composition", () => {
+    // The v21 counterpart of the rule above, and for the same reason: with
+    // nothing to fall back to, a missing figure has to be loud. There is no
+    // table behind this any more — a silently absent `per_100g` would be a meal
+    // worth zero calories.
+    expect(() =>
+      mealRecognitionSchema.parse({
+        dishes: [
+          {
+            name: "beer",
+            count: 1,
+            panel: null,
+            ingredients: [{ label: "beer", grams: 500, preparation: [], alternatives: [] }],
+          },
+        ],
+      }),
+    ).toThrow();
+  });
+
+  it("keeps the four macronutrients consistent with the energy figure", () => {
+    // The only check available with no table to compare against, and the
+    // replacement for the unresolved-grams signal that used to make a bad
+    // answer visible.
+    expect(atwaterDelta(composition)).toBeLessThan(ATWATER_TOLERANCE);
+    expect(atwaterDelta({ ...composition, kcal: 400 })).toBeGreaterThan(ATWATER_TOLERANCE);
+    expect(atwaterDelta({ ...composition, kcal: 0 })).toBeNull();
+  });
+
   it("passes weights through untouched and multiplies nothing", () => {
-    const flat = flattenDishes({
+    const payload = normalizePanels({
       dishes: [
         // Three beers: the count says three and the grams already hold all
         // three. Multiplying here is what made one bowl of ramen 126 g of
@@ -86,66 +113,28 @@ describe("meal recognition contract", () => {
           panel: null,
           ingredients: [
             {
-              kind: "beer",
               grams: 1_200,
               label: "beer",
+              per_100g: composition,
               preparation: [],
-              composition_hints: [],
-              alternatives: [],
-            },
-          ],
-        },
-        // One salad: mostly leaves, a drizzle of oil. Two dressed salads must
-        // not clear the 4 tbsp/day olive oil criterion between them.
-        {
-          name: "green salad",
-          count: 1,
-          panel: null,
-          ingredients: [
-            {
-              kind: "vegetable",
-              grams: 90,
-              label: "leaves",
-              preparation: ["raw"],
-              composition_hints: [],
-              alternatives: [],
-            },
-            {
-              kind: "oil",
-              grams: 8,
-              label: "olive oil",
-              preparation: [],
-              composition_hints: ["oil_based"],
               alternatives: [],
             },
           ],
         },
       ],
-      other_meals_visible: false,
-      notes: null,
     });
 
-    expect(flat.items.map((item) => [item.dish, item.kind, item.grams])).toEqual([
-      ["beer", "beer", 1_200],
-      ["green salad", "vegetable", 90],
-      ["green salad", "oil", 8],
-    ]);
-    // No arithmetic left to record. A client that finds a number here is
-    // reading a server that still multiplied.
-    expect(flat.items.every((item) => item.servings === null)).toBe(true);
-    // The dishes survive alongside the flat list a shipped build still reads.
-    expect(flat.dishes).toHaveLength(2);
+    expect(payload.dishes[0]?.ingredients[0]?.grams).toBe(1_200);
+    expect(payload.dishes[0]?.count).toBe(3);
   });
 });
 
 describe("meal refinement contract", () => {
   it("accepts a minimal delta against a numbered current list", () => {
     const request = refinementRequestSchema.parse({
-      // A hand-typed row has no weight to send, and says so rather than
-      // inventing one for the field.
       current: [
-        { kind: "poultry", grams: 160, label: "chicken" },
-        { kind: "vegetable", grams: null, label: "salad" },
+        { label: "chicken", grams: 160 },
+        { label: "salad leaves", grams: 40 },
       ],
       note: "fried in butter",
     });
@@ -154,11 +143,10 @@ describe("meal refinement contract", () => {
       mealRevisionSchema.parse({
         add: [
           {
-            kind: "butter_margarine",
-            grams: 12,
             label: "butter",
+            grams: 12,
+            per_100g: { protein: 0.9, fat: 81.1, carbohydrate: 0.1, kcal: 717, sodium_mg: 11 },
             preparation: [],
-            composition_hints: [],
             alternatives: [],
           },
         ],
@@ -170,15 +158,37 @@ describe("meal refinement contract", () => {
   });
 
   it("revises a weight, which is the correction that used to do nothing", () => {
-    // A revise carrying a portion could not move a weighed item: grams win in
-    // `effectiveServings`, so the delta applied and changed no quantity.
+    // A revise carrying a portion could not move a weighed item: grams won, so
+    // the delta applied and changed no quantity anyone could see.
     const revision = mealRevisionSchema.parse({
       add: [],
-      revise: [{ index: 1, kind: "egg", grams: 100, preparation: [], composition_hints: [] }],
+      revise: [
+        {
+          index: 1,
+          label: "boiled egg",
+          grams: 100,
+          per_100g: { protein: 12.6, fat: 10.6, carbohydrate: 1.1, kcal: 155, sodium_mg: 124 },
+          preparation: ["boiled"],
+        },
+      ],
       remove: [],
       notes: null,
     });
     expect(revision.revise[0]?.grams).toBe(100);
+  });
+
+  it("refuses a revision that moves a food without restating its figures", () => {
+    // Stored numbers plus editable rows can desync. A row renamed from
+    // "chicken" to "fried chicken" whose composition stayed behind is worse
+    // than an uncorrected one, because it looks corrected.
+    expect(() =>
+      mealRevisionSchema.parse({
+        add: [],
+        revise: [{ index: 1, label: "fried chicken", grams: 180, preparation: ["deep_fried"] }],
+        remove: [],
+        notes: null,
+      }),
+    ).toThrow();
   });
 });
 

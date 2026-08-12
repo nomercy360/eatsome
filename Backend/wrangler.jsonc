@@ -5,13 +5,7 @@
   "compatibility_date": "2026-08-04",
   "compatibility_flags": ["nodejs_compat"],
   "secrets": {
-    "required": [
-      "OPENAI_API_KEY",
-      "GEMINI_API_KEY",
-      "ANTHROPIC_API_KEY",
-      "QWEN_API_KEY",
-      "EATSOME_API_TOKEN"
-    ]
+    "required": ["OPENAI_API_KEY", "GEMINI_API_KEY", "ANTHROPIC_API_KEY", "QWEN_API_KEY"]
   },
   "vars": {
     "ACCOUNT_ID": "anonymous",
@@ -31,7 +25,7 @@
     "QWEN_RECOGNITION_MODEL": "qwen3.7-flash",
     "QWEN_BASE_URL": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
     "OPENAI_IMAGE_DETAIL": "high",
-    "MEAL_PROMPT_VERSION": "meal-v20-2026-08-12",
+    "MEAL_PROMPT_VERSION": "meal-v21-2026-08-12",
     "RECOGNITIONS_PER_DAY": "400",
     "RECOGNITIONS_PER_DEVICE_PER_DAY": "40"
   },

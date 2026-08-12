@@ -173,12 +173,27 @@ struct MealFixSheet: View {
                 refineFailure = "I couldn't tell what to change from that. Try naming the food in a few plain words."
                 return
             }
-            draft.items = revision.applied(to: draft.items)
-            if !dishes.isEmpty {
-                let regrouped = MealDish.regrouped(draft.items, keeping: dishes)
-                dishes = regrouped
-                draft.items = regrouped.flatMap { $0.flattened() }
+            // The delta addresses rows by position in the flat list. Survivors
+            // go back where they came from by id; anything the correction added
+            // lands in one unnamed dish, because guessing which dish a new food
+            // joined would silently change a count.
+            let corrected = revision.applied(to: draft.items)
+            let byID = Dictionary(uniqueKeysWithValues: corrected.map { ($0.id, $0) })
+            var placed = Set<UUID>()
+            var regrouped = draft.dishes.map { dish -> MealDish in
+                var copy = dish
+                copy.items = dish.items.compactMap { original in
+                    guard let updated = byID[original.id] else { return nil }
+                    placed.insert(original.id)
+                    return updated
+                }
+                return copy
             }
+            .filter { !$0.items.isEmpty }
+            let added = corrected.filter { !placed.contains($0.id) }
+            if !added.isEmpty { regrouped.append(MealDish(name: nil, items: added)) }
+            draft.dishes = regrouped
+            dishes = regrouped
             draft.note = text
             readNote = text
         } catch {

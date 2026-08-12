@@ -9,7 +9,7 @@ struct DishLibraryTests {
         _ name: String,
         daysAgo: Double,
         hour: Int,
-        kind: FoodKind = .legume,
+        label: String = "white rice",
         grams: Double = 300
     ) -> MealEntry {
         var day = Date(epochMillis: MealEntry.referenceNow - EpochMillis(daysAgo * 86_400_000))
@@ -18,12 +18,11 @@ struct DishLibraryTests {
         parts.minute = 0
         day = Calendar.current.date(from: parts) ?? day
 
-        let dish = MealDish(name: name, items: [MealItem(kind: kind, grams: grams)])
+        let dish = MealDish(name: name, items: [Fixture.item(label, grams: grams)])
         return MealEntry(
             eatenAt: day.epochMillis,
-            items: dish.flattened(),
-            source: .photo,
-            storedDishes: [dish]
+            dishes: [dish],
+            source: .photo
         )
     }
 
@@ -97,12 +96,11 @@ struct DishLibraryTests {
     func unnamedDishesAreSkipped() {
         // `MealDish.regrouped` files anything a correction added under "", and
         // an empty chip is not something anyone can tap.
-        let dish = MealDish(name: "", items: [MealItem(kind: .oil, grams: 10)])
+        let dish = MealDish(name: nil, items: [Fixture.item("olive oil", grams: 10)])
         let orphan = MealEntry(
             eatenAt: MealEntry.referenceNow,
-            items: dish.flattened(),
-            source: .photo,
-            storedDishes: [dish]
+            dishes: [dish],
+            source: .photo
         )
         #expect(DishLibrary.entries(in: [orphan]).isEmpty)
     }
@@ -117,7 +115,7 @@ struct DishLibraryTests {
         #expect(entry.lastLogged.items.first?.grams == 320, "the newest logging is the one repeated")
 
         let fresh = entry.newMeal(eatenAt: MealEntry.referenceNow)
-        #expect(fresh.storedDishes?.first?.name == "lentil soup")
+        #expect(fresh.dishes.first?.name == "lentil soup")
         #expect(fresh.items.first?.grams == 320)
         #expect(fresh.source == .recipe)
 

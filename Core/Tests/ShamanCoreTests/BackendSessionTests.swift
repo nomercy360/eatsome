@@ -40,7 +40,8 @@ struct BackendSessionTests {
         #expect(events.last?.payload == last.payload)
         #expect(events.last?.sourceDeviceId == "another-phone")
         #expect(requests.count == 2)
-        #expect(requests[0].value(forHTTPHeaderField: "X-Session-Token") == "account-session")
+        #expect(requests[0].value(forHTTPHeaderField: "Authorization") == "Bearer account-session")
+        #expect(requests[0].value(forHTTPHeaderField: "X-Session-Token") == nil)
         let secondQuery = URLComponents(url: try #require(requests[1].url), resolvingAgainstBaseURL: false)
         #expect(secondQuery?.queryItems?.contains { $0.name == "cursor" && $0.value == "page-1" } == true)
     }
@@ -66,8 +67,7 @@ struct BackendSessionTests {
         )
 
         #expect(result.sessionToken == "fresh")
-        #expect(request?.value(forHTTPHeaderField: "X-Session-Token") == nil)
-        #expect(request?.value(forHTTPHeaderField: "Authorization") == "Bearer build-token")
+        #expect(request?.value(forHTTPHeaderField: "Authorization") == nil)
     }
 
     @Test("Re-upload strips read-only source-device provenance")
@@ -108,7 +108,8 @@ struct BackendSessionTests {
 
         #expect(received == expected)
         #expect(request?.url?.path == "/api/v1/media/\(hash.lowercased())")
-        #expect(request?.value(forHTTPHeaderField: "X-Session-Token") == "account-session")
+        #expect(request?.value(forHTTPHeaderField: "Authorization") == "Bearer account-session")
+        #expect(request?.value(forHTTPHeaderField: "X-Session-Token") == nil)
     }
 
     private func backend() -> BackendSession {
@@ -117,7 +118,6 @@ struct BackendSessionTests {
         return BackendSession(
             configuration: .init(
                 baseURL: URL(string: "https://example.test/api/v1")!,
-                token: "build-token",
                 deviceID: "phone-device-id",
                 sessionToken: "account-session"
             ),

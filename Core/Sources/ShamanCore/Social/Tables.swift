@@ -145,8 +145,8 @@ public struct TablePost: Codable, Sendable, Hashable, Identifiable {
         guard let ingredients, !ingredients.isEmpty else { return "" }
         var seen: [String] = []
         for row in ingredients {
-            let name = row.label?.trimmingCharacters(in: .whitespaces)
-            let text = (name?.isEmpty == false ? name! : row.kind.shortName)
+            let text = row.label.trimmingCharacters(in: .whitespaces)
+            guard !text.isEmpty else { continue }
             if !seen.contains(where: { $0.caseInsensitiveCompare(text) == .orderedSame }) {
                 seen.append(text)
             }
@@ -156,35 +156,26 @@ public struct TablePost: Codable, Sendable, Hashable, Identifiable {
 }
 
 /// One shared ingredient, and the whole of what a friend's card may say about
-/// food: kind, weight, label. No portion, no alternatives, no evidence, and
-/// nothing derived — a friend's card answers "what's in it", never "how did
-/// they do".
+/// food: what it was and how much of it. No alternatives, no provenance, no
+/// evidence — a friend's card answers "what's in it", never "how did they do".
+///
+/// Composition rides along because the reader has no table to look it up in.
+/// That was true before v21 too; it simply used to be hidden by the fact that
+/// both devices shipped the same one.
 public struct PostIngredient: Codable, Sendable, Hashable {
-    public let kind: FoodKind
-    public let grams: Double?
-    public let label: String?
+    public let label: String
+    public let grams: Double
+    public let per100g: Nutrients
 
-    public init(kind: FoodKind, grams: Double?, label: String?) {
-        self.kind = kind
-        self.grams = grams
+    public init(label: String, grams: Double, per100g: Nutrients) {
         self.label = label
+        self.grams = grams
+        self.per100g = per100g
     }
 
-    private enum CodingKeys: String, CodingKey { case kind, group, grams, label }
-
-    public init(from decoder: any Decoder) throws {
-        let values = try decoder.container(keyedBy: CodingKeys.self)
-        kind = try values.decodeIfPresent(FoodKind.self, forKey: .kind)
-            ?? values.decode(FoodKind.self, forKey: .group)
-        grams = try values.decodeIfPresent(Double.self, forKey: .grams)
-        label = try values.decodeIfPresent(String.self, forKey: .label)
-    }
-
-    public func encode(to encoder: any Encoder) throws {
-        var values = encoder.container(keyedBy: CodingKeys.self)
-        try values.encode(kind, forKey: .kind)
-        try values.encodeIfPresent(grams, forKey: .grams)
-        try values.encodeIfPresent(label, forKey: .label)
+    private enum CodingKeys: String, CodingKey {
+        case label, grams
+        case per100g = "per_100g"
     }
 }
 
@@ -372,6 +363,6 @@ extension MealEntry {
     /// nothing about the food.
     public func shareable(showingIngredients: Bool) -> [PostIngredient]? {
         guard showingIngredients else { return nil }
-        return items.map { PostIngredient(kind: $0.kind, grams: $0.grams, label: $0.label) }
+        return items.map { PostIngredient(label: $0.label, grams: $0.grams, per100g: $0.per100g) }
     }
 }

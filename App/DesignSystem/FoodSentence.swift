@@ -123,12 +123,12 @@ extension FoodSentence {
     /// sheet titled "Untitled dish".
     static func words(for dishes: [MealDish], uncertain: Set<UUID> = []) -> [Word] {
         dishes.flatMap { dish -> [Word] in
-            let name = dish.name.trimmingCharacters(in: .whitespacesAndNewlines)
+            let name = (dish.name ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             guard !name.isEmpty else {
                 return dish.items.map { item in
                     Word(
                         id: item.id,
-                        text: FoodPhrase.word(for: item.kind, label: item.label),
+                        text: FoodPhrase.word(for: item),
                         isUncertain: uncertain.contains(item.id)
                     )
                 }
@@ -146,13 +146,14 @@ extension FoodSentence {
     }
 }
 
-/// Builds the sentence's words from whatever the app currently believes the
-/// meal is. The model's own label wins when it has one — "french toast" is
-/// what you recognise; "Refined grains" is what it counts as.
+/// Builds the sentence's words from what the app believes the meal is.
+///
+/// Until v21 this fell back to a food kind's `sentenceName` when the model gave
+/// no label — "french toast" is what you recognise, "Refined grains" is what it
+/// counted as. There is no taxonomy to fall back to now, and no need for one:
+/// `label` is required.
 enum FoodPhrase {
-    static func word(for kind: FoodKind, label: String?) -> String {
-        let trimmed = label?.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let trimmed, !trimmed.isEmpty { return trimmed.lowercased() }
-        return kind.sentenceName
+    static func word(for item: MealItem) -> String {
+        item.label.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
 }

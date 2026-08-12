@@ -1,0 +1,27 @@
+{
+  "id": "bibimbap-2026-08-07",
+  "photo": "IMG_3263.jpeg",
+  "source": "canteen board",
+  "published": {
+    "kcal": 670,
+    "protein_g": 24,
+    "carbohydrate_g": 100,
+    "salt_g": 4
+  },
+  "excludes": ["miso soup", "soy-marinated egg", "seasoned egg", "boiled egg", "tea"],
+  "items": [
+    {
+      "label": "white rice",
+      "grams": 250
+    },
+    {
+      "label": "pork",
+      "grams": 100
+    },
+    {
+      "label": "namul",
+      "grams": 80
+    }
+  ],
+  "note": "Tray holds the bowl, a miso soup, a soy-marinated egg in its own cup, and two glasses of tea. The board's figure is the bowl only. Exclusions match the DISH name first, which is how the model groups a tray \u2014 it calls the egg 'soy-marinated egg', not 'seasoned egg'. The bowl is rice under sauteed namul (spinach, bean sprouts, carrot) with glazed pork and a few pickled red berries."
+}

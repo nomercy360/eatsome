@@ -34,6 +34,7 @@ struct TodayView: View {
                 header
                 ScrollView {
                     VStack(spacing: WellieTheme.cardSpacing) {
+                        restoreBanner
                         counter
                         week
                         NutrientCard(
@@ -81,6 +82,49 @@ struct TodayView: View {
             // push exists.
             Task { await model.synchronizeAccount() }
         }
+    }
+
+    /// Meals this build cannot read out of local storage, and what is being
+    /// done about it.
+    ///
+    /// v21 reads only v21, so an upgrade finds a log full of lines it must skip.
+    /// Recovery is a download from the account — but an app that recovers
+    /// silently and an app that has quietly lost your history look identical
+    /// while it is happening, and identical forever if it fails. So it says so.
+    @ViewBuilder
+    private var restoreBanner: some View {
+        switch model.historyRestore {
+        case .notNeeded, .restored:
+            EmptyView()
+        case .pending(let lines):
+            banner(
+                "Restoring your history",
+                detail: "\(lines) meals are being downloaded from your account.",
+                tint: WellieTheme.muted
+            )
+        case .restoring:
+            banner(
+                "Restoring your history",
+                detail: "Downloading from your account…",
+                tint: WellieTheme.muted
+            )
+        case .blocked(let reason):
+            banner("Some meals are missing", detail: reason, tint: WellieTheme.danger)
+        }
+    }
+
+    private func banner(_ title: String, detail: String, tint: Color) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(WellieTheme.font(15, weight: .semibold))
+                .foregroundStyle(WellieTheme.ink)
+            Text(detail)
+                .font(WellieTheme.font(12.5, weight: .medium))
+                .foregroundStyle(tint)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .wellieCard()
     }
 
     private var removalConfirmationPresented: Binding<Bool> {
@@ -242,7 +286,7 @@ private struct DayDot: View {
 /// exact failure this whole design is arranged against. It stays on the meal
 /// detail, where it is printed as `≥` with no ceiling beside it.
 private struct NutrientCard: View {
-    let total: NutrientTotal
+    let total: Nutrients
     let targets: DailyTargets?
     let onSetUp: () -> Void
 
@@ -250,28 +294,28 @@ private struct NutrientCard: View {
         VStack(spacing: 16) {
             NutrientMeter(
                 name: "Energy",
-                value: total.nutrients.kcal,
+                value: total.kcal,
                 target: targets.map { .point($0.kcal) },
                 unit: "kcal",
                 tint: WellieTheme.accent
             )
             NutrientMeter(
                 name: "Protein",
-                value: total.nutrients.protein,
+                value: total.protein,
                 target: targets.map { .point($0.protein) },
                 unit: "g",
                 tint: WellieTheme.protein
             )
             NutrientMeter(
                 name: "Carbs",
-                value: total.nutrients.carbohydrate,
+                value: total.carbohydrate,
                 target: targets.map { .band($0.carbohydrateRange) },
                 unit: "g",
                 tint: WellieTheme.accent
             )
             NutrientMeter(
                 name: "Fat",
-                value: total.nutrients.fat,
+                value: total.fat,
                 target: targets.map { .band($0.fatRange) },
                 unit: "g",
                 tint: WellieTheme.accent
@@ -289,16 +333,6 @@ private struct NutrientCard: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-            } else if let attention = total.foodMatchAttention {
-                // A day totalled from the part of the plate that resolved is
-                // not a small error, it is a different number wearing the same
-                // label — and unlike a missing figure it is invisible. Every
-                // screen showing a total has to surface this.
-                Text(attention + " Today's figures exclude unresolved food.")
-                    .font(WellieTheme.font(12, weight: .regular))
-                    .foregroundStyle(WellieTheme.attention)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .wellieCard(padding: 20)
@@ -448,7 +482,7 @@ struct MealRow: View {
 
     private var subtitle: String {
         var parts = [DayFormat.time(meal.eatenAt)]
-        let total = model.nutrients(in: meal).nutrients
+        let total = meal.nutrients
         if total.kcal.rounded() > 0 { parts.append("\(Int(total.kcal.rounded())) kcal") }
         if total.protein.rounded() > 0 { parts.append("\(Int(total.protein.rounded())) g protein") }
         if meal.eaten != .whole { parts.append(meal.eaten.chipName.lowercased()) }

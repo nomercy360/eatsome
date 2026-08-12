@@ -75,7 +75,7 @@ struct DaySheet: View {
             WellieSectionTitle(text: isToday ? "Counted today" : "Counted")
 
             FlowLayout(spacing: 7, lineSpacing: 7) {
-                ForEach(counted, id: \.kind) { entry in
+                ForEach(counted, id: \.label) { entry in
                     WellieChip(text: entry.label)
                 }
                 // Protein sits in the same row as the food it came from, as one
@@ -83,49 +83,33 @@ struct DaySheet: View {
                 // because it is the only one of the five that is a floor — the
                 // rest are ranges, and four more numbers in a chip row would say
                 // they were all targets to hit.
-                WellieChip(text: "Protein \(Int(total.nutrients.protein.rounded())) g", style: .outline)
+                WellieChip(text: "Protein \(Int(total.protein.rounded())) g", style: .outline)
             }
 
-            if let attention = total.foodMatchAttention {
-                // A partial total that does not say it is partial is the exact
-                // failure this whole design is arranged against.
-                Text(attention + " Edit that food to complete these figures.")
-                    .font(WellieTheme.font(12, weight: .medium))
-                    .foregroundStyle(WellieTheme.attention)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
         }
         .wellieCard()
     }
 
-    /// Each food kind with the number of times it appeared, in the order it was
-    /// first eaten. "Sweets ½" in the mock is a half serving, so the count is
-    /// servings rather than rows.
-    private var counted: [(kind: FoodKind, label: String)] {
-        var order: [FoodKind] = []
-        var servings: [FoodKind: Double] = [:]
+    /// Each food with the weight of it eaten that day, in the order it first
+    /// appeared.
+    ///
+    /// Weight rather than servings: `servings(of:)` counted a food kind against
+    /// a per-kind serving table, and both went with the taxonomy in v21. Grams
+    /// are what the app actually observes.
+    private var counted: [(label: String, text: String)] {
+        var order: [String] = []
+        var grams: [String: Double] = [:]
         for meal in meals.sorted(by: { $0.eatenAt < $1.eatenAt }) {
-            for kind in meal.items.map(\.kind) where servings[kind] == nil {
-                order.append(kind)
-                servings[kind] = 0
+            for item in meal.items {
+                let name = item.label.lowercased()
+                if grams[name] == nil { order.append(name) }
+                grams[name, default: 0] += item.grams * meal.eaten.factor
             }
         }
-        for kind in order {
-            servings[kind] = meals.reduce(0) { $0 + $1.servings(of: kind) }
+        return order.compactMap { name in
+            guard let weight = grams[name], weight > 0 else { return nil }
+            return (name, "\(name) \(Int(weight.rounded())) g")
         }
-
-        return order.compactMap { kind in
-            guard let amount = servings[kind], amount > 0 else { return nil }
-            return (kind, "\(kind.shortName)\(Self.quantity(amount))")
-        }
-    }
-
-    /// Nothing for one serving, "×3" for three, "½" for a half. A bare name is
-    /// the common case and a suffix on every chip would be noise.
-    private static func quantity(_ servings: Double) -> String {
-        if servings < 0.75 { return " ½" }
-        let rounded = Int(servings.rounded())
-        return rounded > 1 ? " ×\(rounded)" : ""
     }
 
     // MARK: - The meals

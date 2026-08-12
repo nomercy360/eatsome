@@ -2,109 +2,52 @@ import Foundation
 
 /// What we ask the model for, and the only thing we let it tell us.
 ///
-/// No calories and no macros. Weight is the one quantity asked for, because it
-/// is the one a photograph actually shows: an amount of food, not an amount of
-/// "serving". Measured on 220 weighed dishes it beat the portion ladder by 11
-/// points of median error and corrected a systematic under-read.
+/// Two numbers per food and nothing else: the weight on the plate, and the
+/// composition per 100 g of that food. v20 asked only for weight and looked the
+/// composition up in a table shipped with the app; measured against the table's
+/// own sourced rows, the model reproduces published composition at 0–3% median
+/// error, while the lookup left 78% of logged grams unresolved because a free
+/// text label rarely matches a table key. See `Backend/eval/composition-recall-poc.ts`.
 ///
-/// Grams are absolute — everything of that ingredient on the plate — so nothing
-/// multiplies them by the dish's count afterwards. Fat, carbohydrate and
-/// calories are still never requested: a weight is an observation, and those are
-/// a nutrition database's answer, not a model's.
+/// Weight is still the load-bearing figure and still the hard one — a photograph
+/// shows an amount of food, and that is where the error lives. Composition is a
+/// food database's answer, and the model has evidently read the database.
 ///
-/// It is also the *only* quantity asked for. `portion` and `size` were requested
-/// alongside grams until v17 and then always lost to them, which made the coarse
-/// answer tokens spent on something nothing read — and hid, for a month, that
-/// the production Gemini schema was returning no weight at all.
+/// Grams are absolute — everything of that ingredient present, across every
+/// serving — so nothing multiplies them by the dish count afterwards.
 public struct MealRecognition: Codable, Sendable, Hashable {
     public struct Item: Codable, Sendable, Hashable {
-        public let kind: FoodKind
-        public let label: String?
+        /// The food, in words. Required: it is the whole identity now.
+        public let label: String
+        /// The edible weight present, across every serving.
+        public let grams: Double
+        /// Composition per 100 g of this food, as prepared.
+        public let per100g: Nutrients
         public let preparation: [PreparationMethod]
-        public let compositionHints: [CompositionHint]
-        /// Rival foods, not merely rival top-level classes. Keeping the name and
-        /// kind together makes "pork" versus "beef" actionable while allowing
-        /// two alternatives inside the same kind.
+        /// Rival readings, each priced, so answering the one question the
+        /// sentence raises is a local swap rather than another call.
         public let alternatives: [FoodAlternative]
-        /// The dish this ingredient came out of. Absent from answers produced
-        /// before dishes existed, and from cache files written then.
-        public let dish: String?
-        /// Always nil from v17 on: the server has no arithmetic left to do. Read
-        /// only so an answer cached under an older prompt still reads the way
-        /// it did when it was bought.
-        public let servings: Double?
-        /// The edible weight of this ingredient on the plate, and the quantity.
-        ///
-        /// Still optional, and only for cache files written before grams were
-        /// asked for — a required field would throw all of them away. Nothing
-        /// the current contract returns has a nil here.
-        public let grams: Double?
 
         public init(
-            kind: FoodKind,
-            label: String?,
+            label: String,
+            grams: Double,
+            per100g: Nutrients,
             preparation: [PreparationMethod] = [],
-            compositionHints: [CompositionHint] = [],
-            alternatives: [FoodAlternative] = [],
-            dish: String? = nil,
-            servings: Double? = nil,
-            grams: Double? = nil
+            alternatives: [FoodAlternative] = []
         ) {
-            self.kind = kind
             self.label = label
-            self.preparation = preparation
-            self.compositionHints = compositionHints
-            self.alternatives = alternatives
-            self.dish = dish
-            self.servings = servings
             self.grams = grams
+            self.per100g = per100g
+            self.preparation = preparation
+            self.alternatives = alternatives
         }
 
         private enum CodingKeys: String, CodingKey {
-            case kind, group, label, preparation, alternatives, dish, portion, servings, grams
-            case compositionHints = "composition_hints"
-        }
-
-        public init(from decoder: any Decoder) throws {
-            let values = try decoder.container(keyedBy: CodingKeys.self)
-            kind = try values.decodeIfPresent(FoodKind.self, forKey: .kind)
-                ?? values.decode(FoodKind.self, forKey: .group)
-            label = try values.decodeIfPresent(String.self, forKey: .label)
-            preparation = try values.decodeIfPresent([PreparationMethod].self, forKey: .preparation) ?? []
-            compositionHints = try values.decodeIfPresent([CompositionHint].self, forKey: .compositionHints) ?? []
-            if let structured = try? values.decode([FoodAlternative].self, forKey: .alternatives) {
-                alternatives = structured
-            } else {
-                let legacy = (try? values.decode([FoodKind].self, forKey: .alternatives)) ?? []
-                alternatives = legacy.map { FoodAlternative(label: $0.displayName, kind: $0) }
-            }
-            dish = try values.decodeIfPresent(String.self, forKey: .dish)
-            if let stored = try values.decodeIfPresent(Double.self, forKey: .servings) {
-                servings = stored
-            } else {
-                // TAXONOMY_BRIDGE_REMOVE_AFTER_V20_AUDIT: recognition caches
-                // before v17 stored the portion ladder instead of grams.
-                servings = try values.decodeIfPresent(Portion.self, forKey: .portion)?.servings
-            }
-            grams = try values.decodeIfPresent(Double.self, forKey: .grams)
-        }
-
-        public func encode(to encoder: any Encoder) throws {
-            var values = encoder.container(keyedBy: CodingKeys.self)
-            try values.encode(kind, forKey: .kind)
-            try values.encodeIfPresent(label, forKey: .label)
-            try values.encode(preparation, forKey: .preparation)
-            try values.encode(compositionHints, forKey: .compositionHints)
-            try values.encode(alternatives, forKey: .alternatives)
-            try values.encodeIfPresent(dish, forKey: .dish)
-            try values.encodeIfPresent(servings, forKey: .servings)
-            try values.encodeIfPresent(grams, forKey: .grams)
+            case label, grams, preparation, alternatives
+            case per100g = "per_100g"
         }
     }
 
-    /// The named things the model saw, when it was asked for dishes. Nil for a
-    /// cache file or a build from before dishes, which is why `items` — the
-    /// flattened list — remains what nutrition and meal ratings derive from.
     public struct Dish: Codable, Sendable, Hashable {
         public let name: String
         /// How many servings of this dish. A label on the weights below rather
@@ -127,82 +70,45 @@ public struct MealRecognition: Codable, Sendable, Hashable {
         }
     }
 
-    public let items: [Item]
-    public let dishes: [Dish]?
-    /// True when food outside the primary, closest tray/place setting was
-    /// deliberately ignored. The correction UI must ask whether it belongs to
-    /// the user before saving.
-    public let otherMealsVisible: Bool
-    public let notes: String?
+    public let dishes: [Dish]
 
-    public init(items: [Item], dishes: [Dish]? = nil, otherMealsVisible: Bool, notes: String?) {
-        self.items = items
+    public init(dishes: [Dish]) {
         self.dishes = dishes
-        self.otherMealsVisible = otherMealsVisible
-        self.notes = notes
     }
 
-    /// The dishes as they will be stored, with the flat list derived from them
-    /// by `MealDish.flattened()` and nowhere else. Nil when the answer had no
-    /// dishes, in which case `asMealItems()` is the whole meal.
-    public func asMealDishes() -> [MealDish]? {
-        dishes.map { dishes in
-            dishes.map { dish in
-                MealDish(
-                    name: dish.name,
-                    count: dish.count,
-                    panel: (dish.panel?.isEmpty ?? true) ? nil : dish.panel,
-                    items: dish.ingredients.map {
-                        MealItem(
-                            kind: $0.kind,
-                            label: $0.label,
-                            modelAlternatives: $0.alternatives,
-                            preparation: $0.preparation,
-                            compositionHints: $0.compositionHints,
-                            grams: $0.grams
-                        )
-                    }
-                )
-            }
-        }
-    }
-
-    public func asMealItems() -> [MealItem] {
-        items.map {
-            MealItem(
-                kind: $0.kind,
-                label: $0.label,
-                modelAlternatives: $0.alternatives,
-                preparation: $0.preparation,
-                compositionHints: $0.compositionHints,
-                dish: $0.dish,
-                servings: $0.servings,
-                grams: $0.grams
+    /// The meal as it will be stored.
+    ///
+    /// A printed panel is a fact about the item in front of the camera, so the
+    /// figures it settled are marked `panel` and the rest stay `model`. That is
+    /// the whole of the provenance decision at recognition time; `published` and
+    /// `user` arrive later, from grounding and from corrections.
+    public func asMealDishes() -> [MealDish] {
+        dishes.map { dish in
+            let panel = (dish.panel?.isEmpty ?? true) ? nil : dish.panel
+            let stored = MealDish(
+                name: dish.name.isEmpty ? nil : dish.name,
+                count: dish.count,
+                panel: panel,
+                items: dish.ingredients.map {
+                    MealItem(
+                        label: $0.label,
+                        grams: $0.grams,
+                        per100g: $0.per100g,
+                        provenance: .model,
+                        preparation: $0.preparation,
+                        alternatives: $0.alternatives
+                    )
+                }
             )
+            guard let sources = stored.panelSources else { return stored }
+            var marked = stored
+            marked.items = stored.items.map {
+                var item = $0
+                item.provenance = sources
+                return item
+            }
+            return marked
         }
-    }
-
-    private enum CodingKeys: String, CodingKey {
-        case items
-        case dishes
-        case otherMealsVisible = "other_meals_visible"
-        case notes
-    }
-
-    public init(from decoder: any Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        items = try container.decodeIfPresent([Item].self, forKey: .items) ?? []
-        dishes = try container.decodeIfPresent([Dish].self, forKey: .dishes)
-        otherMealsVisible = try container.decodeIfPresent(Bool.self, forKey: .otherMealsVisible) ?? false
-        notes = try container.decodeIfPresent(String.self, forKey: .notes)
-    }
-
-    public func encode(to encoder: any Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(items, forKey: .items)
-        try container.encodeIfPresent(dishes, forKey: .dishes)
-        try container.encode(otherMealsVisible, forKey: .otherMealsVisible)
-        try container.encodeIfPresent(notes, forKey: .notes)
     }
 }
 
@@ -365,35 +271,43 @@ public enum MealPrompt {
     /// silently truncate a genuine four-way ambiguity, and the client already
     /// shows only the first few.
     public static var jsonSchema: [String: Any] {
-        let kind: [String: Any] = ["type": "string", "enum": FoodKind.allCases.map(\.rawValue)]
+        let composition: [String: Any] = [
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["protein", "fat", "carbohydrate", "kcal", "sodium_mg"],
+            "description": "Composition per 100 g of edible portion, as prepared. Never for the stated weight.",
+            "properties": [
+                "protein": ["type": "number", "description": "Grams per 100 g."],
+                "fat": ["type": "number", "description": "Grams per 100 g."],
+                "carbohydrate": ["type": "number", "description": "Grams per 100 g."],
+                "kcal": ["type": "number", "description": "Kilocalories per 100 g."],
+                "sodium_mg": ["type": "number", "description": "Milligrams per 100 g."]
+            ]
+        ]
         let alternative: [String: Any] = [
             "type": "object",
             "additionalProperties": false,
-            "required": ["label", "kind"],
+            "required": ["label", "per_100g"],
             "properties": [
                 "label": ["type": "string"],
-                "kind": kind
+                "per_100g": composition
             ]
         ]
         let ingredient: [String: Any] = [
             "type": "object",
             "additionalProperties": false,
-            "required": ["kind", "grams", "label", "preparation", "composition_hints", "alternatives"],
+            "required": ["label", "grams", "per_100g", "preparation", "alternatives"],
             "properties": [
-                "kind": kind,
+                "label": ["type": "string", "description": "Short, specific food name. Required — it is the whole identity."],
                 "grams": ["type": "number", "description": gramsDescription],
-                "label": ["type": "string", "description": "Short, specific food name."],
+                "per_100g": composition,
                 "preparation": [
                     "type": "array",
                     "items": ["type": "string", "enum": PreparationMethod.allCases.map(\.rawValue)]
                 ],
-                "composition_hints": [
-                    "type": "array",
-                    "items": ["type": "string", "enum": CompositionHint.allCases.map(\.rawValue)]
-                ],
                 "alternatives": [
                     "type": "array",
-                    "description": "Other plausible foods, most likely first. Empty when obvious.",
+                    "description": "Other plausible foods, most likely first, each priced. Empty when obvious. At most three.",
                     "items": alternative
                 ]
             ]
@@ -421,7 +335,7 @@ public enum MealPrompt {
         return [
             "type": "object",
             "additionalProperties": false,
-            "required": ["dishes", "other_meals_visible", "notes"],
+            "required": ["dishes"],
             "properties": [
                 "dishes": [
                     "type": "array",
@@ -436,14 +350,6 @@ public enum MealPrompt {
                             "ingredients": ["type": "array", "items": ingredient]
                         ]
                     ]
-                ],
-                "other_meals_visible": [
-                    "type": "boolean",
-                    "description": "True when food on another tray or place setting was deliberately ignored."
-                ],
-                "notes": [
-                    "type": ["string", "null"],
-                    "description": "Ambiguities worth a human glance. Null if none."
                 ]
             ]
         ]

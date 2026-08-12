@@ -41,7 +41,7 @@ struct DishSheet: View {
         self.onCount = onCount
         self.onRemove = onRemove
         _count = State(initialValue: dish.count)
-        _draftName = State(initialValue: dish.name)
+        _draftName = State(initialValue: dish.name ?? "")
     }
 
     var body: some View {
@@ -95,7 +95,7 @@ struct DishSheet: View {
                 guard !trimmed.isEmpty else { return }
                 onRename(trimmed)
             }
-            Button("Cancel", role: .cancel) { draftName = dish.name }
+            Button("Cancel", role: .cancel) { draftName = dish.name ?? "" }
         } message: {
             Text("What you'd call it out loud. This is the name it comes back under.")
         }
@@ -106,7 +106,7 @@ struct DishSheet: View {
         VStack(alignment: .leading, spacing: 4) {
             Button { isRenaming = true } label: {
                 HStack(spacing: 9) {
-                    Text(dish.name.isEmpty ? "Untitled dish" : dish.name)
+                    Text((dish.name ?? "").isEmpty ? "Untitled dish" : (dish.name ?? ""))
                         .font(WellieTheme.font(21, weight: .bold))
                         .foregroundStyle(WellieTheme.ink)
                         .multilineTextAlignment(.leading)
@@ -137,25 +137,28 @@ struct DishSheet: View {
     private var descriptor: String {
         var parts: [String] = []
         if dish.items.count == 1, let only = dish.items.first {
-            parts.append(FoodPhrase.word(for: only.kind, label: only.label).localizedCapitalized)
+            parts.append(FoodPhrase.word(for: only).localizedCapitalized)
         } else if !dish.items.isEmpty {
             parts.append("\(dish.items.count) ingredients")
         }
-        if let counts = groupSummary { parts.append("counts toward \(counts)") }
-        let total = dish.items.compactMap(\.grams).reduce(0, +)
+        if let counts = groupSummary { parts.append(counts) }
+        let total = dish.grams
         if total > 0 { parts.insert("\(Int(total.rounded())) g", at: 0) }
         return parts.joined(separator: " · ")
     }
 
+    /// What is in it, in its own words. There is no taxonomy to count toward
+    /// any more, so this names the food rather than the bucket.
     private var groupSummary: String? {
-        var seen: [FoodKind] = []
-        for item in dish.items where !seen.contains(item.kind) { seen.append(item.kind) }
+        var seen: [String] = []
+        for item in dish.items where !seen.contains(item.label.lowercased()) {
+            seen.append(item.label.lowercased())
+        }
         switch seen.count {
-        case 0: return nil
-        case 1: return seen[0].plainName.lowercased()
-        case 2: return "\(seen[0].shortName.lowercased()) and \(seen[1].shortName.lowercased())"
-        // Naming four groups makes a line nobody reads. The rows below say which.
-        default: return "\(seen.count) food groups"
+        case 0, 1: return nil
+        case 2: return "\(seen[0]) and \(seen[1])"
+        // Naming four foods makes a line nobody reads. The rows below say which.
+        default: return "\(seen.count) ingredients"
         }
     }
 
@@ -164,8 +167,7 @@ struct DishSheet: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("How many?")
                     .font(WellieTheme.font(15.5, weight: .semibold))
-                Text(dish.weighed ? "Three cans is one dish, three times — this rescales the weights"
-                                  : "Three cans is one dish, three times")
+                Text("Three cans is one dish, three times — this rescales the weights")
                     .font(WellieTheme.font(12.5, weight: .medium))
                     .foregroundStyle(WellieTheme.muted)
                     .fixedSize(horizontal: false, vertical: true)
@@ -240,12 +242,12 @@ struct DishSheet: View {
                     onEditIngredient(item.id)
                 } label: {
                     WellieChevronRow(
-                        title: FoodPhrase.word(for: item.kind, label: item.label),
+                        title: FoodPhrase.word(for: item),
                         // The weight, read-only. The size chip that used to
                         // stand here on an unweighed row was the second answer
                         // to a question that now has one. A meal old enough to
                         // have no weight still says what it said.
-                        value: item.grams.map { "\(Int($0.rounded())) g" } ?? item.portion.plainName,
+                        value: "\(Int(item.grams.rounded())) g",
                         verticalPadding: 9
                     )
                     .contentShape(Rectangle())

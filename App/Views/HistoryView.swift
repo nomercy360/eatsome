@@ -119,7 +119,7 @@ private struct DayCard: View {
 
                 if !groups.isEmpty {
                     FlowLayout(spacing: 6, lineSpacing: 6) {
-                        ForEach(groups, id: \.self) { WellieChip(text: $0.shortName, size: 12.5) }
+                        ForEach(groups, id: \.self) { WellieChip(text: $0, size: 12.5) }
                     }
                 }
             }
@@ -137,8 +137,8 @@ private struct DayCard: View {
         }
     }
 
-    private var groups: [FoodKind] {
-        var seen = Set<FoodKind>()
-        return meals.flatMap(\.items).map(\.kind).filter { seen.insert($0).inserted }
+    private var groups: [String] {
+        var seen = Set<String>()
+        return meals.flatMap(\.items).map(\.label).filter { seen.insert($0.lowercased()).inserted }
     }
 }
