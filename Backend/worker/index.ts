@@ -7,6 +7,7 @@ import {
   evalListQuerySchema,
   eventListQuerySchema,
   ingestEventsRequestSchema,
+  ingestLegacyEventsRequestSchema,
   joinTableRequestSchema,
   markReadRequestSchema,
   reactionRequestSchema,
@@ -28,6 +29,7 @@ import {
 } from "./data/accounts";
 import { addCorpusItem, deleteAccountData, deleteOrphanCorpus, optOutCorpus } from "./data/corpus";
 import { ingestEvents, listEvents, listMealEvals } from "./data/events";
+import { ingestLegacyEvents } from "./data/legacy-events";
 import { deleteOrphanMedia, getMediaObject } from "./data/media";
 import { recognizeMeal, rerunRecognition } from "./data/recognitions";
 import { refineMeal, refineMealFromNote } from "./data/refinements";
@@ -47,7 +49,7 @@ import {
   updateTableNote,
 } from "./data/tables";
 import type { Env } from "./env";
-import { requireAppToken, requireStableAccount } from "./lib/auth";
+import { requireStableAccount } from "./lib/auth";
 import { HttpError } from "./lib/http-error";
 import { enforceRecognitionLimits, enforceSyncLimits } from "./lib/limits";
 import { mintTranscriptionKey } from "./lib/soniox";
@@ -67,10 +69,8 @@ export const app = new Hono<AppContext>().basePath("/api");
 
 app.use("*", async (c, next) => {
   if (c.req.path === "/api/health") return next();
-  await requireAppToken(c.req.header("Authorization"), c.env);
-  // The identity exchange cannot already require the identity it is creating.
-  // It still requires the shared build token above, plus a provider-signed
-  // Apple token in the route itself.
+  // The identity exchange proves itself with the provider-signed token in its
+  // body. It cannot already require the eatsome session it is creating.
   if (c.req.method === "POST" && c.req.path === "/api/v1/auth/sessions") return next();
   const principal = await requireAuthenticatedPrincipal(c.env, c.req.raw);
   c.set("accountId", principal.accountId);
@@ -208,9 +208,9 @@ app.post("/v1/voice/key", async (c) => {
  *     all idempotent; only the session row is new each time, which is what lets
  *     a client retry a failed sign-in without inventing a reconciliation.
  *
- * Rate limited as a sync operation. It is cheap, but it is unauthenticated
- * beyond the shared app token and it does a signature verification and an
- * outbound fetch, so it should not be free to hammer.
+ * Rate limited as a sync operation. The Apple token is verified, but the route
+ * necessarily has no eatsome session yet and performs an outbound key fetch,
+ * so it should not be free to hammer.
  */
 app.post("/v1/auth/sessions", zValidator("json", signInRequestSchema), async (c) => {
   await enforceSyncLimits(c.env, c.req.raw);
@@ -231,6 +231,16 @@ app.delete("/v1/auth/sessions", async (c) => {
 app.post("/v1/events/batch", zValidator("json", ingestEventsRequestSchema), async (c) => {
   await enforceSyncLimits(c.env, c.req.raw);
   const result = await ingestEvents(c.env, c.get("accountId"), c.req.valid("json"));
+  return c.json(result, result.inserted === 0 ? 200 : 201);
+});
+
+/**
+ * Meals written by v20, forwarded verbatim by a v21 client that cannot decode
+ * them. One release only — see `data/legacy-events.ts`.
+ */
+app.post("/v1/events/legacy", zValidator("json", ingestLegacyEventsRequestSchema), async (c) => {
+  await enforceSyncLimits(c.env, c.req.raw);
+  const result = await ingestLegacyEvents(c.env, c.get("accountId"), c.req.valid("json"));
   return c.json(result, result.inserted === 0 ? 200 : 201);
 });
 

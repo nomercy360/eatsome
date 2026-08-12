@@ -220,9 +220,14 @@ struct EventLogTests {
         try handle.close()
 
         let reopened = try EventLog(url: url)
-        let (events, skipped) = try await reopened.load()
+        let (events, unreadable) = try await reopened.load()
         #expect(events.count == 1)
-        #expect(skipped == 1)
+        // The raw text comes back, not a tally. That is what lets an upgrade
+        // forward a line it cannot decode to a server that still knows the old
+        // shape, instead of asking a person to open the previous build on every
+        // device before installing this one.
+        #expect(unreadable.count == 1)
+        #expect(unreadable.first?.contains("not-a-uuid") == true)
     }
 
     @Test("Retired settings are ignored during an upgrade")
@@ -245,9 +250,9 @@ struct EventLogTests {
         let meal = MealEntry.fixture(daysAgo: 1, [("chickpeas", 120.0)])
         try await log.append(LoggedEvent(occurredAt: meal.eatenAt, payload: .mealLogged(meal)))
 
-        let (events, skipped) = try await log.load()
+        let (events, unreadable) = try await log.load()
         #expect(events.count == 1)
-        #expect(skipped == 0)
+        #expect(unreadable.isEmpty)
     }
 
     @Test("Events sort by time, and UUIDv7 carries the timestamp")

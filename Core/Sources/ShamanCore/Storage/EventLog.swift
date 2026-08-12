@@ -45,10 +45,19 @@ public actor EventLog {
     /// Skips lines that fail to decode rather than failing the load. A single
     /// corrupt line — a half-written record after a crash, or a payload kind
     /// written by a newer build — must not cost you the rest of your history.
-    public func load() throws -> (events: [LoggedEvent], skipped: Int) {
+    ///
+    /// The skipped lines come back as raw text, and that is the whole of what
+    /// makes a schema change survivable without touching every phone. This
+    /// build cannot turn a v20 meal into a `LoggedEvent`, but it does not have
+    /// to: the log is JSONL, an unreadable line is still a line, and forwarding
+    /// it verbatim lets the server — which knows both shapes for one release —
+    /// convert it and hand it back. Returning only a count is what forced the
+    /// alternative, which was asking a person to open the old app on every
+    /// device before upgrading and losing anything they missed.
+    public func load() throws -> (events: [LoggedEvent], unreadable: [String]) {
         let raw = try String(contentsOf: url, encoding: .utf8)
         var events: [LoggedEvent] = []
-        var skipped = 0
+        var unreadable: [String] = []
         for line in raw.split(separator: "\n", omittingEmptySubsequences: true) {
             let data = Data(line.utf8)
             if let probe = try? Self.decoder.decode(EventKindProbe.self, from: data),
@@ -58,7 +67,7 @@ public actor EventLog {
             if let event = try? Self.decoder.decode(LoggedEvent.self, from: data) {
                 events.append(event)
             } else {
-                skipped += 1
+                unreadable.append(String(line))
             }
         }
         // Replay mutations in the order they were written, not the time the
@@ -69,7 +78,7 @@ public actor EventLog {
                 ? lhs.offset < rhs.offset
                 : lhs.element.recordedAt < rhs.element.recordedAt
         }.map(\.element)
-        return (events, skipped)
+        return (events, unreadable)
     }
 
     public func projection() throws -> Projection {

@@ -247,6 +247,26 @@ for (let start = 0; start < labels.length; start += BATCH) {
   console.log(`  priced ${Math.min(start + BATCH, labels.length)}/${labels.length}`);
 }
 
+// The price of every label, kept so the legacy ingest endpoint can convert a
+// line that arrives after this run without a model call inside a sync request.
+// A late line comes off the same trays as the ones priced here, so it almost
+// always hits.
+d1(
+  `CREATE TABLE IF NOT EXISTS food_prices (
+     label TEXT PRIMARY KEY, per_100g_json TEXT NOT NULL, priced_at INTEGER NOT NULL);`,
+  { json: false },
+);
+const pricedAt = meals.reduce((latest, meal) => Math.max(latest, meal.data.eatenAt ?? 0), 0);
+for (const [label, per100g] of priced) {
+  const value = JSON.stringify(JSON.stringify(per100g)).replace(/'/g, "''").replace(/^"|"$/g, "'");
+  const key = JSON.stringify(label).replace(/'/g, "''").replace(/^"|"$/g, "'");
+  d1(
+    `INSERT OR REPLACE INTO food_prices (label, per_100g_json, priced_at) VALUES (${key}, ${value}, ${pricedAt});`,
+    { json: false },
+  );
+}
+console.log(`stored ${priced.size} food prices for late arrivals`);
+
 let dropped = 0;
 const statements = [];
 for (const meal of meals) {

@@ -106,6 +106,30 @@ public struct BackendSession: MealRecognizer, MealRefiner, Sendable {
         }
     }
 
+    /// Hand the server raw log lines this build cannot decode.
+    ///
+    /// A schema change makes an old line unreadable, not unsendable. The server
+    /// knows both shapes for one release and converts; without this the only
+    /// way back would be opening the previous build on every device before
+    /// upgrading, which loses the history of whoever forgets.
+    @discardableResult
+    public func syncUnreadableEvents(_ lines: [String]) async throws -> Int {
+        guard !lines.isEmpty else { return 0 }
+        var restored = 0
+        // Bounded, because a long history is a big body and the endpoint caps
+        // the array anyway.
+        for chunk in stride(from: 0, to: lines.count, by: 200).map({
+            Array(lines[$0..<min($0 + 200, lines.count)])
+        }) {
+            let body = LegacyEventsBatch(deviceId: configuration.deviceID, lines: chunk)
+            let reply: LegacyEventsEnvelope = try await send(
+                path: "events/legacy", method: "POST", body: body
+            )
+            restored += reply.inserted
+        }
+        return restored
+    }
+
     /// Pull the account union, following the Worker's stable `(recordedAt,id)`
     /// cursor until the final short page. Unknown fields such as
     /// `sourceDeviceId` are deliberately ignored by `LoggedEvent` decoding.
@@ -421,6 +445,20 @@ public struct BackendSession: MealRecognizer, MealRefiner, Sendable {
         let provider: String?
         let current: [Item]
         let note: String
+    }
+
+    private struct LegacyEventsBatch: Encodable {
+        let deviceId: String
+        let lines: [String]
+    }
+
+    private struct LegacyEventsEnvelope: Decodable {
+        let accepted: Int
+        let converted: Int
+        let inserted: Int
+        /// Foods the server had no composition for. Those rows are dropped
+        /// rather than invented, and naming them is how that stays visible.
+        let unpriced: [String]
     }
 
     private struct RecognitionEnvelope: Decodable {
