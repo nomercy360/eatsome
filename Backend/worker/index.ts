@@ -7,7 +7,6 @@ import {
   evalListQuerySchema,
   eventListQuerySchema,
   ingestEventsRequestSchema,
-  ingestLegacyEventsRequestSchema,
   joinTableRequestSchema,
   markReadRequestSchema,
   reactionRequestSchema,
@@ -29,7 +28,6 @@ import {
 } from "./data/accounts";
 import { addCorpusItem, deleteAccountData, deleteOrphanCorpus, optOutCorpus } from "./data/corpus";
 import { ingestEvents, listEvents, listMealEvals } from "./data/events";
-import { ingestLegacyEvents } from "./data/legacy-events";
 import { deleteOrphanMedia, getMediaObject } from "./data/media";
 import { recognizeMeal, rerunRecognition } from "./data/recognitions";
 import { refineMeal, refineMealFromNote } from "./data/refinements";
@@ -231,16 +229,6 @@ app.delete("/v1/auth/sessions", async (c) => {
 app.post("/v1/events/batch", zValidator("json", ingestEventsRequestSchema), async (c) => {
   await enforceSyncLimits(c.env, c.req.raw);
   const result = await ingestEvents(c.env, c.get("accountId"), c.req.valid("json"));
-  return c.json(result, result.inserted === 0 ? 200 : 201);
-});
-
-/**
- * Meals written by v20, forwarded verbatim by a v21 client that cannot decode
- * them. One release only — see `data/legacy-events.ts`.
- */
-app.post("/v1/events/legacy", zValidator("json", ingestLegacyEventsRequestSchema), async (c) => {
-  await enforceSyncLimits(c.env, c.req.raw);
-  const result = await ingestLegacyEvents(c.env, c.get("accountId"), c.req.valid("json"));
   return c.json(result, result.inserted === 0 ? 200 : 201);
 });
 

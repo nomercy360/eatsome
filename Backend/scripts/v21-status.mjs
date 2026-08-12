@@ -49,12 +49,16 @@ console.log(`  ${"partition".padEnd(30)} ${"events".padStart(6)} ${"meals".padSt
 
 let waiting = 0;
 for (const row of partitions) {
-  // Only a write the app made counts as checking in. The migration's own
-  // deletions are excluded above, or every partition it touched would report
-  // itself upgraded on the strength of the server having edited it.
-  const upgraded = row.lastSeen != null && row.lastSeen >= RELEASED_AT;
+  // A signed-in device writes under its ACCOUNT id, so its own partition row
+  // freezes at the last pre-sign-in write and would report "waiting" forever.
+  // The account it was adopted into is the one that answers for it.
+  const adoptedBy = links.get(row.id);
+  const linked = adoptedBy ? ` -> ${adoptedBy.slice(0, 14)}` : "";
+  const answeredByAccount = partitions.some(
+    (other) => other.id === adoptedBy && other.lastSeen >= RELEASED_AT,
+  );
+  const upgraded = (row.lastSeen != null && row.lastSeen >= RELEASED_AT) || answeredByAccount;
   if (!upgraded) waiting += 1;
-  const linked = links.has(row.id) ? ` -> ${links.get(row.id).slice(0, 14)}` : "";
   console.log(
     `  ${(row.id.slice(0, 28) + linked).padEnd(30)} ${String(row.events).padStart(6)} ` +
       `${String(row.meals).padStart(5)} ${String(row.stale).padStart(5)}  ${day(row.lastSeen)}` +
@@ -73,9 +77,8 @@ const live = d1(`
              WHERE kind = 'meal_deleted'
                AND json_extract(payload_json,'$.data.mealID') IS NOT NULL)
   SELECT COUNT(*) AS n FROM m WHERE id NOT IN (SELECT id FROM d)`)[0].n;
-const prices = d1(`SELECT COUNT(*) AS n FROM food_prices`)[0].n;
 
-console.log(`\n  live meals: ${live}   food prices held for late arrivals: ${prices}`);
+console.log(`\n  live meals: ${live}`);
 console.log(`  partitions not seen since the release: ${waiting}`);
 if (orphans.length) {
   console.log(

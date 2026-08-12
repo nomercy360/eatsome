@@ -111,7 +111,7 @@ function envFor(database: D1Database): Env {
 
 function requestFrom(deviceId: string, sessionToken?: string): Request {
   const headers = new Headers({ "X-Device-Id": deviceId });
-  if (sessionToken) headers.set("X-Session-Token", sessionToken);
+  if (sessionToken) headers.set("Authorization", `Bearer ${sessionToken}`);
   return new Request("https://api.test/api/v1/auth/sessions", { headers });
 }
 
@@ -324,7 +324,7 @@ describe("account merge", () => {
     });
   });
 
-  it("does not accept the shared app credential as production identity", async () => {
+  it("requires an account bearer as production identity", async () => {
     await expect(requireAuthenticatedPrincipal(env, requestFrom(PHONE))).rejects.toMatchObject({
       status: 401,
     });

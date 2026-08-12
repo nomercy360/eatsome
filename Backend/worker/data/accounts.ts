@@ -1,6 +1,6 @@
 import type { SignInRequest } from "../../src/contracts";
 import type { Env } from "../env";
-import { accountForDevice, requireStableAccount } from "../lib/auth";
+import { accountForDevice, bearerToken, requireStableAccount } from "../lib/auth";
 import { HttpError } from "../lib/http-error";
 import { type IdentityProvider, parseAudiences, verifyIdentityToken } from "../lib/identity-token";
 import { uuidV7 } from "../lib/ids";
@@ -87,8 +87,6 @@ import { uuidV7 } from "../lib/ids";
 /** 180 days. Long enough that a phone in a drawer still works; short enough
  *  that a token lifted from a backup does not outlive the app version. */
 const SESSION_TTL_MS = 180 * 86_400_000;
-
-const SESSION_HEADER = "X-Session-Token";
 
 export type Principal = {
   /**
@@ -325,7 +323,7 @@ export async function signIn(
 /**
  * Who this request is, before anything else runs.
  *
- * With no session header the answer is exactly what it was before accounts
+ * With no session bearer the answer is exactly what it was before accounts
  * existed, down to the string: the device partition, reading only itself. That
  * is deliberate. A device id is a header anyone can copy, and it stayed
  * acceptable while it only ever unlocked the rows that same header had written.
@@ -339,7 +337,7 @@ export async function signIn(
  */
 export async function resolvePrincipal(env: Env, request: Request): Promise<Principal> {
   if (env.ACCOUNT_ID !== "anonymous") return pinnedPrincipal(env);
-  const token = request.headers.get(SESSION_HEADER)?.trim();
+  const token = bearerToken(request.headers.get("Authorization") ?? undefined);
   if (!token) {
     const device = accountForDevice(request);
     return { accountId: device, partitions: [device], signedIn: false };
@@ -360,11 +358,9 @@ export async function resolvePrincipal(env: Env, request: Request): Promise<Prin
 /**
  * Resolve the production data principal.
  *
- * The shared bearer token identifies a build, never a person. Production is
- * therefore session-only: a copied app token plus a guessed device id cannot
- * read, write, recognize, transcribe, or use tables. Pinned personal/eval
- * deployments keep their configured partition because they have no account
- * system to sign in to.
+ * Production is session-only: a guessed device id cannot read, write,
+ * recognize, transcribe, or use tables. Pinned personal/eval deployments keep
+ * their configured partition because they have no account system to sign in to.
  */
 export async function requireAuthenticatedPrincipal(
   env: Env,
@@ -380,7 +376,7 @@ export async function requireAuthenticatedPrincipal(
 /** Sign out this device. Other devices keep their sessions, and the partition
  *  link is untouched — signing out is not un-merging. */
 export async function revokeSession(env: Env, request: Request): Promise<{ revoked: number }> {
-  const token = request.headers.get(SESSION_HEADER)?.trim();
+  const token = bearerToken(request.headers.get("Authorization") ?? undefined);
   if (!token) return { revoked: 0 };
   const result = await env.DB.prepare("DELETE FROM sessions WHERE token_hash = ?")
     .bind(await sha256Hex(token))

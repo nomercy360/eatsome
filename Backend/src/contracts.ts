@@ -612,58 +612,6 @@ export const mealEventDataSchema = z.strictObject({
   recipeID: z.string().uuid().nullable().optional(),
 });
 
-/**
- * A v20 meal, accepted for exactly one release.
- *
- * The v21 app cannot decode one of these — that is the point of the version
- * gate — but it can still read the raw JSONL line off its own log and forward
- * it. This is what that line is validated against before the server converts
- * it, and it is the only place in the system that still knows the old shape.
- *
- * Deliberately loose: it is describing something already written, not
- * constraining something about to be. `group`, `portion` and `servings` are
- * accepted and discarded; the only fields that matter are the ones a v21 row
- * needs, which is a label and a weight.
- *
- * Delete with the endpoint once the audit reports zero unconverted events.
- */
-export const legacyMealItemSchema = z.looseObject({
-  id: z.string().uuid(),
-  label: z.string().max(200).nullable().optional(),
-  grams: z.number().min(0).max(20_000).nullable().optional(),
-  preparation: z.array(z.enum(preparationMethods)).max(4).optional(),
-  dish: z.string().max(120).nullable().optional(),
-});
-
-export const legacyMealEventDataSchema = z.looseObject({
-  id: z.string().uuid(),
-  eatenAt: z.number().int().nonnegative(),
-  items: z.array(legacyMealItemSchema).max(64),
-  source: z.string().max(32),
-  share: z.string().max(16).nullable().optional(),
-  note: z.string().max(2_000).nullable().optional(),
-  photoHash: sha256Schema.nullable().optional(),
-  wasCorrected: z.boolean().optional(),
-  recipeID: z.string().uuid().nullable().optional(),
-  messageID: z.string().uuid().nullable().optional(),
-  storedDishes: z.array(z.looseObject({})).max(16).nullable().optional(),
-});
-
-export const legacyEventSchema = z.looseObject({
-  id: z.string().uuid(),
-  occurredAt: z.number().int().nonnegative(),
-  recordedAt: z.number().int().nonnegative(),
-  payload: z.looseObject({ kind: z.string().max(40) }),
-});
-
-export const ingestLegacyEventsRequestSchema = z.strictObject({
-  deviceId: z.string().min(1).max(120),
-  /** Raw JSONL lines the client could not decode, verbatim. */
-  lines: z.array(z.string().min(2).max(200_000)).max(500),
-});
-
-export type IngestLegacyEventsRequest = z.infer<typeof ingestLegacyEventsRequestSchema>;
-
 export const loggedEventSchema = z.strictObject({
   id: z.string().uuid(),
   occurredAt: z.number().int().nonnegative(),

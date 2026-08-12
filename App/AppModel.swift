@@ -46,13 +46,6 @@ final class AppModel {
     /// your own data six months later.
     private(set) var skippedLogLines = 0
 
-    /// The raw text of lines this build could not decode.
-    ///
-    /// Kept rather than counted, because that is what makes the upgrade
-    /// automatic: an unreadable line is still a line, and the server knows both
-    /// shapes for one release. Cleared once the server has taken them.
-    private var unreadableLogLines: [String] = []
-
     /// A local log holding events this build cannot read.
     ///
     /// v21 stores composition on every food and reads only v21, so every meal
@@ -143,7 +136,6 @@ final class AppModel {
             let log = try EventLog(url: try EventLog.defaultURL())
             self.log = log
             let (events, unreadable) = try await log.load()
-            unreadableLogLines = unreadable
             loadedEvents = events
             locallyRecordedMessageIDs = Set(events.compactMap { event in
                 guard event.sourceDeviceId == nil else { return nil }
@@ -1260,12 +1252,6 @@ final class AppModel {
         if case .pending = historyRestore { historyRestore = .restoring }
         do {
             if !loadedEvents.isEmpty { try await backend.syncEvents(loadedEvents) }
-            // Before the download, so the server has them to hand back. These
-            // are meals only this phone holds; nothing else can restore them.
-            if !unreadableLogLines.isEmpty {
-                _ = try await backend.syncUnreadableEvents(unreadableLogLines)
-                unreadableLogLines = []
-            }
             let remote = try await backend.events()
             let existing = Set(loadedEvents.map(\.id))
             let missing = remote.filter { !existing.contains($0.id) }
