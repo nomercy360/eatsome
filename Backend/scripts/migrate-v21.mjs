@@ -22,7 +22,7 @@
  * was actually asked and answered, and a migration that edits its own evidence
  * cannot be checked.
  */
-import { existsSync, writeFileSync } from "node:fs";
+import { existsSync, rmSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 
@@ -43,6 +43,31 @@ function d1(sql, { json = true } = {}) {
   );
   if (!json) return out;
   return JSON.parse(out.slice(out.indexOf("[")))[0].results;
+}
+
+/**
+ * A SQLite string literal. Doubling the single quotes is the whole of it.
+ *
+ * Written as `JSON.stringify(value).replace(...)` first, which double-encodes:
+ * the payload is already JSON, so it arrived as `{\"id\":...}` and SQLite
+ * rejected it against `json_valid`. Loudly, which is the only reason it did not
+ * become 86 rows of unparseable history — and the price table, which has no
+ * such constraint, silently took 179 rows nothing could read.
+ */
+function sqlLiteral(value) {
+  return `'${String(value).replace(/'/g, "''")}'`;
+}
+
+
+/** Apply many statements in one round trip. */
+function d1File(sql) {
+  const path = join(import.meta.dirname, "..", ".migrate-v21.sql");
+  writeFileSync(path, sql, "utf8");
+  execFileSync("npx", ["wrangler", "d1", "execute", "eatsome", "--remote", "--file", path], {
+    cwd: join(import.meta.dirname, ".."),
+    stdio: "inherit",
+  });
+  rmSync(path, { force: true });
 }
 
 function loadApiKey() {
@@ -233,10 +258,34 @@ execFileSync("npx", ["wrangler", "d1", "export", "eatsome", "--remote", "--outpu
   stdio: "inherit",
 });
 
-const apiKey = loadApiKey();
+// Anything already priced is reused. The first run stored these with the
+// escaping bug above, so the JSON arrives as literal backslash-quote pairs —
+// the figures are intact, only the encoding is wrong, and repairing that here
+// costs nothing where re-pricing costs a model call per twenty foods.
+d1(
+  `CREATE TABLE IF NOT EXISTS food_prices (
+     label TEXT PRIMARY KEY, per_100g_json TEXT NOT NULL, priced_at INTEGER NOT NULL);`,
+  { json: false },
+);
 const priced = new Map();
-for (let start = 0; start < labels.length; start += BATCH) {
-  const slice = labels.slice(start, start + BATCH);
+let repaired = 0;
+for (const row of d1(`SELECT label, per_100g_json FROM food_prices;`)) {
+  for (const candidate of [row.per_100g_json, row.per_100g_json.replace(/\\"/g, '"')]) {
+    try {
+      priced.set(row.label, JSON.parse(candidate));
+      if (candidate !== row.per_100g_json) repaired += 1;
+      break;
+    } catch {}
+  }
+}
+if (priced.size) console.log(`reused ${priced.size} stored prices (${repaired} repaired)`);
+
+const missing = labels.filter((label) => !priced.has(label));
+console.log(`foods still needing a price: ${missing.length}`);
+
+const apiKey = missing.length ? loadApiKey() : null;
+for (let start = 0; start < missing.length; start += BATCH) {
+  const slice = missing.slice(start, start + BATCH);
   const answers = await price(apiKey, slice);
   for (const answer of answers) {
     const label = slice[answer.index];
@@ -244,31 +293,26 @@ for (let start = 0; start < labels.length; start += BATCH) {
     const { index, ...per100g } = answer;
     priced.set(label, per100g);
   }
-  console.log(`  priced ${Math.min(start + BATCH, labels.length)}/${labels.length}`);
+  console.log(`  priced ${Math.min(start + BATCH, missing.length)}/${missing.length}`);
 }
 
-// The price of every label, kept so the legacy ingest endpoint can convert a
-// line that arrives after this run without a model call inside a sync request.
-// A late line comes off the same trays as the ones priced here, so it almost
-// always hits.
-d1(
-  `CREATE TABLE IF NOT EXISTS food_prices (
-     label TEXT PRIMARY KEY, per_100g_json TEXT NOT NULL, priced_at INTEGER NOT NULL);`,
-  { json: false },
-);
+// Everything in one file and one round trip.
+//
+// Written as a `wrangler d1 execute` per statement first: 179 price inserts and
+// 86 event updates meant 265 `npx` launches, each paying Node startup and a
+// network hop, for ten minutes of process spawning to move 732 KB. The work was
+// never the slow part.
 const pricedAt = meals.reduce((latest, meal) => Math.max(latest, meal.data.eatenAt ?? 0), 0);
+const statements = [];
+
 for (const [label, per100g] of priced) {
-  const value = JSON.stringify(JSON.stringify(per100g)).replace(/'/g, "''").replace(/^"|"$/g, "'");
-  const key = JSON.stringify(label).replace(/'/g, "''").replace(/^"|"$/g, "'");
-  d1(
-    `INSERT OR REPLACE INTO food_prices (label, per_100g_json, priced_at) VALUES (${key}, ${value}, ${pricedAt});`,
-    { json: false },
+  statements.push(
+    `INSERT OR REPLACE INTO food_prices (label, per_100g_json, priced_at) ` +
+      `VALUES (${sqlLiteral(label)}, ${sqlLiteral(JSON.stringify(per100g))}, ${pricedAt});`,
   );
 }
-console.log(`stored ${priced.size} food prices for late arrivals`);
 
 let dropped = 0;
-const statements = [];
 for (const meal of meals) {
   const before = (meal.data.items ?? []).length;
   const data = convert(meal.data, priced);
@@ -279,17 +323,28 @@ for (const meal of meals) {
   }
   const payload = JSON.stringify({ ...meal.payload, data });
   statements.push(
-    `UPDATE events SET payload_json = ${JSON.stringify(payload).replace(/'/g, "''").replace(/^"|"$/g, "'")} WHERE id = '${meal.id}';`,
+    `UPDATE events SET payload_json = ${sqlLiteral(payload)} WHERE id = ${sqlLiteral(meal.id)};`,
   );
 }
 
-for (const statement of statements) d1(statement, { json: false });
+console.log(`\napplying ${statements.length} statements in one call …`);
+d1File(`${statements.join("\n")}\n`);
+
+// Read back rather than trust the write. `food_prices` has no json_valid
+// constraint, so a bad escape there is silent until the worker tries to parse
+// it during somebody's upgrade — which is exactly how the first run failed.
+const [sample] = d1(`SELECT per_100g_json FROM food_prices LIMIT 1;`);
+try {
+  JSON.parse(sample.per_100g_json);
+} catch {
+  throw new Error(`food_prices still holds unparseable JSON: ${sample.per_100g_json.slice(0, 80)}`);
+}
 
 const remaining = d1(
   `SELECT COUNT(*) AS n FROM events
    WHERE kind IN ('meal_logged','meal_revised') AND payload_json NOT LIKE '%"schemaVersion":21%'`,
 )[0].n;
 
-console.log(`\nmigrated ${statements.length} meal events, dropped ${dropped} unpriceable rows`);
+console.log(`\nmigrated ${meals.length} meal events, dropped ${dropped} unpriceable rows`);
 console.log(`meal events still not v21: ${remaining}`);
 if (remaining > 0) process.exitCode = 1;
