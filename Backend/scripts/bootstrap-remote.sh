@@ -52,9 +52,9 @@ if grep -q "local-development-replace-before-deploy" wrangler.jsonc; then
 fi
 
 echo "==> Secrets"
-# Four providers plus the shared app token. The same value goes into the archive
-# as EATSOME_API_TOKEN; rotating it means a new secret and a new build together.
-for secret in OPENAI_API_KEY GEMINI_API_KEY ANTHROPIC_API_KEY QWEN_API_KEY EATSOME_API_TOKEN; do
+# Provider credentials stay on the Worker. The app authenticates with its
+# account session and never embeds a backend secret.
+for secret in OPENAI_API_KEY GEMINI_API_KEY ANTHROPIC_API_KEY QWEN_API_KEY; do
   if pnpm wrangler secret list 2>/dev/null | grep -q "\"$secret\""; then
     echo "    $secret already set"
   else
@@ -68,6 +68,13 @@ pnpm db:migrate:remote
 
 echo "==> Deploy"
 pnpm deploy
+
+# Deploy the session-only Worker before deleting the old binding. Reversing
+# this order would break the currently deployed version between the two steps.
+if pnpm wrangler secret list 2>/dev/null | grep -q '"EATSOME_API_TOKEN"'; then
+  echo "==> Retire legacy app token"
+  pnpm wrangler secret delete EATSOME_API_TOKEN
+fi
 
 echo
 echo "Check it answered:"

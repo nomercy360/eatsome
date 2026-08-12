@@ -65,10 +65,9 @@ That generates `eatsome.xcodeproj` from `project.yml`. Open the project, select 
 development team, and run it on an iPhone; HealthKit is unavailable on macOS.
 
 Recognition goes through the app-owned Worker, so no model-provider key ever
-ships in the app. The build carries one shared Worker token and there is
-nothing to enter: every install generates its own id on first launch, and that
-id is what keeps one tester's photos, meals and daily quota apart from
-another's.
+ships in the app. There is no backend key to provision or bake into a build.
+Sign in with Apple creates an opaque account session, which the app keeps in
+the Keychain and sends as the bearer credential for private API requests.
 
 ### Installing on a phone that is not here
 

@@ -98,15 +98,15 @@ tables with posts, replies, reactions and shared photos; Sign in with Apple.
 **Explicitly undecided.**
 
 - **Distribution.** The intent is a broad consumer App Store app, but the app
-  today requires a backend token baked in at build time and has no store
-  presence or pricing. Nothing downstream may assume a
-  public release date or a business model.
+  has no store presence or pricing. Nothing downstream may assume a public
+  release date or a business model.
 - **Sign-in is required.** Sign in with Apple is the production identity
-  boundary, shown before onboarding or an existing local log. The shared build
-  token can start the identity exchange but cannot access meals, recognition,
-  voice, or tables by itself. Meal history follows the signed-in account to another
-  phone; local history remains on disk after sign-out but stays locked until an
-  account is authenticated again.
+  boundary, shown before onboarding or an existing local log. The Worker
+  verifies Apple's identity token and returns an opaque account session; that
+  session is the sole bearer credential for meals, recognition, voice and
+  tables. Meal history follows the signed-in account to another phone; local
+  history remains on disk after sign-out but stays locked until an account is
+  authenticated again.
 - **Push notifications** are not built. Table badges are polled on open and every
   response states when the server counted it.
 - **Personal profile sync.** Health-sourced values and manually entered profile

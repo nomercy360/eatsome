@@ -1,28 +1,9 @@
-import type { Env } from "../env";
 import { HttpError } from "./http-error";
 
 export function bearerToken(header: string | undefined): string | null {
   if (!header) return null;
   const match = /^Bearer ([^\s]+)$/i.exec(header.trim());
   return match?.[1] ?? null;
-}
-
-async function digest(value: string): Promise<ArrayBuffer> {
-  return crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
-}
-
-export async function tokensMatch(provided: string, expected: string): Promise<boolean> {
-  if (!provided || !expected) return false;
-  const [left, right] = await Promise.all([digest(provided), digest(expected)]);
-  const a = new Uint8Array(left);
-  const b = new Uint8Array(right);
-  if (a.byteLength !== b.byteLength) return false;
-
-  let difference = 0;
-  for (let index = 0; index < a.byteLength; index += 1) {
-    difference |= (a[index] ?? 0) ^ (b[index] ?? 0);
-  }
-  return difference === 0;
 }
 
 /**
@@ -33,15 +14,12 @@ export async function tokensMatch(provided: string, expected: string): Promise<b
  * history can join the verified account without rewriting stored rows.
  *
  * This is a partition, not a proof. A header can say anything, so it separates
- * honest callers from each other and does nothing against someone who wants in;
- * the shared token below is what keeps a scanner out, and App Attest is what
- * would make the id itself trustworthy. Ordering matters: quota keyed on
- * something forgeable is a fairness mechanism, and the global ceiling is the
- * only thing that bounds the bill.
+ * honest callers from each other and does nothing against someone who wants in.
+ * Quota keyed on something forgeable is a fairness mechanism; the signed-in
+ * account session is the authorization boundary.
  *
  * This is never sufficient authorization for production data routes; the API
- * middleware requires a verified session. Signing in adds the proof beside
- * this rather than on top of it. A verified
+ * middleware requires a verified session. A verified
  * session resolves to an `acct:` partition and can read every device partition
  * the account has adopted (`data/accounts.ts`); a bare device id still resolves
  * to itself and reads only what it wrote, because a forgeable header must not
@@ -62,22 +40,4 @@ export function requireStableAccount(accountId: string): string {
     throw new HttpError(400, "X-Device-Id is required for stored data.");
   }
   return accountId;
-}
-
-/**
- * The token says "this is the app", and nothing more than that.
- *
- * Who the caller is comes afterwards, from `resolvePrincipal`: the device id
- * says which copy of the app, and a session token says which person. Splitting
- * the two apart is what lets a signed-in request keep the same shared-token
- * gate as every other one.
- */
-export async function requireAppToken(
-  authorizationHeader: string | undefined,
-  env: Env,
-): Promise<void> {
-  const token = bearerToken(authorizationHeader);
-  if (!token || !(await tokensMatch(token, env.EATSOME_API_TOKEN))) {
-    throw new HttpError(401, "A valid bearer token is required.");
-  }
 }

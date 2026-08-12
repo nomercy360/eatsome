@@ -303,13 +303,10 @@ struct PrivacyView: View {
     }
 }
 
-/// Behind five taps on the version row: provider diagnostics and the bootstrap
-/// backend token used by development builds.
+/// Behind five taps on the version row: provider diagnostics for evaluation
+/// builds. Account credentials are never entered or shown here.
 struct WorkshopView: View {
     @Environment(AppModel.self) private var model
-
-    @State private var backendToken = ""
-    @FocusState private var isEditingKey: Bool
 
     var body: some View {
         ScrollView {
@@ -322,11 +319,7 @@ struct WorkshopView: View {
 
                     Picker("Provider", selection: Binding(
                         get: { model.provider },
-                        set: { newValue in
-                            backendToken = ""
-                            isEditingKey = false
-                            model.setProvider(newValue)
-                        }
+                        set: { model.setProvider($0) }
                     )) {
                         ForEach(RecognitionProvider.allCases, id: \.self) {
                             Text($0.displayName).tag($0)
@@ -335,34 +328,6 @@ struct WorkshopView: View {
                     .pickerStyle(.segmented)
 
                     row("Model", model.activeModel)
-
-                    SecureField("Backend access token", text: $backendToken)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .font(WellieTheme.font(15, weight: .medium))
-                        .focused($isEditingKey)
-                        .submitLabel(.done)
-                        .onSubmit(saveKey)
-                        .padding(14)
-                        .background(WellieTheme.well, in: RoundedRectangle(cornerRadius: WellieTheme.cardRadius, style: .continuous))
-
-                    HStack {
-                        Label(
-                            model.hasBackendAccess ? "Backend access configured" : "No backend token",
-                            systemImage: model.hasBackendAccess ? "checkmark.circle.fill" : "circle"
-                        )
-                        .font(WellieTheme.font(13, weight: .medium))
-                        .foregroundStyle(model.hasBackendAccess ? WellieTheme.blue : WellieTheme.muted)
-                        Spacer()
-                        if model.hasBackendAccess {
-                            Button("Remove", role: .destructive) { model.setBackendToken(nil) }
-                                .font(WellieTheme.font(13, weight: .semibold))
-                        }
-                    }
-
-                    Button("Save key", action: saveKey)
-                        .buttonStyle(WelliePrimaryButtonStyle(enabled: !trimmedKey.isEmpty))
-                        .disabled(trimmedKey.isEmpty)
                 }
                 .wellieCard()
 
@@ -389,15 +354,6 @@ struct WorkshopView: View {
         .navigationTitle("Workshop")
         .navigationBarTitleDisplayMode(.inline)
         .wellieScreen()
-    }
-
-    private var trimmedKey: String { backendToken.trimmingCharacters(in: .whitespacesAndNewlines) }
-
-    private func saveKey() {
-        isEditingKey = false
-        guard !trimmedKey.isEmpty else { return }
-        model.setBackendToken(trimmedKey)
-        backendToken = ""
     }
 
     private func row(_ label: String, _ value: String, warning: Bool = false) -> some View {

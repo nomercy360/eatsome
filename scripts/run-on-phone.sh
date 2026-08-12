@@ -22,19 +22,6 @@ cd "$(dirname "$0")/.."
 APP_PATH="build/device/Build/Products/Debug-iphoneos/eatsome.app"
 BUNDLE_ID="${BUNDLE_ID:-app.shaman.tracker}"
 
-# The token is a build setting, not something typed into the app, so a build
-# without it installs fine and then fails on the first photo — exactly the
-# failure release-testflight.sh refuses to ship, and for the same reason.
-EATSOME_TOKEN_FILE="${EATSOME_TOKEN_FILE:-$HOME/.eatsome/api_token}"
-if [[ -z "${EATSOME_API_TOKEN:-}" && -f "$EATSOME_TOKEN_FILE" ]]; then
-  EATSOME_API_TOKEN="$(tr -d '[:space:]' < "$EATSOME_TOKEN_FILE")"
-fi
-if [[ -z "${EATSOME_API_TOKEN:-}" ]]; then
-  echo "error: no backend token. Recognition would fail on the phone."
-  echo "  export EATSOME_API_TOKEN=…   or write it to $EATSOME_TOKEN_FILE"
-  exit 1
-fi
-
 # Picked rather than pasted: a udid changes when you replace a phone, and a
 # hardcoded one fails in a way that looks like the phone is off.
 if [[ -z "${DEVICE:-}" ]]; then
@@ -71,7 +58,6 @@ xcodebuild \
   -destination "generic/platform=iOS" \
   -derivedDataPath build/device \
   -allowProvisioningUpdates \
-  EATSOME_API_TOKEN="$EATSOME_API_TOKEN" \
   build \
   | grep -E '^(\*\*|error:|warning: .*signing)' || true
 

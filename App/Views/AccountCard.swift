@@ -2,9 +2,8 @@ import AuthenticationServices
 import ShamanCore
 import SwiftUI
 
-/// The production entrance. A shared build token can start Apple's identity
-/// exchange, but it cannot read or write any account data; the session returned
-/// here is the only credential that opens the rest of the app.
+/// The production entrance. Apple proves the identity once; the eatsome session
+/// returned by that exchange is the bearer credential for every later request.
 struct SignInGateView: View {
     @Environment(AppModel.self) private var model
 
@@ -45,13 +44,7 @@ struct SignInGateView: View {
             .signInWithAppleButtonStyle(.white)
             .frame(height: 52)
             .clipShape(RoundedRectangle(cornerRadius: WellieTheme.controlRadius, style: .continuous))
-            .opacity(canSignIn ? 1 : 0.4)
-            .disabled(!canSignIn)
-
-            if !model.hasBackendAccess {
-                WellieCaption("This build has no backend configuration, so Apple sign-in is unavailable.")
-                    .padding(.top, 10)
-            }
+            .disabled(busy)
 
             Text("No feed, no followers. Your food stays yours.")
                 .font(WellieTheme.font(11.5, weight: .regular))
@@ -65,8 +58,6 @@ struct SignInGateView: View {
         .background(WellieTheme.background.ignoresSafeArea())
         .wellieScreen()
     }
-
-    private var canSignIn: Bool { !busy && model.hasBackendAccess }
 
     private func finish(_ authorization: Result<ASAuthorization, any Error>) async {
         guard let backend = model.currentBackend else {
