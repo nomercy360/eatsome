@@ -46,7 +46,7 @@ struct LunaSessionTests {
         )
         #expect(itemSchema["additionalProperties"] as? Bool == false)
         #expect(Set(try #require(itemSchema["required"] as? [String])) == [
-            "label", "grams", "per_100g", "preparation", "alternatives"
+            "label", "grams", "per_100g", "preparation", "brand", "sizes", "alternatives"
         ])
         // One quantity. `portion` stood beside `grams` until v17 and always lost
         // to it — asking for both spent tokens on an answer nothing read.

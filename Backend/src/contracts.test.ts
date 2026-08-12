@@ -35,7 +35,9 @@ describe("meal recognition contract", () => {
               label: "minced meat",
               per_100g: composition,
               preparation: [],
-              alternatives: [{ label: "beef mince", per_100g: composition }],
+              brand: null,
+              sizes: [],
+              alternatives: [{ label: "beef mince", grams: 140, per_100g: composition }],
             },
           ],
         },
@@ -53,6 +55,44 @@ describe("meal recognition contract", () => {
     expect(JSON.stringify(jsonSchema)).toContain("sodium_mg");
   });
 
+  it("carries a menu item's brand and the sizes its chain sells", () => {
+    // The two axes a chain's product is corrected on. Weight is the control for
+    // a bowl of rice and a meaningless one for a Big Mac — nobody ate 217 g of
+    // Big Mac — so a branded row is corrected by item, size or count instead.
+    const parsed = mealRecognitionSchema.parse({
+      dishes: [
+        {
+          name: "Italian B.M.T.",
+          count: 1,
+          panel: null,
+          ingredients: [
+            {
+              grams: 229,
+              label: "Italian B.M.T.",
+              per_100g: composition,
+              preparation: [],
+              brand: "Subway",
+              sizes: [
+                { label: "15cm Regular", grams: 229, per_100g: composition, basis: "published" },
+                // A Footlong is nowhere printed: Subway publishes the Regular
+                // and everyone doubles it, which is why the basis is stored.
+                { label: "30cm Footlong", grams: 458, per_100g: composition, basis: "derived" },
+              ],
+              alternatives: [{ label: "Spicy Italian", grams: 224, per_100g: composition }],
+            },
+          ],
+        },
+      ],
+    });
+
+    const item = parsed.dishes[0]?.ingredients[0];
+    expect(item?.brand).toBe("Subway");
+    expect(item?.sizes.map((size) => size.basis)).toEqual(["published", "derived"]);
+    // A rival carries its own weight, so a swap does not price a tuna sub at
+    // whatever the turkey sub happened to weigh.
+    expect(item?.alternatives[0]?.grams).toBe(224);
+  });
+
   it("rejects an ingredient with no weight", () => {
     // The whole point of v17. While `grams` was nullable behind a `portion`
     // fallback, the production Gemini schema omitted the field entirely and
@@ -65,7 +105,14 @@ describe("meal recognition contract", () => {
             count: 1,
             panel: null,
             ingredients: [
-              { label: "beer", per_100g: composition, preparation: [], alternatives: [] },
+              {
+                label: "beer",
+                per_100g: composition,
+                preparation: [],
+                brand: null,
+                sizes: [],
+                alternatives: [],
+              },
             ],
           },
         ],
@@ -85,7 +132,9 @@ describe("meal recognition contract", () => {
             name: "beer",
             count: 1,
             panel: null,
-            ingredients: [{ label: "beer", grams: 500, preparation: [], alternatives: [] }],
+            ingredients: [
+              { label: "beer", grams: 500, preparation: [], brand: null, sizes: [], alternatives: [] },
+            ],
           },
         ],
       }),
@@ -117,6 +166,8 @@ describe("meal recognition contract", () => {
               label: "beer",
               per_100g: composition,
               preparation: [],
+              brand: null,
+              sizes: [],
               alternatives: [],
             },
           ],

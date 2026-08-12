@@ -193,8 +193,8 @@ public struct GeminiSession: MealRecognizer, MealRefiner {
         ]
         let ingredient: [String: Any] = [
             "type": "OBJECT",
-            "propertyOrdering": ["label", "grams", "per_100g", "preparation", "alternatives"],
-            "required": ["label", "grams", "per_100g", "preparation", "alternatives"],
+            "propertyOrdering": ["label", "grams", "per_100g", "preparation", "brand", "sizes", "alternatives"],
+            "required": ["label", "grams", "per_100g", "preparation", "brand", "sizes", "alternatives"],
             "properties": [
                 "label": [
                     "type": "STRING",
@@ -206,14 +206,42 @@ public struct GeminiSession: MealRecognizer, MealRefiner {
                     "type": "ARRAY",
                     "items": ["type": "STRING", "enum": PreparationMethod.allCases.map(\.rawValue)]
                 ],
-                "alternatives": [
+                // Gemini emits exactly the properties named here and drops the
+                // rest, so a field the prompt asks for has to appear in every
+                // copy of this schema. `recognize.test.ts` compares them.
+                "brand": [
+                    "type": "STRING",
+                    "nullable": true,
+                    "description": "The chain or manufacturer whose named menu item this row IS. Null for anything cooked, served loose, or added on top of one."
+                ],
+                "sizes": [
                     "type": "ARRAY",
-                    "description": "Other plausible foods, most likely first, each priced. Empty when obvious. At most three.",
+                    "description": "Every size that chain sells this item in, each priced in full. Empty when it comes one way, and empty when there is no brand. A size is a different product, never a multiplier.",
+                    "maxItems": 6,
                     "items": [
                         "type": "OBJECT",
-                        "propertyOrdering": ["label", "per_100g"],
-                        "required": ["label", "per_100g"],
-                        "properties": ["label": ["type": "STRING"], "per_100g": composition]
+                        "propertyOrdering": ["label", "grams", "per_100g", "basis"],
+                        "required": ["label", "grams", "per_100g", "basis"],
+                        "properties": [
+                            "label": ["type": "STRING"],
+                            "grams": ["type": "NUMBER"],
+                            "per_100g": composition,
+                            "basis": ["type": "STRING", "enum": ["published", "derived"]]
+                        ]
+                    ]
+                ],
+                "alternatives": [
+                    "type": "ARRAY",
+                    "description": "Other plausible foods, most likely first, each priced and weighed. On a chain's item these are its neighbours on the same menu. Empty when obvious. At most three.",
+                    "items": [
+                        "type": "OBJECT",
+                        "propertyOrdering": ["label", "grams", "per_100g"],
+                        "required": ["label", "grams", "per_100g"],
+                        "properties": [
+                            "label": ["type": "STRING"],
+                            "grams": ["type": "NUMBER"],
+                            "per_100g": composition
+                        ]
                     ]
                 ]
             ]

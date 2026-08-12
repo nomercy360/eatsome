@@ -54,7 +54,7 @@ struct GeminiSessionTests {
         let itemSchema = try #require((dishProperties["ingredients"] as? [String: Any])?["items"] as? [String: Any])
         let itemProperties = try #require(itemSchema["properties"] as? [String: Any])
         #expect(Set(try #require(itemSchema["required"] as? [String])) == [
-            "label", "grams", "per_100g", "preparation", "alternatives"
+            "label", "grams", "per_100g", "preparation", "brand", "sizes", "alternatives"
         ])
         // Gemini emits exactly the properties this schema names, which is how a
         // missing `grams` went unnoticed for a version: the prompt asked for a

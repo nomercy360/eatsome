@@ -219,6 +219,32 @@ export function atwaterDelta(value: Composition): number | null {
   return Math.abs(fromMacros - value.kcal) / value.kcal;
 }
 
+/**
+ * One of the sizes a chain sells a menu item in, priced in full.
+ *
+ * A size is not a multiplier. That distinction is the whole reason this exists
+ * as a list of priced rows rather than a scale factor: v17 shipped a
+ * "A little / Normal / A lot" control, it moved no number on a weighed dish,
+ * and it was deleted for being a control that looks live and changes nothing.
+ * A 6-inch and a Footlong are two products with their own published figures —
+ * 409 kcal at 229 g and 818 at 458 — so choosing one *replaces* the row's
+ * weight and composition the way choosing an alternative replaces its name.
+ *
+ * `basis` says whether the chain printed this size's figures or whether they
+ * are arithmetic on another size. Subway publishes the Regular and everyone
+ * doubles it; a Footlong is therefore the size most likely to be wrong, and a
+ * screen that shows it should be able to say so.
+ */
+export const foodSizeSchema = z.strictObject({
+  /** The chain's own word for it: "Footlong", "L", "並盛", "Grande". */
+  label: z.string().min(1).max(60),
+  grams: z.number().min(0).max(20_000),
+  per_100g: compositionSchema,
+  basis: z.enum(["published", "derived"]),
+});
+
+export type FoodSize = z.infer<typeof foodSizeSchema>;
+
 export const mealRecognitionItemSchema = z.strictObject({
   // Edible weight on the plate, absolute: everything of this ingredient that is
   // there, across every serving present. Nothing multiplies it by the dish's
@@ -249,9 +275,33 @@ export const mealRecognitionItemSchema = z.strictObject({
         // call. Three composition blocks is a trivial addition to the response
         // and removes a round trip from the one question the sentence asks.
         per_100g: compositionSchema,
+        // And weighed, because a rival menu item is not the same size as the
+        // one first guessed: a tuna sub priced at whatever the turkey sub
+        // weighed is a number that looks chosen and is not.
+        grams: z.number().min(0).max(20_000),
       }),
     )
     .max(3),
+  /**
+   * The chain or manufacturer whose menu item this row *is*.
+   *
+   * Not a label on the food, a statement about how it is sold: it is null for
+   * everything cooked, served loose, or added on top of a menu item, and set
+   * only when the row is a named product somebody's menu lists. That is what
+   * the client needs, because the two kinds of food take different corrections.
+   * A bowl of rice is corrected in grams; a Big Mac cannot be — you did not eat
+   * 217 g of Big Mac, you ate one — so a branded row is corrected by choosing
+   * a different item, a different size, or a different number of them.
+   */
+  brand: z.string().max(120).nullable(),
+  /**
+   * Every size the chain sells this item in, priced. Empty when it comes one
+   * way only, and empty for everything with no brand.
+   *
+   * Six, because Yoshinoya sells a gyudon in six — 小盛 through 超特盛 — and a
+   * cap of three would silently drop the two biggest.
+   */
+  sizes: z.array(foodSizeSchema).max(6),
 });
 
 /**

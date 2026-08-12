@@ -129,8 +129,24 @@ export function geminiResponseSchema(): Record<string, unknown> {
                 // ingredient, the eval schema had somewhere to put one and
                 // graded it well, and every answer the app actually received
                 // came back weightless and used the ladder grams replaced.
-                propertyOrdering: ["label", "grams", "per_100g", "preparation", "alternatives"],
-                required: ["label", "grams", "per_100g", "preparation", "alternatives"],
+                propertyOrdering: [
+                  "label",
+                  "grams",
+                  "per_100g",
+                  "preparation",
+                  "brand",
+                  "sizes",
+                  "alternatives",
+                ],
+                required: [
+                  "label",
+                  "grams",
+                  "per_100g",
+                  "preparation",
+                  "brand",
+                  "sizes",
+                  "alternatives",
+                ],
                 properties: {
                   grams: {
                     type: "NUMBER",
@@ -148,16 +164,56 @@ export function geminiResponseSchema(): Record<string, unknown> {
                     items: { type: "STRING", enum: [...preparationMethods] },
                     maxItems: 4,
                   },
+                  brand: {
+                    type: "STRING",
+                    nullable: true,
+                    description:
+                      "The chain or manufacturer whose named menu item this row IS: 'Subway', 'McDonald's', 'Yoshinoya'. Null for anything cooked, served loose, or added on top of a menu item.",
+                  },
+                  sizes: {
+                    type: "ARRAY",
+                    description:
+                      "Every size the chain sells this item in, each priced in full for that size. Empty when it comes one way only, and empty when there is no brand. A size is a different product, never a multiplier.",
+                    maxItems: 6,
+                    items: {
+                      type: "OBJECT",
+                      propertyOrdering: ["label", "grams", "per_100g", "basis"],
+                      required: ["label", "grams", "per_100g", "basis"],
+                      properties: {
+                        label: {
+                          type: "STRING",
+                          description:
+                            "The chain's own word for it, in the market's language: 'Footlong', 'L', '並盛', 'Grande'.",
+                        },
+                        grams: { type: "NUMBER", description: "Edible weight of that whole size." },
+                        per_100g: composition,
+                        basis: {
+                          type: "STRING",
+                          enum: ["published", "derived"],
+                          description:
+                            "`published` when the chain prints figures for this size; `derived` when they are arithmetic on another size, as a Subway Footlong is twice a Regular.",
+                        },
+                      },
+                    },
+                  },
                   alternatives: {
                     type: "ARRAY",
                     description:
-                      "Other foods that could plausibly be right, most likely first, at most three. Empty when obvious.",
+                      "Other foods that could plausibly be right, most likely first, at most three. On a chain's menu item these are the neighbouring items on that menu. Empty when obvious.",
                     maxItems: 3,
                     items: {
                       type: "OBJECT",
-                      propertyOrdering: ["label", "per_100g"],
-                      required: ["label", "per_100g"],
-                      properties: { label: { type: "STRING" }, per_100g: composition },
+                      propertyOrdering: ["label", "grams", "per_100g"],
+                      required: ["label", "grams", "per_100g"],
+                      properties: {
+                        label: { type: "STRING" },
+                        grams: {
+                          type: "NUMBER",
+                          description:
+                            "What this food would weigh here — a rival menu item is not the same size as the one first named.",
+                        },
+                        per_100g: composition,
+                      },
                     },
                   },
                 },

@@ -41,6 +41,17 @@ public struct MealItem: Codable, Sendable, Hashable, Identifiable {
     /// syrup?" is a local swap rather than another call. Empty means the model
     /// was asked and had no rival in mind.
     public var alternatives: [FoodAlternative]
+    /// The chain or manufacturer whose menu item this row *is*, and nil for
+    /// everything cooked, served loose, or added on top of one.
+    ///
+    /// It decides which correction a screen may offer. Weight is the control
+    /// for a bowl of rice and a meaningless one for a Big Mac: nobody ate 217 g
+    /// of Big Mac, they ate one, so a branded row is corrected by naming a
+    /// different item, size or count.
+    public var brand: String?
+    /// The sizes that chain sells this item in, each priced in full. Empty for
+    /// an item that comes one way, and for everything with no brand.
+    public var sizes: [FoodSize]
 
     public init(
         id: UUID = UUIDv7.generate(),
@@ -50,7 +61,9 @@ public struct MealItem: Codable, Sendable, Hashable, Identifiable {
         provenance: NutrientProvenance = .model,
         preparation: [PreparationMethod] = [],
         sourceRef: SourceRef? = nil,
-        alternatives: [FoodAlternative] = []
+        alternatives: [FoodAlternative] = [],
+        brand: String? = nil,
+        sizes: [FoodSize] = []
     ) {
         self.id = id
         self.label = label
@@ -60,7 +73,14 @@ public struct MealItem: Codable, Sendable, Hashable, Identifiable {
         self.preparation = preparation
         self.sourceRef = sourceRef
         self.alternatives = alternatives
+        self.brand = brand
+        self.sizes = sizes
     }
+
+    /// Whether this row is something somebody's menu lists, which is the
+    /// question a correction screen has to answer before it decides what to
+    /// offer: chips and a stepper, or a weight.
+    public var isMenuItem: Bool { !(brand?.isEmpty ?? true) }
 
     /// What this item contributes. Arithmetic on two stored values — not a
     /// lookup into anything that can change underneath it.
@@ -71,8 +91,25 @@ public struct MealItem: Codable, Sendable, Hashable, Identifiable {
     /// type whose stored shape differs from the shape it arrived in, which is a
     /// mismatch nothing would catch until a round trip lost a figure.
     private enum CodingKeys: String, CodingKey {
-        case id, label, grams, provenance, preparation, sourceRef, alternatives
+        case id, label, grams, provenance, preparation, sourceRef, alternatives, brand, sizes
         case per100g = "per_100g"
+    }
+
+    /// `sizes` and `brand` arrived after meals were already being stored, so
+    /// both decode absent. Everything else stays required — a missing weight or
+    /// composition is the loud failure v21 exists to keep loud.
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        label = try container.decode(String.self, forKey: .label)
+        grams = try container.decode(Double.self, forKey: .grams)
+        per100g = try container.decode(Nutrients.self, forKey: .per100g)
+        provenance = try container.decodeIfPresent(NutrientProvenance.self, forKey: .provenance) ?? .model
+        preparation = try container.decodeIfPresent([PreparationMethod].self, forKey: .preparation) ?? []
+        sourceRef = try container.decodeIfPresent(SourceRef.self, forKey: .sourceRef)
+        alternatives = try container.decodeIfPresent([FoodAlternative].self, forKey: .alternatives) ?? []
+        brand = try container.decodeIfPresent(String.self, forKey: .brand)
+        sizes = try container.decodeIfPresent([FoodSize].self, forKey: .sizes) ?? []
     }
 
     /// The same food at a different weight. Composition is a property of the
@@ -83,34 +120,99 @@ public struct MealItem: Codable, Sendable, Hashable, Identifiable {
         return copy
     }
 
-    /// Swap in one of the alternatives the model offered. The weight is what was
-    /// on the plate and does not change because the food was renamed; the
-    /// composition does, which is the entire point of carrying it on the
-    /// alternative.
+    /// Swap in one of the alternatives the model offered.
+    ///
+    /// The composition always changes, which is the entire point of carrying it
+    /// on the alternative. The weight changes only when the alternative brought
+    /// one: a rival menu item has its own size, while a loose food renamed from
+    /// "chicken" to "fried chicken" is still the portion that was on the plate.
     public func choosing(_ alternative: FoodAlternative) -> MealItem {
         var copy = self
         copy.label = alternative.label
         copy.per100g = alternative.per100g
+        if let grams = alternative.grams { copy.grams = grams }
         copy.provenance = .model
         copy.sourceRef = nil
-        // The shortlist answered a question that has now been answered.
+        // The shortlist answered a question that has now been answered, and the
+        // sizes belonged to the item that is no longer here.
         copy.alternatives = []
+        copy.sizes = []
+        return copy
+    }
+
+    /// The same menu item in one of the sizes its chain sells.
+    ///
+    /// Both figures move together, because a size is a different product rather
+    /// than a scaled one — a Footlong is not a 6-inch times two once the bread
+    /// ends are counted, and the chain says so itself where it publishes both.
+    /// The shortlist survives: which sub it is and how big it was are separate
+    /// questions, and answering one does not answer the other.
+    public func resized(to size: FoodSize) -> MealItem {
+        var copy = self
+        copy.grams = size.grams
+        copy.per100g = size.per100g
+        copy.provenance = .model
+        copy.sourceRef = nil
         return copy
     }
 }
 
-/// A rival reading of the same food, priced.
+/// A rival reading of the same food, priced and weighed.
+///
+/// The weight is not decoration. A tuna sub is not the size of the turkey sub
+/// the model happened to name first, and pricing a swapped row at the old row's
+/// weight produces a number that looks chosen and is not.
 public struct FoodAlternative: Codable, Sendable, Hashable {
     public var label: String
     public var per100g: Nutrients
+    /// Nil on anything written before alternatives carried one, in which case
+    /// the row keeps the weight it had — the v20 behaviour, and still the right
+    /// answer for a loose food whose identity changed but whose portion did not.
+    public var grams: Double?
 
-    public init(label: String, per100g: Nutrients) {
+    public init(label: String, per100g: Nutrients, grams: Double? = nil) {
         self.label = label
         self.per100g = per100g
+        self.grams = grams
     }
 
     private enum CodingKeys: String, CodingKey {
-        case label
+        case label, grams
+        case per100g = "per_100g"
+    }
+}
+
+/// One of the sizes a chain sells a menu item in.
+///
+/// A size is a different product, never a multiplier. v17 deleted a
+/// "A little / Normal / A lot" control because it moved no number on a weighed
+/// dish, and a control that looks live and changes nothing is worse than an
+/// absent one. This is the opposite shape: each size carries its own weight and
+/// its own composition, so choosing one replaces the row rather than scaling it.
+public struct FoodSize: Codable, Sendable, Hashable, Identifiable {
+    /// The chain's own word, in the market's own language: "Footlong", "L",
+    /// "並盛", "Grande".
+    public var label: String
+    public var grams: Double
+    public var per100g: Nutrients
+    /// `published` when the chain prints figures for this size, `derived` when
+    /// they are arithmetic on another — a Subway Footlong is twice a Regular
+    /// and nobody prints it, which makes it the size most likely to be wrong.
+    public var basis: String
+
+    public var id: String { label }
+
+    public init(label: String, grams: Double, per100g: Nutrients, basis: String = "published") {
+        self.label = label
+        self.grams = grams
+        self.per100g = per100g
+        self.basis = basis
+    }
+
+    public var isDerived: Bool { basis == "derived" }
+
+    private enum CodingKeys: String, CodingKey {
+        case label, grams, basis
         case per100g = "per_100g"
     }
 }

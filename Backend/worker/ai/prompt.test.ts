@@ -5,13 +5,13 @@ import { MEAL_PROMPT_VERSION, MEAL_RECOGNITION_SYSTEM_PROMPT } from "./prompt";
 import { MEAL_REVISION_SYSTEM_PROMPT } from "./revision.generated";
 import { productionSpec } from "./spec";
 
-const promptFile = join(import.meta.dirname, "../../../prompts/meal-v24.md");
+const promptFile = join(import.meta.dirname, "../../../prompts/meal-v25.md");
 const revisionFile = join(import.meta.dirname, "../../../prompts/revision-v4.md");
 
 describe("meal recognition prompt", () => {
   it("matches its source and deployed version", () => {
     expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toBe(readFileSync(promptFile, "utf8").trimEnd());
-    expect(MEAL_PROMPT_VERSION).toBe("meal-v24-2026-08-12");
+    expect(MEAL_PROMPT_VERSION).toBe("meal-v25-2026-08-12");
 
     const wrangler = readFileSync(join(import.meta.dirname, "../../wrangler.jsonc"), "utf8");
     const deployed = /"MEAL_PROMPT_VERSION":\s*"([^"]+)"/.exec(wrangler)?.[1];
@@ -44,6 +44,14 @@ describe("meal recognition prompt", () => {
     expect(MEAL_RECOGNITION_SYSTEM_PROMPT).not.toContain(
       "Report the dish exactly as you would with no brand on it",
     );
+  });
+
+  it("asks how a branded row is sold, because that decides how it is corrected", () => {
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("nobody eats 217 g of Big Mac");
+    // A size is a different product. v17 deleted a size control that was a
+    // vague multiplier and moved no number; this one carries its own figures.
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("A size is a different product, never a multiplier");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("Never invent a ladder");
   });
 
   it("insists on one food per label", () => {

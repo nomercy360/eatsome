@@ -195,7 +195,15 @@ describe("gemini response schema", () => {
     const item = (dishProperties.ingredients as { items: Record<string, unknown> }).items;
     const itemProperties = item.properties as Record<string, Record<string, unknown>>;
 
-    expect(item.required).toEqual(["label", "grams", "per_100g", "preparation", "alternatives"]);
+    expect(item.required).toEqual([
+      "label",
+      "grams",
+      "per_100g",
+      "preparation",
+      "brand",
+      "sizes",
+      "alternatives",
+    ]);
     expect(itemProperties.label.nullable).toBeUndefined();
 
     // An alternative is priced with the same block as the ingredient. If it
@@ -205,7 +213,7 @@ describe("gemini response schema", () => {
       required: string[];
       properties: Record<string, Record<string, unknown>>;
     };
-    expect(alternative.required).toEqual(["label", "per_100g"]);
+    expect(alternative.required).toEqual(["label", "grams", "per_100g"]);
     expect(alternative.properties.per_100g.required).toEqual([
       "protein",
       "fat",
@@ -234,6 +242,23 @@ describe("gemini response schema", () => {
       "kcal",
       "sodium_mg",
     ]);
+  });
+
+  it("asks which menu a branded row came off, and in what sizes", () => {
+    // Both are what a correction screen needs before it can decide what to
+    // offer: chips and a stepper for something a menu lists, a weight for
+    // anything else. A field Gemini is not told to emit is a field it drops.
+    const properties = schema.properties as Record<string, Record<string, unknown>>;
+    const dish = (properties.dishes as { items: Record<string, unknown> }).items;
+    const dishProperties = dish.properties as Record<string, Record<string, unknown>>;
+    const item = (dishProperties.ingredients as { items: Record<string, unknown> }).items;
+    const fields = item.properties as Record<string, Record<string, unknown>>;
+
+    expect(fields.brand.nullable).toBe(true);
+    const size = fields.sizes.items as { required: string[] };
+    expect(size.required).toEqual(["label", "grams", "per_100g", "basis"]);
+    // Six, because Yoshinoya sells a gyudon in six.
+    expect(fields.sizes.maxItems).toBe(6);
   });
 
   it("asks for a weight on every ingredient", () => {

@@ -24,27 +24,49 @@ public struct MealRecognition: Codable, Sendable, Hashable {
         /// Composition per 100 g of this food, as prepared.
         public let per100g: Nutrients
         public let preparation: [PreparationMethod]
-        /// Rival readings, each priced, so answering the one question the
-        /// sentence raises is a local swap rather than another call.
+        /// Rival readings, each priced and weighed, so answering the one
+        /// question the sentence raises is a local swap rather than another
+        /// call. On a chain's item these are its neighbours on the same menu.
         public let alternatives: [FoodAlternative]
+        /// The chain whose menu item this row is, and nil for everything else.
+        public let brand: String?
+        /// The sizes that chain sells it in, each priced in full.
+        public let sizes: [FoodSize]
 
         public init(
             label: String,
             grams: Double,
             per100g: Nutrients,
             preparation: [PreparationMethod] = [],
-            alternatives: [FoodAlternative] = []
+            alternatives: [FoodAlternative] = [],
+            brand: String? = nil,
+            sizes: [FoodSize] = []
         ) {
             self.label = label
             self.grams = grams
             self.per100g = per100g
             self.preparation = preparation
             self.alternatives = alternatives
+            self.brand = brand
+            self.sizes = sizes
         }
 
         private enum CodingKeys: String, CodingKey {
-            case label, grams, preparation, alternatives
+            case label, grams, preparation, alternatives, brand, sizes
             case per100g = "per_100g"
+        }
+
+        /// Absent on any answer from a Worker older than v25, which decodes to
+        /// a row with no menu behind it — exactly what a home-cooked food is.
+        public init(from decoder: any Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            label = try container.decode(String.self, forKey: .label)
+            grams = try container.decode(Double.self, forKey: .grams)
+            per100g = try container.decode(Nutrients.self, forKey: .per100g)
+            preparation = try container.decodeIfPresent([PreparationMethod].self, forKey: .preparation) ?? []
+            alternatives = try container.decodeIfPresent([FoodAlternative].self, forKey: .alternatives) ?? []
+            brand = try container.decodeIfPresent(String.self, forKey: .brand)
+            sizes = try container.decodeIfPresent([FoodSize].self, forKey: .sizes) ?? []
         }
     }
 
@@ -101,7 +123,9 @@ public struct MealRecognition: Codable, Sendable, Hashable {
                         per100g: $0.per100g,
                         provenance: .model,
                         preparation: $0.preparation,
-                        alternatives: $0.alternatives
+                        alternatives: $0.alternatives,
+                        brand: $0.brand,
+                        sizes: $0.sizes
                     )
                 }
             )
@@ -292,20 +316,45 @@ public enum MealPrompt {
         let alternative: [String: Any] = [
             "type": "object",
             "additionalProperties": false,
-            "required": ["label", "per_100g"],
+            "required": ["label", "grams", "per_100g"],
             "properties": [
                 "label": ["type": "string"],
+                "grams": ["type": "number", "description": "What this food would weigh here — a rival menu item is not the size of the one first named."],
                 "per_100g": composition
+            ]
+        ]
+        let size: [String: Any] = [
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["label", "grams", "per_100g", "basis"],
+            "properties": [
+                "label": ["type": "string", "description": "The chain's own word, in the market's language: 'Footlong', 'L', '並盛'."],
+                "grams": ["type": "number", "description": "Edible weight of that whole size."],
+                "per_100g": composition,
+                "basis": [
+                    "type": "string",
+                    "enum": ["published", "derived"],
+                    "description": "`derived` when the figures are arithmetic on another size, as a Footlong is twice a Regular."
+                ]
             ]
         ]
         let ingredient: [String: Any] = [
             "type": "object",
             "additionalProperties": false,
-            "required": ["label", "grams", "per_100g", "preparation", "alternatives"],
+            "required": ["label", "grams", "per_100g", "preparation", "brand", "sizes", "alternatives"],
             "properties": [
                 "label": ["type": "string", "description": "Short, specific food name. Required — it is the whole identity."],
                 "grams": ["type": "number", "description": gramsDescription],
                 "per_100g": composition,
+                "brand": [
+                    "type": ["string", "null"],
+                    "description": "The chain or manufacturer whose named menu item this row IS. Null for anything cooked, served loose, or added on top of one."
+                ],
+                "sizes": [
+                    "type": "array",
+                    "description": "Every size that chain sells this item in, each priced in full. Empty when it comes one way, and empty when there is no brand. A size is a different product, never a multiplier.",
+                    "items": size
+                ],
                 "preparation": [
                     "type": "array",
                     "items": ["type": "string", "enum": PreparationMethod.allCases.map(\.rawValue)]
