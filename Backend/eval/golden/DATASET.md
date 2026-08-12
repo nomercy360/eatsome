@@ -65,7 +65,7 @@ Two meals is not a calibration set. It is the start of one, and the honest thing
 to do with a pipeline tuned on two points is not much.
 
 Add a case every time a meal arrives with a printed number. Chains, convenience
-food, canteens with boards, anything with a panel. `../google-search-poc.ts`
-fetches official published figures for branded food and validates the source
-domain, so a photographed Big Mac becomes a case without anyone transcribing
-anything.
+food, canteens with boards, anything with a panel. A chain's own figures make the
+easiest cases to admit: they are published, they are stable, and recognition is
+grounded in search now, so a photographed Big Mac can be scored against the
+number McDonald's prints.

@@ -20,7 +20,6 @@
     "db:migrate:local": "wrangler d1 migrations apply eatsome --local",
     "db:migrate:remote": "wrangler d1 migrations apply eatsome --remote",
     "cf:typegen": "wrangler types",
-    "poc:google-search": "tsx eval/google-search-poc.ts",
     "v21:audit": "node scripts/migrate-v21.mjs --audit",
     "v21:migrate": "node scripts/migrate-v21.mjs --apply",
     "eval:nutrition": "tsx eval/score-nutrition.ts"

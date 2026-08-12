@@ -16,8 +16,8 @@ import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
-const activeVersion = "meal-v21-2026-08-12";
-const promptFile = "meal-v21.md";
+const activeVersion = "meal-v24-2026-08-12";
+const promptFile = "meal-v24.md";
 
 // The correction prompt has no version of its own: it is not on the evals and
 // nothing keys a cache on it. It is generated for the other reason this script

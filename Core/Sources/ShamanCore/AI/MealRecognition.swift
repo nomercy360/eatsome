@@ -80,8 +80,13 @@ public struct MealRecognition: Codable, Sendable, Hashable {
     ///
     /// A printed panel is a fact about the item in front of the camera, so the
     /// figures it settled are marked `panel` and the rest stay `model`. That is
-    /// the whole of the provenance decision at recognition time; `published` and
-    /// `user` arrive later, from grounding and from corrections.
+    /// the whole of the provenance decision at recognition time; `user` arrives
+    /// later, from corrections.
+    ///
+    /// Recognition is grounded in search, and a grounded figure for a chain's
+    /// product is still `model`: the answer arrives with no URL — Gemini returns
+    /// no grounding metadata beside a response schema — so calling it
+    /// `published` would be a label claiming a citation nothing here holds.
     public func asMealDishes() -> [MealDish] {
         dishes.map { dish in
             let panel = (dish.panel?.isEmpty ?? true) ? nil : dish.panel

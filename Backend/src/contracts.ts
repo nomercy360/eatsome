@@ -368,6 +368,31 @@ export const mealRecognitionSchema = z.strictObject({
 export type MealRecognition = z.infer<typeof mealRecognitionSchema>;
 
 /**
+ * Which published figures a `published` nutrient came from.
+ *
+ * Kept because the scaling is the part that can be wrong. A Footlong priced by
+ * doubling a Regular is a different claim from a figure printed for the item
+ * ordered, and once the two are flattened into one number the difference cannot
+ * be recovered. `scaleBasis` is the field that makes a wrong figure arguable.
+ *
+ * Nothing writes one today. Recognition is grounded in search, and a grounded
+ * answer has no URL to keep — `generateContent` returns no grounding metadata
+ * beside a response schema — so every figure it produces is `model`. The type
+ * stays because storage has carried it since v21 and a stored meal that once
+ * had a citation must still decode.
+ */
+export const sourceRefSchema = z.strictObject({
+  url: z.string().min(1).max(2_000),
+  fetchedAt: z.number().int().nonnegative(),
+  market: z.string().max(8).nullable().optional(),
+  scaleFactor: z.number().min(0).max(100).nullable().optional(),
+  scaleBasis: z.string().max(64).nullable().optional(),
+  productName: z.string().max(300).nullable().optional(),
+});
+
+export type SourceRef = z.infer<typeof sourceRefSchema>;
+
+/**
  * What the client receives.
  *
  * v20 also carried a flattened `items` list, because meals predated dishes and
@@ -519,15 +544,6 @@ export function mealRevisionJsonSchema(): Record<string, unknown> {
   delete schema.$schema;
   return schema;
 }
-
-const sourceRefSchema = z.strictObject({
-  url: z.string().min(1).max(2_000),
-  fetchedAt: z.number().int().nonnegative(),
-  market: z.string().max(8).nullable().optional(),
-  scaleFactor: z.number().min(0).max(100).nullable().optional(),
-  scaleBasis: z.string().max(64).nullable().optional(),
-  productName: z.string().max(300).nullable().optional(),
-});
 
 export const nutrientSources = ["panel", "published", "model", "user"] as const;
 

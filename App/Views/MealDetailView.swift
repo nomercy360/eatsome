@@ -287,6 +287,7 @@ struct MealDetailView: View {
         }
     }
 
+
     /// The figures worth printing, in a fixed order, skipping the ones that
     /// round to nothing.
     ///

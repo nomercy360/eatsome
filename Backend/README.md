@@ -24,17 +24,21 @@ pnpm db:migrate:local
 pnpm dev
 ```
 
-Replace both placeholder values in `.dev.vars`. The local file is ignored and must never be
-committed.
+Replace the provider-key placeholders you need in `.dev.vars`. The local file is ignored and must
+never be committed.
 
 ## API
 
-`GET /api/health` is public. Every `/api/v1/*` route requires the app's shared
-token in `Authorization: Bearer <token>` — it says "this is the app", and keeps
-a scanner out. Which copy of it is `X-Device-Id`, and that is what selects the
-account owning all D1 and R2 data.
+`GET /api/health` is public. `POST /api/v1/auth/sessions` verifies a Sign in with
+Apple identity token and returns an opaque 180-day eatsome session. Every other
+production `/api/v1/*` route requires that session in
+`Authorization: Bearer <session>`. Only its SHA-256 digest is stored in D1.
+`X-Device-Id` names the legacy device partition that is permanently adopted on
+first sign-in; it is not an authentication credential.
 
 ```text
+POST /api/v1/auth/sessions  exchange a provider identity token for an eatsome account session
+DELETE /api/v1/auth/sessions  revoke the current device's session
 POST /api/v1/recognitions  read a meal from a photo, the person's words, or both; cache by account/input/prompt/model
 POST /api/v1/recognitions/:sha/rerun  rerun from the model input already in R2
 POST /api/v1/voice/key     mint a single-use, short-lived Soniox transcription key
@@ -74,6 +78,26 @@ The cache identity is `(account, input fingerprint, prompt version, model)`. The
 includes the normalized note: the same plate plus “fried in butter” is a different model question.
 The model id keeps provider comparisons real. D1 contains metadata and provenance, never image
 bytes.
+
+## Branded food
+
+`RECOGNITION_SEARCH=on` hands the recognition call `googleSearch` as a tool. The
+model reaches for it on a chain's product and ignores it on food nobody
+published — an ordinary home meal performs no search and costs nothing extra —
+and it answers in the same schema either way. A Subway JP American Clubhouse
+footlong publishes 698 kcal: ungrounded this prompt answered 845 and 865,
+grounded it answers 699.
+
+The request's country goes into the turn with it, from `CF-IPCountry`, as the
+weakest evidence in the prompt. Nobody types their own country, and without it
+the same words returned 1216 kcal — correctly, for the American sandwich. It is
+part of the cache fingerprint for the same reason.
+
+What none of this buys is a citation: `generateContent` returns no grounding
+metadata beside a response schema, so a grounded figure is `model`, and the app
+calls it an estimate. A pipeline that fetched brands' own pages to earn one URL
+lived in `worker/ai/published.ts` for a day; it resolved one chain in seven and
+was deleted in favour of this.
 
 Event ingestion stores the original append-only event unchanged. A meal event containing
 `recognitionEvidence` is additionally projected into `meal_evals`, where initial and final items
@@ -127,15 +151,16 @@ export CLOUDFLARE_API_TOKEN=…   # Workers Scripts: Edit, D1: Edit, R2: Edit, A
 `wrangler login` works instead of the token if you would rather use the browser.
 The first run creates the D1 database and private `eatsome-media` bucket, then prints the database
 id. Paste that id into `wrangler.jsonc` and run it again; it sets the secrets, migrates, and
-deploys. It is safe to re-run—existing resources and secrets are left alone.
+deploys. It is safe to re-run—existing resources and provider secrets are left alone. On the first
+session-bearer deployment it removes the retired `EATSOME_API_TOKEN` secret after the new Worker is
+live.
 
-For a small development group there is nothing per-person to provision. Everyone on the TestFlight
-build shares `EATSOME_API_TOKEN`, which is baked into the archive, and the device id the app
-generates on first launch is the account: media prefixes, event rows, eval pairs, deletion and the
-daily recognition quota are all keyed on `device:<id>`. Two testers never see each other's data, and
-nobody types a credential.
+There is nothing per-person to provision and no backend secret in a TestFlight
+archive. Apple proves the person's identity during sign-in; the Worker mints a
+random 256-bit session and the app stores it in the Keychain. Requests after
+sign-in use that session as their bearer credential. A second device signing in
+with the same Apple account joins the account's partition union, so meal history
+follows the person without rewriting legacy rows.
 
-That is a partition between honest callers, not a proof of identity: a header can say anything, and
-nothing stops one tester from reading another's id out of the traffic. Rotating the shared token
-means putting a new Worker secret and a new build out together. Before a public release, replace it
-with App Attest and, if cross-device accounts are wanted, Sign in with Apple.
+Sessions expire after 180 days and are revoked per device at sign-out. Provider
+credentials remain Worker secrets and never reach the app.

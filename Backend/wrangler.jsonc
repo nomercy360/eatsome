@@ -25,7 +25,11 @@
     "QWEN_RECOGNITION_MODEL": "qwen3.7-flash",
     "QWEN_BASE_URL": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
     "OPENAI_IMAGE_DETAIL": "high",
-    "MEAL_PROMPT_VERSION": "meal-v21-2026-08-12",
+    "MEAL_PROMPT_VERSION": "meal-v24-2026-08-12",
+    // Search as a tool on the recognition call itself. This is what fixes a
+    // chain's numbers: the model searches when the food is branded, ignores
+    // search when it is not, and answers in the same schema either way.
+    "RECOGNITION_SEARCH": "on",
     "RECOGNITIONS_PER_DAY": "400",
     "RECOGNITIONS_PER_DEVICE_PER_DAY": "40"
   },

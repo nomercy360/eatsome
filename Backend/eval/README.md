@@ -7,7 +7,6 @@ pnpm eval:nutrition                              # the whole pipeline vs publish
 pnpm eval:nutrition -- --case bibimbap-2026-08-07
 tsx eval/composition-recall-poc.ts               # does the model know composition?
 tsx eval/macro-mode-poc.ts                       # per 100 g vs the portion total
-tsx eval/google-search-poc.ts                    # fetch official figures for branded food
 ```
 
 ## What happened to the old one

@@ -80,6 +80,49 @@ describe("the hand-written revision schema", () => {
   });
 });
 
+describe("search on the recognition call", () => {
+  const spec = revisionSpec({ current: [{ label: "x", grams: 1 }], note: "y" });
+
+  function captureBody(recognitionSearch: string) {
+    const sent: { body?: Record<string, never> } = {};
+    vi.stubGlobal("fetch", async (_url: string, init: { body: string }) => {
+      sent.body = JSON.parse(init.body);
+      return new Response(
+        JSON.stringify({
+          candidates: [
+            {
+              content: {
+                parts: [{ text: JSON.stringify({ add: [], revise: [], remove: [], notes: null }) }],
+              },
+            },
+          ],
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    });
+    return { sent, env: { ...env, RECOGNITION_SEARCH: recognitionSearch } as Env };
+  }
+
+  it("offers search as a tool without demanding it", async () => {
+    // Available, never forced. The model reaches for it on a branded product
+    // and skips it on food nobody published, which is what makes it free on an
+    // ordinary meal — there is no tool_choice here on purpose.
+    const { sent, env: on } = captureBody("on");
+    await requestGeminiRecognition(on, { said: "a subway footlong" }, spec);
+    const body = sent.body as never as { tools?: unknown[]; generationConfig: object };
+    expect(body.tools).toEqual([{ googleSearch: {} }]);
+    expect(JSON.stringify(body.generationConfig)).not.toContain("tool_choice");
+    vi.unstubAllGlobals();
+  });
+
+  it("sends no tools at all when the deployment has not asked for it", async () => {
+    const { sent, env: off } = captureBody("");
+    await requestGeminiRecognition(off, { said: "a subway footlong" }, spec);
+    expect((sent.body as never as { tools?: unknown[] }).tools).toBeUndefined();
+    vi.unstubAllGlobals();
+  });
+});
+
 describe("a correction with no photograph", () => {
   const spec = revisionSpec({
     current: [{ label: "grilled cod", grams: 120 }],
@@ -210,6 +253,18 @@ describe("gemini response schema", () => {
     // here, so anything optional is a field that can come back missing.
     expect(itemProperties.grams.nullable).toBeUndefined();
     expect(item.required).toContain("grams");
+  });
+
+  it("names the same dish fields as the contract every other provider gets", () => {
+    const contract = mealRecognitionJsonSchema() as {
+      properties: { dishes: { items: { properties: object } } };
+    };
+    const properties = schema.properties as Record<string, Record<string, unknown>>;
+    const dish = (properties.dishes as { items: Record<string, unknown> }).items;
+
+    expect(Object.keys(dish.properties as object).sort()).toEqual(
+      Object.keys(contract.properties.dishes.items.properties).sort(),
+    );
   });
 
   it("names the same ingredient fields as the contract every other provider gets", () => {

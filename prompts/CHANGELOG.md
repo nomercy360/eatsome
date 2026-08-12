@@ -7,6 +7,51 @@ anything.
 v9 through v16 shipped without entries. That is a gap in this file, not a run of
 versions that changed nothing.
 
+## meal-v24-2026-08-12
+
+Grounded recognition made two thirds of v22 dead weight, and one line of it
+actively harmful. The prompt is 1624 tokens down to 1285.
+
+- **`brand` and `market` are gone as fields.** They existed to feed a lookup
+  that fetched brands' own pages; search does the same job inside the
+  recognition call, so both fields lost their only consumer. The instruction to
+  write the brand in Latin script went with them — it was there to match a web
+  domain, which is our implementation leaking into a prompt.
+- **The branded rule moved into `Dishes`, ahead of the decomposition bullet it
+  contradicts.** v22 said to report a branded dish "exactly as you would with no
+  brand on it", which told the model to rebuild a Subway sandwich from bread,
+  meat, cheese and sauce: three runs of one input returned 697, 897 and 665 kcal
+  against a published 698. One row is now the rule, and it is stated before the
+  rule that would otherwise override it.
+- **The composition-table bullet merged into the as-eaten bullet.** They
+  contradicted each other — tables publish unsalted preparations, which is the
+  82%-low canteen bibimbap this repo already fixed once — and stating both in
+  order left the model to choose.
+- **A food you cannot price is looked up, not approximated.** The old
+  instruction to name the closest food you do know predates search.
+- **The closing restatement is gone.** It repeated three rules already stated,
+  and a restatement is how a contradiction gets in unnoticed.
+
+## meal-v22-2026-08-12
+
+A branded food's figures are published by whoever sells it, and until now the
+app estimated them instead. `NutrientSource.published` and `SourceRef` have
+existed since v21 with nothing able to write them; what was missing was the
+question, not the storage.
+
+- **A dish may now name its `brand` and its `market`.** Both nullable, and both
+  described as evidence rather than as guesses: a brand is a named chain's named
+  product, and a market is a country the input actually shows — printed
+  language, a currency, a place the person names. The market field is the whole
+  of the JP-versus-US Big Mac problem, and the prompt refuses the one
+  substitution that would look right and be wrong: inferring a country from the
+  language of the answer.
+- **Naming a brand changes nothing else.** The same ingredients, the same
+  weights, the same `per_100g`. The brand licenses a *lookup* — two grounded
+  calls in the Worker, against the brand's own site — and the prompt says
+  explicitly that it does not license figures from memory of a product, which is
+  the failure mode it would otherwise invite.
+
 ## meal-v18-2026-08-09
 
 The meal may now arrive as words — typed or dictated in the chat-first logging

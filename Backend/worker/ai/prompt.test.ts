@@ -5,13 +5,13 @@ import { MEAL_PROMPT_VERSION, MEAL_RECOGNITION_SYSTEM_PROMPT } from "./prompt";
 import { MEAL_REVISION_SYSTEM_PROMPT } from "./revision.generated";
 import { productionSpec } from "./spec";
 
-const promptFile = join(import.meta.dirname, "../../../prompts/meal-v21.md");
+const promptFile = join(import.meta.dirname, "../../../prompts/meal-v24.md");
 const revisionFile = join(import.meta.dirname, "../../../prompts/revision-v4.md");
 
 describe("meal recognition prompt", () => {
   it("matches its source and deployed version", () => {
     expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toBe(readFileSync(promptFile, "utf8").trimEnd());
-    expect(MEAL_PROMPT_VERSION).toBe("meal-v21-2026-08-12");
+    expect(MEAL_PROMPT_VERSION).toBe("meal-v24-2026-08-12");
 
     const wrangler = readFileSync(join(import.meta.dirname, "../../wrangler.jsonc"), "utf8");
     const deployed = /"MEAL_PROMPT_VERSION":\s*"([^"]+)"/.exec(wrangler)?.[1];
@@ -25,6 +25,25 @@ describe("meal recognition prompt", () => {
     expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("per 100 g of edible portion");
     expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("never for the weight you just reported");
     expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("`sodium_mg` in milligrams");
+  });
+
+  it("reports a published product as one row rather than rebuilding it", () => {
+    // Kept because it was measured, not because it reads well. Without this
+    // bullet, four runs of "subway american clubhouse footlong" came back 698,
+    // 929, 698, 698 — the 929 rebuilt the sandwich from seven components. With
+    // it, eight runs across two chains were all one row and all within 2 kcal.
+    // It is a counterweight to our own decomposition rule, which the very next
+    // bullet states.
+    // v22 said to report a branded dish "exactly as you would with no brand on
+    // it", which told the model to reconstruct a Subway sandwich from bread,
+    // meat, cheese and sauce. Three runs of one input came back 697, 897 and
+    // 665 kcal against a published 698: the reconstruction is a guess about
+    // somebody else's recipe and it looks exactly as confident as the lookup.
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("is ONE ingredient rather than a recipe");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("Do not rebuild it from bread");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).not.toContain(
+      "Report the dish exactly as you would with no brand on it",
+    );
   });
 
   it("insists on one food per label", () => {
@@ -47,7 +66,8 @@ describe("meal recognition prompt", () => {
     // The salt-floor problem, fixed at its source. A composition table publishes
     // unsalted preparations, which ran 82% low on a canteen bibimbap; a model
     // asked for the food as eaten answers for the seasoning too.
-    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("seasoning included");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("as it will actually be eaten");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("and seasoned");
     expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("understates real food");
   });
 

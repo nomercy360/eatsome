@@ -29,7 +29,7 @@ import {
 import { addCorpusItem, deleteAccountData, deleteOrphanCorpus, optOutCorpus } from "./data/corpus";
 import { ingestEvents, listEvents, listMealEvals } from "./data/events";
 import { deleteOrphanMedia, getMediaObject } from "./data/media";
-import { recognizeMeal, rerunRecognition } from "./data/recognitions";
+import { callerMarket, recognizeMeal, rerunRecognition } from "./data/recognitions";
 import { refineMeal, refineMealFromNote } from "./data/refinements";
 import {
   createPost,
@@ -122,7 +122,7 @@ app.post("/v1/recognitions", zValidator("json", recognitionRequestSchema), async
       `${provider} is not configured. Add ${keyVariableFor[provider]} to .dev.vars.`,
     );
   }
-  const result = await recognizeMeal(c.env, c.get("accountId"), input);
+  const result = await recognizeMeal(c.env, c.get("accountId"), input, callerMarket(c.req.raw));
   c.header("Cache-Control", "no-store");
   return c.json(result, result.cached ? 200 : 201);
 });
@@ -143,7 +143,13 @@ app.post(
         `${provider} is not configured. Add ${keyVariableFor[provider]} to .dev.vars.`,
       );
     }
-    const result = await rerunRecognition(c.env, accountId, photoHash.data.toLowerCase(), input);
+    const result = await rerunRecognition(
+      c.env,
+      accountId,
+      photoHash.data.toLowerCase(),
+      input,
+      callerMarket(c.req.raw),
+    );
     c.header("Cache-Control", "no-store");
     return c.json(result, result.cached ? 200 : 201);
   },

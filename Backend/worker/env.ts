@@ -12,7 +12,6 @@ export type Env = {
   META_API_KEY: string;
   /** Mints short-lived transcription keys; the real key never reaches a device. */
   SONIOX_API_KEY: string;
-  EATSOME_API_TOKEN: string;
   /** `anonymous` enables session-backed multi-account production; anything
    *  else pins the deployment to one configured partition and disables sign-in. */
   ACCOUNT_ID: string;
@@ -58,6 +57,17 @@ export type Env = {
   /** As `OPENAI_IMAGE_DETAIL`; empty means `high`. */
   META_IMAGE_DETAIL: string;
   MEAL_PROMPT_VERSION: string;
+  /**
+   * `on` hands the recognition call Google Search as an available tool.
+   *
+   * Not a lookup and not a citation: the model decides whether to search, and
+   * `generateContent` returns no grounding metadata beside a response schema,
+   * so what comes back is the same contract with better numbers on branded
+   * food. Measured on a Subway JP footlong: 845 and 865 kcal ungrounded
+   * against a published 698, 700 and 697 grounded. Free on food nobody
+   * published — an ordinary home meal performs no search at all.
+   */
+  RECOGNITION_SEARCH: string;
   /** Global ceiling across every caller, because the rate limiter is per-colo
    *  and a proxy in front of paid model APIs needs a bound in money, not in
    *  requests per location. */

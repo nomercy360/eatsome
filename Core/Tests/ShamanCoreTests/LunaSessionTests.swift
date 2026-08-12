@@ -83,9 +83,14 @@ struct LunaSessionTests {
         #expect(prompt.contains("it must name exactly one food"))
         #expect(prompt.contains("never \"and\""))
 
-        // Priced as eaten, seasoning included — the fix for the salt floor at
-        // its source rather than a qualifier on the screen.
-        #expect(prompt.contains("seasoning included"))
+        // Priced as eaten and seasoned — the fix for the salt floor at its
+        // source rather than a qualifier on the screen. v24 merged this with
+        // the composition-table rule it used to contradict: a table publishes
+        // plain preparations, which is exactly what ran 82% low on a canteen
+        // bibimbap, and the two bullets stated one after the other left the
+        // model to pick.
+        #expect(prompt.contains("as it will actually be eaten"))
+        #expect(prompt.contains("and seasoned"))
 
         #expect(prompt.contains("closest place setting"))
         #expect(prompt.contains("`alternatives`"))

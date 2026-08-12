@@ -207,6 +207,24 @@ export async function requestGeminiRecognition(
             : [{ text: spec.userPrompt }],
         },
       ],
+      // Search, available rather than required. The model reaches for it on a
+      // branded product and ignores it on food nobody published — measured, not
+      // assumed: "two fried eggs, toast and a black coffee" comes back with no
+      // thinking tokens and the same three dishes it always had, while a Subway
+      // footlong spends 517 and lands on the printed figure.
+      //
+      // It is worth a lot on exactly the food the app was worst at. A Subway JP
+      // American Clubhouse footlong publishes 698 kcal; ungrounded this prompt
+      // answered 845 and 865 on two runs, grounded it answered 700 and 697.
+      // Composition the model recites from a food table is already 0–3%; a
+      // chain's own recipe is not in any food table, and that is the gap.
+      //
+      // What it does *not* buy is provenance. `generateContent` returns no
+      // grounding metadata alongside a response schema, so there is no URL to
+      // keep and nothing here may be stamped `published` — a grounded answer is
+      // a better estimate, and the app says "estimated" about it. The citation
+      // path is `ai/published.ts`, which reads one named page and can prove it.
+      ...(env.RECOGNITION_SEARCH === "on" ? { tools: [{ googleSearch: {} }] } : {}),
       generationConfig: {
         responseMimeType: "application/json",
         responseSchema: spec.geminiSchema ?? geminiResponseSchema(),

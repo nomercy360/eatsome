@@ -93,9 +93,48 @@ Anything that touches a framework goes in `App/`. HealthKit is isolated in
 - **Provenance is per figure: `panel | published | model | user`.** There is no
   `table` case because there is no table — the migration re-priced history
   through the same path a new meal takes, so no stored figure anywhere came from
-  a lookup. `published` carries a `SourceRef` with the URL, the market and the
-  `scaleBasis`, because a Footlong priced by doubling a Regular is a different
-  claim from a printed one.
+  a lookup. `published` and its `SourceRef` have no writer: they were built for
+  a pipeline that fetched a brand's own page, and grounded recognition replaced
+  it with better numbers and no URL. The case stays because storage is
+  append-only and a meal written with one must still decode.
+
+- **Recognition has Google Search available, and that is what fixed branded
+  food.** `RECOGNITION_SEARCH=on` adds `googleSearch` as a *tool* on the same
+  `generateContent` call, in the same schema — the model reaches for it on a
+  chain's product and ignores it on food nobody published, so an ordinary home
+  meal performs no search and costs nothing extra. Measured on a Subway JP
+  American Clubhouse footlong, published at 698 kcal: ungrounded this prompt
+  answered 845 and 865, grounded it answered 699. Composition recited from a
+  food table was already 0–3%; a chain's own recipe is in no food table, and
+  that is the whole of the gap.
+
+  It buys accuracy and not provenance. `generateContent` returns no grounding
+  metadata beside a response schema, so there is no URL to keep and nothing on
+  this path may be stamped `published` — a grounded answer is a better estimate
+  and the app says "estimated" about it. `ai/published.ts` remains the only
+  thing that can name a source, and is off by default because it earns a
+  citation rather than a number.
+
+- **The request's country reaches the model, and it is worth more than the rest
+  of the prompt on branded food.** Asked "subway american clubhouse footlong"
+  with no country, grounding returned 1216 kcal — correctly, for the American
+  sandwich. Told the phone is in Japan, the same words return 699. Nobody names
+  their own country when typing what they ate, so `productionSpec` fences
+  `CF-IPCountry` into the turn as the weakest evidence there is, below anything
+  the photograph or the words show. It is in `inputFingerprint` too: with search
+  on, the same sentence asked from two countries is two questions.
+
+- **A chain's product is one row, not a recipe.** The prompt says so because it
+  had to: without that bullet, four runs of "subway american clubhouse footlong"
+  returned 698, **929**, 698, 698 — the outlier rebuilt the sandwich from seven
+  components and looked exactly as confident. With it, eight runs across two
+  chains were all one row and all within 2 kcal of the published figure. It is a
+  counterweight to *our own* decomposition rule, which is the next bullet in the
+  same section, and that is why it has to sit before it rather than after.
+
+  The reverse mistake is the one v22 shipped for a day: "report the dish exactly
+  as you would with no brand on it" told the model to reconstruct every branded
+  product, and cost 232 kcal of spread on one sandwich.
 
 - **Salt is no longer a floor.** It was one for two years because composition
   tables publish plain preparations — cooked white rice is 1 mg of sodium per

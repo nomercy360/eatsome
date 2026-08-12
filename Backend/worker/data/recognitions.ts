@@ -50,26 +50,60 @@ function response(
  * butter" noted are different questions about the same photo, and two typed
  * meals with no photograph must never collide just because neither has a hash —
  * that would silently serve one person's lentil soup as their oatmeal.
+ *
+ * The market is in here for the same reason, and it is not a small one: with
+ * search on, "subway footlong" asked from Japan and asked from the United
+ * States are questions with answers 500 kcal apart. Leaving it out would serve
+ * one country's sandwich to the other country and call it a cache hit.
  */
 export async function inputFingerprint(input: {
   photoHash?: string | null;
   note?: string | null;
   said?: string | null;
+  market?: string | null;
 }): Promise<string> {
   const photoHash = input.photoHash?.toLowerCase() ?? "";
   const note = input.note?.trim() ?? "";
   const said = input.said?.trim() ?? "";
-  if (photoHash && !note && !said) return photoHash;
+  const market = input.market?.trim().toUpperCase() ?? "";
+  if (photoHash && !note && !said && !market) return photoHash;
   const NUL = String.fromCharCode(0);
   return sha256Hex(
-    new TextEncoder().encode(`photo:${photoHash}${NUL}note:${note}${NUL}said:${said}`),
+    new TextEncoder().encode(
+      `photo:${photoHash}${NUL}note:${note}${NUL}said:${said}${NUL}market:${market}`,
+    ),
   );
+}
+
+/**
+ * The country Cloudflare resolved the caller to.
+ *
+ * It goes into the model's turn as the weakest evidence there is, and it is
+ * worth more than the rest of the prompt on branded food: "subway american
+ * clubhouse footlong" asked with no country came back 1216 kcal, correctly, for
+ * the American sandwich. Told the phone is in Japan the same words return 699
+ * against a published 698. Nobody names their own country when typing what they
+ * ate, so the request has to supply it.
+ *
+ * A fallback, never an override: anything the photograph or the words show
+ * about the country outranks it, which is what the prompt says as well.
+ */
+export function callerMarket(request: Request): string | null {
+  // Both, because they disagree about when they exist. `cf.country` is absent
+  // in local development, and the header is absent from a request that did not
+  // come through the edge — reading only one of them is how this returned null
+  // for every meal on the first end-to-end run. Cloudflare overwrites the header
+  // at the edge, so a client cannot use it to claim a market in production.
+  const header = request.headers.get("CF-IPCountry");
+  const country = header ?? (request as { cf?: { country?: string } }).cf?.country;
+  return typeof country === "string" && /^[A-Z]{2}$/.test(country) ? country : null;
 }
 
 export async function recognizeMeal(
   env: Env,
   accountId: string,
   input: RecognitionRequest,
+  market: string | null = null,
 ): Promise<RecognitionResponse> {
   if (input.imageBase64 && input.mimeType && input.photoHash) {
     const bytes = decodeBase64Image(input.imageBase64);
@@ -81,12 +115,12 @@ export async function recognizeMeal(
     // Storage is the first side effect. A provider failure or a cancelled
     // confirm sheet still leaves the exact model input available for a re-run.
     const media = await ensureMediaObject(env, accountId, actualHash, input.mimeType, bytes);
-    return recognizeInput(env, accountId, input, media.objectKey, false);
+    return recognizeInput(env, accountId, input, media.objectKey, false, market);
   }
 
   // A described meal: no bytes to decode, no hash to verify, nothing to put in
   // R2. The words still cache, because they are what the fingerprint covers.
-  return recognizeInput(env, accountId, input, null, false);
+  return recognizeInput(env, accountId, input, null, false, market);
 }
 
 export async function rerunRecognition(
@@ -94,6 +128,7 @@ export async function rerunRecognition(
   accountId: string,
   photoHash: string,
   input: RerunRecognitionRequest,
+  market: string | null = null,
 ): Promise<RecognitionResponse> {
   const stored = await getStoredMediaInput(env, accountId, photoHash);
   if (!stored) throw new HttpError(404, "Stored model input not found.");
@@ -109,6 +144,7 @@ export async function rerunRecognition(
     },
     stored.media.objectKey,
     input.refresh,
+    market,
   );
 }
 
@@ -118,11 +154,12 @@ async function recognizeInput(
   input: RecognitionRequest,
   photoKey: string | null,
   refresh: boolean,
+  market: string | null,
 ): Promise<RecognitionResponse> {
   const actualHash = input.photoHash?.toLowerCase() ?? null;
   const provider = resolveProvider(env, input.provider);
   const model = modelFor(env, provider);
-  const fingerprint = await inputFingerprint(input);
+  const fingerprint = await inputFingerprint({ ...input, market });
 
   const db = createDb(env.DB);
   // The model is part of the key, so asking the other provider about a photo
@@ -154,7 +191,7 @@ async function recognizeInput(
 
   let result: Awaited<ReturnType<typeof requestMealRecognition>>;
   try {
-    result = await requestMealRecognition(env, input, provider);
+    result = await requestMealRecognition(env, { ...input, market }, provider);
   } catch (error) {
     // A failed call spent nothing, so it should not close the service.
     await releaseRecognition(env, ceiling);
