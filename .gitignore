@@ -18,3 +18,7 @@ secrets.json
 Core/.build/
 Core/.swiftpm/
 build/
+
+# Tooling caches
+node_modules/
+.wrangler/

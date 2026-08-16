@@ -3,19 +3,24 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { MEAL_PROMPT_VERSION, MEAL_RECOGNITION_SYSTEM_PROMPT } from "./prompt";
 import { MEAL_REVISION_SYSTEM_PROMPT } from "./revision.generated";
-import { productionSpec } from "./spec";
+import { recognitionSpec } from "./spec";
 
-const promptFile = join(import.meta.dirname, "../../../prompts/meal-v25.md");
-const revisionFile = join(import.meta.dirname, "../../../prompts/revision-v4.md");
+const promptFile = join(import.meta.dirname, "../../../prompts/meal-v27.md");
+const revisionFile = join(import.meta.dirname, "../../../prompts/revision-v6.md");
 
 describe("meal recognition prompt", () => {
-  it("matches its source and deployed version", () => {
+  it("matches its source, and has only one place to say which version it is", () => {
     expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toBe(readFileSync(promptFile, "utf8").trimEnd());
-    expect(MEAL_PROMPT_VERSION).toBe("meal-v25-2026-08-12");
+    expect(MEAL_PROMPT_VERSION).toBe("meal-v27-2026-08-15");
 
+    // It used to be a wrangler var *as well* as the generated constant, and
+    // the recognition cache keys on it — so a deploy that bumped one and not
+    // the other would either replay the old prompt's answers under the new
+    // prompt's name or throw away a whole cache for nothing. The generated
+    // constant won because it is the one that cannot disagree with the prompt
+    // text beside it.
     const wrangler = readFileSync(join(import.meta.dirname, "../../wrangler.jsonc"), "utf8");
-    const deployed = /"MEAL_PROMPT_VERSION":\s*"([^"]+)"/.exec(wrangler)?.[1];
-    expect(deployed).toBe(MEAL_PROMPT_VERSION);
+    expect(wrangler).not.toContain("MEAL_PROMPT_VERSION");
   });
 
   it("asks for composition per 100 g and says so unambiguously", () => {
@@ -24,7 +29,7 @@ describe("meal recognition prompt", () => {
     // app then multiplies a total by the weight a second time.
     expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("per 100 g of edible portion");
     expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("never for the weight you just reported");
-    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("`sodium_mg` in milligrams");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("`sodium_mg` and `caffeine_mg` in milligrams");
   });
 
   it("reports a published product as one row rather than rebuilding it", () => {
@@ -50,8 +55,16 @@ describe("meal recognition prompt", () => {
     expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("nobody eats 217 g of Big Mac");
     // A size is a different product. v17 deleted a size control that was a
     // vague multiplier and moved no number; this one carries its own figures.
-    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("A size is a different product, never a multiplier");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain(
+      "A size is a different product, never a multiplier",
+    );
     expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("Never invent a ladder");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain(
+      "Treat every branded ingredient independently",
+    );
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain(
+      "Never stop after grounding the first branded dish",
+    );
   });
 
   it("insists on one food per label", () => {
@@ -63,11 +76,49 @@ describe("meal recognition prompt", () => {
     expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("report two ingredients");
   });
 
-  it("states the Atwater check the app also runs", () => {
-    // With no table to compare against, the four macronutrients agreeing with
-    // the energy figure is the only self-check available. Stating it to the
-    // model is cheaper than catching it afterwards.
-    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("protein × 4 + carbohydrate × 4 + fat × 9");
+  it("states the Atwater check the app also runs, ethanol included", () => {
+    // With no table to compare against, the macronutrients agreeing with the
+    // energy figure is the only self-check available. Stating it to the model
+    // is cheaper than catching it afterwards. Ethanol at 7 is what stopped it
+    // firing on every beer.
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain(
+      "protein × 4 + carbohydrate × 4 + fat × 9 + alcohol × 7",
+    );
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("`kcal` includes the energy of that ethanol");
+    expect(MEAL_REVISION_SYSTEM_PROMPT).toContain(
+      "protein × 4 + carbohydrate × 4 + fat × 9 + alcohol × 7",
+    );
+  });
+
+  it("asks for all seven composition figures, and says zero is an answer", () => {
+    // Five was the number for four versions. The schema now requires seven and
+    // a prompt still saying five would have every answer fail validation —
+    // which is what happened for the hour between the schema and this file.
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("All seven, always");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).not.toContain("All five");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("`sodium_mg` and `caffeine_mg` in milligrams");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("`alcohol` is grams of ethanol per 100 g");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain(
+      "`caffeine_mg` is composition, exactly as `sodium_mg` is",
+    );
+    expect(MEAL_REVISION_SYSTEM_PROMPT).toContain("All seven, always");
+  });
+
+  it("says an empty answer is a real answer", () => {
+    // The couldn't-read signal is no dishes. Without this line the model
+    // assembles a meal out of a greeting rather than declining, and a meal
+    // nobody ate is worse than a screen saying it did not understand.
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("return no dishes");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("An empty answer is a real answer");
+  });
+
+  it("has nothing to say about activities, because none reach it", () => {
+    // Activities are not in the MVP, and the path that would have carried one
+    // to the model is gone. A stale instruction here would be asking for a
+    // field neither provider's schema declares — the v16 failure, again.
+    for (const gone of ["activit", "`entry`", "duration_minutes", "start_time", "sauna"]) {
+      expect(MEAL_RECOGNITION_SYSTEM_PROMPT.toLowerCase()).not.toContain(gone.toLowerCase());
+    }
   });
 
   it("prices food as eaten rather than as a plain ingredient", () => {
@@ -108,22 +159,29 @@ describe("meal recognition prompt", () => {
     expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("Salt and sodium are different");
     expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("Unreadable fields are null");
     expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("Never invent missing package contents");
+    // v25 let an unlabelled coffee carry a caffeine *estimate* on the panel
+    // under `estimated_serving`. Caffeine is composition now, the basis is gone
+    // from `panelBases`, and a prompt still asking for it would fail every
+    // coffee at validation. This assertion is the polarity the schema has.
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).not.toContain("estimated_serving");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("It is transcription and nothing else");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("an ABV percentage is not this field");
   });
 
   it("fences a person's note in the same user turn as the photo", () => {
     const image = { mimeType: "image/jpeg", imageBase64: "aGVsbG8gdGhlcmUh" };
-    const prompt = productionSpec({ ...image, note: "  fried in butter  " }).userPrompt;
+    const prompt = recognitionSpec({ ...image, note: "  fried in butter  " }).userPrompt;
     expect(prompt).toContain("What the photo cannot show");
     expect(prompt).toContain('"""\nfried in butter\n"""');
-    expect(productionSpec(image).userPrompt).not.toContain('"""');
+    expect(recognitionSpec(image).userPrompt).not.toContain('"""');
   });
 
   it("tells the model when words are the entire input", () => {
-    const typed = productionSpec({ said: "leftover lentil soup, big bowl" });
+    const typed = recognitionSpec({ said: "leftover lentil soup, big bowl" });
     expect(typed.userPrompt).toContain("There is no photograph");
     expect(typed.userPrompt).toContain('"""\nleftover lentil soup, big bowl\n"""');
 
-    const captioned = productionSpec({
+    const captioned = recognitionSpec({
       mimeType: "image/jpeg",
       imageBase64: "aGVsbG8gdGhlcmUh",
       said: "2 of this at 11 am",
@@ -145,6 +203,8 @@ describe("meal revision prompt", () => {
     expect(MEAL_REVISION_SYSTEM_PROMPT).toContain("AS IT NOW STANDS");
     expect(MEAL_REVISION_SYSTEM_PROMPT).toContain("looks corrected");
     expect(MEAL_REVISION_SYSTEM_PROMPT).toContain("`per_100g` is required");
+    expect(MEAL_REVISION_SYSTEM_PROMPT).toContain("four of these");
+    expect(MEAL_REVISION_SYSTEM_PROMPT).toContain("`dish_counts`");
     expect(MEAL_REVISION_SYSTEM_PROMPT).not.toContain("`kind`");
     expect(MEAL_REVISION_SYSTEM_PROMPT).not.toContain("composition_hints");
   });

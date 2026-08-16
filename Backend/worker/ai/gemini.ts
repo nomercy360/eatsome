@@ -1,39 +1,68 @@
-import { mealRecognitionSchema, panelBases, preparationMethods } from "../../src/contracts";
+import { panelBases, preparationMethods } from "../../src/contracts";
 import type { Env } from "../env";
 import { HttpError } from "../lib/http-error";
-import { productionSpec, type RecognitionSpec } from "./spec";
-import { hasImage, type ProviderInput, type ProviderRecognition } from "./types";
+import { hasImage, type ModelAnswer, type ModelCall, type ProviderInput } from "./types";
 
 const BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 
 /**
- * The same contract as the OpenAI path, in Gemini's OpenAPI subset.
- *
- * It has to be written out rather than derived from the zod schema like the
- * OpenAI one: Gemini rejects `additionalProperties`, spells a nullable field as
- * a flag rather than a union type, and wants `propertyOrdering` to keep the
- * emitted keys stable. The enums come from the same constants, so a new food
- * kind or facet still reaches both providers from one edit.
+ * The composition block, in Gemini's dialect, once — used by every ingredient,
+ * alternative and size here and by the revision schema in `revision.ts`, so an
+ * eighth figure added to the Zod contract has exactly one other place to be
+ * added and the drift test in `gemini.test.ts` says when it was not.
  */
-export function geminiResponseSchema(): Record<string, unknown> {
-  // Declared once and reused for the ingredient and each alternative. Gemini
-  // emits exactly the properties a schema names and silently drops the rest,
-  // which is how v16 shipped a weighing prompt that returned no weights — so
-  // every field the prompt asks for has to appear here too.
-  const composition = {
+export function geminiCompositionSchema(): Record<string, unknown> {
+  return {
     type: "OBJECT",
     description:
-      "Composition per 100 g of edible portion, as the food will be eaten. Never for the stated weight and never per serving.",
-    propertyOrdering: ["protein", "fat", "carbohydrate", "kcal", "sodium_mg"],
-    required: ["protein", "fat", "carbohydrate", "kcal", "sodium_mg"],
+      "Composition per 100 g of edible portion, as the food will be eaten. Never for the stated weight and never per serving. All seven figures, always: zero is a statement about the food, not an omission.",
+    propertyOrdering: [
+      "protein",
+      "fat",
+      "carbohydrate",
+      "kcal",
+      "sodium_mg",
+      "alcohol",
+      "caffeine_mg",
+    ],
+    required: ["protein", "fat", "carbohydrate", "kcal", "sodium_mg", "alcohol", "caffeine_mg"],
     properties: {
       protein: { type: "NUMBER", description: "Grams per 100 g." },
       fat: { type: "NUMBER", description: "Grams per 100 g." },
       carbohydrate: { type: "NUMBER", description: "Grams per 100 g." },
-      kcal: { type: "NUMBER", description: "Kilocalories per 100 g." },
+      kcal: {
+        type: "NUMBER",
+        description: "Kilocalories per 100 g, including the energy of any alcohol.",
+      },
       sodium_mg: { type: "NUMBER", description: "Milligrams per 100 g." },
+      alcohol: {
+        type: "NUMBER",
+        description:
+          "Grams of ethanol per 100 g. Zero for anything that is not an alcoholic drink or cooked with alcohol that remains.",
+      },
+      caffeine_mg: {
+        type: "NUMBER",
+        description:
+          "Milligrams of caffeine per 100 g, from the specific drink and preparation — drip coffee, espresso, decaf, black tea and matcha are not interchangeable. Zero for food that has none.",
+      },
     },
   };
+}
+
+/**
+ * The Zod contract, restated in Gemini's OpenAPI subset.
+ *
+ * It has to be written out rather than derived: Gemini rejects
+ * `additionalProperties`, spells a nullable field as a flag rather than a union
+ * type, and wants `propertyOrdering` to keep the emitted keys stable. It is
+ * therefore the one schema in the app that can quietly fall behind the
+ * contract — and it did once, for `grams`, for a month. `gemini.test.ts`
+ * compares it field by field against `mealRecognitionJsonSchema()`, which is
+ * the only reason that comparison schema still exists now that no provider is
+ * handed it.
+ */
+export function geminiResponseSchema(): Record<string, unknown> {
+  const composition = geminiCompositionSchema();
   return {
     type: "OBJECT",
     propertyOrdering: ["dishes"],
@@ -62,7 +91,7 @@ export function geminiResponseSchema(): Record<string, unknown> {
               type: "OBJECT",
               nullable: true,
               description:
-                "Nutrition figures PRINTED on packaging, a price card or a menu, for one serving as the label defines it. Transcribe only — never estimate from the look of the food. Null when nothing is printed, or when it cannot be read.",
+                "Nutrition figures printed on packaging, a price card or a menu, transcribed. Never an estimate — caffeine and alcohol that are not printed belong in per_100g. Null for every unlabelled food.",
               propertyOrdering: [
                 "protein",
                 "calories",
@@ -70,6 +99,7 @@ export function geminiResponseSchema(): Record<string, unknown> {
                 "carbohydrate",
                 "salt",
                 "sodium",
+                "alcohol",
                 "caffeine",
                 "basis",
                 "net_ml",
@@ -82,6 +112,7 @@ export function geminiResponseSchema(): Record<string, unknown> {
                 "carbohydrate",
                 "salt",
                 "sodium",
+                "alcohol",
                 "caffeine",
                 "basis",
                 "net_ml",
@@ -102,7 +133,16 @@ export function geminiResponseSchema(): Record<string, unknown> {
                   nullable: true,
                   description: "Grams, only if printed as sodium.",
                 },
-                caffeine: { type: "NUMBER", nullable: true, description: "Milligrams." },
+                alcohol: {
+                  type: "NUMBER",
+                  nullable: true,
+                  description: "Grams of alcohol, only if printed as grams. ABV is not this field.",
+                },
+                caffeine: {
+                  type: "NUMBER",
+                  nullable: true,
+                  description: "Milligrams, only if printed.",
+                },
                 basis: {
                   type: "STRING",
                   enum: [...panelBases],
@@ -236,11 +276,18 @@ type GeminiResponse = {
   error?: { message?: string };
 };
 
-export async function requestGeminiRecognition(
+/**
+ * Ask Gemini one question and read its answer.
+ *
+ * Generic over the call, so recognition and correction share the transport and
+ * nothing else: each brings its own prompt, its own response schema and its own
+ * parser, and this function never learns which it is serving.
+ */
+export async function askGemini<T>(
   env: Env,
   input: ProviderInput,
-  spec: RecognitionSpec = productionSpec(),
-): Promise<ProviderRecognition> {
+  call: ModelCall<T>,
+): Promise<ModelAnswer<T>> {
   const startedAt = Date.now();
   const model = env.GEMINI_RECOGNITION_MODEL;
   const response = await fetch(`${BASE_URL}/models/${encodeURIComponent(model)}:generateContent`, {
@@ -251,16 +298,16 @@ export async function requestGeminiRecognition(
       "content-type": "application/json",
     },
     body: JSON.stringify({
-      systemInstruction: { parts: [{ text: spec.systemPrompt }] },
+      systemInstruction: { parts: [{ text: call.systemPrompt }] },
       contents: [
         {
           role: "user",
           parts: hasImage(input)
             ? [
-                { text: spec.userPrompt },
+                { text: call.userPrompt },
                 { inlineData: { mimeType: input.mimeType, data: input.imageBase64 } },
               ]
-            : [{ text: spec.userPrompt }],
+            : [{ text: call.userPrompt }],
         },
       ],
       // Search, available rather than required. The model reaches for it on a
@@ -277,18 +324,19 @@ export async function requestGeminiRecognition(
       //
       // What it does *not* buy is provenance. `generateContent` returns no
       // grounding metadata alongside a response schema, so there is no URL to
-      // keep and nothing here may be stamped `published` — a grounded answer is
-      // a better estimate, and the app says "estimated" about it. The citation
-      // path is `ai/published.ts`, which reads one named page and can prove it.
+      // keep and no figure here may be called anything but `model` — a grounded
+      // answer is a better estimate, and the app says "estimated" about it.
+      // There is no citation path any more: the one that fetched a brand's own
+      // page resolved one chain in seven and was deleted in favour of this.
       ...(env.RECOGNITION_SEARCH === "on" ? { tools: [{ googleSearch: {} }] } : {}),
       generationConfig: {
         responseMimeType: "application/json",
-        responseSchema: spec.geminiSchema ?? geminiResponseSchema(),
+        responseSchema: call.responseSchema,
         thinkingConfig: { thinkingLevel: env.GEMINI_THINKING_LEVEL || "low" },
-        // Gemini's counterpart to OpenAI's image detail: it decides how many
-        // tokens a picture is worth reading at. Omitted when unset so the API
-        // default stands — an invalid enum here fails the whole request, so it
-        // is opt-in and belongs in the eval before it belongs in production.
+        // How many tokens a picture is worth reading at, which is what decides
+        // whether small print on packaging survives. Omitted when unset so the
+        // API default stands — an invalid enum here fails the whole request, so
+        // it is opt-in and belongs in the eval before it belongs in production.
         ...(env.GEMINI_MEDIA_RESOLUTION ? { mediaResolution: env.GEMINI_MEDIA_RESOLUTION } : {}),
       },
     }),
@@ -320,11 +368,7 @@ export async function requestGeminiRecognition(
   if (!rawModelJson) throw new HttpError(502, "Gemini returned no meal recognition output.");
 
   return {
-    // Parsed against the production contract only when that is what was asked
-    // for; a candidate schema is validated by the caller that supplied it.
-    recognition: spec.geminiSchema
-      ? (JSON.parse(rawModelJson) as never)
-      : mealRecognitionSchema.parse(JSON.parse(rawModelJson) as unknown),
+    value: call.parse(JSON.parse(rawModelJson) as unknown),
     rawModelJson,
     requestId: response.headers.get("x-request-id"),
     inputTokens: body.usageMetadata?.promptTokenCount ?? 0,

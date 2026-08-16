@@ -321,9 +321,12 @@ describe("identity token verification", () => {
     ).rejects.toMatchObject({ status: 503 });
   });
 
-  it("accepts both issuer spellings Google publishes", () => {
-    expect(providerMetadata.google.issuers).toContain("https://accounts.google.com");
-    expect(providerMetadata.google.issuers).toContain("accounts.google.com");
+  it("matches Apple's issuer exactly, and only Apple's", () => {
+    // Exact match, never a suffix or a `startsWith`: `https://appleid.apple.com`
+    // and `https://appleid.apple.com.example.net` differ by a check somebody
+    // could reasonably get wrong once.
+    expect(providerMetadata.apple.issuers).toEqual(["https://appleid.apple.com"]);
+    expect(Object.keys(providerMetadata)).toEqual(["apple"]);
   });
 
   it("reads a comma-separated audience list without turning blanks into wildcards", () => {

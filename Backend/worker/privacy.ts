@@ -9,12 +9,12 @@
  * Served outside the API and before the auth middleware — a policy behind a
  * bearer token is not a published policy. Every claim here is one the code can
  * be checked against: there is no analytics SDK, no location, no advertising
- * identifier and no third-party dependency in the app beyond `ShamanCore`,
- * which is this repository.
+ * identifier and no third-party dependency in the app beyond its own `Core`
+ * package, which is this repository.
  */
 
 /** The one date on the page, so it cannot drift between the two mentions. */
-const UPDATED = "10 August 2026";
+const UPDATED = "16 August 2026";
 const CONTACT = "maximkadocnikov@gmail.com";
 
 const page = `<!doctype html>
@@ -51,8 +51,10 @@ const page = `<!doctype html>
     <h2>Your account</h2>
     <p>eatsome requires Sign in with Apple. It receives Apple's account-specific identifier and, only
     if you choose to share it, your email address. It does not receive or store your Apple password.
-    The app also generates a random identifier for the installation so existing history on that phone
-    can be joined to your account. A shared app credential cannot access account data by itself.</p>
+    The app also generates a random identifier for the installation, which labels the phone on the
+    sign-in record so you can sign that one device out; it is not used to identify you and unlocks
+    nothing on its own. Every meal you log belongs to your account, so a second device signing in
+    with the same Apple ID sees the same history.</p>
   </section>
 
   <section>
@@ -74,18 +76,20 @@ const page = `<!doctype html>
     <p>Before the first meal description or photograph leaves the device, the app shows a consent
     screen that names the AI provider that will process it. Nothing is sent for recognition until you
     agree. Typed or dictated words, and any photograph you attach, are sent for one purpose:
-    identifying the foods and estimating what they weigh. eatsome does not add your photographs to
-    its research corpus unless you separately opt in.</p>
-    <p>The providers used for recognition are Google (Gemini) and OpenAI, depending on the build.
-    Hosting, storage and the database are Cloudflare. No one else receives your data.</p>
+    identifying the foods and estimating what they weigh. They are not used to train anything and are
+    not added to any dataset.</p>
+    <p>Recognition is Google (Gemini). To price a chain's menu item correctly, the request tells the
+    model which country the phone is connecting from, as reported by the network — never a precise
+    location. Hosting, storage and the database are Cloudflare. No one else receives your data.</p>
   </section>
 
   <section>
     <h2>Health data is read only</h2>
-    <p>With your permission, eatsome reads workouts, sleep and body weight from Apple Health to show a
-    daily overview and to size a protein target. That data is read on the device, is never copied into
-    the meal log, is never uploaded to eatsome's backend or to any AI provider, and is never written
-    back to Health. Refusing Health access leaves the rest of the app fully usable.</p>
+    <p>With your permission, eatsome reads date of birth, biological sex, height, body weight, body-fat
+    percentage and daily energy from Apple Health, to size a protein target and an energy reference.
+    It does not ask for workouts or sleep. That data is read on the device, is never copied into the
+    meal log, is never uploaded to eatsome's backend or to any AI provider, and is never written back
+    to Health. Refusing Health access leaves the rest of the app fully usable.</p>
   </section>
 
   <section>
@@ -99,10 +103,11 @@ const page = `<!doctype html>
     <h2>Deleting your data</h2>
     <p>Deleting a meal removes its entry and, when no other meal refers to the same photograph, the
     cloud copy of the photograph too. Settings → Privacy → <em>Delete all cloud data</em> erases the
-    stored photographs, meal events, recognition results, table content, account identities, sessions
-    and research-corpus consent held for your account, and withdraws consent for photo processing.
-    The local meal log remains on the phone but is locked until you authenticate an account again.
-    Signing out removes this phone's local account session.</p>
+    stored photographs, meal events, recognition results, account identities and sessions held for
+    your account, and withdraws consent for photo processing. The next Sign in with Apple is then a
+    first sign-in: nothing from before it comes back. The local meal log remains on the phone but is
+    locked until you authenticate an account again. Signing out removes this phone's local account
+    session.</p>
   </section>
 
   <section>

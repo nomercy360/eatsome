@@ -2,12 +2,20 @@ import { describe, expect, it } from "vitest";
 import {
   ATWATER_TOLERANCE,
   atwaterDelta,
-  corpusItemRequestSchema,
+  atwaterFailures,
+  compositionSchema,
+  ENERGY_PER_GRAM,
+  eventKinds,
+  eventPullQuerySchema,
   ingestEventsRequestSchema,
+  MEAL_SCHEMA_VERSION,
+  mealEventDataSchema,
   mealRecognitionJsonSchema,
   mealRecognitionSchema,
   mealRevisionSchema,
   normalizePanels,
+  nutritionPanelSchema,
+  panelBases,
   panelPerContainer,
   recognitionRequestSchema,
   refinementRequestSchema,
@@ -19,7 +27,185 @@ const composition = {
   carbohydrate: 12.1,
   kcal: 95,
   sodium_mg: 210,
+  alcohol: 0,
+  caffeine_mg: 0,
 };
+
+/** A pint of lager, per 100 g: almost all of its energy is ethanol. */
+const lager = {
+  protein: 0.5,
+  fat: 0,
+  carbohydrate: 3.6,
+  kcal: 43,
+  sodium_mg: 4,
+  alcohol: 3.9,
+  caffeine_mg: 0,
+};
+
+/**
+ * A meal exactly as `JSONEncoder` writes `MealEntry` in EatsomeCore.
+ *
+ * Every detail here is load-bearing and none of it is a stylistic choice:
+ *
+ *  - **Upper-case UUIDs.** Swift's `UUID` encodes that way, and a validator
+ *    that only accepted lower case would reject every real meal.
+ *  - **`per_100g`, `sodium_mg`, `caffeine_mg`.** The `CodingKeys` on `MealItem`
+ *    and `Nutrients` spell them so.
+ *  - **`provenance.sodium`, not `sodium_mg`.** `NutrientProvenance` uses the
+ *    default keys — it names a figure, not a unit.
+ *  - **No nil fields.** Swift omits an optional that is nil rather than writing
+ *    null, so `brand`, `note`, `share` and the rest are simply absent here.
+ *  - **`sizes` and `alternatives` present but with no `basis`.** The stored
+ *    `FoodSize` has no `basis`: that is a fact about the model's answer, and it
+ *    is dropped on the way into storage. The stored alternative and size both
+ *    carry an `id`, which the wire forms do not.
+ *
+ * If this drifts from Swift, `projectMealMedia` throws and sync 400s — which is
+ * the point. The failure it replaced was silent: no `meal_media` row, and the
+ * orphan sweep deleting the photograph a day later.
+ */
+function swiftMeal(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "0198F222-AADB-7E00-8000-000000000021",
+    schemaVersion: 1,
+    eatenAt: 1_754_300_000_000,
+    dishes: [
+      {
+        id: "0198F222-AADB-7E00-8000-000000000022",
+        name: "Italian B.M.T.",
+        count: 2,
+        share: "part",
+        panel: { kcal: 480, protein: 20, salt: 2.1 },
+        items: [
+          {
+            id: "0198F222-AADB-7E00-8000-000000000023",
+            label: "Italian B.M.T.",
+            preparation: [],
+            grams: 400,
+            per_100g: composition,
+            provenance: {
+              protein: "model",
+              fat: "model",
+              carbohydrate: "model",
+              kcal: "model",
+              sodium: "model",
+              alcohol: "model",
+              caffeine: "model",
+            },
+            alternatives: [
+              {
+                id: "0198F222-AADB-7E00-8000-000000000024",
+                label: "Roast Beef",
+                grams: 420,
+                per_100g: composition,
+              },
+            ],
+            brand: "Subway",
+            sizes: [
+              {
+                id: "0198F222-AADB-7E00-8000-000000000025",
+                label: "15cm Regular",
+                grams: 200,
+                per_100g: composition,
+              },
+              {
+                id: "0198F222-AADB-7E00-8000-000000000026",
+                label: "30cm Footlong",
+                grams: 400,
+                per_100g: composition,
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    source: "text",
+    wasCorrected: true,
+    ...overrides,
+  };
+}
+
+describe("the stored meal is the Swift type, mirrored", () => {
+  it("accepts a meal exactly as EatsomeCore encodes one", () => {
+    const parsed = mealEventDataSchema.parse(swiftMeal());
+    expect(parsed.schemaVersion).toBe(MEAL_SCHEMA_VERSION);
+    expect(parsed.dishes[0]?.share).toBe("part");
+    expect(parsed.dishes[0]?.panel?.kcal).toBe(480);
+    expect(parsed.dishes[0]?.items[0]?.sizes).toHaveLength(2);
+    expect(parsed.dishes[0]?.items[0]?.alternatives[0]?.grams).toBe(420);
+  });
+
+  it("accepts the fields the encoder only sometimes writes", () => {
+    const parsed = mealEventDataSchema.parse(
+      swiftMeal({
+        source: "photo",
+        photoHash: "a".repeat(64),
+        note: "fried in butter",
+        personalNote: "worth ordering again",
+        share: "whole",
+        messageID: "0198F222-AADB-7E00-8000-000000000027",
+        nutritionOverride: {
+          protein: 30,
+          fat: 20,
+          carbohydrate: 60,
+          kcal: 540,
+          sodium_mg: 900,
+          alcohol: 0,
+          caffeine_mg: 0,
+        },
+      }),
+    );
+    expect(parsed.personalNote).toBe("worth ordering again");
+    expect(parsed.nutritionOverride?.sodium_mg).toBe(900);
+  });
+
+  it("refuses a meal with no schema version, and one from another version", () => {
+    // The failure this exists to prevent is a reader guessing. An unversioned
+    // meal decoded as whatever the current shape happens to be is how a
+    // sandwich came out at 62 kcal instead of as an error somebody could see.
+    const { schemaVersion: _omitted, ...unversioned } = swiftMeal();
+    expect(mealEventDataSchema.safeParse(unversioned).success).toBe(false);
+    expect(mealEventDataSchema.safeParse(swiftMeal({ schemaVersion: 21 })).success).toBe(false);
+    expect(mealEventDataSchema.safeParse(swiftMeal({ schemaVersion: "1" })).success).toBe(false);
+  });
+
+  it("refuses a field the Swift type does not write", () => {
+    // Strict, so drift is a 400 on the batch rather than a skipped projection.
+    // Every one of these was a real field once; none of them is written now,
+    // and a build still sending one is a build that predates the rewrite.
+    for (const stale of [
+      "recognitionEvidence",
+      "recognitionRating",
+      "recognitionID",
+      "recipeID",
+      "items",
+      "storedDishes",
+    ]) {
+      expect(mealEventDataSchema.safeParse(swiftMeal({ [stale]: null })).success).toBe(false);
+    }
+  });
+
+  it("refuses a retired source and a retired provenance", () => {
+    expect(mealEventDataSchema.safeParse(swiftMeal({ source: "recipe" })).success).toBe(false);
+    const meal = swiftMeal() as never as {
+      dishes: [{ items: [{ provenance: Record<string, string> }] }];
+    };
+    // `published` had a `SourceRef` and no writer: grounded recognition returns
+    // better numbers than a fetched page and returns them with no URL.
+    meal.dishes[0].items[0].provenance.kcal = "published";
+    expect(mealEventDataSchema.safeParse(meal).success).toBe(false);
+  });
+
+  it("takes a UUID in either case, because Swift only ever sends one of them", () => {
+    // `JSONEncoder` writes `UUID` in upper case. A validator that only accepted
+    // the lower-case spelling would reject every meal the app has ever written,
+    // and would do it as a 400 on sync rather than anywhere a reader looks.
+    const id = "0198F222-AADB-7E00-8000-000000000021";
+    expect(mealEventDataSchema.safeParse(swiftMeal({ id })).success).toBe(true);
+    expect(mealEventDataSchema.safeParse(swiftMeal({ id: id.toLowerCase() })).success).toBe(true);
+    expect(mealEventDataSchema.safeParse(swiftMeal({ id: "not-a-uuid" })).success).toBe(false);
+  });
+});
 
 describe("meal recognition contract", () => {
   it("requires a weight and a composition on every ingredient", () => {
@@ -94,9 +280,9 @@ describe("meal recognition contract", () => {
   });
 
   it("rejects an ingredient with no weight", () => {
-    // The whole point of v17. While `grams` was nullable behind a `portion`
-    // fallback, the production Gemini schema omitted the field entirely and
-    // every answer still parsed — the failure was silent for a month.
+    // While `grams` was nullable behind a `portion` fallback, the production
+    // Gemini schema omitted the field entirely and every answer still parsed —
+    // the failure was silent for a month.
     expect(() =>
       mealRecognitionSchema.parse({
         dishes: [
@@ -121,10 +307,9 @@ describe("meal recognition contract", () => {
   });
 
   it("rejects an ingredient with no composition", () => {
-    // The v21 counterpart of the rule above, and for the same reason: with
-    // nothing to fall back to, a missing figure has to be loud. There is no
-    // table behind this any more — a silently absent `per_100g` would be a meal
-    // worth zero calories.
+    // The counterpart of the rule above, for the same reason: with nothing to
+    // fall back to, a missing figure has to be loud. There is no table behind
+    // this — a silently absent `per_100g` would be a meal worth zero calories.
     expect(() =>
       mealRecognitionSchema.parse({
         dishes: [
@@ -133,7 +318,14 @@ describe("meal recognition contract", () => {
             count: 1,
             panel: null,
             ingredients: [
-              { label: "beer", grams: 500, preparation: [], brand: null, sizes: [], alternatives: [] },
+              {
+                label: "beer",
+                grams: 500,
+                preparation: [],
+                brand: null,
+                sizes: [],
+                alternatives: [],
+              },
             ],
           },
         ],
@@ -141,13 +333,74 @@ describe("meal recognition contract", () => {
     ).toThrow();
   });
 
-  it("keeps the four macronutrients consistent with the energy figure", () => {
+  it("keeps the macronutrients consistent with the energy figure", () => {
     // The only check available with no table to compare against, and the
     // replacement for the unresolved-grams signal that used to make a bad
     // answer visible.
     expect(atwaterDelta(composition)).toBeLessThan(ATWATER_TOLERANCE);
     expect(atwaterDelta({ ...composition, kcal: 400 })).toBeGreaterThan(ATWATER_TOLERANCE);
     expect(atwaterDelta({ ...composition, kcal: 0 })).toBeNull();
+  });
+
+  it("names which foods in an answer disagree with themselves", () => {
+    // What the recognition path logs on. It was a test-only check until then:
+    // stated in the prompt, asserted against fixtures, and never once looked at
+    // for a real answer.
+    const answer = mealRecognitionSchema.parse({
+      dishes: [
+        {
+          name: "lunch",
+          count: 1,
+          panel: null,
+          ingredients: [
+            {
+              grams: 100,
+              label: "rice",
+              per_100g: composition,
+              preparation: [],
+              brand: null,
+              sizes: [],
+              alternatives: [],
+            },
+            {
+              grams: 100,
+              label: "mystery sauce",
+              per_100g: { ...composition, kcal: 400 },
+              preparation: [],
+              brand: null,
+              sizes: [],
+              alternatives: [],
+            },
+          ],
+        },
+      ],
+    });
+    const failures = atwaterFailures(answer);
+    expect(failures).toHaveLength(1);
+    expect(failures[0]?.label).toBe("mystery sauce");
+    expect(failures[0]?.dish).toBe("lunch");
+    expect(atwaterFailures({ dishes: [] })).toEqual([]);
+  });
+
+  it("counts ethanol at 7 kcal/g, which is what stopped the check firing on every beer", () => {
+    // Without the alcohol column, protein × 4 + carbohydrate × 4 + fat × 9 on a
+    // lager is 16 kcal against a stated 43 — a 63% delta, and the self-check
+    // called every drink garbled. With it the same figures reconcile.
+    expect(atwaterDelta(lager)).toBeLessThan(ATWATER_TOLERANCE);
+    expect(atwaterDelta({ ...lager, alcohol: 0 })).toBeGreaterThan(0.5);
+    // Mirrors `Nutrients.energyPerGram` in EatsomeCore, figure for figure.
+    expect(ENERGY_PER_GRAM).toEqual({ protein: 4, carbohydrate: 4, fat: 9, alcohol: 7 });
+  });
+
+  it("requires all seven composition figures, so zero is a statement and not a default", () => {
+    const { alcohol: _a, ...withoutAlcohol } = composition;
+    const { caffeine_mg: _c, ...withoutCaffeine } = composition;
+    expect(compositionSchema.safeParse(withoutAlcohol).success).toBe(false);
+    expect(compositionSchema.safeParse(withoutCaffeine).success).toBe(false);
+    expect(compositionSchema.safeParse(composition).success).toBe(true);
+    const jsonSchema = JSON.stringify(mealRecognitionJsonSchema());
+    expect(jsonSchema).toContain('"alcohol"');
+    expect(jsonSchema).toContain('"caffeine_mg"');
   });
 
   it("passes weights through untouched and multiplies nothing", () => {
@@ -187,6 +440,7 @@ describe("meal refinement contract", () => {
         { label: "chicken", grams: 160 },
         { label: "salad leaves", grams: 40 },
       ],
+      dishes: [{ name: "chicken salad", count: 1, item_indices: [1, 2] }],
       note: "fried in butter",
     });
     expect(request.current).toHaveLength(2);
@@ -196,16 +450,68 @@ describe("meal refinement contract", () => {
           {
             label: "butter",
             grams: 12,
-            per_100g: { protein: 0.9, fat: 81.1, carbohydrate: 0.1, kcal: 717, sodium_mg: 11 },
+            per_100g: {
+              protein: 0.9,
+              fat: 81.1,
+              carbohydrate: 0.1,
+              kcal: 717,
+              sodium_mg: 11,
+              alcohol: 0,
+              caffeine_mg: 0,
+            },
             preparation: [],
             alternatives: [],
           },
         ],
         revise: [],
+        dish_counts: [],
+        dish_names: [],
         remove: [],
         notes: null,
       }).add[0]?.grams,
     ).toBe(12);
+  });
+
+  it("requires the dish list, which is what a count correction refers to", () => {
+    // It was optional "for older clients". There are none, and an absent dish
+    // list means "4 of these" has nothing to point at.
+    expect(
+      refinementRequestSchema.safeParse({
+        current: [{ label: "chicken", grams: 160 }],
+        note: "fried in butter",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("weighs an added item's alternatives as well as pricing them", () => {
+    // One alternative shape across recognition, correction and storage. The
+    // correction's used to carry a label and a composition and no weight, so a
+    // rival could only ever be applied at the weight of the food it replaced —
+    // the same rename-cannot-re-price failure, one level down.
+    const withGrams = {
+      label: "maple syrup",
+      grams: 20,
+      per_100g: { ...composition, kcal: 260, carbohydrate: 67 },
+    };
+    const revision = (alternatives: unknown[]) => ({
+      add: [
+        {
+          label: "honey",
+          grams: 20,
+          per_100g: { ...composition, kcal: 304, carbohydrate: 82 },
+          preparation: [],
+          alternatives,
+        },
+      ],
+      revise: [],
+      dish_counts: [],
+      dish_names: [],
+      remove: [],
+      notes: null,
+    });
+    expect(mealRevisionSchema.parse(revision([withGrams])).add[0]?.alternatives[0]?.grams).toBe(20);
+    const { grams: _dropped, ...noGrams } = withGrams;
+    expect(mealRevisionSchema.safeParse(revision([noGrams])).success).toBe(false);
   });
 
   it("revises a weight, which is the correction that used to do nothing", () => {
@@ -218,10 +524,20 @@ describe("meal refinement contract", () => {
           index: 1,
           label: "boiled egg",
           grams: 100,
-          per_100g: { protein: 12.6, fat: 10.6, carbohydrate: 1.1, kcal: 155, sodium_mg: 124 },
+          per_100g: {
+            protein: 12.6,
+            fat: 10.6,
+            carbohydrate: 1.1,
+            kcal: 155,
+            sodium_mg: 124,
+            alcohol: 0,
+            caffeine_mg: 0,
+          },
           preparation: ["boiled"],
         },
       ],
+      dish_counts: [],
+      dish_names: [],
       remove: [],
       notes: null,
     });
@@ -236,10 +552,31 @@ describe("meal refinement contract", () => {
       mealRevisionSchema.parse({
         add: [],
         revise: [{ index: 1, label: "fried chicken", grams: 180, preparation: ["deep_fried"] }],
+        dish_counts: [],
+        dish_names: [],
         remove: [],
         notes: null,
       }),
     ).toThrow();
+  });
+
+  it("carries structured dish counts for phrases such as four of these", () => {
+    const request = refinementRequestSchema.parse({
+      current: [{ label: "SAVAS milk protein drink", grams: 200 }],
+      dishes: [{ name: "SAVAS milk protein drink", count: 1, item_indices: [1] }],
+      note: "4 of these",
+    });
+    expect(request.dishes[0]?.count).toBe(1);
+
+    const revision = mealRevisionSchema.parse({
+      add: [],
+      revise: [],
+      dish_counts: [{ index: 1, count: 4 }],
+      dish_names: [],
+      remove: [],
+      notes: null,
+    });
+    expect(revision.dish_counts[0]).toEqual({ index: 1, count: 4 });
   });
 });
 
@@ -283,10 +620,7 @@ describe("stored recognition input", () => {
 
   it("rejects part of an image rather than reading it as text-only", () => {
     expect(() =>
-      recognitionRequestSchema.parse({
-        photoHash: "a".repeat(64),
-        said: "soup",
-      }),
+      recognitionRequestSchema.parse({ photoHash: "a".repeat(64), said: "soup" }),
     ).toThrow();
     expect(() =>
       recognitionRequestSchema.parse({
@@ -297,196 +631,65 @@ describe("stored recognition input", () => {
     ).toThrow();
   });
 
-  it("requires a separately hashed, privacy-filtered corpus crop", () => {
-    const item = corpusItemRequestSchema.parse({
-      mealId: "0198f222-aadb-7e00-8000-000000000002",
-      sourcePhotoHash: "a".repeat(64),
-      corpusHash: "b".repeat(64),
-      mimeType: "image/jpeg",
-      imageBase64: "a".repeat(16),
-      consent: { granted: true, policyVersion: "research-v1", capturedAt: 1_754_300_000_000 },
-      privacy: {
-        cropMethod: "vision-saliency-v1",
-        facesExcluded: true,
-        otherMealsExcluded: true,
-      },
-    });
-    expect(item.corpusHash).not.toBe(item.sourcePhotoHash);
+  it("names no provider, because there is one", () => {
+    // The field let a device run its own comparison through the proxy while
+    // five providers were wired up. One remains, so a request naming one is
+    // either stale or wrong, and either way should say so.
+    expect(recognitionRequestSchema.safeParse({ said: "soup", provider: "gemini" }).success).toBe(
+      false,
+    );
   });
 });
 
 describe("event sync contract", () => {
-  it("accepts a complete model-to-human eval pair", () => {
-    const itemId = "0198f222-aadb-7e00-8000-000000000001";
-    const mealId = "0198f222-aadb-7e00-8000-000000000002";
-    const eventId = "0198f222-aadb-7e00-8000-000000000003";
-    const request = ingestEventsRequestSchema.parse({
-      deviceId: "iphone-owner",
-      events: [
-        {
-          id: eventId,
-          occurredAt: 1_754_300_000_000,
-          recordedAt: 1_754_300_001_000,
-          payload: {
-            kind: "meal_logged",
-            data: {
-              id: mealId,
-              eatenAt: 1_754_300_000_000,
-              items: [
-                {
-                  id: itemId,
-                  kind: "beef",
-                  portion: "medium",
-                  label: "minced meat",
-                },
-              ],
-              source: "photo",
-              photoHash: "a".repeat(64),
-              recognitionEvidence: {
-                promptVersion: "meal-v3-test",
-                rawModelJSON: '{"items":[]}',
-                initialItems: [
-                  {
-                    id: itemId,
-                    kind: "poultry",
-                    portion: "medium",
-                    label: "minced meat",
-                    modelAlternatives: [{ label: "beef mince", kind: "beef" }],
-                  },
-                ],
-                otherMealsVisible: true,
-              },
-              wasCorrected: true,
-            },
-          },
-        },
-      ],
-    });
-
-    expect(request.events).toHaveLength(1);
+  const envelope = (kind: string, data: unknown) => ({
+    deviceId: "iphone-owner",
+    events: [
+      {
+        id: "0198F222-AADB-7E00-8000-000000000003",
+        occurredAt: 1_754_300_000_000,
+        recordedAt: 1_754_300_001_000,
+        payload: { kind, data },
+      },
+    ],
   });
 
-  it("accepts a meal logged in words, linked to its chat bubble", () => {
-    // `mealEventDataSchema` is strict, so a field the app writes and this
-    // schema does not name 400s every sync from that build — the same failure
-    // grams, servings and dish once had. `text` and `messageID` arrive with
-    // chat-first logging and must be named here before a device sends one.
-    const request = ingestEventsRequestSchema.parse({
-      deviceId: "iphone-owner",
-      events: [
-        {
-          id: "0198f222-aadb-7e00-8000-000000000004",
-          occurredAt: 1_754_300_000_000,
-          recordedAt: 1_754_300_001_000,
-          payload: {
-            kind: "meal_logged",
-            data: {
-              id: "0198f222-aadb-7e00-8000-000000000005",
-              eatenAt: 1_754_300_000_000,
-              items: [
-                {
-                  id: "0198f222-aadb-7e00-8000-000000000006",
-                  kind: "legume",
-                  portion: "medium",
-                  label: "lentil soup",
-                  grams: 400,
-                },
-              ],
-              source: "text",
-              messageID: "0198f222-aadb-7e00-8000-000000000007",
-              wasCorrected: false,
-            },
-          },
-        },
-      ],
-    });
-    expect(request.events).toHaveLength(1);
+  it("defaults a pull to a bounded page and refuses an unbounded one", () => {
+    // Sync is two-way and merges by id — the phone pulls pages rather than
+    // declaring which ids it holds and having the server delete the rest. That
+    // reconcile made the last device to sync the definition of the account's
+    // history, and deleted the other phone's meals to get there.
+    expect(eventPullQuerySchema.parse({}).limit).toBe(100);
+    expect(eventPullQuerySchema.parse({ limit: "250" }).limit).toBe(250);
+    expect(eventPullQuerySchema.safeParse({ limit: "501" }).success).toBe(false);
+    expect(eventPullQuerySchema.safeParse({ limit: "0" }).success).toBe(false);
   });
 
-  it("accepts every field the Swift meal log currently writes", () => {
-    const request = ingestEventsRequestSchema.parse({
-      deviceId: "iphone-owner",
-      events: [
-        {
-          id: "0198f222-aadb-7e00-8000-000000000008",
-          occurredAt: 1_754_300_000_000,
-          recordedAt: 1_754_300_001_000,
-          payload: {
-            kind: "meal_logged",
-            data: {
-              id: "0198f222-aadb-7e00-8000-000000000009",
-              eatenAt: 1_754_300_000_000,
-              items: [
-                {
-                  id: "0198f222-aadb-7e00-8000-000000000010",
-                  kind: "fruit",
-                  portion: "medium",
-                  dish: "Fruit plate",
-                  grams: 80,
-                },
-              ],
-              source: "recipe",
-              share: "taste",
-              recipeID: "0198f222-aadb-7e00-8000-000000000011",
-              storedDishes: [
-                {
-                  id: "0198f222-aadb-7e00-8000-000000000012",
-                  name: "",
-                  count: 1,
-                  size: "medium",
-                  panel: { protein: 1, net_g: 80 },
-                  items: [
-                    {
-                      id: "0198f222-aadb-7e00-8000-000000000010",
-                      kind: "fruit",
-                      portion: "medium",
-                      grams: 80,
-                    },
-                  ],
-                },
-              ],
-              wasCorrected: false,
-            },
-          },
-        },
-      ],
-    });
-    expect(request.events[0]?.payload.data.share).toBe("taste");
+  it("carries a whole meal through the envelope", () => {
+    const request = ingestEventsRequestSchema.parse(envelope("meal_logged", swiftMeal()));
+    expect(mealEventDataSchema.parse(request.events[0]?.payload.data).dishes).toHaveLength(1);
   });
 
   it("accepts the rest of the append-only log, not only meals", () => {
-    for (const kind of ["message_sent", "message_deleted"]) {
-      expect(
-        ingestEventsRequestSchema.safeParse({
-          deviceId: "iphone-owner",
-          events: [
-            {
-              id: "0198f222-aadb-7e00-8000-000000000013",
-              occurredAt: 1,
-              recordedAt: 2,
-              payload: { kind, data: {} },
-            },
-          ],
-        }).success,
-      ).toBe(true);
+    for (const kind of eventKinds) {
+      expect(ingestEventsRequestSchema.safeParse(envelope(kind, {})).success).toBe(true);
     }
   });
 
-  it("rejects retired settings events", () => {
-    for (const kind of ["habits_updated", "diet_saved", "diet_selected"]) {
+  it("keeps an event kind it has never heard of, because the mirror hands it back", () => {
+    // A phone keeps an event from a newer build byte for byte and uploads it
+    // whole; the pull endpoint hands the same bytes to the account's other
+    // phones. Refusing an unknown kind here would 400 the batch containing it,
+    // so a phone that had not updated would stop syncing the moment any phone
+    // did — and `id` would no longer be what makes two logs converge.
+    for (const kind of ["mood_noted", "period_logged"]) {
       expect(
-        ingestEventsRequestSchema.safeParse({
-          deviceId: "iphone-owner",
-          events: [
-            {
-              id: "0198f222-aadb-7e00-8000-000000000013",
-              occurredAt: 1,
-              recordedAt: 2,
-              payload: { kind, data: {} },
-            },
-          ],
-        }).success,
-      ).toBe(false);
+        ingestEventsRequestSchema.safeParse(envelope(kind, { anything: [1, "x"] })).success,
+      ).toBe(true);
+    }
+    // A name that is not a name is still refused.
+    for (const notAName of ["", "Meal Logged", "meal-logged", "1st", "x".repeat(65)]) {
+      expect(ingestEventsRequestSchema.safeParse(envelope(notAName, {})).success).toBe(false);
     }
   });
 });
@@ -499,6 +702,7 @@ describe("a panel is only usable with its unit", () => {
     carbohydrate: 1,
     salt: 0.1,
     sodium: null,
+    alcohol: null,
     caffeine: 40,
     basis: "per_100ml" as const,
     net_ml: 355,
@@ -528,6 +732,17 @@ describe("a panel is only usable with its unit", () => {
   it("leaves a per-container panel alone", () => {
     const savas = { ...monster, basis: "per_container" as const, protein: 15, net_ml: 200 };
     expect(panelPerContainer(savas)?.protein).toBe(15);
+  });
+
+  it("has no estimated basis any more: a panel is transcription, and caffeine is composition", () => {
+    // `estimated_serving` let an unlabelled coffee carry a caffeine estimate in
+    // the field reserved for read figures. Now that `caffeine_mg` sits on
+    // `per_100g` there is nowhere on a panel for an estimate to hide, and a
+    // client stamping `panel` provenance on whatever arrives here is right to.
+    expect(panelBases).not.toContain("estimated_serving");
+    expect(nutritionPanelSchema.safeParse({ ...monster, basis: "estimated_serving" }).success).toBe(
+      false,
+    );
   });
 
   it("refuses to guess the volume it was not given", () => {

@@ -10,10 +10,7 @@ enum ModelInputImage {
     /// 2048 rather than 1024 because printed packaging is food too: a nutrition
     /// panel or a product name is often the only thing in the frame that
     /// settles what a carton actually is, and it is the first thing a downscale
-    /// destroys. It is worth spending on only while the provider is asked to
-    /// look closely — with OpenAI's `detail: low` the image is reduced to a
-    /// flat 85 tokens at its end regardless, and the extra pixels buy nothing
-    /// but upload. See `OPENAI_IMAGE_DETAIL` in the Worker.
+    /// destroys.
     static let maximumDimension: CGFloat = 2048
     static let compressionQuality: CGFloat = 0.82
 

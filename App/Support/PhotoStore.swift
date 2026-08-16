@@ -1,5 +1,5 @@
 import CryptoKit
-import ShamanCore
+import EatsomeCore
 import UIKit
 
 /// Meal photos on disk, keyed by the same SHA-256 the meal already carries.
@@ -115,6 +115,19 @@ struct PhotoStore: @unchecked Sendable {
         guard let hash, let url = url(for: hash) else { return }
         decoded.removeObject(forKey: hash as NSString)
         try? FileManager.default.removeItem(at: url)
+    }
+
+    /// Every picture, gone, and the directory left in place and empty.
+    ///
+    /// For one caller: a different account signing in on this phone. The
+    /// directory is recreated rather than left missing because `init` is the
+    /// only other place that makes it, and this type is a singleton that will
+    /// not be initialised again in this process.
+    func removeAll() {
+        decoded.removeAllObjects()
+        guard let directory else { return }
+        try? FileManager.default.removeItem(at: directory)
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
     }
 
     private func url(for hash: String) -> URL? {

@@ -4,14 +4,13 @@ import { HttpError } from "./http-error";
 /**
  * Reading the token a phone hands us, rather than believing it.
  *
- * Sign in with Apple and Google both end with the client holding a signed JWT
- * and posting it here. The only thing that makes that token worth more than the
- * `X-Device-Id` header it replaces is this file: signature against the
- * provider's published key, issuer, audience, expiry. Skip any one of them and
- * the `sub` we extract is a string the caller chose, which is strictly worse
- * than the device id — a device id is honest about being a partition, whereas a
- * `sub` is about to be treated as proof of who someone is and will be used to
- * hand them another account's meal history.
+ * Sign in with Apple ends with the client holding a signed JWT and posting it
+ * here. The only thing that makes that token worth more than the `X-Device-Id`
+ * header is this file: signature against Apple's published key, issuer,
+ * audience, expiry. Skip any one of them and the `sub` we extract is a string
+ * the caller chose, which is strictly worse than the device id — a device id is
+ * honest about being a label, whereas a `sub` is about to be treated as proof
+ * of who someone is and will decide whose meal history they see.
  *
  * Concretely, the three ways this is normally got wrong:
  *
@@ -22,11 +21,17 @@ import { HttpError } from "./http-error";
  *     value into the HMAC secret. The algorithm is therefore chosen here, from
  *     the key type, and the header's opinion is only ever checked for
  *     disagreement.
- *   - Not checking `aud`. Apple and Google will happily sign a token for any
- *     app; without the audience check, a token minted for someone else's app is
- *     accepted here and its `sub` names one of their users.
+ *   - Not checking `aud`. Apple will happily sign a token for any app; without
+ *     the audience check, a token minted for someone else's app is accepted
+ *     here and its `sub` names one of their users.
  *
  * Everything runs on WebCrypto. No `node:` import survives a Worker deploy.
+ *
+ * Google was the second provider here for a while. Its server half was written,
+ * its client half never was, and `GOOGLE_CLIENT_IDS` shipped empty — so the one
+ * thing it contributed was a verification path nobody had ever exercised and an
+ * `attachTo` branch in `accountForIdentity` for linking a second provider to an
+ * existing account. Adding it back is this file plus one enum entry.
  */
 
 export type IdentityProvider = (typeof identityProviders)[number];
@@ -37,19 +42,11 @@ type ProviderMetadata = {
   jwksUrl: string;
 };
 
-/**
- * Both endpoints are documented, stable, and unauthenticated. Google publishes
- * two issuer spellings for the same tokens and always has; accepting both is
- * the documented behaviour rather than a loosening.
- */
+/** Documented, stable, and unauthenticated. */
 export const providerMetadata: Record<IdentityProvider, ProviderMetadata> = {
   apple: {
     issuers: ["https://appleid.apple.com"],
     jwksUrl: "https://appleid.apple.com/auth/keys",
-  },
-  google: {
-    issuers: ["https://accounts.google.com", "accounts.google.com"],
-    jwksUrl: "https://www.googleapis.com/oauth2/v3/certs",
   },
 };
 
@@ -198,13 +195,11 @@ async function sha256Hex(value: string): Promise<string> {
 }
 
 /**
- * Apple and Google echo a nonce differently, and both are correct.
- *
  * The convention on Apple is that the client hashes its raw nonce before
- * handing it to `ASAuthorizationAppleIDRequest`, so the token carries the
- * hex SHA-256 and the raw value never leaves the phone until it reaches us.
- * Google's native flows echo the string verbatim. Accepting either keeps one
- * client-side nonce implementation for both.
+ * handing it to `ASAuthorizationAppleIDRequest`, so the token carries the hex
+ * SHA-256 and the raw value never leaves the phone until it reaches us. The
+ * verbatim comparison stays because other providers echo the string as sent,
+ * and it costs one `===`.
  *
  * What this is worth: it binds the token to a sign-in this client started, so a
  * token captured somewhere else cannot be posted here. What it is not: freshness.

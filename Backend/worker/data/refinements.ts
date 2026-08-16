@@ -1,8 +1,9 @@
-import type { RecognitionRequest, RefinementRequest } from "../../src/contracts";
-import { mealRevisionSchema } from "../../src/contracts";
+import type { RefinementRequest } from "../../src/contracts";
+import { askGemini } from "../ai/gemini";
 import { encodeBase64Image } from "../ai/image";
-import { modelFor, requestMealRecognition, resolveProvider } from "../ai/recognize";
+import { MEAL_PROMPT_VERSION } from "../ai/prompt";
 import { revisionSpec } from "../ai/revision";
+import type { ProviderInput } from "../ai/types";
 import type { Env } from "../env";
 import { releaseRecognition, reserveRecognition } from "../lib/budget";
 import { HttpError } from "../lib/http-error";
@@ -19,7 +20,7 @@ export async function refineMeal(
   if (!stored) throw new HttpError(404, "Stored model input not found.");
 
   return reviseWith(env, accountId, input, {
-    mimeType: stored.media.mimeType as RecognitionRequest["mimeType"],
+    mimeType: stored.media.mimeType,
     imageBase64: encodeBase64Image(stored.bytes),
   });
 }
@@ -30,8 +31,8 @@ export async function refineMeal(
  * A meal typed in by hand never had one, and a failed reading may never get
  * one, but the revision prompt was always mostly text: it works from the
  * current list and the person's own words, and the picture is corroboration. So
- * this is the identical call with the image part left off — not a second, lesser
- * prompt, which would make two ways to be wrong.
+ * this is the identical call with the image part left off — not a second,
+ * lesser prompt, which would make two ways to be wrong.
  */
 export async function refineMealFromNote(env: Env, accountId: string, input: RefinementRequest) {
   return reviseWith(env, accountId, input, {});
@@ -41,9 +42,8 @@ async function reviseWith(
   env: Env,
   accountId: string,
   input: RefinementRequest,
-  image: { mimeType?: string; imageBase64?: string },
+  image: ProviderInput,
 ) {
-  const provider = resolveProvider(env, input.provider);
   await enforcePaidRecognitionFairness(env, accountId);
   const ceiling = Number(env.RECOGNITIONS_PER_DAY || 0);
   if (!(await reserveRecognition(env, ceiling))) {
@@ -54,16 +54,11 @@ async function reviseWith(
   }
 
   try {
-    const result = await requestMealRecognition(
-      env,
-      { ...image, note: input.note },
-      provider,
-      revisionSpec(input),
-    );
+    const result = await askGemini(env, { ...image, note: input.note }, revisionSpec(input));
     return {
-      revision: mealRevisionSchema.parse(result.recognition),
-      promptVersion: env.MEAL_PROMPT_VERSION,
-      model: modelFor(env, provider),
+      revision: result.value,
+      promptVersion: MEAL_PROMPT_VERSION,
+      model: env.GEMINI_RECOGNITION_MODEL,
       providerRequestId: result.requestId,
     };
   } catch (error) {

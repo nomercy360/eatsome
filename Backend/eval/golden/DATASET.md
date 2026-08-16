@@ -19,6 +19,7 @@ One file per meal, `<id>.json`:
   "id": "bibimbap-2026-08-07",
   "photo": "IMG_3263.jpeg",
   "source": "canteen board",
+  "market": "JP",
   "published": { "kcal": 670, "protein_g": 24, "carbohydrate_g": 100, "salt_g": 4 },
   "excludes": ["miso soup", "seasoned egg"],
   "items": [{ "label": "white rice", "grams": 250 }]
@@ -38,6 +39,13 @@ One file per meal, `<id>.json`:
   a person would expect. It is not scored. It is there to say *where* a wrong
   total came from, since a 30% miss is a different problem when the weight was
   wrong than when the composition was.
+- **`market`** is the ISO country the request would have carried, standing in for
+  the `CF-IPCountry` header production fences into the turn. It is not ground
+  truth and is not scored — it is part of the *request*, and omitting it asks the
+  model a different question than the app does. On a branded product it outweighs
+  the rest of the prompt: the same Subway footlong is 698 kcal in Japan and about
+  1200 in the United States. Both current cases are `JP`, from a Japanese canteen
+  board.
 - **`photo`** must exist in `../photos/`. A case with no photograph cannot be
   run, only read.
 - **`note`** is what a person would say about the tray: what else was on it,

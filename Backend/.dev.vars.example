@@ -1,6 +1,1 @@
-OPENAI_API_KEY=replace-with-a-new-openai-api-key
 GEMINI_API_KEY=replace-with-a-gemini-api-key
-ANTHROPIC_API_KEY=replace-with-an-anthropic-api-key
-QWEN_API_KEY=replace-with-a-dashscope-or-openrouter-key
-SONIOX_API_KEY=replace-with-a-soniox-api-key
-META_API_KEY=replace-with-a-meta-model-api-key

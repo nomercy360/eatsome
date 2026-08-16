@@ -1,6 +1,7 @@
-import type { IngestEventsRequest } from "../../src/contracts";
+import type { IngestEventsRequest, MealEventData } from "../../src/contracts";
 import { mealDeleteDataSchema, mealEventDataSchema } from "../../src/contracts";
 import type { Env } from "../env";
+import { HttpError } from "../lib/http-error";
 
 export type MediaObject = {
   accountId: string;
@@ -37,40 +38,20 @@ async function findMedia(
   accountId: string,
   photoHash: string,
 ): Promise<MediaObject | null> {
-  return findMediaIn(database, [accountId], photoHash);
-}
-
-/**
- * The same lookup across every partition an account owns.
- *
- * Multi-device sync hands the second phone a meal whose photograph was uploaded
- * by the first, under the first device's partition. Without this the events
- * arrive and every picture in the history 404s, which reads as data loss.
- * `stored_at` still gates it, so a reserved-but-unwritten row is invisible
- * exactly as before.
- */
-async function findMediaIn(
-  database: D1Database,
-  partitions: string[],
-  photoHash: string,
-): Promise<MediaObject | null> {
-  const placeholders = partitions.map(() => "?").join(", ");
   return database
     .prepare(
       `SELECT account_id AS accountId, photo_hash AS photoHash, object_key AS objectKey,
               mime_type AS mimeType, byte_size AS byteSize, created_at AS createdAt,
               stored_at AS storedAt
          FROM media_objects
-        WHERE account_id IN (${placeholders}) AND photo_hash = ?
-        ORDER BY stored_at IS NULL, created_at
-        LIMIT 1`,
+        WHERE account_id = ? AND photo_hash = ?`,
     )
-    .bind(...partitions, photoHash)
+    .bind(accountId, photoHash)
     .first<MediaObject>();
 }
 
 /**
- * Persist the exact bytes sent to the model, once per user/photo.
+ * Persist the exact bytes sent to the model, once per account/photo.
  *
  * The D1 row is created before R2 so an interrupted PUT is repairable. R2 is
  * strongly consistent, and a retry HEADs the recorded key before writing.
@@ -127,10 +108,10 @@ export async function ensureMediaObject(
 
 export async function getMediaObject(
   env: Env,
-  partitions: string[],
+  accountId: string,
   photoHash: string,
 ): Promise<R2ObjectBody | null> {
-  const media = await findMediaIn(env.DB, partitions, photoHash);
+  const media = await findMedia(env.DB, accountId, photoHash);
   if (!media?.storedAt) return null;
   return env.MEDIA.get(media.objectKey);
 }
@@ -210,35 +191,66 @@ export async function deleteMediaIfUnreferenced(
   return true;
 }
 
-/** Project append-only meal events into media references and apply deletion. */
+type LoggedEvent = IngestEventsRequest["events"][number];
+
+/**
+ * The meal inside a `meal_logged` / `meal_revised` event, or a 400 naming what
+ * is wrong with it.
+ *
+ * This used to be a `safeParse` followed by `continue`, and that was the quiet
+ * version of a bug that cost real photographs: the moment `mealEventDataSchema`
+ * fell behind what the app writes — a renamed field, a new one, a version
+ * literal nobody bumped — the parse failed here, no `meal_media` row was
+ * written, and twenty-four hours later `deleteOrphanMedia` deleted the picture
+ * as an abandoned upload. Sync reported success the whole time.
+ *
+ * A skipped meal is exactly as wrong as a rejected one and says nothing, so it
+ * is rejected, with the failing paths in the message.
+ */
+export function mealFrom(event: LoggedEvent): MealEventData {
+  const meal = mealEventDataSchema.safeParse(event.payload.data);
+  if (meal.success) return meal.data;
+  const detail = meal.error.issues
+    .slice(0, 5)
+    .map((issue) => `${issue.path.join(".") || "(root)"}: ${issue.message}`)
+    .join("; ");
+  throw new HttpError(
+    400,
+    `Event ${event.id} (${event.payload.kind}) is not a meal this server understands — ${detail}`,
+  );
+}
+
+/** The meal id a tombstone names, or a 400. Same argument as `mealFrom`. */
+export function deletedMealFrom(event: LoggedEvent): string {
+  const deleted = mealDeleteDataSchema.safeParse(event.payload.data);
+  if (!deleted.success) {
+    throw new HttpError(400, `Event ${event.id} (meal_deleted) names no meal id.`);
+  }
+  return deleted.data.mealID;
+}
+
+/** Project append-only meal events into media references, and apply deletion. */
 export async function projectMealMedia(
   env: Env,
   accountId: string,
-  events: IngestEventsRequest["events"],
+  events: LoggedEvent[],
 ): Promise<void> {
   const candidates = new Set<string>();
   for (const event of events) {
     if (event.payload.kind === "meal_logged" || event.payload.kind === "meal_revised") {
-      const meal = mealEventDataSchema.safeParse(event.payload.data);
-      if (!meal.success) continue;
-      const oldHash = await currentMealHash(env.DB, accountId, meal.data.id);
-      const photoHash = meal.data.photoHash?.toLowerCase() ?? null;
-      await storeMealState(env.DB, accountId, meal.data.id, photoHash, event.id, event.recordedAt);
+      const meal = mealFrom(event);
+      const oldHash = await currentMealHash(env.DB, accountId, meal.id);
+      const photoHash = meal.photoHash?.toLowerCase() ?? null;
+      await storeMealState(env.DB, accountId, meal.id, photoHash, event.id, event.recordedAt);
       if (oldHash && oldHash !== photoHash) candidates.add(oldHash);
       continue;
     }
     if (event.payload.kind === "meal_deleted") {
-      const deleted = mealDeleteDataSchema.safeParse(event.payload.data);
-      if (!deleted.success) continue;
-      const oldHash = await currentMealHash(env.DB, accountId, deleted.data.mealID);
-      await storeMealState(
-        env.DB,
-        accountId,
-        deleted.data.mealID,
-        null,
-        event.id,
-        event.recordedAt,
-      );
+      const mealID = deletedMealFrom(event);
+      const oldHash = await currentMealHash(env.DB, accountId, mealID);
+      // A tombstone rather than a delete, so a late replay of the older
+      // meal_logged event cannot resurrect the media reference.
+      await storeMealState(env.DB, accountId, mealID, null, event.id, event.recordedAt);
       if (oldHash) candidates.add(oldHash);
     }
   }

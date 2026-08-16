@@ -19,12 +19,22 @@
       "usdPerMillionOutput": 1.2
     },
     {
+      "id": "gemini-3.7-flash",
+      "provider": "gemini",
+      "model": "gemini-3.7-flash",
+      "tier": "candidate",
+      "usdPerMillionInput": 0.75,
+      "usdPerMillionOutput": 3.75,
+      "why": "Production from 2026-08-15, and taken on price rather than on accuracy — say so plainly. Against 3.6-flash over three runs of both golden cases it was not better on the figure a person sees: bibimbap energy -22/-12/-19% against a published 670 kcal where 3.6 gave -14/-28/-16%. It reads about 48% more grams at a correspondingly lower density — 640 g of bibimbap at ~85 kcal/100 g, where the board's own figure is 156 — so both the weight and the composition move, and it still lands short. What it does win is stability: 442/442/447 g on the pasta where 3.6 gave 292/472/302, and weight variance is the documented open problem. Two cases cannot settle that either way. The price is introductory: $0.75/$3.75 through 2026-12-31, then $1.50/$7.50, which is exactly what 3.6 cost. Revisit before January, by which time the golden set should be big enough to decide on merit."
+    },
+    {
       "id": "gemini-3.6-flash",
       "provider": "gemini",
       "model": "gemini-3.6-flash",
       "tier": "candidate",
       "usdPerMillionInput": 1.5,
-      "usdPerMillionOutput": 7.5
+      "usdPerMillionOutput": 7.5,
+      "why": "Production until 2026-08-15 and kept as the row 3.7-flash has to beat. Reads the more plausible density and the less plausible quantity: 340-360 g of a 430 g bibimbap at about the right kcal/100 g. Its weakness is spread, not bias."
     },
     {
       "id": "muse-spark-1.2",

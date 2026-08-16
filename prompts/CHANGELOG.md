@@ -7,6 +7,99 @@ anything.
 v9 through v16 shipped without entries. That is a gap in this file, not a run of
 versions that changed nothing.
 
+
+## revision-v6-2026-08-16
+
+- **An added row's alternatives now carry `grams`.** The recognition contract
+  had weighed every rival since alternatives were priced — a tuna sub priced at
+  the turkey sub's weight is a number that looks chosen and is not — but the
+  correction contract still asked for label and `per_100g` only, and the app's
+  stored `FoodAlternative` requires a weight. Any correction that added a row
+  with rivals therefore failed to decode. One shape for a rival everywhere.
+
+## activity-revision-v1-2026-08-15
+
+The first correction prompt for something that is not food. "That sauna was
+thirty minutes, not twenty" needs somewhere to go, and re-running recognition
+on the words would throw away whatever else the row said.
+
+- **A delta over four fields.** `label`, `kind`, `duration_minutes`,
+  `start_time` — every one nullable, and null means *unchanged*. That is the
+  entire editable surface of an activity, because it is the entire stored one.
+- **`unset` is how a field is taken away.** Null already means "leave it", so
+  it cannot also mean "remove it"; "actually I don't know how long" names the
+  field in `unset` and leaves it null. Both at once is a contract violation on
+  both sides.
+- **Recorded, not priced — after a fix, too.** No energy field exists in the
+  correction schema any more than in recognition, and the prompt closes the
+  one hole a schema cannot: an estimate written into `label`.
+- Duration and start remain transcription only. Never inferred, in a
+  correction as in a recognition.
+
+## meal-v27-2026-08-15
+
+Activities are out of the release, so everything the prompt said about them is
+out of the prompt. v26 shipped for part of a day; this is what it should have
+been without a feature that was still being designed.
+
+- **The Activities section, the `kind` table, and the duration and start-time
+  rules are gone.** So is `entry`: with only meals reachable it narrowed to
+  "meal or nothing", which is `dishes` being empty restated, and a
+  discriminator that restates the thing it discriminates is a second copy of
+  one fact.
+- **An empty answer is stated as a real answer.** "If the input describes no
+  food at all, return no dishes." That is the whole of the couldn't-read
+  signal now, and without the sentence the model assembles a meal out of a
+  greeting rather than declining — which is worse than a screen admitting it
+  did not understand.
+- `activity-revision-v1.md` is deleted with the path that called it. Correcting
+  a meal is unchanged: `revision-v5.md` and its seven figures stand.
+- Nothing about composition, panels, menu items or the Atwater check moved.
+  The eval cases are the same cases, and the version bump is what makes the
+  recognition cache re-ask them under the shorter prompt.
+
+## meal-v26-activities-2026-08-15
+
+The same field that logs a meal now logs a sauna, and the composition block
+grew two figures. Both were schema changes first, and for about an hour the
+deployed prompt contradicted the deployed schema in three places — asked for
+"all five" where seven were required, asked for a panel basis that no longer
+existed, and stated an Atwater check without the column that makes a beer
+pass it. Two tests asserted opposite things about one contract and both
+passed. `contract-agreement.test.ts` now holds the prompt and the schema to
+the same list.
+
+- **`entry` first, then `dishes`, then `activities`.** The model names what
+  the message is — `meal`, `activity`, `both`, or `none` — before it fills
+  either list, so a sauna is not forced into `dishes` because that was the
+  only array. `none` is new and deliberate: a greeting used to come back as a
+  meal of zero dishes, which is a meal worth zero calories that looks logged.
+- **An activity is recorded, not priced.** The schema has no energy field for
+  one; the prompt says so and closes the hole a schema cannot, an estimate
+  written into `label`. `kind` is a closed six-value list for grouping nights
+  and is never displayed; the free-text `label` is what a row shows.
+  `duration_minutes` and `start_time` are transcribed, never inferred — "a
+  quick sauna" is null, "after the gym" is null. The start is a clock time on
+  the logged day rather than an instant, because an instant would need "now"
+  in the turn and would be cached with the words and replayed tomorrow
+  carrying yesterday's date.
+- **Seven composition figures, always.** `alcohol` in grams and `caffeine_mg`
+  in milligrams join the five, and zero is stated rather than omitted. Ethanol
+  is 7 kcal/g and its energy was already inside `kcal`, so with no column for
+  it the self-check saw 89% of a lager's energy unaccounted for on every
+  drink; the Atwater line now reads `+ alcohol × 7`. Caffeine is composition
+  exactly as sodium is, so a filter coffee has some without a label in the
+  photograph.
+- **`estimated_serving` is gone.** It let an unlabelled coffee carry a
+  caffeine *estimate* in the field reserved for *read* figures. With caffeine
+  on `per_100g` the panel is transcription and nothing else, and a printed
+  `alcohol` (grams only; ABV is not it) is transcribed beside `caffeine`.
+- **`revision-v5`** restates the same seven figures and the same Atwater line
+  for corrections, so a revised row is priced under the rules the row was
+  recognised under.
+- The user turn says the message may be "a meal, an activity, both, or
+  neither" and no longer says "classify the meal".
+
 ## meal-v24-2026-08-12
 
 Grounded recognition made two thirds of v22 dead weight, and one line of it

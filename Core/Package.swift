@@ -13,25 +13,27 @@ import PackageDescription
 let usesTestingPackage = ProcessInfo.processInfo.environment["SHAMAN_TESTING_PACKAGE"] == "1"
 
 let package = Package(
-    name: "ShamanCore",
+    name: "EatsomeCore",
     platforms: [.iOS(.v17), .macOS(.v14)],
     products: [
-        .library(name: "ShamanCore", targets: ["ShamanCore"])
+        .library(name: "EatsomeCore", targets: ["EatsomeCore"])
     ],
     dependencies: usesTestingPackage
         ? [.package(url: "https://github.com/swiftlang/swift-testing.git", exact: "6.2.4")]
         : [],
     targets: [
+        // Framework-free: no UIKit, AVFoundation, HealthKit. That is what
+        // makes the log, the arithmetic and the wire types testable on any
+        // machine with a Swift toolchain.
         .target(
-            name: "ShamanCore",
-            resources: [.process("Resources")],
+            name: "EatsomeCore",
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
         .testTarget(
-            name: "ShamanCoreTests",
+            name: "EatsomeCoreTests",
             dependencies: usesTestingPackage
-                ? ["ShamanCore", .product(name: "Testing", package: "swift-testing")]
-                : ["ShamanCore"],
+                ? ["EatsomeCore", .product(name: "Testing", package: "swift-testing")]
+                : ["EatsomeCore"],
             swiftSettings: [.swiftLanguageMode(.v6)]
         )
     ]

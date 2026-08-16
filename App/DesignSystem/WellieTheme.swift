@@ -1,117 +1,173 @@
 import SwiftUI
 import UIKit
 
-/// Tokens sampled from the approved redesign — `App Redesign Final`, turn `4`,
-/// option `4a`: *Quiet night, olive-free, days-logged stats on the main screen*.
+/// Tokens sampled from the approved redesign — `App Redesign Final`, turn
+/// `13`: *eatsome — the whole flow in one place*.
 ///
-/// The app is dark. Not "has a dark mode" — dark, one scheme, the way a
-/// wallet or a sleep tracker is. That is a bigger change than it looks and it
-/// is the reason most of this file moved:
+/// The app follows the phone. Every token below is a **pair**, and the one the
+/// screen draws is whichever `userInterfaceStyle` is in force when it resolves.
+/// That is a reversal of the previous rule — "dark, and only dark" — and the
+/// reason it reversed is that "dark only" was never a design position, it was a
+/// statement that only one half had been drawn. Both halves are drawn now, so
+/// the app has no business overriding a system-wide preference a person set
+/// once for every app on the device.
 ///
-/// - **Type.** Sora, 400–800, and it is the only face. The Space Grotesk /
-///   IBM Plex Mono pair is gone, and with it the mono-means-metadata rule: the
-///   mock says meta in Sora 600 uppercased with wide tracking, so `WellieMeta`
-///   still exists and still means *this is data about the thing*, it just says
-///   it with tracking instead of with a second typeface. One face is what lets
-///   a 64 pt counter and an 11 pt caption on the same screen read as one object.
-/// - **Colour.** A near-black page, two surfaces above it, and one periwinkle
-///   accent that is spent on exactly three things: the primary button, a live
-///   value, and the current selection. Olive survives as `protein` — the one
-///   nutrient with a colour, because it is the one with a goal.
-/// - **Shape.** Big radii, 14–26. The previous direction's 6–10-never-a-pill
-///   was a light, papery system; on a dark page a hairline-edged 10 pt corner
-///   reads as a table cell. These are the mock's own numbers.
-/// - **Surfaces.** `surface` on `background`, separated by a 1 pt `line` — the
-///   dark equivalent of the old hairline discipline, and still no shadows.
-/// - **Photos.** Full-bleed and squared to `photoRadius` inside a card, exactly
-///   as before. The meal detail screen runs one to the top edge under a
-///   gradient, which is the one place a photo is the page rather than an object
-///   on it.
+/// The two halves are the same design, not two designs:
 ///
-/// Ink-is-reserved-for-sent-text is retired with the thread it governed. On a
-/// dark page the scarce thing is *light*, not dark, and the rule that replaces
-/// it is: one accent object per screen. `inkSurface`/`onInk` remain as the
-/// light-on-dark inversion for anything that still needs to be the one bright
-/// block.
+/// - **Type.** Sora, 400–800, and it is the only face, in both schemes. The
+///   mono-means-metadata rule is still gone: `WellieMeta` says *this is data
+///   about the thing* with uppercasing and tracking rather than a second
+///   typeface. One face is what lets a 23 pt figure and an 11 pt caption on the
+///   same card read as one object.
+/// - **Colour.** A page, two surfaces above it, and one periwinkle accent spent
+///   on exactly three things: the primary button, a live value, and the current
+///   selection. Olive survives as `protein`. Dark is a near-black page with
+///   light on it; light is a warm off-white page with near-black on it — warm
+///   rather than pure white, because a 100% white page beside a white card
+///   leaves the card with nothing to be.
+/// - **Contrast is checked per scheme, against that scheme's page.** `muted`
+///   carries real words on every screen ("102 / 345–498 g", "Usually five to
+///   eight seconds") so it clears 4.5:1 in both: `#737e92` is 4.75:1 on the dark
+///   page, `#666e7e` is 4.54:1 on the light one. The accent darkens in light
+///   mode for the same reason — the mock's `#8a97f7` takes white at 2.7:1 and
+///   cannot carry a button label, where `#5462d2` takes it at 5.2:1 and is not
+///   a different colour so much as the same one lit from the other side.
+/// - **Shape.** Big radii, 14–26, shared by both schemes. These are the mock's
+///   own numbers.
+/// - **Surfaces.** `surface` on `background`, separated by a 1 pt `hairline`,
+///   and still no shadows in either scheme. `wellieSurface` is that shape and
+///   the only thing that draws it.
+/// - **Photos.** Full-bleed and squared to `photoRadius` inside a card. The
+///   meal detail screen runs one to the top edge under a gradient built from
+///   `background`, so the gradient inverts with the page and the card still has
+///   something to sit on.
+///
+/// One accent object per screen. `inkSurface`/`onInk` are the inversion pair
+/// for anything that has to be the one contrasting block, and they swap ends
+/// with the scheme.
 enum WellieTheme {
     // MARK: - Colour
     //
-    // Single values, not `adaptive` pairs. The mock is dark-only and the app
-    // now says so at the root with `.preferredColorScheme(.dark)`; a light
-    // half nobody designed is worse than no light half at all.
+    // Every value is an `adaptive` pair resolved against the trait collection,
+    // so a screen written against these tokens is correct in both schemes
+    // without knowing which one it is in. Reading `Environment(\.colorScheme)`
+    // in a view to pick a colour is the thing this exists to prevent: it works
+    // until the view is used inside something that overrides the scheme, and
+    // then it is silently the wrong colour rather than a build error.
 
-    /// The page.
-    static let background = hex(0x0B0D12)
+    /// The page. Warm off-white rather than white, so a white card is a card.
+    static let background = adaptive(light: 0xF3F1EC, dark: 0x0B0D12)
     /// A card on the page. Everything with a border is this.
-    static let surface = hex(0x13161E)
+    static let surface = adaptive(light: 0xFFFFFF, dark: 0x13161E)
     /// Inputs, wells, and anything inset *inside* a card.
-    static let well = hex(0x10131A)
+    static let well = adaptive(light: 0xF6F4EF, dark: 0x10131A)
     /// A raised fill: an unfilled meter, a secondary control, a bar in a chart
     /// that is not being pointed at.
-    static let raised = hex(0x232834)
-    /// The old tinted surface. Kept as an alias so the screens that have not
-    /// been redrawn yet still resolve; it is `surface` now, because a dark page
-    /// only supports so many greys before they stop being distinguishable.
-    static let ice = hex(0x13161E)
+    static let raised = adaptive(light: 0xE7E4DC, dark: 0x232834)
 
     /// Text.
-    static let ink = hex(0xEEF1F7)
+    static let ink = adaptive(light: 0x151820, dark: 0xEEF1F7)
     /// Running prose — one step down from `ink`, still comfortably readable.
-    static let body = hex(0xB4BDCC)
+    static let body = adaptive(light: 0x474D5A, dark: 0xB4BDCC)
     /// Labels, captions, secondary values, every meta line.
     ///
-    /// Three values lighter than the mock's `#6c7689`, which measures 4.26:1 on
-    /// this page — under the 4.5:1 floor for text this size, and it carries
-    /// real words on every screen here ("412 / 1,800 kcal", "Usually five to
-    /// eight seconds"). `#737e92` is 4.75:1 and is not distinguishable from the
-    /// mock side by side.
-    static let muted = hex(0x737E92)
-    /// Chevrons, empty meter segments, the dim half of a `6 / 90` — **decoration
-    /// and non-text marks only**, 1.6:1 on the page. The rule the old theme
-    /// wrote down survives verbatim: if a thing has words in it, it does not get
-    /// this colour. The exception the mock draws and this keeps is the trailing
-    /// half of a fraction, where the *figure* is the content and the denominator
-    /// is scale — and it is 20 pt and adjacent to its own bright numerator.
-    static let faint = hex(0x3A4152)
+    /// The floor is 4.5:1 **on that scheme's page**, and both values here were
+    /// picked against it rather than derived from each other: `#737e92` is
+    /// 4.75:1 on `#0b0d12`, `#666e7e` is 4.54:1 on `#f3f1ec`. The dark value is
+    /// three steps lighter than the mock's `#6c7689`, which measures 4.26:1 and
+    /// is under the floor for text this size.
+    static let muted = adaptive(light: 0x666E7E, dark: 0x737E92)
+    /// Chevrons, empty meter segments, the dim half of a fraction — **decoration
+    /// and non-text marks only**: 1.5:1 on the light page, 1.6:1 on the dark
+    /// one. The rule the old theme wrote down survives verbatim: if a thing has
+    /// words in it, it does not get this colour. The exception is the trailing
+    /// half of a large fraction, where the *figure* is the content, the
+    /// denominator is scale, and it sits adjacent to its own bright numerator.
+    static let faint = adaptive(light: 0xC7C9CF, dark: 0x3A4152)
 
     /// The one accent. Periwinkle, and the mock spends it on the primary
     /// button, the current selection, and a value that is alive right now.
-    static let accent = hex(0x8A97F7)
-    /// Foreground on `accent` — the page colour, not white. 7.3:1.
-    static let onAccent = hex(0x0B0D12)
-    /// Retained name for the accent, so screens outside the five redrawn here
-    /// keep resolving.
-    static let blue = accent
+    ///
+    /// The light value is darker because `onAccent` inverts with it: the mock's
+    /// `#8a97f7` under white text is 2.7:1, which no button label may be drawn
+    /// at. `#5462d2` takes white at 5.2:1 and reads as the same periwinkle.
+    static let accent = adaptive(light: 0x5462D2, dark: 0x8A97F7)
+    /// Foreground on `accent`. The page colour on dark (7.3:1), white on light
+    /// (5.2:1) — in both cases the thing the accent is *not*.
+    static let onAccent = adaptive(light: 0xFFFFFF, dark: 0x0B0D12)
+
+    /// The fill of an option a row is *currently set to*, among ones you could
+    /// still tap: a surface washed toward the accent, under a 1 pt accent
+    /// border and ink text.
+    ///
+    /// Deliberately quiet: a solid accent behind page-coloured text would be
+    /// as loud as the figures above it, which are the answer the chip is only
+    /// offering to change.
+    ///
+    /// A pair rather than one alpha over `surface`: the mock's `#171b28` is a
+    /// low accent wash on a dark card, and the same alpha on a white card is
+    /// very nearly invisible, so the light half is drawn stronger.
+    static let selectedFill = adaptiveColor(light: accent.opacity(0.10), dark: color(0x171B28))
 
     /// Protein, and the only nutrient with a colour of its own.
     ///
     /// It gets one because it is the only one of the five with a *goal* rather
     /// than a reference range — see `DailyTargets.protein` — so a protein bar
     /// can honestly be full or short where an energy bar can only be long or
-    /// less long. The olive rating is gone; the olive is not.
-    static let protein = hex(0xA3B04A)
+    /// less long.
+    ///
+    /// The light value is darkened to 4.5:1 because it is text in places, not
+    /// only a bar — it was the ring and the duration on a workout row until
+    /// those rows were cut, and it is still the figure on Progress.
+    static let protein = adaptive(light: 0x68742A, dark: 0xA3B04A)
     /// A protein bar on a day that did not reach the goal.
-    static let proteinDim = hex(0x2E331F)
-    /// Kept for the screens still drawing a rating.
-    static let olive = protein
+    static let proteinDim = adaptive(light: 0xE5E8D2, dark: 0x2E331F)
 
-    /// The one bright block, for anything that has to invert against the page.
-    static let inkSurface = hex(0xE7EDF5)
-    static let onInk = hex(0x0B0D12)
+    /// The one contrasting block, for anything that has to invert against the
+    /// page. Swaps ends with the scheme.
+    static let inkSurface = adaptive(light: 0x151820, dark: 0xE7EDF5)
+    static let onInk = adaptive(light: 0xFFFFFF, dark: 0x0B0D12)
 
-    static let heart = hex(0xF4767E)
-    static let attention = hex(0xE0A257)
-    static let attentionSurface = hex(0x2A2113)
-    static let danger = hex(0xE27777)
+    static let attention = adaptive(light: 0x8F6212, dark: 0xE0A257)
+    static let attentionSurface = adaptive(light: 0xF8EBD5, dark: 0x2A2113)
+    static let danger = adaptive(light: 0xBB3B37, dark: 0xE27777)
 
-    /// The line that does the work shadows used to, and that a hairline did on
-    /// white. One point, not a half: on a dark page a 0.5 pt line at 12% simply
-    /// is not there.
-    static let hairline = hex(0x1E2330)
+    /// The line that does the work a shadow used to. One point, not a half: on
+    /// a dark page a 0.5 pt line at 12% simply is not there.
+    static let hairline = adaptive(light: 0xE6E2DA, dark: 0x1E2330)
     /// A slightly stronger line, for a control that has an edge and no fill.
-    static let outline = hex(0x2A3040)
-    /// Retained alias.
-    static var line: Color { hairline }
+    static let outline = adaptive(light: 0xD6D1C7, dark: 0x2A3040)
+
+    // MARK: - Glass
+    //
+    // The floating tab shell and the meal detail's one translucent card are the
+    // only places the app puts a surface *over* something — a scrolling page, a
+    // photograph. They were written as `Color.white.opacity(…)` over
+    // `.ultraThinMaterial`, which is the right instinct on a dark page and
+    // invisible on a light one: white on white is nothing, and the capsule
+    // loses its edge entirely. These four are the same construction with the
+    // white swapped for the scheme's own contrasting end.
+
+    /// Tint laid over `.ultraThinMaterial` to give a floating surface a body.
+    static let glassFill = adaptiveColor(light: Color.white.opacity(0.7), dark: raised.opacity(0.56))
+    /// The 1 pt edge on a floating surface.
+    static let glassStroke = adaptiveColor(light: Color.black.opacity(0.08), dark: Color.white.opacity(0.14))
+    /// The same edge, on the two controls that are their own object rather than
+    /// a container: the round `+` and the stacked log button.
+    static let glassStrokeStrong = adaptiveColor(light: Color.black.opacity(0.1), dark: Color.white.opacity(0.2))
+    /// The selected tab's own fill inside the capsule.
+    static let glassSelection = adaptiveColor(light: Color.black.opacity(0.07), dark: Color.white.opacity(0.13))
+
+    /// The `+` beside the tabs, which is the one accent object in the shell.
+    ///
+    /// Solid on light and half-transparent on dark, which is not an
+    /// inconsistency: on the dark page the material behind it is dark and the
+    /// accent at 0.46 still reads as periwinkle, where on the light page the
+    /// same 0.46 over near-white washes to lilac and the button stops being the
+    /// brightest thing on the screen.
+    static let glassAccentFill = adaptiveColor(light: accent, dark: accent.opacity(0.46))
+    /// The glyph on `glassAccentFill`.
+    static let onGlassAccent = adaptiveColor(light: onAccent, dark: ink)
 
     // MARK: - Shape
 
@@ -122,8 +178,20 @@ enum WellieTheme {
     static let heroRadius: CGFloat = 26
     /// A control inside a card: a meter, a well, a tile.
     static let innerRadius: CGFloat = 20
-    /// The primary button, which is the widest radius in the app.
+    /// One entry in the day's timeline. Two points tighter than `innerRadius`
+    /// because these are 52 pt tall and stacked four apart — at 20 the corners
+    /// of adjacent rows very nearly touch and the column reads as a zip.
+    static let rowRadius: CGFloat = 18
+    /// 24, and it means *the widest thing on this screen*: the primary button,
+    /// and the one card a screen exists to show — the meal detail's figures,
+    /// a day's card in Earlier days. The mock draws all three at the same
+    /// number, and giving the card a second name for 24 is how a design system
+    /// ends up with two tokens that drift a point apart.
     static let controlRadius: CGFloat = 24
+    /// The selected place inside the tab capsule. Its own number because the
+    /// capsule it sits in is its own object: at `innerRadius` the pill's
+    /// corners visibly disagree with the capsule around them.
+    static let tabRadius: CGFloat = 23
     /// What a photo squares to inside a card.
     static let photoRadius: CGFloat = 16
     /// A chip, a tab, a small option.
@@ -205,7 +273,32 @@ enum WellieTheme {
             .allSatisfy { UIFont(name: "\(familyName)-\($0)", size: 12) != nil }
     }
 
-    private static func hex(_ value: UInt32) -> Color {
+    // MARK: - Resolving
+
+    /// A colour that is two colours, resolved against whatever trait collection
+    /// the view is drawn in.
+    ///
+    /// `UIColor(dynamicProvider:)` rather than an asset catalog pair or an
+    /// `@Environment(\.colorScheme)` read at the call site. The environment
+    /// read is the tempting one and it is wrong in a specific, quiet way: a
+    /// view can be hosted somewhere that overrides the scheme — a sheet, a
+    /// preview, a snapshot test, the share sheet's own chrome — and the
+    /// environment value it captured no longer describes the pixels it is
+    /// drawing on. A dynamic `UIColor` is resolved by UIKit at draw time, every
+    /// time, so it cannot go stale.
+    private static func adaptive(light: UInt32, dark: UInt32) -> Color {
+        adaptiveColor(light: color(light), dark: color(dark))
+    }
+
+    /// The same, for pairs that are not opaque hexes — the translucent tints
+    /// the floating shell lays over a material.
+    private static func adaptiveColor(light: Color, dark: Color) -> Color {
+        Color(uiColor: UIColor { traits in
+            UIColor(traits.userInterfaceStyle == .dark ? dark : light)
+        })
+    }
+
+    private static func color(_ value: UInt32) -> Color {
         Color(
             red: Double((value >> 16) & 0xFF) / 255,
             green: Double((value >> 8) & 0xFF) / 255,
@@ -217,6 +310,30 @@ enum WellieTheme {
 // MARK: - Surfaces
 
 extension View {
+    /// A filled, rounded, edged block — and nothing about its insets.
+    ///
+    /// The one shape the whole app is made of: a fill, a continuous corner, a
+    /// 1 pt line, never a shadow. It was written out by hand about twenty
+    /// times, and the copies had begun to disagree — a `strokeBorder` here, a
+    /// `stroke` there, one of them half a point.
+    ///
+    /// Padding is deliberately not its business. A card pads 20 all round, a
+    /// list card pads its rows instead, a chip pads 16 by 10, and a stepper
+    /// pads nothing at all; folding a default into the shape is what made the
+    /// copies exist in the first place.
+    func wellieSurface(
+        _ color: Color = WellieTheme.surface,
+        radius: CGFloat = WellieTheme.cardRadius,
+        border: Color = WellieTheme.hairline,
+        lineWidth: CGFloat = 1
+    ) -> some View {
+        background(color, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: radius, style: .continuous)
+                    .strokeBorder(border, lineWidth: lineWidth)
+            }
+    }
+
     /// A card: `surface`, edged by a line, never lifted by a shadow.
     func wellieCard(
         color: Color = WellieTheme.surface,
@@ -225,38 +342,13 @@ extension View {
     ) -> some View {
         self.padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(color, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: radius, style: .continuous)
-                    .strokeBorder(WellieTheme.hairline, lineWidth: 1)
-            }
-    }
-
-    /// A list card: rows supply their own vertical padding so the separators
-    /// between them run the full width of the inset.
-    func wellieListCard(color: Color = WellieTheme.surface) -> some View {
-        self.padding(.horizontal, 20)
-            .padding(.vertical, 2)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(color, in: RoundedRectangle(cornerRadius: WellieTheme.cardRadius, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: WellieTheme.cardRadius, style: .continuous)
-                    .strokeBorder(WellieTheme.hairline, lineWidth: 1)
-            }
+            .wellieSurface(color, radius: radius)
     }
 
     func wellieScreen() -> some View {
         foregroundStyle(WellieTheme.ink)
             .tint(WellieTheme.accent)
             .background(WellieTheme.background.ignoresSafeArea())
-    }
-
-    /// The scroll body every screen shares: one column of cards, inset from the
-    /// edges.
-    func wellieColumn() -> some View {
-        self.padding(.horizontal, WellieTheme.screenInset)
-            .padding(.top, 6)
-            .padding(.bottom, 28)
     }
 }
 
@@ -310,86 +402,6 @@ struct WellieAvatar: View {
     }
 }
 
-/// A photograph that runs to the edge of the screen, or squares inside a card.
-struct WelliePhoto: View {
-    let image: UIImage
-    var inCard = false
-    var height: CGFloat?
-
-    var body: some View {
-        Image(uiImage: image)
-            .resizable()
-            .scaledToFill()
-            .frame(maxWidth: .infinity)
-            .frame(height: height)
-            .clipped()
-            .clipShape(
-                RoundedRectangle(
-                    cornerRadius: inCard ? WellieTheme.photoRadius : 0,
-                    style: .continuous
-                )
-            )
-    }
-}
-
-extension View {
-    /// Guarantee the 44 pt minimum touch target without changing what is drawn.
-    ///
-    /// The HIG minimum is about the finger, not the glyph, so the frame grows
-    /// and the artwork does not — and `contentShape` is what makes the grown
-    /// frame actually receive the tap rather than just occupy space.
-    func wellieHitTarget(_ side: CGFloat = 44) -> some View {
-        frame(minWidth: side, minHeight: side)
-            .contentShape(Rectangle())
-    }
-
-    /// Keep the system left-edge pop gesture when a pushed screen draws its
-    /// own navigation chrome. SwiftUI disables the recognizer together with a
-    /// hidden navigation bar; the custom back button still works, but the
-    /// muscle-memory gesture disappears unless it is explicitly restored.
-    func wellieBackSwipe() -> some View {
-        background(WellieBackSwipeEnabler().allowsHitTesting(false))
-    }
-}
-
-private struct WellieBackSwipeEnabler: UIViewControllerRepresentable {
-    func makeUIViewController(context: Context) -> Controller {
-        Controller()
-    }
-
-    func updateUIViewController(_ controller: Controller, context: Context) {
-        controller.enableBackSwipe()
-    }
-
-    @MainActor
-    final class Controller: UIViewController {
-        override func viewDidLoad() {
-            super.viewDidLoad()
-            view.backgroundColor = .clear
-            view.isUserInteractionEnabled = false
-        }
-
-        override func didMove(toParent parent: UIViewController?) {
-            super.didMove(toParent: parent)
-            enableBackSwipe()
-        }
-
-        override func viewDidAppear(_ animated: Bool) {
-            super.viewDidAppear(animated)
-            enableBackSwipe()
-        }
-
-        func enableBackSwipe() {
-            guard let navigationController,
-                  navigationController.viewControllers.count > 1,
-                  let recognizer = navigationController.interactivePopGestureRecognizer
-            else { return }
-            recognizer.delegate = nil
-            recognizer.isEnabled = true
-        }
-    }
-}
-
 /// Motion, or its absence.
 ///
 /// One place to ask, so a screen cannot honour Reduce Motion in its transition
@@ -434,26 +446,6 @@ struct WelliePrimaryButtonStyle: ButtonStyle {
     }
 }
 
-/// The bordered one: a surface with a line round it, muted-bold label. The
-/// mock's "Log another while this runs" and "From gallery" / "Camera" pair.
-struct WellieSecondaryButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(WellieTheme.font(15, weight: .bold))
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 16)
-            .foregroundStyle(WellieTheme.body)
-            .background(
-                WellieTheme.surface.opacity(configuration.isPressed ? 0.6 : 1),
-                in: RoundedRectangle(cornerRadius: WellieTheme.controlRadius, style: .continuous)
-            )
-            .overlay {
-                RoundedRectangle(cornerRadius: WellieTheme.controlRadius, style: .continuous)
-                    .strokeBorder(WellieTheme.hairline, lineWidth: 1)
-            }
-    }
-}
-
 /// The line under a primary button — "Not now", "or add it by hand". A real
 /// choice, deliberately drawn as one that costs nothing to take.
 struct WellieQuietButtonStyle: ButtonStyle {
@@ -468,26 +460,6 @@ struct WellieQuietButtonStyle: ButtonStyle {
 }
 
 // MARK: - Text
-
-struct WellieSectionTitle: View {
-    let text: String
-    var detail: String?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text(text)
-                .font(WellieTheme.font(17, weight: .bold))
-                .foregroundStyle(WellieTheme.ink)
-            if let detail {
-                Text(detail)
-                    .font(WellieTheme.font(13.5, weight: .regular))
-                    .foregroundStyle(WellieTheme.muted)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-}
 
 /// Running prose inside a card.
 struct WellieProse: View {
@@ -522,121 +494,6 @@ struct WellieCaption: View {
             .lineSpacing(2)
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
-    }
-}
-
-// MARK: - Chips
-
-/// The one chip in the app, in the three states the mock uses it in.
-struct WellieChip: View {
-    enum Style {
-        /// A repeat, a food, a thing you might tap: surface fill, muted text.
-        case soft
-        /// The chosen option: accent fill, page-coloured text.
-        case selected
-        /// An option you have not taken.
-        case outline
-    }
-
-    let text: String
-    var style: Style = .soft
-    var size: CGFloat = 13
-    /// Take the whole width offered instead of hugging the text.
-    ///
-    /// The frame has to be inside the background, not around it: applied
-    /// outside, the shape stays the width of its label and only the invisible
-    /// layout box grows, which reads as three small chips adrift in a wide row.
-    var fills = false
-
-    var body: some View {
-        Text(text)
-            .font(WellieTheme.font(size, weight: style == .selected ? .bold : .semibold))
-            .foregroundStyle(foreground)
-            .lineLimit(1)
-            .minimumScaleFactor(0.8)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .frame(maxWidth: fills ? .infinity : nil)
-            .background(background, in: RoundedRectangle(cornerRadius: WellieTheme.chipRadius, style: .continuous))
-            .overlay {
-                if style != .selected {
-                    RoundedRectangle(cornerRadius: WellieTheme.chipRadius, style: .continuous)
-                        .strokeBorder(WellieTheme.hairline, lineWidth: 1)
-                }
-            }
-    }
-
-    private var foreground: Color {
-        switch style {
-        case .soft: WellieTheme.body
-        case .selected: WellieTheme.onAccent
-        case .outline: WellieTheme.muted
-        }
-    }
-
-    private var background: Color {
-        switch style {
-        case .soft: WellieTheme.surface
-        case .selected: WellieTheme.accent
-        case .outline: WellieTheme.background
-        }
-    }
-}
-
-/// The mock's segmented row: `14 days / 30 days / 90 days`, and the meal
-/// detail's `All of it / Half / A taste`. One selected chip, the rest outlined.
-///
-/// Not a `Picker`: the segmented style paints its own light chrome, and the
-/// three options here are chips with a gap between them rather than cells in a
-/// shared track.
-struct WellieChipRow<Option: Hashable>: View {
-    let options: [Option]
-    @Binding var selection: Option
-    let title: (Option) -> String
-    /// Chips hug their text by default — the mock's day-window row. The share
-    /// row on the meal detail divides the width in three instead.
-    var fills = false
-
-    var body: some View {
-        HStack(spacing: 8) {
-            ForEach(options, id: \.self) { option in
-                Button {
-                    selection = option
-                } label: {
-                    WellieChip(
-                        text: title(option),
-                        style: option == selection ? .selected : .soft,
-                        size: 13.5,
-                        fills: fills
-                    )
-                }
-                .buttonStyle(.plain)
-                .accessibilityAddTraits(option == selection ? [.isSelected, .isButton] : .isButton)
-            }
-            if !fills { Spacer(minLength: 0) }
-        }
-    }
-}
-
-// MARK: - Marks
-
-/// A compact success or attention mark.
-struct WellieMark: View {
-    var isMet = true
-    var size: CGFloat = 20
-
-    var body: some View {
-        Group {
-            if isMet {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(WellieTheme.onAccent, WellieTheme.accent)
-            } else {
-                Image(systemName: "exclamationmark.circle")
-                    .foregroundStyle(WellieTheme.attention)
-            }
-        }
-        .font(.system(size: size, weight: .semibold))
-        .frame(width: size, height: size)
     }
 }
 

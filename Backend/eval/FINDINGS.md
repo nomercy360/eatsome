@@ -112,3 +112,29 @@ plate.
   no refine endpoint, so the delta path — the one guarding that hand edits
   survive — is untested.
 - **The note track.** Wired (`--notes`), not yet run.
+
+## Deleted: the stage-2 resolver POC
+
+`resolver-poc.ts` and `resolver-golden.json` were removed on 2026-08-15. They
+graded mapping a recognised free-text `label` onto a row of the food composition
+table, and that table went in v21 (`538c6ca`) — the POC read
+`nutrientsPerGram.foods` out of `shaman-config.json` and threw
+`no nutrientsPerGram in shaman-config.json` before its first billable call. It
+still compiled, which is the only reason it survived three months.
+
+Its fixture is worth knowing about because a live rule in `CLAUDE.md` rests on
+it. 146 hand-authored cases, every label real and drawn from the remote
+`recognitions` table between 2026-08-05 and 2026-08-12, banded by why the table
+was expected to fail: `v20` (11), `rekinded` (75), `multi-food` (32),
+`as-logged` (14), `absent` (4), `control` (10). The `multi-food` band is the
+evidence behind *one food per `label`* — "ham and bacon", "shredded cabbage and
+lettuce", "bean sprouts and chives" — labels naming two foods, which no single
+row can price and which the prompt now forbids outright. The `as-logged` band is
+the other half of the argument: 14 labels that resolve perfectly under the right
+kind and not at all under the kind actually stored, which is what a taxonomy
+costs when recognition writes free text into it.
+
+Recover it with `git show ee894cb:Backend/eval/resolver-golden.json`, the last
+commit that carried it, if these labels are ever wanted as a text-track dataset.
+Nothing in it is a measurement; it is ground truth for a question the app no
+longer asks.

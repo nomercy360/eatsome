@@ -7,17 +7,29 @@ import {
   type MealRecognition,
   mealRecognitionSchema,
 } from "../src/contracts";
-import { geminiResponseSchema } from "../worker/ai/gemini";
-import { MEAL_PROMPT_VERSION, MEAL_RECOGNITION_SYSTEM_PROMPT } from "../worker/ai/prompt.generated";
+import { MEAL_PROMPT_VERSION } from "../worker/ai/prompt.generated";
+import { recognitionSpec } from "../worker/ai/spec";
 
 const BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
-const MODEL = "gemini-3.6-flash";
+/** What `wrangler.jsonc` ships as `GEMINI_RECOGNITION_MODEL`. Override with `--model`. */
+const DEFAULT_MODEL = "gemini-3.7-flash";
+/** What `wrangler.jsonc` ships as `RECOGNITION_SEARCH`. Turn off with `--no-search`. */
+const DEFAULT_SEARCH = true;
+
+const args = process.argv.slice(2);
+const flag = (name: string) =>
+  args.indexOf(name) === -1 ? null : (args[args.indexOf(name) + 1] ?? null);
+
+const MODEL = flag("--model") ?? DEFAULT_MODEL;
+const SEARCH = args.includes("--no-search") ? false : DEFAULT_SEARCH;
 
 /**
  * How wrong the app's nutrition is, against meals whose figures were published.
  *
  *   pnpm eval:nutrition
  *   pnpm eval:nutrition -- --case bibimbap-2026-08-07
+ *   pnpm eval:nutrition -- --model gemini-3.6-flash     # a rival against production
+ *   pnpm eval:nutrition -- --no-search                  # what grounding is worth
  *
  * The whole pipeline in one number per nutrient: the model reads the photograph,
  * names foods, weighs them and prices them, and this compares the total against
@@ -25,9 +37,13 @@ const MODEL = "gemini-3.6-flash";
  * together — which is the number a person sees, and the only one worth calling
  * accuracy.
  *
- * It runs the *production* prompt and the *production* Gemini schema rather than
- * copies. An eval that asks a different question than the app is how v16 came to
- * report good weights for a month while the app received none.
+ * It builds the request with `recognitionSpec()` and the production Gemini schema
+ * rather than copies. An eval that asks a different question than the app is how
+ * v16 came to report good weights for a month while the app received none — and
+ * it happened again quietly here: this file hand-wrote its own one-line user
+ * prompt and sent no `googleSearch` tool, so from the day grounding shipped it
+ * was scoring an ungrounded model against a grounded product. On branded food
+ * that is the difference between 865 kcal and 699.
  *
  * Two things are reported per case and they answer different questions:
  *
@@ -53,6 +69,16 @@ type Case = {
   published: Published;
   excludes?: string[];
   items?: Array<{ label: string; grams: number }>;
+  /**
+   * ISO country the phone would have been in, standing in for `CF-IPCountry`.
+   *
+   * Not ground truth and not scored — it is part of the *request* production
+   * would have made, and leaving it out asks the model a different question than
+   * the app does. It is worth more than the rest of the prompt on a branded
+   * product: the same Subway footlong is 698 kcal in Japan and about 1200 in the
+   * United States.
+   */
+  market?: string;
 };
 
 const NUTRIENTS = [
@@ -86,24 +112,31 @@ async function recognize(
   apiKey: string,
   photo: Buffer,
   mimeType: string,
+  market: string | undefined,
 ): Promise<MealRecognition> {
+  const imageBase64 = photo.toString("base64");
+  // The same builder the Worker calls, given the same input. Anything the app
+  // fences into the turn — the person's words, the note, the country — arrives
+  // here for free, and a prompt change cannot land in production without landing
+  // in the eval on the same commit.
+  const spec = recognitionSpec({ mimeType, imageBase64, market });
   const response = await fetch(`${BASE_URL}/models/${encodeURIComponent(MODEL)}:generateContent`, {
     method: "POST",
     headers: { "x-goog-api-key": apiKey, "content-type": "application/json" },
     body: JSON.stringify({
-      systemInstruction: { parts: [{ text: MEAL_RECOGNITION_SYSTEM_PROMPT }] },
+      systemInstruction: { parts: [{ text: spec.systemPrompt }] },
       contents: [
         {
           role: "user",
-          parts: [
-            { text: "Classify the meal closest to the camera." },
-            { inlineData: { mimeType, data: photo.toString("base64") } },
-          ],
+          parts: [{ text: spec.userPrompt }, { inlineData: { mimeType, data: imageBase64 } }],
         },
       ],
+      // Available rather than required, exactly as production has it. Off, this
+      // measures a model the app does not ship.
+      ...(SEARCH ? { tools: [{ googleSearch: {} }] } : {}),
       generationConfig: {
         responseMimeType: "application/json",
-        responseSchema: geminiResponseSchema(),
+        responseSchema: spec.responseSchema,
         thinkingConfig: { thinkingLevel: "low" },
       },
     }),
@@ -163,6 +196,7 @@ function totals(recognition: MealRecognition, exclusions: string[]) {
   let carbohydrate = 0;
   let fat = 0;
   let sodiumMg = 0;
+  let alcohol = 0;
   let excluded = 0;
   // Only what was counted. Reporting the whole tray here compared the soup and
   // the egg against an annotation of the bowl, and made a correct reading look
@@ -193,6 +227,7 @@ function totals(recognition: MealRecognition, exclusions: string[]) {
       carbohydrate += item.per_100g.carbohydrate * scale;
       fat += item.per_100g.fat * scale;
       sodiumMg += item.per_100g.sodium_mg * scale;
+      alcohol += item.per_100g.alcohol * scale;
     }
   }
 
@@ -202,18 +237,23 @@ function totals(recognition: MealRecognition, exclusions: string[]) {
     carbohydrate,
     fat,
     salt: (sodiumMg * SALT_PER_SODIUM) / 1000,
+    alcohol,
     excluded,
     grams,
   };
 }
 
-const args = process.argv.slice(2);
-const only = args.indexOf("--case") === -1 ? null : args[args.indexOf("--case") + 1];
+const only = flag("--case");
 const cases = loadCases().filter((one) => !only || one.id === only);
 if (!cases.length) throw new Error(only ? `No case named ${only}.` : "The golden set is empty.");
 
 const apiKey = loadApiKey();
-console.log(`Nutrition eval — ${MODEL}, prompt ${MEAL_PROMPT_VERSION}, ${cases.length} case(s)`);
+// The whole configuration on one line, because two runs under different ones are
+// not comparable and nothing else would say so.
+console.log(
+  `Nutrition eval — ${MODEL}, prompt ${MEAL_PROMPT_VERSION}, ` +
+    `search ${SEARCH ? "on" : "off"}, ${cases.length} case(s)`,
+);
 console.log("Ground truth: what whoever served the meal published.\n");
 
 const errors = new Map<string, number[]>(NUTRIENTS.map((n) => [n.key, []]));
@@ -230,7 +270,7 @@ for (const one of cases) {
     continue;
   }
   const mimeType = one.photo.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg";
-  const recognition = await recognize(apiKey, readFileSync(photo), mimeType);
+  const recognition = await recognize(apiKey, readFileSync(photo), mimeType, one.market);
   const app = totals(recognition, one.excludes ?? []);
   ran += 1;
 
@@ -255,6 +295,8 @@ for (const one of cases) {
     carbohydrate: app.carbohydrate,
     kcal: app.kcal,
     sodium_mg: 0,
+    alcohol: app.alcohol,
+    caffeine_mg: 0,
   });
   if (delta !== null) {
     atwaters.push(delta);

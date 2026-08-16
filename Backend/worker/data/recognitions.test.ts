@@ -4,9 +4,17 @@ import { inputFingerprint } from "./recognitions";
 const photoHash = "a".repeat(64);
 
 describe("recognition cache fingerprint", () => {
-  it("keys a bare photograph on its own hash, as every existing row does", async () => {
-    expect(await inputFingerprint({ photoHash })).toBe(photoHash);
-    expect(await inputFingerprint({ photoHash: photoHash.toUpperCase() })).toBe(photoHash);
+  it("hashes every input the same way, with no case left for a bare photograph", async () => {
+    // A bare photograph used to short-circuit to its own hash, so that rows
+    // written before text meals existed still matched. There are no such rows,
+    // and what the shortcut bought was one special case in the one function
+    // whose whole job is keeping two different questions apart.
+    const bare = await inputFingerprint({ photoHash });
+    expect(bare).not.toBe(photoHash);
+    expect(bare).toMatch(/^[a-f0-9]{64}$/);
+    // The hash is still normalised, so the same photo is the same question
+    // however the client spelled it.
+    expect(await inputFingerprint({ photoHash: photoHash.toUpperCase() })).toBe(bare);
   });
 
   it("covers the text of a meal that has no photograph", async () => {

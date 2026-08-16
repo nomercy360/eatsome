@@ -149,9 +149,10 @@ the tokens are shared, but they have not been redesigned.
 
 - No score on the food. The olive rating is gone from every redrawn screen. The
   counter measures logging, not eating well.
-- Salt is never drawn against a ceiling. It is a floor and it says `≥`.
-- A figure that is a range is drawn as a range.
-- A total built from part of a plate says how much of it did not answer.
+- Salt is never drawn against a ceiling. It is a plain figure with nothing
+  beside it.
+- Every derived reference states its rule; a figure the app cannot establish
+  is absent rather than plausible.
 
 **What changed on purpose.** The old doctrine's binding anti-reference was *the
 calorie tracker* — no macro meters, no streaks, no big number. Two of those are
@@ -273,11 +274,11 @@ is that it is not.
 One column, inset 20 px, 12 px between cards, 20 px of card padding. Headers and
 prose sit at 22–24 px so a heading is not flush with the card edges below it.
 
-The app's four durable places — Today, Tables, Progress, and You — sit in a
+The app's three durable places — Today, Progress, and You — sit in a
 floating translucent tab capsule at the bottom. Logging is an action rather
-than a fifth destination, so a separate round `+` opens the photo/text/voice
+than a fourth destination, so a separate round `+` opens the photo/text
 composer. It is labelled “Log a meal” for assistive technology; a record glyph
-would incorrectly promise audio recording. Pushed meal and table detail screens
+would incorrectly promise audio recording. Pushed meal detail screens
 hide this shell so their own back gesture and bottom controls retain the safe
 area. At accessibility text sizes or on a genuinely narrow host, the action
 becomes a full-width labelled control and the destinations become a two-by-two
@@ -285,7 +286,7 @@ grid; labels and touch targets never truncate merely to preserve the one-row sil
 
 Today is a centred date over a scrolling column. The date opens full history,
 and each of the seven day dots opens that day, which keeps earlier entries
-reachable without the old `Tables` and `Earlier days` footer rows. The counter
+reachable without a footer row. The counter
 and week are centred; everything below them is left-aligned. Sheets carry their
 own header (`✕ Cancel`, a centred title), while pushed screens use the native
 navigation stack and preserve the system edge-swipe gesture.
@@ -359,16 +360,23 @@ edge reads as a table cell rather than as an object.
 - The composer puts the mic and send buttons on their own row *under* the field,
   as 44 px circles, so the sentence gets the full width.
 
+### Portion stepper (signature)
+
+Count belongs to one dish. For a single-dish meal, put `A taste`, `Half`, and
+the `− ×n +` stepper in one mutually exclusive amount row; changing the count
+selects the whole amount. For a mixed meal, omit the meal-level amount row and
+put the compact neutral stepper on each dish. Keep the same silhouette in
+review, detail, menu-choice, and correction surfaces, and say that count changes
+update the displayed totals.
+
 ### Meters (signature)
 
 A 6 px track at Hairline with a 3 px radius, filling to the day's value on
-appear. Two forms, because `DailyTargets` publishes two kinds of reference:
-
-- **Point** — energy and protein have a number, so the label reads `412 / 1,800
-  kcal` and the fill is a fraction of it.
-- **Band** — carbohydrate and fat have an AMDR *range*, which the model
-  deliberately declines to collapse into a point. A lighter Raised stretch marks
-  the range on the track and the label reads `172 / 202–292 g`.
+appear. One form: every reference is a point. Energy and protein are a
+number, so the label reads `412 / 1,800 kcal` and the fill is a fraction of it;
+carbohydrate and fat are one figure each by a stated rule (fat 30% of energy,
+carbohydrate the remainder), so `95 / 400 g` — the AMDR band stays on the type
+and off the card, because a range in that slot read as a target nobody set.
 
 The track is scaled to `max(reference, value)`, so a day past its reference is
 drawn past it with a 2 px notch at the reference. A bar pinned at 100 % would
@@ -398,10 +406,8 @@ is not a gap yet.
 - **Do** set section headings, timestamps and provenance in Sora 600 at 11 px,
   uppercased, with 1.3 px tracking.
 - **Do** keep radii between 14 and 26 px.
-- **Do** draw a range as a range when the source publishes one.
-- **Do** state a figure's own limits where it is drawn — `≥` on salt, "9 g
-  today wasn't recognised" under a partial total, "averaged over the 10 days you
-  logged" under a mean.
+- **Do** state a figure's own limits where it is drawn — "estimated" on a
+  model figure, "averaged over the 10 days you logged" under a mean.
 - **Do** run photographs full-bleed when they are the subject and square them to
   16 px in a card.
 

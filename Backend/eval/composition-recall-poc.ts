@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
-const MODEL = "gemini-3.6-flash";
+const MODEL = "gemini-3.7-flash";
 
 /**
  * Does the model know composition, or does it need a table?

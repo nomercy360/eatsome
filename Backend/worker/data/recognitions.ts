@@ -1,22 +1,20 @@
 import { and, eq } from "drizzle-orm";
-import type {
-  MealRecognitionPayload,
-  RecognitionRequest,
-  RerunRecognitionRequest,
-} from "../../src/contracts";
-import { normalizePanels } from "../../src/contracts";
-import { decodeBase64Image, encodeBase64Image, sha256Hex } from "../ai/image";
-import { modelFor, requestMealRecognition, resolveProvider } from "../ai/recognize";
+import type { MealRecognition, RecognitionRequest } from "../../src/contracts";
+import { ATWATER_TOLERANCE, atwaterFailures, normalizePanels } from "../../src/contracts";
+import { askGemini } from "../ai/gemini";
+import { decodeBase64Image, sha256Hex } from "../ai/image";
+import { MEAL_PROMPT_VERSION } from "../ai/prompt";
+import { recognitionSpec } from "../ai/spec";
 import { createDb } from "../db/client";
 import { recognitions } from "../db/schema";
 import type { Env } from "../env";
 import { releaseRecognition, reserveRecognition } from "../lib/budget";
 import { HttpError } from "../lib/http-error";
 import { enforcePaidRecognitionFairness } from "../lib/limits";
-import { ensureMediaObject, getStoredMediaInput } from "./media";
+import { ensureMediaObject } from "./media";
 
 export type RecognitionResponse = {
-  recognition: MealRecognitionPayload;
+  recognition: MealRecognition;
   rawModelJSON: string;
   promptVersion: string;
   model: string;
@@ -44,17 +42,18 @@ function response(
 
 /**
  * One fingerprint over everything the model was given, because the cache
- * replays whatever this covers. A bare photograph keys on its own hash, exactly
- * as every existing row does. As soon as any text is involved the fields are
- * tagged and NUL-separated before hashing: "fried in butter" said and "fried in
- * butter" noted are different questions about the same photo, and two typed
- * meals with no photograph must never collide just because neither has a hash —
- * that would silently serve one person's lentil soup as their oatmeal.
+ * replays whatever this covers.
  *
- * The market is in here for the same reason, and it is not a small one: with
- * search on, "subway footlong" asked from Japan and asked from the United
- * States are questions with answers 500 kcal apart. Leaving it out would serve
- * one country's sandwich to the other country and call it a cache hit.
+ * Every field is tagged and NUL-separated before hashing, always. A bare
+ * photograph used to short-circuit to its own hash — a compatibility shortcut
+ * for rows written before text meals existed — and there are no such rows any
+ * more, so what the shortcut bought was one special case in the one function
+ * whose whole job is to keep two different questions apart.
+ *
+ * The market is in here and it is not a small addition: with search on,
+ * "subway footlong" asked from Japan and asked from the United States are
+ * questions with answers 500 kcal apart. Leaving it out would serve one
+ * country's sandwich to the other and call it a cache hit.
  */
 export async function inputFingerprint(input: {
   photoHash?: string | null;
@@ -66,7 +65,6 @@ export async function inputFingerprint(input: {
   const note = input.note?.trim() ?? "";
   const said = input.said?.trim() ?? "";
   const market = input.market?.trim().toUpperCase() ?? "";
-  if (photoHash && !note && !said && !market) return photoHash;
   const NUL = String.fromCharCode(0);
   return sha256Hex(
     new TextEncoder().encode(
@@ -84,9 +82,6 @@ export async function inputFingerprint(input: {
  * the American sandwich. Told the phone is in Japan the same words return 699
  * against a published 698. Nobody names their own country when typing what they
  * ate, so the request has to supply it.
- *
- * A fallback, never an override: anything the photograph or the words show
- * about the country outranks it, which is what the prompt says as well.
  */
 export function callerMarket(request: Request): string | null {
   // Both, because they disagree about when they exist. `cf.country` is absent
@@ -97,6 +92,29 @@ export function callerMarket(request: Request): string | null {
   const header = request.headers.get("CF-IPCountry");
   const country = header ?? (request as { cf?: { country?: string } }).cf?.country;
   return typeof country === "string" && /^[A-Z]{2}$/.test(country) ? country : null;
+}
+
+/**
+ * The self-check, where anyone can see it.
+ *
+ * `protein × 4 + carbohydrate × 4 + fat × 9 + alcohol × 7` against `kcal` is
+ * the only check available with no table to compare against, and until now it
+ * existed only in tests and in the prompt — which means it was checked against
+ * fixtures and asked of the model, and never once looked at in production. A
+ * warning rather than a refusal: the figures are still the best answer there
+ * is, and a meal thrown away for failing arithmetic is a meal the person has to
+ * log again by hand.
+ */
+function warnOnAtwater(recognition: MealRecognition, model: string, promptVersion: string): void {
+  const failures = atwaterFailures(recognition);
+  if (failures.length === 0) return;
+  console.warn(
+    `atwater: ${failures.length} of this answer's foods disagree with their own energy by more than ${Math.round(
+      ATWATER_TOLERANCE * 100,
+    )}% (${model}, ${promptVersion}) — ${failures
+      .map((f) => `${f.dish}/${f.label} ${Math.round(f.delta * 100)}%`)
+      .join(", ")}`,
+  );
 }
 
 export async function recognizeMeal(
@@ -113,39 +131,14 @@ export async function recognizeMeal(
     }
 
     // Storage is the first side effect. A provider failure or a cancelled
-    // confirm sheet still leaves the exact model input available for a re-run.
+    // confirm sheet still leaves the exact model input available for a refine.
     const media = await ensureMediaObject(env, accountId, actualHash, input.mimeType, bytes);
-    return recognizeInput(env, accountId, input, media.objectKey, false, market);
+    return recognizeInput(env, accountId, input, media.objectKey, market);
   }
 
   // A described meal: no bytes to decode, no hash to verify, nothing to put in
   // R2. The words still cache, because they are what the fingerprint covers.
-  return recognizeInput(env, accountId, input, null, false, market);
-}
-
-export async function rerunRecognition(
-  env: Env,
-  accountId: string,
-  photoHash: string,
-  input: RerunRecognitionRequest,
-  market: string | null = null,
-): Promise<RecognitionResponse> {
-  const stored = await getStoredMediaInput(env, accountId, photoHash);
-  if (!stored) throw new HttpError(404, "Stored model input not found.");
-  return recognizeInput(
-    env,
-    accountId,
-    {
-      provider: input.provider,
-      note: input.note,
-      photoHash,
-      mimeType: stored.media.mimeType as RecognitionRequest["mimeType"],
-      imageBase64: encodeBase64Image(stored.bytes),
-    },
-    stored.media.objectKey,
-    input.refresh,
-    market,
-  );
+  return recognizeInput(env, accountId, input, null, market);
 }
 
 async function recognizeInput(
@@ -153,26 +146,23 @@ async function recognizeInput(
   accountId: string,
   input: RecognitionRequest,
   photoKey: string | null,
-  refresh: boolean,
   market: string | null,
 ): Promise<RecognitionResponse> {
   const actualHash = input.photoHash?.toLowerCase() ?? null;
-  const provider = resolveProvider(env, input.provider);
-  const model = modelFor(env, provider);
+  const model = env.GEMINI_RECOGNITION_MODEL;
   const fingerprint = await inputFingerprint({ ...input, market });
 
   const db = createDb(env.DB);
-  // The model is part of the key, so asking the other provider about a photo
-  // you have already sent costs a real call rather than replaying an answer
-  // that came from somewhere else.
+  // The model is part of the key, so a prompt or model change costs a real call
+  // rather than replaying an answer produced by a different question.
   const where = and(
     eq(recognitions.accountId, accountId),
     eq(recognitions.inputFingerprint, fingerprint),
-    eq(recognitions.promptVersion, env.MEAL_PROMPT_VERSION),
+    eq(recognitions.promptVersion, MEAL_PROMPT_VERSION),
     eq(recognitions.model, model),
   );
   const cached = await db.query.recognitions.findFirst({ where });
-  if (cached && !refresh) return response(cached, photoKey, true);
+  if (cached) return response(cached, photoKey, true);
 
   await enforcePaidRecognitionFairness(env, accountId);
 
@@ -189,22 +179,25 @@ async function recognizeInput(
     );
   }
 
-  let result: Awaited<ReturnType<typeof requestMealRecognition>>;
+  let result: Awaited<ReturnType<typeof askGemini<MealRecognition>>>;
   try {
-    result = await requestMealRecognition(env, { ...input, market }, provider);
+    const turn = { ...input, market };
+    result = await askGemini(env, turn, recognitionSpec(turn));
   } catch (error) {
     // A failed call spent nothing, so it should not close the service.
     await releaseRecognition(env, ceiling);
     throw error;
   }
+  warnOnAtwater(result.value, model, MEAL_PROMPT_VERSION);
+
   const row: typeof recognitions.$inferInsert = {
     id: crypto.randomUUID(),
     accountId,
     photoHash: actualHash,
     inputFingerprint: fingerprint,
-    promptVersion: env.MEAL_PROMPT_VERSION,
+    promptVersion: MEAL_PROMPT_VERSION,
     model,
-    result: normalizePanels(result.recognition),
+    result: normalizePanels(result.value),
     rawModelJson: result.rawModelJson,
     providerRequestId: result.requestId,
     inputTokens: result.inputTokens,

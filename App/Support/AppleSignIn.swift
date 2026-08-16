@@ -1,6 +1,6 @@
 import AuthenticationServices
 import Foundation
-import ShamanCore
+import EatsomeCore
 
 /// Sign in with Apple, and nothing else.
 ///

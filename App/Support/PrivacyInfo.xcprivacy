@@ -48,8 +48,10 @@
 	<key>NSPrivacyAccessedAPITypes</key>
 	<array>
 		<dict>
-			<!-- Which recognition provider this device uses, and whether the
-			     Health authorization sheet has been shown. -->
+			<!-- Your body figures and goal, the answer to the send-consent
+			     screen, and where the account's event stream was last read to.
+			     There is no provider setting any more: the app asks its own
+			     Worker and there is nothing here to choose. -->
 			<key>NSPrivacyAccessedAPIType</key>
 			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
 			<key>NSPrivacyAccessedAPITypeReasons</key>

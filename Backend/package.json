@@ -20,15 +20,12 @@
     "db:migrate:local": "wrangler d1 migrations apply eatsome --local",
     "db:migrate:remote": "wrangler d1 migrations apply eatsome --remote",
     "cf:typegen": "wrangler types",
-    "v21:audit": "node scripts/migrate-v21.mjs --audit",
-    "v21:migrate": "node scripts/migrate-v21.mjs --apply",
     "eval:nutrition": "tsx eval/score-nutrition.ts"
   },
   "dependencies": {
     "@hono/zod-validator": "0.9.0",
     "drizzle-orm": "0.45.2",
     "hono": "4.12.34",
-    "openai": "7.3.0",
     "zod": "4.4.3"
   },
   "devDependencies": {
@@ -37,7 +34,6 @@
     "@types/node": "24.13.3",
     "@vitest/coverage-v8": "4.1.10",
     "drizzle-kit": "0.31.10",
-    "promptfoo": "^0.121.20",
     "sharp": "0.35.3",
     "tsx": "^4.23.5",
     "typescript": "7.0.2",

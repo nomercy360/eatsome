@@ -52,9 +52,9 @@ if grep -q "local-development-replace-before-deploy" wrangler.jsonc; then
 fi
 
 echo "==> Secrets"
-# Provider credentials stay on the Worker. The app authenticates with its
+# The model credential stays on the Worker. The app authenticates with its
 # account session and never embeds a backend secret.
-for secret in OPENAI_API_KEY GEMINI_API_KEY ANTHROPIC_API_KEY QWEN_API_KEY; do
+for secret in GEMINI_API_KEY; do
   if pnpm wrangler secret list 2>/dev/null | grep -q "\"$secret\""; then
     echo "    $secret already set"
   else
@@ -69,16 +69,9 @@ pnpm db:migrate:remote
 echo "==> Deploy"
 pnpm deploy
 
-# Deploy the session-only Worker before deleting the old binding. Reversing
-# this order would break the currently deployed version between the two steps.
-if pnpm wrangler secret list 2>/dev/null | grep -q '"EATSOME_API_TOKEN"'; then
-  echo "==> Retire legacy app token"
-  pnpm wrangler secret delete EATSOME_API_TOKEN
-fi
-
 echo
 echo "Check it answered:"
 echo "  curl -s https://eatsome-api.<your-subdomain>.workers.dev/api/health | jq"
 echo
-echo "That endpoint reports every provider and which of them is missing a key,"
-echo "so a misconfigured deployment says so before a photo does."
+echo "That endpoint reports the model, the prompt version and whether the key is"
+echo "set, so a misconfigured deployment says so before a photo does."

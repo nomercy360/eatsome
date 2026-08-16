@@ -1,12 +1,12 @@
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Env } from "../env";
 import type { VerifiedIdentity } from "../lib/identity-token";
 
 /**
- * The merge is the part of this milestone with no second chance, so it is
- * tested against a real SQLite rather than a mock: the primary keys, the
+ * Accounts against a real SQLite rather than a mock: the primary keys, the
  * `ON CONFLICT DO NOTHING` and the foreign keys are the mechanism, and a fake
  * that agrees with the code by construction would prove nothing about any of
  * them. `node:sqlite` ships with the runtime and D1 is SQLite, so the shim
@@ -21,7 +21,7 @@ vi.mock("../lib/identity-token", async (importOriginal) => {
   return {
     ...original,
     verifyIdentityToken: vi.fn(
-      async (provider: "apple" | "google", token: string): Promise<VerifiedIdentity> => ({
+      async (provider: "apple", token: string): Promise<VerifiedIdentity> => ({
         provider,
         // The stub's contract: the token *is* the subject. Every test below
         // therefore names the identity it is signing in as, in the call.
@@ -34,8 +34,7 @@ vi.mock("../lib/identity-token", async (importOriginal) => {
   };
 });
 
-const { partitionsFor, requireAuthenticatedPrincipal, resolvePrincipal, revokeSession, signIn } =
-  await import("./accounts");
+const { requireAuthenticatedPrincipal, revokeSession, signIn } = await import("./accounts");
 
 type Bound = {
   run(): Promise<{ meta: { changes: number } }>;
@@ -49,21 +48,15 @@ function memoryD1(): D1Database {
   db.exec("PRAGMA foreign_keys = ON");
 
   // The real migration, not a copy of it: a schema that drifts from what D1
-  // actually runs is a test that passes on a database nobody has. Relative to
-  // the vitest root, which is this package.
-  const migration = readFileSync("migrations/0007_accounts_and_identities.sql", "utf8");
+  // actually runs is a test that passes on a database nobody has.
+  const migration = readFileSync(
+    join(import.meta.dirname, "../../migrations/0000_init.sql"),
+    "utf8",
+  );
   for (const statement of migration.split("--> statement-breakpoint")) {
     const trimmed = statement.trim();
     if (trimmed) db.exec(trimmed);
   }
-  // Enough of `events` to prove that a merge leaves stored rows alone.
-  db.exec(
-    `CREATE TABLE events (
-       id text PRIMARY KEY NOT NULL,
-       account_id text NOT NULL,
-       recorded_at integer NOT NULL
-     )`,
-  );
 
   function bind(sql: string, params: unknown[]): Bound {
     const statement = db.prepare(sql);
@@ -100,7 +93,6 @@ function memoryD1(): D1Database {
         throw error;
       }
     },
-    raw: () => db,
   };
   return database as unknown as D1Database;
 }
@@ -118,21 +110,18 @@ function requestFrom(deviceId: string, sessionToken?: string): Request {
 const PHONE = "AAAAAAAA-BBBB-CCCC-DDDD-000000000001";
 const TABLET = "AAAAAAAA-BBBB-CCCC-DDDD-000000000002";
 
-function logEvent(database: D1Database, id: string, partition: string): Promise<unknown> {
+function logEvent(database: D1Database, id: string, accountId: string): Promise<unknown> {
   return database
-    .prepare("INSERT INTO events (id, account_id, recorded_at) VALUES (?, ?, ?)")
-    .bind(id, partition, 1)
+    .prepare(
+      `INSERT INTO events
+        (id, account_id, device_id, occurred_at, recorded_at, kind, payload_json, received_at)
+       VALUES (?, ?, 'test', 1, 1, 'message_sent', '{}', '2026-08-16T00:00:00Z')`,
+    )
+    .bind(id, accountId)
     .run();
 }
 
-function partitionOf(database: D1Database, eventId: string): Promise<{ accountId: string } | null> {
-  return database
-    .prepare("SELECT account_id AS accountId FROM events WHERE id = ?")
-    .bind(eventId)
-    .first<{ accountId: string }>();
-}
-
-describe("account merge", () => {
+describe("accounts", () => {
   let database: D1Database;
   let env: Env;
 
@@ -141,9 +130,7 @@ describe("account merge", () => {
     env = envFor(database);
   });
 
-  it("adopts the device's anonymous history without moving a single row", async () => {
-    await logEvent(database, "event-before-sign-in", `device:${PHONE}`);
-
+  it("mints one account for a subject and returns a usable session", async () => {
     const result = await signIn(env, requestFrom(PHONE), {
       provider: "apple",
       identityToken: "apple-subject-1",
@@ -151,17 +138,21 @@ describe("account merge", () => {
 
     expect(result.accountId).toMatch(/^acct:/);
     expect(result.accountCreated).toBe(true);
-    expect(result.merge).toEqual({ partition: `device:${PHONE}`, adopted: true, conflict: null });
+    expect(result.expiresAt).toBeGreaterThan(Date.now());
+    // Exactly the four fields the client decodes. `merge` went with the device
+    // partitions it described.
+    expect(Object.keys(result).sort()).toEqual([
+      "accountCreated",
+      "accountId",
+      "expiresAt",
+      "sessionToken",
+    ]);
 
-    // The point of the whole design: the stored row still says where it was
-    // written. If this ever reads `acct:…`, the merge became a rewrite.
-    expect(await partitionOf(database, "event-before-sign-in")).toEqual({
-      accountId: `device:${PHONE}`,
-    });
-    // And the account can read it anyway, through the union.
-    expect((await partitionsFor(database, result.accountId)).sort()).toEqual(
-      [result.accountId, `device:${PHONE}`].sort(),
+    const principal = await requireAuthenticatedPrincipal(
+      env,
+      requestFrom(PHONE, result.sessionToken),
     );
+    expect(principal).toEqual({ accountId: result.accountId, deviceId: PHONE });
   });
 
   it("is free to repeat: signing in twice changes nothing but the session", async () => {
@@ -176,104 +167,40 @@ describe("account merge", () => {
 
     expect(second.accountId).toBe(first.accountId);
     expect(second.accountCreated).toBe(false);
-    expect(second.merge.adopted).toBe(true);
     expect(second.sessionToken).not.toBe(first.sessionToken);
     // Both sessions keep working. A retry must not sign the first device out.
     for (const token of [first.sessionToken, second.sessionToken]) {
-      const principal = await resolvePrincipal(env, requestFrom(PHONE, token));
+      const principal = await requireAuthenticatedPrincipal(env, requestFrom(PHONE, token));
       expect(principal.accountId).toBe(first.accountId);
     }
-    const links = await database
-      .prepare("SELECT COUNT(*) AS n FROM account_partitions")
-      .first<{ n: number }>();
-    expect(links?.n).toBe(1);
   });
 
-  it("joins a second device to the account and reads the union", async () => {
-    await logEvent(database, "from-the-phone", `device:${PHONE}`);
-    await logEvent(database, "from-the-tablet", `device:${TABLET}`);
-
+  it("gives a second device the same account, and so the same rows", async () => {
+    // The whole of multi-device now: two sessions, one `account_id`. Reading is
+    // one equality rather than a union over adopted device partitions, and a
+    // phone that signs in sees what the other phone uploaded because the rows
+    // were written under the account in the first place.
     const phone = await signIn(env, requestFrom(PHONE), {
       provider: "apple",
       identityToken: "apple-subject-1",
     });
+    await logEvent(database, "from-the-phone", phone.accountId);
+
     const tablet = await signIn(env, requestFrom(TABLET), {
       provider: "apple",
       identityToken: "apple-subject-1",
     });
-
     expect(tablet.accountId).toBe(phone.accountId);
-    expect(tablet.merge.adopted).toBe(true);
-    const principal = await resolvePrincipal(env, requestFrom(TABLET, tablet.sessionToken));
-    expect(principal.signedIn).toBe(true);
-    expect(principal.partitions.sort()).toEqual(
-      [phone.accountId, `device:${PHONE}`, `device:${TABLET}`].sort(),
+
+    const principal = await requireAuthenticatedPrincipal(
+      env,
+      requestFrom(TABLET, tablet.sessionToken),
     );
-    // New events from either device land on the account's own partition, so the
-    // device partitions stop growing at the moment of sign-in.
     expect(principal.accountId).toBe(phone.accountId);
+    expect(principal.deviceId).toBe(TABLET);
   });
 
-  it("adds a second provider to the account whose session the caller holds", async () => {
-    const apple = await signIn(env, requestFrom(PHONE), {
-      provider: "apple",
-      identityToken: "apple-subject-1",
-    });
-    // Nothing in an Apple token and a Google token says the two subjects are
-    // the same human. Holding the Apple session while presenting the Google
-    // token is the evidence, and it is the only evidence we accept — matching
-    // on email address is how one Gmail inherits a stranger's diary.
-    const google = await signIn(env, requestFrom(PHONE, apple.sessionToken), {
-      provider: "google",
-      identityToken: "google-subject-1",
-    });
-    expect(google.accountId).toBe(apple.accountId);
-    expect(google.accountCreated).toBe(false);
-    const identities = await database
-      .prepare("SELECT COUNT(*) AS n FROM identities WHERE account_id = ?")
-      .bind(apple.accountId)
-      .first<{ n: number }>();
-    expect(identities?.n).toBe(2);
-  });
-
-  it("makes a second provider on a signed-out device its own account", async () => {
-    const apple = await signIn(env, requestFrom(PHONE), {
-      provider: "apple",
-      identityToken: "apple-subject-1",
-    });
-    const google = await signIn(env, requestFrom(PHONE), {
-      provider: "google",
-      identityToken: "google-subject-1",
-    });
-    expect(google.accountId).not.toBe(apple.accountId);
-    expect(google.merge).toEqual({
-      partition: `device:${PHONE}`,
-      adopted: false,
-      conflict: "linked_to_another_account",
-    });
-  });
-
-  it("never re-points an identity that already belongs to an account", async () => {
-    const first = await signIn(env, requestFrom(PHONE), {
-      provider: "apple",
-      identityToken: "apple-subject-1",
-    });
-    const second = await signIn(env, requestFrom(TABLET), {
-      provider: "apple",
-      identityToken: "apple-subject-2",
-    });
-    // Signed in as the second, presenting the first's token: this is a switch,
-    // not a takeover. Moving the identity would strip the first account of the
-    // only way back into it.
-    const switched = await signIn(env, requestFrom(TABLET, second.sessionToken), {
-      provider: "apple",
-      identityToken: "apple-subject-1",
-    });
-    expect(switched.accountId).toBe(first.accountId);
-  });
-
-  it("refuses to move a device's history to a second identity", async () => {
-    await logEvent(database, "logged-by-the-first-owner", `device:${PHONE}`);
+  it("keeps two subjects apart", async () => {
     const first = await signIn(env, requestFrom(PHONE), {
       provider: "apple",
       identityToken: "apple-subject-1",
@@ -282,13 +209,8 @@ describe("account merge", () => {
       provider: "apple",
       identityToken: "apple-subject-2",
     });
-
     expect(second.accountId).not.toBe(first.accountId);
-    expect(second.merge.conflict).toBe("linked_to_another_account");
-    // The history stays with whoever claimed it first, and the second account
-    // starts empty rather than inheriting a stranger's meals.
-    expect(await partitionsFor(database, first.accountId)).toContain(`device:${PHONE}`);
-    expect(await partitionsFor(database, second.accountId)).toEqual([second.accountId]);
+    expect(second.accountCreated).toBe(true);
   });
 
   it("leaves an unknown or expired session as a refusal, never as a downgrade", async () => {
@@ -297,9 +219,13 @@ describe("account merge", () => {
       identityToken: "apple-subject-1",
     });
 
-    // Silently falling back to the device partition is the failure this guards:
-    // the client keeps writing, believing it is signed in, into the wrong place.
-    await expect(resolvePrincipal(env, requestFrom(PHONE, "not-a-session"))).rejects.toMatchObject({
+    // Silently falling back to a device-keyed identity is the failure this
+    // guards: the client keeps writing, believing it is signed in, somewhere
+    // nobody will look again.
+    await expect(
+      requireAuthenticatedPrincipal(env, requestFrom(PHONE, "not-a-session")),
+    ).rejects.toMatchObject({ status: 401 });
+    await expect(requireAuthenticatedPrincipal(env, requestFrom(PHONE))).rejects.toMatchObject({
       status: 401,
     });
 
@@ -308,34 +234,8 @@ describe("account merge", () => {
       .bind(Date.now() - 1, session.accountId)
       .run();
     await expect(
-      resolvePrincipal(env, requestFrom(PHONE, session.sessionToken)),
-    ).rejects.toMatchObject({ status: 401 });
-  });
-
-  it("gives a caller with no session exactly what it had before accounts existed", async () => {
-    await signIn(env, requestFrom(PHONE), { provider: "apple", identityToken: "apple-subject-1" });
-    const principal = await resolvePrincipal(env, requestFrom(PHONE));
-    // A linked device id is still just a device id. Serving the union here
-    // would turn a copyable header into the whole account.
-    expect(principal).toEqual({
-      accountId: `device:${PHONE}`,
-      partitions: [`device:${PHONE}`],
-      signedIn: false,
-    });
-  });
-
-  it("requires an account bearer as production identity", async () => {
-    await expect(requireAuthenticatedPrincipal(env, requestFrom(PHONE))).rejects.toMatchObject({
-      status: 401,
-    });
-
-    const session = await signIn(env, requestFrom(PHONE), {
-      provider: "apple",
-      identityToken: "apple-subject-1",
-    });
-    await expect(
       requireAuthenticatedPrincipal(env, requestFrom(PHONE, session.sessionToken)),
-    ).resolves.toMatchObject({ accountId: session.accountId, signedIn: true });
+    ).rejects.toMatchObject({ status: 401 });
   });
 
   it("stores a session's digest and never the token", async () => {
@@ -350,26 +250,42 @@ describe("account merge", () => {
     expect(row?.hash).not.toBe(session.sessionToken);
   });
 
-  it("signs one device out without un-merging anything", async () => {
-    const session = await signIn(env, requestFrom(PHONE), {
+  it("signs one device out and leaves the other signed in", async () => {
+    const phone = await signIn(env, requestFrom(PHONE), {
       provider: "apple",
       identityToken: "apple-subject-1",
     });
-    expect(await revokeSession(env, requestFrom(PHONE, session.sessionToken))).toEqual({
+    const tablet = await signIn(env, requestFrom(TABLET), {
+      provider: "apple",
+      identityToken: "apple-subject-1",
+    });
+
+    expect(await revokeSession(env, requestFrom(PHONE, phone.sessionToken))).toEqual({
       revoked: 1,
     });
     await expect(
-      resolvePrincipal(env, requestFrom(PHONE, session.sessionToken)),
+      requireAuthenticatedPrincipal(env, requestFrom(PHONE, phone.sessionToken)),
     ).rejects.toMatchObject({ status: 401 });
-    // The adopted history is still the account's.
-    expect(await partitionsFor(database, session.accountId)).toContain(`device:${PHONE}`);
+    await expect(
+      requireAuthenticatedPrincipal(env, requestFrom(TABLET, tablet.sessionToken)),
+    ).resolves.toMatchObject({ accountId: tablet.accountId });
   });
 
-  it("refuses a caller with no usable device id", async () => {
+  it("signs in from a phone that sends no device id", async () => {
+    // The header is a label now, not a partition key, so its absence is a
+    // nameless session rather than a refusal. It used to be a 400 because a
+    // missing id meant rows would land in an `ip:`-keyed bucket that changes
+    // when the phone changes network.
     const anonymous = new Request("https://api.test/api/v1/auth/sessions");
-    await expect(
-      signIn(env, anonymous, { provider: "apple", identityToken: "apple-subject-1" }),
-    ).rejects.toMatchObject({ status: 400 });
+    const result = await signIn(env, anonymous, {
+      provider: "apple",
+      identityToken: "apple-subject-1",
+    });
+    expect(result.accountId).toMatch(/^acct:/);
+    const row = await database
+      .prepare("SELECT device_id AS deviceId FROM sessions LIMIT 1")
+      .first<{ deviceId: string }>();
+    expect(row?.deviceId).toBe("unknown");
   });
 
   it("refuses sign-in on a deployment pinned to one account", async () => {
@@ -377,13 +293,46 @@ describe("account merge", () => {
     await expect(
       signIn(pinned, requestFrom(PHONE), { provider: "apple", identityToken: "apple-subject-1" }),
     ).rejects.toMatchObject({ status: 409 });
-    expect(await resolvePrincipal(pinned, requestFrom(PHONE))).toEqual({
+    await expect(requireAuthenticatedPrincipal(pinned, requestFrom(PHONE))).resolves.toEqual({
       accountId: "solo",
-      partitions: ["solo"],
-      signedIn: false,
+      deviceId: PHONE,
     });
-    await expect(requireAuthenticatedPrincipal(pinned, requestFrom(PHONE))).resolves.toMatchObject({
-      accountId: "solo",
+  });
+});
+
+describe("erasure", () => {
+  it("removes every row the account owns, identity last", async () => {
+    const database = memoryD1();
+    const env = {
+      ...envFor(database),
+      MEDIA: { list: async () => ({ objects: [] }) },
+    } as unknown as Env;
+    const { deleteAccountData } = await import("./accounts");
+
+    const session = await signIn(env, requestFrom(PHONE), {
+      provider: "apple",
+      identityToken: "apple-subject-1",
     });
+    await logEvent(database, "a-meal", session.accountId);
+
+    const result = await deleteAccountData(env, session.accountId);
+    expect(result.events).toBe(1);
+
+    for (const table of ["events", "sessions", "identities", "accounts"]) {
+      const row = await database
+        .prepare(`SELECT COUNT(*) AS n FROM ${table}`)
+        .first<{ n: number }>();
+      expect(row?.n, table).toBe(0);
+    }
+
+    // The next sign-in is a first sign-in. Leaving `identities` behind would
+    // resolve it to an account whose data is gone but whose id is the same —
+    // a deleted account quietly coming back as an empty one.
+    const again = await signIn(env, requestFrom(PHONE), {
+      provider: "apple",
+      identityToken: "apple-subject-1",
+    });
+    expect(again.accountCreated).toBe(true);
+    expect(again.accountId).not.toBe(session.accountId);
   });
 });

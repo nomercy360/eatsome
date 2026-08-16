@@ -1,9 +1,58 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "dc68360c-6f12-4e16-9df5-4f8700d3839f",
+  "id": "673c373e-5df5-4aca-ad4d-f1a9ec789b06",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
+    "accounts": {
+      "name": "accounts",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "budget": {
+      "name": "budget",
+      "columns": {
+        "day": {
+          "name": "day",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "used": {
+          "name": "used",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
     "events": {
       "name": "events",
       "columns": {
@@ -94,13 +143,20 @@
         }
       }
     },
-    "meal_evals": {
-      "name": "meal_evals",
+    "identities": {
+      "name": "identities",
       "columns": {
-        "event_id": {
-          "name": "event_id",
+        "provider": {
+          "name": "provider",
           "type": "text",
-          "primaryKey": true,
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "subject": {
+          "name": "subject",
+          "type": "text",
+          "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
@@ -111,8 +167,70 @@
           "notNull": true,
           "autoincrement": false
         },
-        "device_id": {
-          "name": "device_id",
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "email_verified": {
+          "name": "email_verified",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "identities_account_idx": {
+          "name": "identities_account_idx",
+          "columns": [
+            "account_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "identities_account_id_accounts_id_fk": {
+          "name": "identities_account_id_accounts_id_fk",
+          "tableFrom": "identities",
+          "tableTo": "accounts",
+          "columnsFrom": [
+            "account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "identities_provider_subject_pk": {
+          "columns": [
+            "provider",
+            "subject"
+          ],
+          "name": "identities_provider_subject_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "meal_media": {
+      "name": "meal_media",
+      "columns": {
+        "account_id": {
+          "name": "account_id",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
@@ -129,53 +247,80 @@
           "name": "photo_hash",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false
         },
-        "prompt_version": {
-          "name": "prompt_version",
+        "event_id": {
+          "name": "event_id",
           "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "raw_model_json": {
-          "name": "raw_model_json",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "initial_items_json": {
-          "name": "initial_items_json",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "final_items_json": {
-          "name": "final_items_json",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "other_meals_visible": {
-          "name": "other_meals_visible",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "was_corrected": {
-          "name": "was_corrected",
-          "type": "integer",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
         "recorded_at": {
           "name": "recorded_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "meal_media_reference_idx": {
+          "name": "meal_media_reference_idx",
+          "columns": [
+            "account_id",
+            "photo_hash"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "meal_media_account_id_meal_id_pk": {
+          "columns": [
+            "account_id",
+            "meal_id"
+          ],
+          "name": "meal_media_account_id_meal_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "media_objects": {
+      "name": "media_objects",
+      "columns": {
+        "account_id": {
+          "name": "account_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "photo_hash": {
+          "name": "photo_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "object_key": {
+          "name": "object_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "mime_type": {
+          "name": "mime_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "byte_size": {
+          "name": "byte_size",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
@@ -187,63 +332,51 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
+        },
+        "stored_at": {
+          "name": "stored_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         }
       },
       "indexes": {
-        "meal_evals_account_created_idx": {
-          "name": "meal_evals_account_created_idx",
+        "media_objects_key_idx": {
+          "name": "media_objects_key_idx",
+          "columns": [
+            "object_key"
+          ],
+          "isUnique": true
+        },
+        "media_objects_orphans_idx": {
+          "name": "media_objects_orphans_idx",
+          "columns": [
+            "created_at",
+            "stored_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "media_objects_account_id_photo_hash_pk": {
           "columns": [
             "account_id",
-            "created_at"
+            "photo_hash"
           ],
-          "isUnique": false
-        },
-        "meal_evals_prompt_idx": {
-          "name": "meal_evals_prompt_idx",
-          "columns": [
-            "prompt_version",
-            "created_at"
-          ],
-          "isUnique": false
-        },
-        "meal_evals_meal_idx": {
-          "name": "meal_evals_meal_idx",
-          "columns": [
-            "meal_id",
-            "recorded_at"
-          ],
-          "isUnique": false
+          "name": "media_objects_account_id_photo_hash_pk"
         }
       },
-      "foreignKeys": {
-        "meal_evals_event_id_events_id_fk": {
-          "name": "meal_evals_event_id_events_id_fk",
-          "tableFrom": "meal_evals",
-          "tableTo": "events",
-          "columnsFrom": [
-            "event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {
-        "meal_evals_initial_json_check": {
-          "name": "meal_evals_initial_json_check",
-          "value": "json_valid(\"meal_evals\".\"initial_items_json\")"
+        "media_objects_hash_check": {
+          "name": "media_objects_hash_check",
+          "value": "length(\"media_objects\".\"photo_hash\") = 64"
         },
-        "meal_evals_final_json_check": {
-          "name": "meal_evals_final_json_check",
-          "value": "json_valid(\"meal_evals\".\"final_items_json\")"
-        },
-        "meal_evals_hash_check": {
-          "name": "meal_evals_hash_check",
-          "value": "length(\"meal_evals\".\"photo_hash\") = 64"
+        "media_objects_size_check": {
+          "name": "media_objects_size_check",
+          "value": "\"media_objects\".\"byte_size\" >= 0"
         }
       }
     },
@@ -266,6 +399,13 @@
         },
         "photo_hash": {
           "name": "photo_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "input_fingerprint": {
+          "name": "input_fingerprint",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
@@ -343,7 +483,7 @@
           "name": "recognitions_cache_idx",
           "columns": [
             "account_id",
-            "photo_hash",
+            "input_fingerprint",
             "prompt_version",
             "model"
           ],
@@ -366,9 +506,13 @@
           "name": "recognitions_result_json_check",
           "value": "json_valid(\"recognitions\".\"result_json\")"
         },
+        "recognitions_raw_json_check": {
+          "name": "recognitions_raw_json_check",
+          "value": "json_valid(\"recognitions\".\"raw_model_json\")"
+        },
         "recognitions_hash_check": {
           "name": "recognitions_hash_check",
-          "value": "length(\"recognitions\".\"photo_hash\") = 64"
+          "value": "\"recognitions\".\"photo_hash\" IS NULL OR length(\"recognitions\".\"photo_hash\") = 64"
         },
         "recognitions_input_tokens_check": {
           "name": "recognitions_input_tokens_check",
@@ -383,6 +527,74 @@
           "value": "\"recognitions\".\"latency_ms\" >= 0"
         }
       }
+    },
+    "sessions": {
+      "name": "sessions",
+      "columns": {
+        "token_hash": {
+          "name": "token_hash",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "account_id": {
+          "name": "account_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "device_id": {
+          "name": "device_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "sessions_account_idx": {
+          "name": "sessions_account_idx",
+          "columns": [
+            "account_id",
+            "expires_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "sessions_account_id_accounts_id_fk": {
+          "name": "sessions_account_id_accounts_id_fk",
+          "tableFrom": "sessions",
+          "tableTo": "accounts",
+          "columnsFrom": [
+            "account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     }
   },
   "views": {},

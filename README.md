@@ -1,234 +1,126 @@
 # eatsome
 
-A conversational meal log and health overview for iOS.
+Say what you ate; the day keeps the count.
 
-Canonical domain: [eatso.me](https://eatso.me)
+A calorie tracker for iOS. Photograph a plate or type a sentence, and a model
+returns the dishes on it, each food's weight in grams and its composition per
+100 g. The app stores that, multiplies, and shows the day against a reference.
+That is the whole product.
 
-The original bundle, storage-directory, and Keychain service identifiers remain
-unchanged internally so the rename installs as an update without losing data.
+Canonical domain: [eatsome.co](https://eatsome.co); the App Store listing is
+named `eatsome.co`. The bundle identifier (`app.shaman.tracker`) and this
+repository's name are App Store identity from before the rename and are not
+going to change; everything a person sees says eatsome.
 
-Two connected loops:
+## What it deliberately does not do
 
-1. **Describe or photograph a meal** → the recognition model classifies dishes,
-   food groups, and weights → sourced nutrition figures and a one-to-five olive
-   rating for the plate.
-2. **Connect Apple Health** → age, sex reference, height, weight, body fat, and
-   recent energy data fill a personal daily energy and macro reference when
-   available; workouts and sleep still appear in the daily overview.
+**Nothing asks the model for a total.** Recognition reports weight and per-100 g
+composition, per food. Energy, protein, carbohydrate, fat, sodium and alcohol
+are `grams × per100g`, on the phone, from figures that were stored with the meal.
+There is no lookup that can miss and no total that can be secretly partial.
 
-## What this deliberately does not do
+**No score, no rating, no streak.** The counter on Today counts days logged. The
+app can see what it was told about and nothing else, and a number that dimmed
+because of what you ate would turn a record into a report card.
 
-**No model-invented nutrition.** Recognition estimates only the food and its
-weight. Energy, protein, carbohydrate, fat, and sodium come from published food
-tables or a nutrition panel the model can actually read.
+**No social, no movement, no weight tracking.** Each of those shipped once and
+was removed in August 2026 when the product was cut back to the one thing.
 
-**Meal history, not weekly verdicts.** The app keeps meal-level olive ratings
-and daily history without grading the week.
-
-**No silent cloud dependency.** The app still works from its local append-only
-log. The new backend is an explicit sync and recognition boundary; it does not
-become the only copy of meal history.
-
-**No custom health score.** Workouts, sleep, and weight are shown as recorded by
-HealthKit. eatsome does not turn them into a proprietary readiness number.
+**No silent cloud dependency.** The phone's append-only log is the record; the
+Worker mirrors it. Both directions are a union of immutable events, so a
+reinstall recovers history by pulling and nothing ever deletes by comparison.
 
 ## Layout
 
 ```
-Core/            SwiftPM package — all logic, no frameworks, fully tested
-  Sources/ShamanCore/
-    Model/       UUIDv7, epoch time, food groups, append-only events
-    Nutrition/   sourced nutrient totals, serving weights, olive ratings
-    Movement/    Experimental pose geometry and rep counter (not shipped in app)
-    AI/          Luna client, strict JSON schema, SHA-256 recognition cache
-    Storage/     JSONL event log, Keychain
-    Config/      Remote-or-bundled tunables
-App/             iOS app — SwiftUI, 2048px meal camera input, HealthKit
-  DesignSystem/  Wellie-derived color, type, card, chip, and button tokens
-  Support/       Read-only HealthKit import and app configuration
-Backend/         Cloudflare Worker — Hono, D1/Drizzle, private R2, model proxy
-scripts/         bootstrap.sh
+Core/            SwiftPM package EatsomeCore — no frameworks, fully tested
+  Model/         UUIDv7, epoch time, MealEntry/MealDish/MealItem, the five event kinds
+  Nutrition/     Nutrients arithmetic + Atwater check, NutritionProfile, DailyTargets
+  AI/            wire types (MealRecognition, MealRevision) and BackendSession
+  Storage/       JSONL EventLog, byte-faithful RawJSON, EventCodec, KeychainStore
+App/             SwiftUI
+  Eatsome/       every screen, plus EatsomeStore (the log) and EatsomeAccount (the Worker)
+  Support/       HealthKit (read-only), camera and photo store, Sign in with Apple
+  DesignSystem/  WellieTheme tokens (light and dark pairs), FlowLayout
+Backend/         Cloudflare Worker — Hono, D1/Drizzle, private R2, Gemini proxy
+prompts/         one Markdown file per prompt version; generated into the Worker
+scripts/         bootstrap, fonts, TestFlight
 ```
 
-`Core` has no dependency on UIKit, AVFoundation, HealthKit, or other app
-frameworks. Logic remains testable without an iOS runtime.
+`Core` has no dependency on UIKit, AVFoundation or HealthKit; the log, the
+arithmetic and the wire contracts are testable without an iOS runtime.
 
 ## Setup
 
 Requires Xcode and XcodeGen.
 
 ```bash
-./scripts/bootstrap.sh
+./scripts/bootstrap.sh          # generates eatsome.xcodeproj from project.yml
 ```
 
-That generates `eatsome.xcodeproj` from `project.yml`. Open the project, select a
-development team, and run it on an iPhone; HealthKit is unavailable on macOS.
-
-Recognition goes through the app-owned Worker, so no model-provider key ever
-ships in the app. There is no backend key to provision or bake into a build.
-Sign in with Apple creates an opaque account session, which the app keeps in
-the Keychain and sends as the bearer credential for private API requests.
-
-### Installing on a phone that is not here
-
-A cable or the same Wi-Fi covers `devicectl`; anything further away means
-TestFlight:
+Open the project, select a development team, run it on an iPhone (HealthKit is
+unavailable on macOS). Sign in with Apple on first launch; the session it mints
+is the only credential. No model-provider key ever ships in the app.
 
 ```bash
-./scripts/release-testflight.sh --upload
+swift test --package-path Core                          # with Xcode
+SHAMAN_TESTING_PACKAGE=1 swift test --package-path Core # bare Command Line Tools
+cd Backend && npx vitest run                            # the Worker
+./scripts/release-testflight.sh --upload                # tests, archives, uploads
 ```
 
-Tests, archives Release, exports a signed `.ipa`, uploads it. The build number is
-the commit count, so a build in TestFlight maps back to a commit. Internal
-testers get it without review, minutes after processing. Without an App Store
-Connect API key, drop `--upload` and send `build/eatsome.ipa` with Transporter.
+## How it works
 
-### Core tests
+### The log
 
-```bash
-swift test --package-path Core
-```
+`events.jsonl` in Application Support, one JSON value per line, never rewritten.
+Five event kinds: `meal_logged`, `meal_revised`, `meal_deleted`, `message_sent`,
+`message_deleted`. A correction is a new `meal_revised` beside the original; the
+read model (`Projection`) is a fold over the file. Every meal event carries
+`schemaVersion: 1` and refuses to decode as anything else. A kind this build does
+not know is kept byte for byte and folds into nothing, so a newer phone on the
+same account is not a breaking change.
 
-Without Xcode installed, pull swift-testing in as a package instead:
+### Recognition
 
-```bash
-SHAMAN_TESTING_PACKAGE=1 swift test --package-path Core
-```
+The phone sends the photo (2048 px, re-encoded, SHA-256 as its name) and/or the
+words to the Worker; the Worker calls `gemini-3.7-flash` with a response schema,
+the current prompt from `prompts/`, Google Search as a tool, and the request's
+country. The answer is dishes → ingredients, each with `grams`, `per_100g`
+(seven figures), optional priced-and-weighed `alternatives`, optional brand and
+published sizes, and a printed nutrition panel when one is legible. The Worker
+caches by (photo, words, country, prompt version, model). Weight is the only hard
+number; the composition is a food table the model has evidently read, measured
+at 0–3% median error against the published rows.
 
-## Design notes
+### Correction
 
-### Everything is an append-only event
+"Fried in butter" is sent with the current list and comes back as a delta
+(`MealRevision`): rows to add, revise or remove, each restating `per_100g`.
+Everything the words did not name survives; corrected rows are stamped `user`.
+The pick sheet offers only the model's own alternatives, because a rename that
+cannot re-price is a silent lie.
 
-`events.jsonl` in Application Support, one JSON object per line, never rewritten.
-A correction is stored as a new `meal_revised` event beside the original — "the
-model said white meat, I said fish" is the data that tells you whether the prompt
-needs work, and an in-place update destroys it. The read model (`Projection`) is
-a fold over the file; at personal-tracker volumes that costs milliseconds.
+### The reference
 
-### Recognition is constrained, cached, and correctable
+`NutritionProfile` (age, reference sex, height, weight, activity, goal) →
+`DailyTargets` from the 2023 adult DRI equations. Protein is a goal in g/kg,
+fat is 30% of energy, carbohydrate is the remainder — one figure each, one rule
+each. HealthKit can fill the blank fields, read-only, and never enters the meal
+log.
 
-- Strict JSON Schema on the Responses API, with the enum generated from
-  `FoodGroup` so the model cannot invent a group.
-- Two providers — `gpt-5.6-luna` and `gemini-3.6-flash` — behind one
-  `MealRecognizer`, switched in Settings, each with its own Keychain key. The
-  published food-photo benchmarks contradict each other about which tier wins,
-  so the app is built to answer that from your own plates instead: every eval row
-  is stamped `<prompt>/<model>`, and the cache is namespaced the same way so
-  re-reading a plate with the other provider is a real call, not a replay.
-- The photo's SHA-256 is the cache key, so the same plate is never billed twice.
-- Every item is one tap from a fix, with the model's likely confusions listed
-  first — fish/white meat, and missing olive oil.
-- Uncertainty is reported as a per-item shortlist of rival groups, never as a
-  confidence number: self-scored certainty comes back round and uncalibrated
-  (the same 0.56 on the rice and on the unidentifiable meat), while "what else
-  could this be" is a question about the food and becomes the correction button.
-- At most one uncertainty is raised on a meal card. The model's best guess and
-  its shortlist are direct correction buttons; saving never waits for an answer.
-- Cost at `detail: low` is roughly $0.20/$1.20 per million tokens. Personal use
-  is cents per month.
+### Sync
 
-### The photograph has a ceiling, so there are two ways past it
+Pull `GET /v1/events?after=<cursor>` until the cursor is nil and append every
+line the phone lacks, verbatim; push the whole local log with
+`POST /v1/events/batch` (idempotent by id); fetch back any meal photo missing on
+disk. Deletion is a `meal_deleted` event like any other write. Runs at launch, on
+sign-in and on return to the foreground.
 
-Home cooking hides its ingredients. French toast is two eggs, milk, sugar, and
-the butter it was fried in; the camera sees crust, banana, and shine. No vision
-model recovers what is not in the frame, so the app asks you instead — one free
-text field, no categories, with the example in the placeholder:
-
-- **before** — "anything the photo won't show?" — because a missing ingredient is
-  invisible by definition. You cannot notice the absent eggs in a list that never
-  had them, so a repair-after-the-fact flow alone would never catch them;
-- **after** — "missing or wrong?" — for when the model misread something you can
-  see.
-
-Same mechanism, same slot in the prompt, different moment. The correction asks
-the model for a **delta** (`MealRevision`), never a re-run: by the time you type
-"fried in butter" you may have fixed groups and portions by hand, and
-regenerating the list would throw that work away. Indices are bounds-checked, so
-a model that miscounts costs you a change that did not happen rather than a row
-edited by accident.
-
-The note is kept with the meal and carried into a **recipe**, which is the real
-payoff: home dishes repeat, so describing one once makes every later log of it
-start complete. It is also the best possible eval input — plain language saying
-exactly what recognition missed, which no JSON diff gives you.
-
-A thumbs up/down sits apart from all of this. Correcting takes attention; a thumb
-takes none, and most bad readings are never worth typing about.
-
-### A daily reference begins with the person, not the meal
-
-Onboarding offers Apple Health first. It fills age, the applicable published
-sex-reference equation, height, weight, body fat, and usual activity when those
-values are available; the next screens ask only for what is missing. Age,
-reference equation, height, weight, activity, and a maintain/lose/gain-muscle
-goal are required. Body fat is optional and supplies approximate lean mass only.
-
-`NutritionProfile` and `DailyTargets` live in framework-free Core. Maintenance
-energy uses the 2023 adult Dietary Reference Intake equations. Carbohydrate and
-fat are shown as the published acceptable ranges, not an invented single macro
-split. Protein is 0.8 g/kg for maintenance and a 1.6 g/kg planning reference for
-weight loss or muscle gain. The selected goal is shown as a separate adjustment
-from maintenance: a moderate deficit for loss or a small surplus for muscle
-gain. Every calorie figure stays visibly approximate, because a population
-equation is a starting point and body-weight trend is the calibration.
-
-This personal reference is different from the day's meal total. Meal energy and
-macros are still derived from recognised food weights and published composition
-rows; unresolved food makes the total explicitly incomplete. The profile and
-manual fallback stay on the device rather than entering the meal event API.
-
-### A plate is not a serving count
-
-Recognition splits a dish into as many rows as it sees, and that is right for the
-correction sheet — you can check what was actually recognized. It is wrong for
-the summary: a fruit platter read as four rows should still be one eating
-occasion. So serving summaries aggregate per meal, per group, with two rules:
-
-- a meal contributes at most one large portion of any single group, because one
-  meal is one eating occasion;
-- the whole meal is scaled by how much of it you ate (`Ate it all` / `Ate part
-  of it`), because the camera sees the dish and not your share of it. Shared
-  mezze and batch cooking are otherwise the largest source of overstatement, and
-  they land exactly where portion estimates are already biased high.
-
-Both live in `MealEntry.servings(of:)`; `rawServings(of:)` is what is on the
-plate, for display.
-
-### The UI has one visual language
-
-The supplied Wellie Figma exports are translated into named SwiftUI tokens in
-`App/DesignSystem/WellieTheme.swift`: SF Rounded typography, deep navy text,
-blue actions, ice-blue health surfaces, neutral cards, and consistent radii.
-The reference screens reuse the visual system and interaction hierarchy while
-keeping the energy estimate and macro ranges plainly approximate.
-
-### HealthKit is the health-data source of truth
-
-eatsome requests read-only access to date of birth, biological sex, height, body
-mass, body-fat percentage, active and basal energy, workouts, and sleep analysis.
-It refreshes a recent snapshot when the app becomes active and does not copy or
-modify those samples in its event log. Activity is inferred only when at least
-seven complete energy days are available; otherwise it is asked directly. Sleep
-intervals are merged before totals are calculated so overlapping sources are not
-double-counted.
-
-### The backend preserves the append-only model
-
-The Cloudflare backend uses the same invariants as the device:
-
-- event IDs are idempotency keys, and uploads never mutate prior events;
-- cursor sync orders by recorded time and UUID;
-- recognition is cached by image + note, prompt version, and model;
-- model output and the final human correction are retained as an eval pair;
-- exact model-input bytes live privately in R2, never in D1;
-- consented corpus crops have separate keys, hashes, provenance, and deletion rules.
-
-See [`Backend/README.md`](Backend/README.md) for local setup and deployment.
+See [`Backend/README.md`](Backend/README.md) for the Worker.
 
 ## Status
 
-The app supports meal recognition, sourced nutrition figures, meal and day olive
-ratings, a personal daily energy and macro reference, history, tables, account
-sync, and read-only HealthKit imports for body profile, energy, workouts, and
-sleep. The signed app has been built, installed, and
-launched on a physical iPhone with its HealthKit entitlement.
+In TestFlight with test accounts only. Nothing in the log or the Worker's
+schema is versioned for compatibility with earlier builds, deliberately: there
+are no earlier installs worth carrying.

@@ -5,7 +5,7 @@
   "compatibility_date": "2026-08-04",
   "compatibility_flags": ["nodejs_compat"],
   "secrets": {
-    "required": ["OPENAI_API_KEY", "GEMINI_API_KEY", "ANTHROPIC_API_KEY", "QWEN_API_KEY"]
+    "required": ["GEMINI_API_KEY"]
   },
   "vars": {
     "ACCOUNT_ID": "anonymous",
@@ -14,18 +14,7 @@
     // listing, and a value nobody can keep secret should not be stored as if
     // they could.
     "APPLE_CLIENT_IDS": "app.shaman.tracker",
-    // Empty on purpose. Google's server half is implemented and its client half
-    // is not, so a sign-in attempt should fail as unconfigured rather than
-    // succeed against an audience list nobody set.
-    "GOOGLE_CLIENT_IDS": "",
-    "RECOGNITION_PROVIDER": "gemini",
-    "OPENAI_RECOGNITION_MODEL": "gpt-5.6-luna",
-    "GEMINI_RECOGNITION_MODEL": "gemini-3.6-flash",
-    "ANTHROPIC_RECOGNITION_MODEL": "claude-haiku-4-5-20251001",
-    "QWEN_RECOGNITION_MODEL": "qwen3.7-flash",
-    "QWEN_BASE_URL": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
-    "OPENAI_IMAGE_DETAIL": "high",
-    "MEAL_PROMPT_VERSION": "meal-v25-2026-08-12",
+    "GEMINI_RECOGNITION_MODEL": "gemini-3.7-flash",
     // Search as a tool on the recognition call itself. This is what fixes a
     // chain's numbers: the model searches when the food is branded, ignores
     // search when it is not, and answers in the same schema either way.

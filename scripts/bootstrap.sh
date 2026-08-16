@@ -21,4 +21,4 @@ xcodegen generate
 
 echo
 echo "Done. Open eatsome.xcodeproj."
-echo "Then add your OpenAI key in Settings; it is stored in the Keychain."
+echo "Sign in with Apple on first launch; the session it mints is the only credential."

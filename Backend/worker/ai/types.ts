@@ -1,13 +1,10 @@
-import type { MealRecognition } from "../../src/contracts";
-
 /**
- * What a provider needs from the request, which is less than the request.
+ * What the model is given, which is less than the request.
  *
  * The picture is optional because a correction may not have one: a meal typed
  * in by hand has no photograph to reason about, and the person's own words are
- * then the entire input. Every provider omits the image part rather than
- * sending an empty one — a zero-length image is a decode error at the vendor,
- * not an absent image.
+ * then the entire input. The image part is omitted rather than sent empty — a
+ * zero-length image is a decode error at the vendor, not an absent image.
  */
 export type ProviderInput = {
   mimeType?: string;
@@ -36,9 +33,29 @@ export function hasImage(input: ProviderInput): input is ProviderInput & {
   return Boolean(input.imageBase64 && input.mimeType);
 }
 
-/** What every provider returns, so the caller never learns which one it was. */
-export type ProviderRecognition = {
-  recognition: MealRecognition;
+/**
+ * One question for the model, whole: what to ask, in what shape to answer, and
+ * how to read the answer.
+ *
+ * Recognition and revision each build one of these and each owns all three
+ * parts. They used to share a `RecognitionSpec` with an optional Gemini schema
+ * and a `parseFor` function that switched on a schema *name* to decide which
+ * Zod contract to apply — an indirection whose only job was to route two
+ * callers to two parsers. Carrying the parser on the call itself makes the
+ * type say what the string used to imply, and makes `askGemini` generic instead
+ * of casting through `never`.
+ */
+export type ModelCall<T> = {
+  systemPrompt: string;
+  userPrompt: string;
+  /** Gemini's OpenAPI subset, hand-written. See `geminiResponseSchema`. */
+  responseSchema: Record<string, unknown>;
+  parse: (value: unknown) => T;
+};
+
+/** What a model call returns, plus what it cost. */
+export type ModelAnswer<T> = {
+  value: T;
   rawModelJson: string;
   requestId: string | null;
   inputTokens: number;

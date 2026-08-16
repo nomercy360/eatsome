@@ -21,22 +21,8 @@
         {
           "blend-mode" : "normal",
           "glass" : false,
-          "image-name" : "03_Almond_crease.svg",
-          "name" : "03_Almond_crease",
-          "opacity" : 1,
-          "position" : {
-            "scale" : 1,
-            "translation-in-points" : [
-              0,
-              0
-            ]
-          }
-        },
-        {
-          "blend-mode" : "normal",
-          "glass" : true,
-          "image-name" : "02_Almond.svg",
-          "name" : "02_Almond",
+          "image-name" : "icon-polished.png",
+          "name" : "Polished Icon",
           "opacity" : 1,
           "position" : {
             "scale" : 1,
@@ -48,43 +34,8 @@
         }
       ],
       "lighting" : "combined",
-      "name" : "02_Almond",
-      "shadow" : {
-        "kind" : "layer-color",
-        "opacity" : 0.32
-      },
-      "specular" : true,
-      "translucency" : {
-        "enabled" : true,
-        "value" : 0.08
-      }
-    },
-    {
-      "blur-material" : 0.12,
-      "layers" : [
-        {
-          "glass" : true,
-          "image-name" : "foreground.svg",
-          "name" : "glyph",
-          "position" : {
-            "scale" : 1,
-            "translation-in-points" : [
-              0,
-              0
-            ]
-          }
-        }
-      ],
-      "name" : "Foreground",
-      "shadow" : {
-        "kind" : "neutral",
-        "opacity" : 0.18
-      },
-      "specular" : true,
-      "translucency" : {
-        "enabled" : true,
-        "value" : 0.1
-      }
+      "name" : "Polished Icon",
+      "specular" : false
     }
   ],
   "supported-platforms" : {

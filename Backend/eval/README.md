@@ -21,9 +21,11 @@ and excess rows. Two problems, and the second is fatal:
 
 It is deleted rather than parked, along with the harness that only existed to
 serve it. `FINDINGS.md` is kept as a record of what those runs decided — the
-model comparison that chose `gemini-3.6-flash` is still the reason it is in
-production — but its numbers describe a contract the app no longer ships and
-must not be quoted as if they were current.
+model comparison that chose `gemini-3.6-flash`, and put the Gemini tier in
+production in the first place — but its numbers describe a contract the app no
+longer ships and must not be quoted as if they were current. Production moved to
+`gemini-3.7-flash` on 2026-08-15 on price rather than on a measurement; the
+argument, and what the golden set actually said, is in `models.json`.
 
 The text track is parked in the same way; see `golden-text/README.md`.
 

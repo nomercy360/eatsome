@@ -1,14 +1,14 @@
 name: eatsome
 
 options:
-  bundleIdPrefix: me.eatso
+  bundleIdPrefix: co.eatsome
   deploymentTarget:
     iOS: "17.0"
   createIntermediateGroups: true
   groupSortPosition: top
 
 packages:
-  ShamanCore:
+  EatsomeCore:
     path: Core
 
 targets:
@@ -18,19 +18,18 @@ targets:
     sources:
       - path: App
     dependencies:
-      - package: ShamanCore
-        product: ShamanCore
+      # One package, one product. Two were linked while the app was moved over
+      # screen by screen — a file imported one or the other, never both — and
+      # ShamanCore went with the last view that imported it.
+      - package: EatsomeCore
+        product: EatsomeCore
     info:
       path: App/Support/Info.plist
       properties:
         CFBundleDisplayName: eatsome
-        # Table invites use an app-owned deep link. This works immediately on
-        # installed builds; a future universal-link domain can route into the
-        # same parser without changing the invite code itself.
-        CFBundleURLTypes:
-          - CFBundleURLName: me.eatso.table-invite
-            CFBundleURLSchemes:
-              - eatsome
+        # No `CFBundleURLTypes`. The `eatsome://` scheme existed for table
+        # invites, and there are no tables — a registered scheme with nothing
+        # behind it is a door into an app that cannot answer it.
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UILaunchScreen: {}
@@ -56,18 +55,18 @@ targets:
           Photograph meals so eatsome can identify their food groups.
         NSPhotoLibraryUsageDescription: >-
           Show your latest photos in the meal logger so you can attach one quickly.
-        NSMicrophoneUsageDescription: >-
-          Describe a meal out loud instead of typing it. Audio is transcribed to
-          text as you speak and is not kept.
+        # No `NSMicrophoneUsageDescription`. Dictation is gone; a purpose string
+        # for a permission the app never asks for is a promise about a feature
+        # that does not exist.
         NSHealthShareUsageDescription: >-
-          Read age, sex reference, height, weight, body fat, energy, workouts,
-          and sleep to fill your daily energy and macro reference and health overview.
+          Read age, sex reference, height, weight, body fat and energy to fill
+          your daily energy and macro reference.
         # Demanded by App Store validation whenever the HealthKit entitlement is
         # present, even though nothing here writes. Says so plainly rather than
         # inventing a use.
         NSHealthUpdateUsageDescription: >-
-          eatsome never writes to Health. It only reads your body profile,
-          energy, workouts, and sleep for a daily reference and overview.
+          eatsome never writes to Health. It only reads your body profile and
+          energy for a daily reference.
         # HTTPS only, which is exempt. Without this, App Store Connect asks the
         # export-compliance question on every single TestFlight build.
         ITSAppUsesNonExemptEncryption: false
