@@ -149,9 +149,9 @@ public struct MealRevision: Decodable, Sendable, Hashable {
     /// A corrected row is stamped `.user`: the person is why it changed, even
     /// though a model wrote the figures, and treating it as ordinary model
     /// output would let a later re-price silently undo the correction. A
-    /// renamed row also loses its `alternatives` and `sizes` — the shortlist
+    /// renamed row also loses its `alternatives` and `forks` — the shortlist
     /// answered a question the person has now answered differently, and the
-    /// sizes were the old product's.
+    /// forks were priced for the old food.
     public func applied(to items: [MealItem]) -> [MealItem] {
         var result = items
         for change in revise {
@@ -159,7 +159,7 @@ public struct MealRevision: Decodable, Sendable, Hashable {
             guard result.indices.contains(index) else { continue }
             if result[index].label != change.label {
                 result[index].alternatives = []
-                result[index].sizes = []
+                result[index].forks = []
             }
             result[index].label = change.label
             result[index].grams = change.grams

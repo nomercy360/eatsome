@@ -70,7 +70,7 @@ struct Onboarding: View {
                     }
                 }
                 .padding(.horizontal, WellieTheme.screenInset)
-                .padding(.top, 24)
+                .padding(.top, 36)
                 .padding(.bottom, 24)
             }
             .scrollIndicators(.hidden)
@@ -93,7 +93,7 @@ struct Onboarding: View {
             } label: {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(canGoBack ? WellieTheme.accent : WellieTheme.faint)
+                    .foregroundStyle(canGoBack ? WellieTheme.muted : WellieTheme.faint)
                     .wellieHitTarget()
             }
             .buttonStyle(.plain)
@@ -121,7 +121,7 @@ struct Onboarding: View {
         let total = Double(max(1, questions.count + 1))
         switch phase {
         case .health: return 0.06
-        case .asking(let index): return Double(index) / total
+        case .asking(let index): return Double(index + 1) / total
         case .reference: return 1
         }
     }
@@ -167,7 +167,7 @@ struct Onboarding: View {
                 size: 16
             )
 
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 16) {
                 point("Read, never written")
                 point("Your body only — not your workouts or your sleep")
                 point("Anything missing, we just ask")
@@ -183,12 +183,13 @@ struct Onboarding: View {
     private func point(_ text: String) -> some View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: "checkmark")
-                .font(.system(size: 12, weight: .bold))
-                .foregroundStyle(WellieTheme.accent)
-                .padding(.top, 3)
+                .font(.system(size: 9, weight: .heavy))
+                .foregroundStyle(WellieTheme.onAccent)
+                .frame(width: 20, height: 20)
+                .background(WellieTheme.accent.opacity(0.35), in: Circle())
             Text(text)
-                .font(WellieTheme.font(14.5, weight: .regular))
-                .foregroundStyle(WellieTheme.body)
+                .font(WellieTheme.font(15, weight: .semibold))
+                .foregroundStyle(WellieTheme.ink)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .accessibilityElement(children: .combine)
@@ -231,7 +232,8 @@ struct Onboarding: View {
     private func questionStep(_ question: Question, profile: Binding<NutritionProfile>) -> some View {
         VStack(alignment: .leading, spacing: 18) {
             Text(question.title)
-                .font(WellieTheme.font(26, weight: .bold))
+                .font(WellieTheme.font(30, weight: .heavy))
+                .tracking(-0.8)
                 .foregroundStyle(WellieTheme.ink)
                 .fixedSize(horizontal: false, vertical: true)
 
@@ -285,7 +287,8 @@ struct Onboarding: View {
         if let targets = store.dailyTargets {
             VStack(alignment: .leading, spacing: 18) {
                 Text("Your daily reference")
-                    .font(WellieTheme.font(28, weight: .bold))
+                    .font(WellieTheme.font(30, weight: .heavy))
+                    .tracking(-0.8)
                     .foregroundStyle(WellieTheme.ink)
                     .fixedSize(horizontal: false, vertical: true)
 
@@ -345,8 +348,8 @@ struct Onboarding: View {
                     .foregroundStyle(WellieTheme.ink)
                 Spacer(minLength: 8)
                 Text(value)
-                    .font(WellieTheme.font(emphasised ? 22 : 17, weight: .bold))
-                    .foregroundStyle(emphasised ? WellieTheme.accent : WellieTheme.ink)
+                    .font(WellieTheme.figure(emphasised ? 22 : 17, weight: .bold))
+                    .foregroundStyle(WellieTheme.ink)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
             }

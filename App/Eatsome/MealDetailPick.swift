@@ -42,7 +42,7 @@ struct PickChip: View {
                 .wellieSurface(
                     selected ? WellieTheme.selectedFill : WellieTheme.surface,
                     radius: WellieTheme.chipRadius,
-                    border: selected ? WellieTheme.accent : WellieTheme.hairline,
+                    border: selected ? WellieTheme.ink : WellieTheme.hairline,
                     lineWidth: selected ? 1.5 : 1
                 )
                 .contentShape(Rectangle())
@@ -93,7 +93,7 @@ struct ShareAndCountRow: View {
                 count = max(1, count - 1)
             }
             Text(count > 1 ? "× \(count)" : "All of it")
-                .font(WellieTheme.font(count > 1 ? 16 : 13.5, weight: count > 1 ? .heavy : .bold))
+                .font(count > 1 ? WellieTheme.figure(16, weight: .heavy) : WellieTheme.font(13.5, weight: .bold))
                 .foregroundStyle(WellieTheme.ink)
                 .frame(maxWidth: .infinity)
                 .lineLimit(1)
@@ -106,7 +106,7 @@ struct ShareAndCountRow: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .wellieSurface(whole ? WellieTheme.selectedFill : WellieTheme.surface, radius: 16, border: whole ? WellieTheme.accent : WellieTheme.hairline, lineWidth: whole ? 1.5 : 1)
+        .wellieSurface(whole ? WellieTheme.selectedFill : WellieTheme.surface, radius: 16, border: whole ? WellieTheme.ink : WellieTheme.hairline, lineWidth: whole ? 1.5 : 1)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(count > 1 ? "\(count) servings" : "All of it")
     }
@@ -122,7 +122,7 @@ struct StepButton: View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: 15, weight: .bold))
-                .foregroundStyle(enabled ? WellieTheme.accent : WellieTheme.faint)
+                .foregroundStyle(enabled ? WellieTheme.ink : WellieTheme.faint)
                 .frame(width: 34)
                 .frame(maxHeight: .infinity)
                 .contentShape(Rectangle())
@@ -142,7 +142,7 @@ struct RowStepper: View {
         HStack(spacing: 0) {
             StepButton(symbol: "minus", enabled: count > 1) { count = max(1, count - 1) }
             Text("\(count)")
-                .font(WellieTheme.font(15, weight: .heavy))
+                .font(WellieTheme.figure(15, weight: .heavy))
                 .foregroundStyle(WellieTheme.ink)
                 .frame(minWidth: 24)
                 .monospacedDigit()
@@ -155,21 +155,33 @@ struct RowStepper: View {
     }
 }
 
-/// `WHAT SIZE?` — one chip per size the chain sells, each priced in full.
-struct SizeChips: View {
-    let sizes: [FoodSize]
-    @Binding var selection: FoodSize?
+/// `WHICH SIZE?` / `WHICH MILK?` — one chip per option of a fork, each priced
+/// in full. The heading is the fork's own axis, so a new kind of question
+/// needs no new view.
+///
+/// One fork is answered at a time (`MealDetailModel.applying(option:of:to:)`
+/// says why), so `selection` is the one pick across every fork on the row:
+/// this fork's chips light its option when the pick is here, and the fork's
+/// own `chosen` — the default the card is already a preview of — otherwise.
+/// A row of chips with none lit would say the figures came from nowhere.
+struct ForkChips: View {
+    let fork: FoodFork
+    @Binding var selection: MealDetailModel.ForkPick?
+
+    private var lit: UUID? {
+        selection?.fork.id == fork.id ? selection?.option.id : fork.chosen?.id
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            WellieMeta("What size?", size: 11.5)
-            HStack(spacing: 8) {
-                ForEach(sizes) { size in
+            WellieMeta("Which \(fork.axis)?", size: 11.5)
+            FlowLayout(spacing: 8, lineSpacing: 8) {
+                ForEach(fork.options) { option in
                     PickChip(
-                        text: size.label,
-                        selected: selection?.id == size.id,
-                        fills: true
-                    ) { selection = size }
+                        text: EatsomeFormat.capitalizedFirst(option.label),
+                        selected: lit == option.id,
+                        fills: fork.options.count <= 3
+                    ) { selection = .init(fork: fork, option: option) }
                 }
             }
         }
@@ -213,8 +225,8 @@ struct WhichOneChips: View {
 /// The preview is the whole contribution — count included — because that is
 /// the number that will move on the card, and a per-unit figure beside a
 /// count is arithmetic the person would have to do in their head. It
-/// recomputes from the chosen `FoodSize` / `FoodAlternative`, both priced,
-/// which is what "re-prices by construction" means.
+/// recomputes from the chosen `FoodForkOption` / `FoodAlternative`, both
+/// priced, which is what "re-prices by construction" means.
 struct ChangePickSheet: View {
     let dish: MealDish
     /// Frame 9 shows the share and count controls too; frame 4 does not.
@@ -226,7 +238,7 @@ struct ChangePickSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var count: Int
     @State private var pickedShare: MealShare?
-    @State private var size: FoodSize?
+    @State private var pick: MealDetailModel.ForkPick?
     @State private var alternative: FoodAlternative?
 
     init(dish: MealDish, showsAmount: Bool = false, share: MealShare? = nil, onUse: @escaping (MealDish, MealShare?) -> Void) {
@@ -236,14 +248,14 @@ struct ChangePickSheet: View {
         self.onUse = onUse
         _count = State(initialValue: dish.count)
         _pickedShare = State(initialValue: share)
-        _size = State(initialValue: dish.items.first.flatMap { MealDetailModel.chosenSize(of: $0, count: dish.count) })
+        _pick = State(initialValue: nil)
         _alternative = State(initialValue: nil)
     }
 
     private var item: MealItem? { dish.items.first }
 
     private var preview: MealDish {
-        var next = MealDetailModel.applying(count: count, size: size, alternative: alternative, to: dish)
+        var next = MealDetailModel.applying(count: count, pick: pick, alternative: alternative, to: dish)
         next.share = showsAmount && pickedShare != .whole ? pickedShare : nil
         return next
     }
@@ -270,8 +282,10 @@ struct ChangePickSheet: View {
                             ShareAndCountRow(share: $pickedShare, count: $count)
                         }
                     }
-                    if let item, item.sizes.count > 1 {
-                        SizeChips(sizes: item.sizes, selection: $size)
+                    if let item {
+                        ForEach(item.forks.filter { $0.options.count > 1 }) { fork in
+                            ForkChips(fork: fork, selection: $pick)
+                        }
                     }
                     if let item, !item.alternatives.isEmpty {
                         WhichOneChips(current: item.label, alternatives: item.alternatives, selection: $alternative)
@@ -312,7 +326,7 @@ struct ChangePickSheet: View {
                     .lineLimit(2)
                 Spacer(minLength: 8)
                 Text("\(EatsomeFormat.whole(preview.nutrients.kcal)) kcal")
-                    .font(WellieTheme.font(13, weight: .bold))
+                    .font(WellieTheme.figure(13, weight: .bold))
                     .foregroundStyle(WellieTheme.body)
             }
             .padding(.top, 14)
@@ -323,7 +337,7 @@ struct ChangePickSheet: View {
     private var previewDescription: String {
         guard let item = preview.items.first else { return "" }
         var text = EatsomeFormat.capitalizedFirst(item.label)
-        if let size { text += ", \(size.label)" }
+        if let pick { text += ", \(pick.option.label)" }
         if count > 1 { text += " × \(count)" }
         if showsAmount, let pickedShare, pickedShare != .whole { text += " · \(pickedShare.chipName.lowercased())" }
         return text

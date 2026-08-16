@@ -1,0 +1,1424 @@
+{
+  "results": [
+    {
+      "cond": "forks",
+      "case": "sbux-grande-oat",
+      "run": 1,
+      "ms": 4793,
+      "tokensOut": 1111,
+      "tokensThink": 0,
+      "rows": 1,
+      "kcal": 208,
+      "branded": 1,
+      "forks": [
+        "Grande Caffè Latte with Oatmilk@Starbucks:size[Short~ 104, Tall~ 156, Grande* 208, Venti~ 260](Δ156)"
+      ],
+      "chosenAgree": "1/1",
+      "atwaterBad": 0,
+      "unbrandedForks": 0,
+      "questions": []
+    },
+    {
+      "cond": "forks",
+      "case": "subway-clubhouse",
+      "run": 1,
+      "ms": 6162,
+      "tokensOut": 842,
+      "tokensThink": 512,
+      "rows": 1,
+      "kcal": 700,
+      "branded": 1,
+      "forks": ["American Clubhouse footlong@Subway:size[Footlong*~ 700, Regular 350](Δ350)"],
+      "chosenAgree": "1/1",
+      "atwaterBad": 0,
+      "unbrandedForks": 0,
+      "questions": []
+    },
+    {
+      "cond": "forks",
+      "case": "chipotle-burrito",
+      "run": 1,
+      "ms": 7447,
+      "tokensOut": 576,
+      "tokensThink": 966,
+      "rows": 1,
+      "kcal": 1043,
+      "branded": 1,
+      "forks": [],
+      "chosenAgree": "0/0",
+      "atwaterBad": 0,
+      "unbrandedForks": 0,
+      "questions": []
+    },
+    {
+      "cond": "forks",
+      "case": "sbux-latte",
+      "run": 1,
+      "ms": 8062,
+      "tokensOut": 1425,
+      "tokensThink": 569,
+      "rows": 1,
+      "kcal": 235,
+      "branded": 1,
+      "forks": [
+        "caffè latte@Starbucks:size[Short 161, Tall* 235, Grande 296, Venti 372](Δ211)",
+        "caffè latte@Starbucks:temperature[hot* 235, iced 126](Δ109)"
+      ],
+      "chosenAgree": "2/2",
+      "atwaterBad": 0,
+      "unbrandedForks": 0,
+      "questions": []
+    },
+    {
+      "cond": "forks",
+      "case": "lentil-soup",
+      "run": 1,
+      "ms": 4647,
+      "tokensOut": 210,
+      "tokensThink": 460,
+      "rows": 1,
+      "kcal": 297,
+      "branded": 0,
+      "forks": [],
+      "chosenAgree": "0/0",
+      "atwaterBad": 0,
+      "unbrandedForks": 0,
+      "questions": []
+    },
+    {
+      "cond": "forks",
+      "case": "cafe-cappuccino",
+      "run": 1,
+      "ms": 9540,
+      "tokensOut": 1318,
+      "tokensThink": 1179,
+      "rows": 1,
+      "kcal": 103,
+      "branded": 0,
+      "forks": [
+        "cappuccino:milk[semi-skimmed milk* 103, whole milk 127, oat milk 113, skimmed milk 72](Δ55)",
+        "cappuccino:size[regular* 103, large~ 151](Δ47)"
+      ],
+      "chosenAgree": "2/2",
+      "atwaterBad": 0,
+      "unbrandedForks": 2,
+      "questions": []
+    },
+    {
+      "cond": "forks",
+      "case": "yoshinoya",
+      "run": 1,
+      "ms": 6982,
+      "tokensOut": 1170,
+      "tokensThink": 987,
+      "rows": 1,
+      "kcal": 633,
+      "branded": 1,
+      "forks": [
+        "gyudon@Yoshinoya:size[Regular* 633, Large 823, Extra Large 1006, Small 474](Δ532)"
+      ],
+      "chosenAgree": "1/1",
+      "atwaterBad": 0,
+      "unbrandedForks": 0,
+      "questions": []
+    },
+    {
+      "cond": "forks",
+      "case": "bigmac-meal-text",
+      "run": 1,
+      "ms": 10028,
+      "tokensOut": 2129,
+      "tokensThink": 1015,
+      "rows": 3,
+      "kcal": 1120,
+      "branded": 3,
+      "forks": [
+        "French fries@McDonald's:size[Small 230, Medium* 320, Large 480](Δ250)",
+        "Coca-Cola@McDonald's:drink[Coca-Cola* 220, Diet Coke 0, Sprite 210](Δ220)",
+        "Coca-Cola@McDonald's:size[Small 154, Medium* 220, Large 308](Δ154)"
+      ],
+      "chosenAgree": "3/3",
+      "atwaterBad": 0,
+      "unbrandedForks": 0,
+      "questions": []
+    },
+    {
+      "cond": "forks",
+      "case": "caesar",
+      "run": 1,
+      "ms": 4068,
+      "tokensOut": 825,
+      "tokensThink": 630,
+      "rows": 5,
+      "kcal": 603,
+      "branded": 0,
+      "forks": [],
+      "chosenAgree": "0/0",
+      "atwaterBad": 0,
+      "unbrandedForks": 0,
+      "questions": []
+    }
+  ],
+  "raw": [
+    {
+      "cond": "forks",
+      "case": "sbux-grande-oat",
+      "run": 1,
+      "json": {
+        "dishes": [
+          {
+            "name": "oat milk latte",
+            "count": 1,
+            "panel": null,
+            "ingredients": [
+              {
+                "label": "Grande Caffè Latte with Oatmilk",
+                "grams": 473,
+                "per_100g": {
+                  "protein": 0.85,
+                  "fat": 1.71,
+                  "carbohydrate": 5.92,
+                  "kcal": 44,
+                  "sodium_mg": 38,
+                  "alcohol": 0,
+                  "caffeine_mg": 31.7
+                },
+                "preparation": ["steamed"],
+                "brand": "Starbucks",
+                "forks": [
+                  {
+                    "axis": "size",
+                    "options": [
+                      {
+                        "label": "Short",
+                        "grams": 236,
+                        "per_100g": {
+                          "protein": 0.85,
+                          "fat": 1.71,
+                          "carbohydrate": 5.92,
+                          "kcal": 44,
+                          "sodium_mg": 38,
+                          "alcohol": 0,
+                          "caffeine_mg": 31.8
+                        },
+                        "basis": "derived",
+                        "chosen": false
+                      },
+                      {
+                        "label": "Tall",
+                        "grams": 355,
+                        "per_100g": {
+                          "protein": 0.85,
+                          "fat": 1.71,
+                          "carbohydrate": 5.92,
+                          "kcal": 44,
+                          "sodium_mg": 38,
+                          "alcohol": 0,
+                          "caffeine_mg": 21.1
+                        },
+                        "basis": "derived",
+                        "chosen": false
+                      },
+                      {
+                        "label": "Grande",
+                        "grams": 473,
+                        "per_100g": {
+                          "protein": 0.85,
+                          "fat": 1.71,
+                          "carbohydrate": 5.92,
+                          "kcal": 44,
+                          "sodium_mg": 38,
+                          "alcohol": 0,
+                          "caffeine_mg": 31.7
+                        },
+                        "basis": "published",
+                        "chosen": true
+                      },
+                      {
+                        "label": "Venti",
+                        "grams": 591,
+                        "per_100g": {
+                          "protein": 0.85,
+                          "fat": 1.71,
+                          "carbohydrate": 5.92,
+                          "kcal": 44,
+                          "sodium_mg": 38,
+                          "alcohol": 0,
+                          "caffeine_mg": 25.4
+                        },
+                        "basis": "derived",
+                        "chosen": false
+                      }
+                    ]
+                  }
+                ],
+                "alternatives": [
+                  {
+                    "label": "Grande Iced Caffè Latte with Oatmilk",
+                    "grams": 473,
+                    "per_100g": {
+                      "protein": 0.61,
+                      "fat": 1.63,
+                      "carbohydrate": 6.51,
+                      "kcal": 45,
+                      "sodium_mg": 32,
+                      "alcohol": 0,
+                      "caffeine_mg": 31.7
+                    }
+                  },
+                  {
+                    "label": "Grande Caffè Latte with 2% Milk",
+                    "grams": 473,
+                    "per_100g": {
+                      "protein": 2.54,
+                      "fat": 1.48,
+                      "carbohydrate": 3.81,
+                      "kcal": 40,
+                      "sodium_mg": 36,
+                      "alcohol": 0,
+                      "caffeine_mg": 31.7
+                    }
+                  },
+                  {
+                    "label": "Grande Oatmilk Honey Blossom Latte",
+                    "grams": 473,
+                    "per_100g": {
+                      "protein": 0.85,
+                      "fat": 1.69,
+                      "carbohydrate": 9.3,
+                      "kcal": 57,
+                      "sodium_mg": 40,
+                      "alcohol": 0,
+                      "caffeine_mg": 31.7
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "finish": "STOP",
+      "tokensIn": 2288,
+      "tokensOut": 1111,
+      "tokensThink": 0,
+      "ms": 4793
+    },
+    {
+      "cond": "forks",
+      "case": "subway-clubhouse",
+      "run": 1,
+      "json": {
+        "dishes": [
+          {
+            "name": "American Clubhouse sandwich",
+            "count": 1,
+            "panel": null,
+            "ingredients": [
+              {
+                "label": "American Clubhouse footlong",
+                "grams": 440,
+                "per_100g": {
+                  "protein": 9.55,
+                  "fat": 5.14,
+                  "carbohydrate": 19.45,
+                  "kcal": 159,
+                  "sodium_mg": 552,
+                  "alcohol": 0,
+                  "caffeine_mg": 0
+                },
+                "preparation": [],
+                "brand": "Subway",
+                "forks": [
+                  {
+                    "axis": "size",
+                    "options": [
+                      {
+                        "label": "Footlong",
+                        "grams": 440,
+                        "per_100g": {
+                          "protein": 9.55,
+                          "fat": 5.14,
+                          "carbohydrate": 19.45,
+                          "kcal": 159,
+                          "sodium_mg": 552,
+                          "alcohol": 0,
+                          "caffeine_mg": 0
+                        },
+                        "basis": "derived",
+                        "chosen": true
+                      },
+                      {
+                        "label": "Regular",
+                        "grams": 220,
+                        "per_100g": {
+                          "protein": 9.55,
+                          "fat": 5.14,
+                          "carbohydrate": 19.45,
+                          "kcal": 159,
+                          "sodium_mg": 552,
+                          "alcohol": 0,
+                          "caffeine_mg": 0
+                        },
+                        "basis": "published",
+                        "chosen": false
+                      }
+                    ]
+                  }
+                ],
+                "alternatives": [
+                  {
+                    "label": "Spicy Clubhouse footlong",
+                    "grams": 450,
+                    "per_100g": {
+                      "protein": 11.29,
+                      "fat": 5.56,
+                      "carbohydrate": 20.71,
+                      "kcal": 176,
+                      "sodium_mg": 560,
+                      "alcohol": 0,
+                      "caffeine_mg": 0
+                    }
+                  },
+                  {
+                    "label": "Luxury Teritama footlong",
+                    "grams": 460,
+                    "per_100g": {
+                      "protein": 9.78,
+                      "fat": 9.35,
+                      "carbohydrate": 18.26,
+                      "kcal": 195,
+                      "sodium_mg": 530,
+                      "alcohol": 0,
+                      "caffeine_mg": 0
+                    }
+                  },
+                  {
+                    "label": "Roast Beef footlong",
+                    "grams": 420,
+                    "per_100g": {
+                      "protein": 8.57,
+                      "fat": 2.86,
+                      "carbohydrate": 18.57,
+                      "kcal": 125,
+                      "sodium_mg": 470,
+                      "alcohol": 0,
+                      "caffeine_mg": 0
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "finish": "STOP",
+      "tokensIn": 2365,
+      "tokensOut": 842,
+      "tokensThink": 512,
+      "ms": 6162
+    },
+    {
+      "cond": "forks",
+      "case": "chipotle-burrito",
+      "run": 1,
+      "json": {
+        "dishes": [
+          {
+            "name": "chicken burrito",
+            "count": 1,
+            "panel": null,
+            "ingredients": [
+              {
+                "label": "chicken burrito",
+                "grams": 640,
+                "per_100g": {
+                  "protein": 9.1,
+                  "fat": 5.8,
+                  "carbohydrate": 18.1,
+                  "kcal": 163,
+                  "sodium_mg": 344,
+                  "alcohol": 0,
+                  "caffeine_mg": 0
+                },
+                "preparation": [],
+                "brand": "Chipotle",
+                "forks": [],
+                "alternatives": [
+                  {
+                    "label": "chicken burrito bowl",
+                    "grams": 527,
+                    "per_100g": {
+                      "protein": 9.5,
+                      "fat": 5.3,
+                      "carbohydrate": 12.5,
+                      "kcal": 137,
+                      "sodium_mg": 304,
+                      "alcohol": 0,
+                      "caffeine_mg": 0
+                    }
+                  },
+                  {
+                    "label": "steak burrito",
+                    "grams": 640,
+                    "per_100g": {
+                      "protein": 7.3,
+                      "fat": 5.6,
+                      "carbohydrate": 18.3,
+                      "kcal": 158,
+                      "sodium_mg": 348,
+                      "alcohol": 0,
+                      "caffeine_mg": 0
+                    }
+                  },
+                  {
+                    "label": "carnitas burrito",
+                    "grams": 640,
+                    "per_100g": {
+                      "protein": 7.7,
+                      "fat": 6.6,
+                      "carbohydrate": 18.1,
+                      "kcal": 167,
+                      "sodium_mg": 366,
+                      "alcohol": 0,
+                      "caffeine_mg": 0
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "finish": "STOP",
+      "tokensIn": 2470,
+      "tokensOut": 576,
+      "tokensThink": 966,
+      "ms": 7447
+    },
+    {
+      "cond": "forks",
+      "case": "sbux-latte",
+      "run": 1,
+      "json": {
+        "dishes": [
+          {
+            "name": "caffè latte",
+            "count": 1,
+            "panel": null,
+            "ingredients": [
+              {
+                "label": "caffè latte",
+                "grams": 350,
+                "per_100g": {
+                  "protein": 3.8,
+                  "fat": 3.4,
+                  "carbohydrate": 5.4,
+                  "kcal": 67,
+                  "sodium_mg": 43,
+                  "alcohol": 0,
+                  "caffeine_mg": 23
+                },
+                "preparation": [],
+                "brand": "Starbucks",
+                "forks": [
+                  {
+                    "axis": "size",
+                    "options": [
+                      {
+                        "label": "Short",
+                        "grams": 240,
+                        "per_100g": {
+                          "protein": 3.8,
+                          "fat": 3.4,
+                          "carbohydrate": 5.4,
+                          "kcal": 67,
+                          "sodium_mg": 43,
+                          "alcohol": 0,
+                          "caffeine_mg": 33
+                        },
+                        "basis": "published",
+                        "chosen": false
+                      },
+                      {
+                        "label": "Tall",
+                        "grams": 350,
+                        "per_100g": {
+                          "protein": 3.8,
+                          "fat": 3.4,
+                          "carbohydrate": 5.4,
+                          "kcal": 67,
+                          "sodium_mg": 43,
+                          "alcohol": 0,
+                          "caffeine_mg": 23
+                        },
+                        "basis": "published",
+                        "chosen": true
+                      },
+                      {
+                        "label": "Grande",
+                        "grams": 470,
+                        "per_100g": {
+                          "protein": 3.6,
+                          "fat": 3.2,
+                          "carbohydrate": 5.3,
+                          "kcal": 63,
+                          "sodium_mg": 40,
+                          "alcohol": 0,
+                          "caffeine_mg": 34
+                        },
+                        "basis": "published",
+                        "chosen": false
+                      },
+                      {
+                        "label": "Venti",
+                        "grams": 590,
+                        "per_100g": {
+                          "protein": 3.6,
+                          "fat": 3.2,
+                          "carbohydrate": 5.3,
+                          "kcal": 63,
+                          "sodium_mg": 40,
+                          "alcohol": 0,
+                          "caffeine_mg": 27
+                        },
+                        "basis": "published",
+                        "chosen": false
+                      }
+                    ]
+                  },
+                  {
+                    "axis": "temperature",
+                    "options": [
+                      {
+                        "label": "hot",
+                        "grams": 350,
+                        "per_100g": {
+                          "protein": 3.8,
+                          "fat": 3.4,
+                          "carbohydrate": 5.4,
+                          "kcal": 67,
+                          "sodium_mg": 43,
+                          "alcohol": 0,
+                          "caffeine_mg": 23
+                        },
+                        "basis": "published",
+                        "chosen": true
+                      },
+                      {
+                        "label": "iced",
+                        "grams": 350,
+                        "per_100g": {
+                          "protein": 2,
+                          "fat": 1.7,
+                          "carbohydrate": 2.9,
+                          "kcal": 36,
+                          "sodium_mg": 23,
+                          "alcohol": 0,
+                          "caffeine_mg": 23
+                        },
+                        "basis": "published",
+                        "chosen": false
+                      }
+                    ]
+                  }
+                ],
+                "alternatives": [
+                  {
+                    "label": "cappuccino",
+                    "grams": 350,
+                    "per_100g": {
+                      "protein": 2.1,
+                      "fat": 1.9,
+                      "carbohydrate": 2.9,
+                      "kcal": 37,
+                      "sodium_mg": 24,
+                      "alcohol": 0,
+                      "caffeine_mg": 23
+                    }
+                  },
+                  {
+                    "label": "caramel macchiato",
+                    "grams": 350,
+                    "per_100g": {
+                      "protein": 3.1,
+                      "fat": 2.8,
+                      "carbohydrate": 7.4,
+                      "kcal": 68,
+                      "sodium_mg": 40,
+                      "alcohol": 0,
+                      "caffeine_mg": 23
+                    }
+                  },
+                  {
+                    "label": "caffè mocha",
+                    "grams": 350,
+                    "per_100g": {
+                      "protein": 3.7,
+                      "fat": 4.9,
+                      "carbohydrate": 13.7,
+                      "kcal": 114,
+                      "sodium_mg": 46,
+                      "alcohol": 0,
+                      "caffeine_mg": 37
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "finish": "STOP",
+      "tokensIn": 2359,
+      "tokensOut": 1425,
+      "tokensThink": 569,
+      "ms": 8062
+    },
+    {
+      "cond": "forks",
+      "case": "lentil-soup",
+      "run": 1,
+      "json": {
+        "dishes": [
+          {
+            "name": "lentil soup",
+            "count": 1,
+            "panel": null,
+            "ingredients": [
+              {
+                "label": "lentil soup",
+                "grams": 450,
+                "per_100g": {
+                  "protein": 3.8,
+                  "fat": 1.5,
+                  "carbohydrate": 9.2,
+                  "kcal": 66,
+                  "sodium_mg": 320,
+                  "alcohol": 0,
+                  "caffeine_mg": 0
+                },
+                "preparation": ["boiled"],
+                "brand": null,
+                "forks": [],
+                "alternatives": []
+              }
+            ]
+          }
+        ]
+      },
+      "finish": "STOP",
+      "tokensIn": 2601,
+      "tokensOut": 210,
+      "tokensThink": 460,
+      "ms": 4647
+    },
+    {
+      "cond": "forks",
+      "case": "cafe-cappuccino",
+      "run": 1,
+      "json": {
+        "dishes": [
+          {
+            "name": "cappuccino",
+            "count": 1,
+            "panel": null,
+            "ingredients": [
+              {
+                "label": "cappuccino",
+                "grams": 240,
+                "per_100g": {
+                  "protein": 2.8,
+                  "fat": 1.8,
+                  "carbohydrate": 3.8,
+                  "kcal": 43,
+                  "sodium_mg": 40,
+                  "alcohol": 0,
+                  "caffeine_mg": 35
+                },
+                "preparation": [],
+                "brand": null,
+                "forks": [
+                  {
+                    "axis": "milk",
+                    "options": [
+                      {
+                        "label": "semi-skimmed milk",
+                        "grams": 240,
+                        "per_100g": {
+                          "protein": 2.8,
+                          "fat": 1.8,
+                          "carbohydrate": 3.8,
+                          "kcal": 43,
+                          "sodium_mg": 40,
+                          "alcohol": 0,
+                          "caffeine_mg": 35
+                        },
+                        "basis": "published",
+                        "chosen": true
+                      },
+                      {
+                        "label": "whole milk",
+                        "grams": 240,
+                        "per_100g": {
+                          "protein": 2.7,
+                          "fat": 3.1,
+                          "carbohydrate": 3.6,
+                          "kcal": 53,
+                          "sodium_mg": 38,
+                          "alcohol": 0,
+                          "caffeine_mg": 35
+                        },
+                        "basis": "published",
+                        "chosen": false
+                      },
+                      {
+                        "label": "oat milk",
+                        "grams": 240,
+                        "per_100g": {
+                          "protein": 0.9,
+                          "fat": 2.2,
+                          "carbohydrate": 6,
+                          "kcal": 47,
+                          "sodium_mg": 42,
+                          "alcohol": 0,
+                          "caffeine_mg": 35
+                        },
+                        "basis": "published",
+                        "chosen": false
+                      },
+                      {
+                        "label": "skimmed milk",
+                        "grams": 240,
+                        "per_100g": {
+                          "protein": 2.9,
+                          "fat": 0.2,
+                          "carbohydrate": 4.1,
+                          "kcal": 30,
+                          "sodium_mg": 42,
+                          "alcohol": 0,
+                          "caffeine_mg": 35
+                        },
+                        "basis": "published",
+                        "chosen": false
+                      }
+                    ]
+                  },
+                  {
+                    "axis": "size",
+                    "options": [
+                      {
+                        "label": "regular",
+                        "grams": 240,
+                        "per_100g": {
+                          "protein": 2.8,
+                          "fat": 1.8,
+                          "carbohydrate": 3.8,
+                          "kcal": 43,
+                          "sodium_mg": 40,
+                          "alcohol": 0,
+                          "caffeine_mg": 35
+                        },
+                        "basis": "published",
+                        "chosen": true
+                      },
+                      {
+                        "label": "large",
+                        "grams": 350,
+                        "per_100g": {
+                          "protein": 2.8,
+                          "fat": 1.8,
+                          "carbohydrate": 3.8,
+                          "kcal": 43,
+                          "sodium_mg": 40,
+                          "alcohol": 0,
+                          "caffeine_mg": 35
+                        },
+                        "basis": "derived",
+                        "chosen": false
+                      }
+                    ]
+                  }
+                ],
+                "alternatives": [
+                  {
+                    "label": "latte",
+                    "grams": 280,
+                    "per_100g": {
+                      "protein": 2.9,
+                      "fat": 1.9,
+                      "carbohydrate": 4.2,
+                      "kcal": 46,
+                      "sodium_mg": 42,
+                      "alcohol": 0,
+                      "caffeine_mg": 28
+                    }
+                  },
+                  {
+                    "label": "flat white",
+                    "grams": 180,
+                    "per_100g": {
+                      "protein": 2.9,
+                      "fat": 2.3,
+                      "carbohydrate": 3.7,
+                      "kcal": 47,
+                      "sodium_mg": 40,
+                      "alcohol": 0,
+                      "caffeine_mg": 55
+                    }
+                  },
+                  {
+                    "label": "americano",
+                    "grams": 240,
+                    "per_100g": {
+                      "protein": 0.2,
+                      "fat": 0,
+                      "carbohydrate": 0.4,
+                      "kcal": 3,
+                      "sodium_mg": 3,
+                      "alcohol": 0,
+                      "caffeine_mg": 40
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "finish": "STOP",
+      "tokensIn": 2892,
+      "tokensOut": 1318,
+      "tokensThink": 1179,
+      "ms": 9540
+    },
+    {
+      "cond": "forks",
+      "case": "yoshinoya",
+      "run": 1,
+      "json": {
+        "dishes": [
+          {
+            "name": "gyudon",
+            "count": 1,
+            "panel": null,
+            "ingredients": [
+              {
+                "label": "gyudon",
+                "grams": 340,
+                "per_100g": {
+                  "protein": 5.76,
+                  "fat": 6.94,
+                  "carbohydrate": 25.94,
+                  "kcal": 186.2,
+                  "sodium_mg": 289.4,
+                  "alcohol": 0,
+                  "caffeine_mg": 0
+                },
+                "preparation": [],
+                "brand": "Yoshinoya",
+                "forks": [
+                  {
+                    "axis": "size",
+                    "options": [
+                      {
+                        "label": "Regular",
+                        "grams": 340,
+                        "per_100g": {
+                          "protein": 5.76,
+                          "fat": 6.94,
+                          "carbohydrate": 25.94,
+                          "kcal": 186.2,
+                          "sodium_mg": 289.4,
+                          "alcohol": 0,
+                          "caffeine_mg": 0
+                        },
+                        "basis": "published",
+                        "chosen": true
+                      },
+                      {
+                        "label": "Large",
+                        "grams": 440,
+                        "per_100g": {
+                          "protein": 5.64,
+                          "fat": 6.59,
+                          "carbohydrate": 27.16,
+                          "kcal": 187,
+                          "sodium_mg": 277.3,
+                          "alcohol": 0,
+                          "caffeine_mg": 0
+                        },
+                        "basis": "published",
+                        "chosen": false
+                      },
+                      {
+                        "label": "Extra Large",
+                        "grams": 500,
+                        "per_100g": {
+                          "protein": 6.7,
+                          "fat": 8.84,
+                          "carbohydrate": 24.46,
+                          "kcal": 201.2,
+                          "sodium_mg": 315,
+                          "alcohol": 0,
+                          "caffeine_mg": 0
+                        },
+                        "basis": "published",
+                        "chosen": false
+                      },
+                      {
+                        "label": "Small",
+                        "grams": 260,
+                        "per_100g": {
+                          "protein": 5.92,
+                          "fat": 7.54,
+                          "carbohydrate": 23.42,
+                          "kcal": 182.3,
+                          "sodium_mg": 287.7,
+                          "alcohol": 0,
+                          "caffeine_mg": 0
+                        },
+                        "basis": "published",
+                        "chosen": false
+                      }
+                    ]
+                  }
+                ],
+                "alternatives": [
+                  {
+                    "label": "green onion and egg beef bowl",
+                    "grams": 400,
+                    "per_100g": {
+                      "protein": 6.25,
+                      "fat": 6.75,
+                      "carbohydrate": 24,
+                      "kcal": 184,
+                      "sodium_mg": 310,
+                      "alcohol": 0,
+                      "caffeine_mg": 0
+                    }
+                  },
+                  {
+                    "label": "pork bowl",
+                    "grams": 340,
+                    "per_100g": {
+                      "protein": 5.59,
+                      "fat": 5.29,
+                      "carbohydrate": 28.24,
+                      "kcal": 185.6,
+                      "sodium_mg": 264.7,
+                      "alcohol": 0,
+                      "caffeine_mg": 0
+                    }
+                  },
+                  {
+                    "label": "beef kalbi bowl",
+                    "grams": 350,
+                    "per_100g": {
+                      "protein": 5.14,
+                      "fat": 8.86,
+                      "carbohydrate": 26.57,
+                      "kcal": 208.6,
+                      "sodium_mg": 308.6,
+                      "alcohol": 0,
+                      "caffeine_mg": 0
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "finish": "STOP",
+      "tokensIn": 2359,
+      "tokensOut": 1170,
+      "tokensThink": 987,
+      "ms": 6982
+    },
+    {
+      "cond": "forks",
+      "case": "bigmac-meal-text",
+      "run": 1,
+      "json": {
+        "dishes": [
+          {
+            "name": "Big Mac",
+            "count": 1,
+            "panel": null,
+            "ingredients": [
+              {
+                "label": "Big Mac",
+                "grams": 220,
+                "per_100g": {
+                  "protein": 11.36,
+                  "fat": 15.45,
+                  "carbohydrate": 20.45,
+                  "kcal": 264,
+                  "sodium_mg": 481.8,
+                  "alcohol": 0,
+                  "caffeine_mg": 0
+                },
+                "preparation": [],
+                "brand": "McDonald's",
+                "forks": [],
+                "alternatives": [
+                  {
+                    "label": "Quarter Pounder with Cheese",
+                    "grams": 198,
+                    "per_100g": {
+                      "protein": 15.15,
+                      "fat": 13.13,
+                      "carbohydrate": 21.21,
+                      "kcal": 263,
+                      "sodium_mg": 575.8,
+                      "alcohol": 0,
+                      "caffeine_mg": 0
+                    }
+                  },
+                  {
+                    "label": "Double Big Mac",
+                    "grams": 280,
+                    "per_100g": {
+                      "protein": 15.36,
+                      "fat": 16.07,
+                      "carbohydrate": 15.71,
+                      "kcal": 265,
+                      "sodium_mg": 475,
+                      "alcohol": 0,
+                      "caffeine_mg": 0
+                    }
+                  },
+                  {
+                    "label": "McDouble",
+                    "grams": 151,
+                    "per_100g": {
+                      "protein": 14.57,
+                      "fat": 13.25,
+                      "carbohydrate": 21.85,
+                      "kcal": 265,
+                      "sodium_mg": 609.3,
+                      "alcohol": 0,
+                      "caffeine_mg": 0
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "French fries",
+            "count": 1,
+            "panel": null,
+            "ingredients": [
+              {
+                "label": "French fries",
+                "grams": 111,
+                "per_100g": {
+                  "protein": 4.5,
+                  "fat": 13.51,
+                  "carbohydrate": 38.74,
+                  "kcal": 288,
+                  "sodium_mg": 234.2,
+                  "alcohol": 0,
+                  "caffeine_mg": 0
+                },
+                "preparation": ["deep_fried"],
+                "brand": "McDonald's",
+                "forks": [
+                  {
+                    "axis": "size",
+                    "options": [
+                      {
+                        "label": "Small",
+                        "grams": 71,
+                        "per_100g": {
+                          "protein": 4.23,
+                          "fat": 15.49,
+                          "carbohydrate": 43.66,
+                          "kcal": 324,
+                          "sodium_mg": 267.6,
+                          "alcohol": 0,
+                          "caffeine_mg": 0
+                        },
+                        "basis": "published",
+                        "chosen": false
+                      },
+                      {
+                        "label": "Medium",
+                        "grams": 111,
+                        "per_100g": {
+                          "protein": 4.5,
+                          "fat": 13.51,
+                          "carbohydrate": 38.74,
+                          "kcal": 288,
+                          "sodium_mg": 234.2,
+                          "alcohol": 0,
+                          "caffeine_mg": 0
+                        },
+                        "basis": "published",
+                        "chosen": true
+                      },
+                      {
+                        "label": "Large",
+                        "grams": 154,
+                        "per_100g": {
+                          "protein": 4.55,
+                          "fat": 14.94,
+                          "carbohydrate": 42.21,
+                          "kcal": 312,
+                          "sodium_mg": 259.7,
+                          "alcohol": 0,
+                          "caffeine_mg": 0
+                        },
+                        "basis": "published",
+                        "chosen": false
+                      }
+                    ]
+                  }
+                ],
+                "alternatives": []
+              }
+            ]
+          },
+          {
+            "name": "Coca-Cola",
+            "count": 1,
+            "panel": null,
+            "ingredients": [
+              {
+                "label": "Coca-Cola",
+                "grams": 500,
+                "per_100g": {
+                  "protein": 0,
+                  "fat": 0,
+                  "carbohydrate": 11.8,
+                  "kcal": 44,
+                  "sodium_mg": 11,
+                  "alcohol": 0,
+                  "caffeine_mg": 8.4
+                },
+                "preparation": [],
+                "brand": "McDonald's",
+                "forks": [
+                  {
+                    "axis": "drink",
+                    "options": [
+                      {
+                        "label": "Coca-Cola",
+                        "grams": 500,
+                        "per_100g": {
+                          "protein": 0,
+                          "fat": 0,
+                          "carbohydrate": 11.8,
+                          "kcal": 44,
+                          "sodium_mg": 11,
+                          "alcohol": 0,
+                          "caffeine_mg": 8.4
+                        },
+                        "basis": "published",
+                        "chosen": true
+                      },
+                      {
+                        "label": "Diet Coke",
+                        "grams": 500,
+                        "per_100g": {
+                          "protein": 0,
+                          "fat": 0,
+                          "carbohydrate": 0,
+                          "kcal": 0,
+                          "sodium_mg": 14,
+                          "alcohol": 0,
+                          "caffeine_mg": 11.6
+                        },
+                        "basis": "published",
+                        "chosen": false
+                      },
+                      {
+                        "label": "Sprite",
+                        "grams": 500,
+                        "per_100g": {
+                          "protein": 0,
+                          "fat": 0,
+                          "carbohydrate": 11.2,
+                          "kcal": 42,
+                          "sodium_mg": 13,
+                          "alcohol": 0,
+                          "caffeine_mg": 0
+                        },
+                        "basis": "published",
+                        "chosen": false
+                      }
+                    ]
+                  },
+                  {
+                    "axis": "size",
+                    "options": [
+                      {
+                        "label": "Small",
+                        "grams": 350,
+                        "per_100g": {
+                          "protein": 0,
+                          "fat": 0,
+                          "carbohydrate": 11.8,
+                          "kcal": 44,
+                          "sodium_mg": 11,
+                          "alcohol": 0,
+                          "caffeine_mg": 8.4
+                        },
+                        "basis": "published",
+                        "chosen": false
+                      },
+                      {
+                        "label": "Medium",
+                        "grams": 500,
+                        "per_100g": {
+                          "protein": 0,
+                          "fat": 0,
+                          "carbohydrate": 11.8,
+                          "kcal": 44,
+                          "sodium_mg": 11,
+                          "alcohol": 0,
+                          "caffeine_mg": 8.4
+                        },
+                        "basis": "published",
+                        "chosen": true
+                      },
+                      {
+                        "label": "Large",
+                        "grams": 700,
+                        "per_100g": {
+                          "protein": 0,
+                          "fat": 0,
+                          "carbohydrate": 11.8,
+                          "kcal": 44,
+                          "sodium_mg": 11,
+                          "alcohol": 0,
+                          "caffeine_mg": 8.4
+                        },
+                        "basis": "published",
+                        "chosen": false
+                      }
+                    ]
+                  }
+                ],
+                "alternatives": []
+              }
+            ]
+          }
+        ]
+      },
+      "finish": "STOP",
+      "tokensIn": 2363,
+      "tokensOut": 2129,
+      "tokensThink": 1015,
+      "ms": 10028
+    },
+    {
+      "cond": "forks",
+      "case": "caesar",
+      "run": 1,
+      "json": {
+        "dishes": [
+          {
+            "name": "chicken caesar salad",
+            "count": 1,
+            "panel": null,
+            "ingredients": [
+              {
+                "label": "romaine lettuce",
+                "grams": 120,
+                "per_100g": {
+                  "protein": 1.2,
+                  "fat": 0.3,
+                  "carbohydrate": 3.3,
+                  "kcal": 17,
+                  "sodium_mg": 8,
+                  "alcohol": 0,
+                  "caffeine_mg": 0
+                },
+                "preparation": ["raw"],
+                "brand": null,
+                "forks": [],
+                "alternatives": []
+              },
+              {
+                "label": "grilled chicken breast",
+                "grams": 120,
+                "per_100g": {
+                  "protein": 31,
+                  "fat": 3.6,
+                  "carbohydrate": 0,
+                  "kcal": 165,
+                  "sodium_mg": 350,
+                  "alcohol": 0,
+                  "caffeine_mg": 0
+                },
+                "preparation": ["grilled"],
+                "brand": null,
+                "forks": [],
+                "alternatives": []
+              },
+              {
+                "label": "caesar dressing",
+                "grams": 45,
+                "per_100g": {
+                  "protein": 2.1,
+                  "fat": 50,
+                  "carbohydrate": 5,
+                  "kcal": 480,
+                  "sodium_mg": 1050,
+                  "alcohol": 0,
+                  "caffeine_mg": 0
+                },
+                "preparation": [],
+                "brand": null,
+                "forks": [],
+                "alternatives": []
+              },
+              {
+                "label": "croutons",
+                "grams": 25,
+                "per_100g": {
+                  "protein": 10,
+                  "fat": 14,
+                  "carbohydrate": 68,
+                  "kcal": 440,
+                  "sodium_mg": 850,
+                  "alcohol": 0,
+                  "caffeine_mg": 0
+                },
+                "preparation": ["baked"],
+                "brand": null,
+                "forks": [],
+                "alternatives": []
+              },
+              {
+                "label": "parmesan cheese",
+                "grams": 15,
+                "per_100g": {
+                  "protein": 35.8,
+                  "fat": 25.8,
+                  "carbohydrate": 3.2,
+                  "kcal": 392,
+                  "sodium_mg": 1376,
+                  "alcohol": 0,
+                  "caffeine_mg": 0
+                },
+                "preparation": [],
+                "brand": null,
+                "forks": [],
+                "alternatives": []
+              }
+            ]
+          }
+        ]
+      },
+      "finish": "STOP",
+      "tokensIn": 2288,
+      "tokensOut": 825,
+      "tokensThink": 630,
+      "ms": 4068
+    }
+  ]
+}

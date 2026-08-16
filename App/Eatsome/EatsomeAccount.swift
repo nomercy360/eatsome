@@ -326,7 +326,11 @@ final class EatsomeAccount {
     }
 
     private static func cursorKey(_ accountID: String) -> String {
-        "eatsome.pull.cursor.\(accountID)"
+        // Codec two can read the version-one `sizes` records the previous build
+        // skipped after already advancing its cursor. A new key replays the
+        // account once; EventLog unions by id, so everything already held is a
+        // no-op and only those formerly unreadable records are appended.
+        "eatsome.pull.cursor.codec2.\(accountID)"
     }
 
     private static func pushedKey(_ accountID: String) -> String {

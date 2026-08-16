@@ -73,10 +73,10 @@ struct YouScreen: View {
 
     private var accountTile: some View {
         HStack(spacing: 14) {
-            WellieAvatar(name: account?.name ?? "?", side: 48)
+            WellieAvatar(name: account?.name ?? "?", side: 42)
             VStack(alignment: .leading, spacing: 3) {
                 Text(account?.name ?? "Not signed in")
-                    .font(WellieTheme.font(21, weight: .bold))
+                    .font(WellieTheme.font(16.5, weight: .bold))
                     .foregroundStyle(WellieTheme.ink)
                 Text(accountDetail)
                     .font(WellieTheme.font(13, weight: .regular))
@@ -183,7 +183,7 @@ struct YouScreen: View {
     /// configure — so this is a line of text again.
     private var footer: some View {
         Text("eatsome \(Self.version)")
-            .font(WellieTheme.font(11.5, weight: .regular))
+            .font(WellieTheme.figure(11.5, weight: .regular))
             .foregroundStyle(WellieTheme.muted)
             .frame(maxWidth: .infinity)
             .accessibilityLabel("eatsome version \(Self.version)")
@@ -216,7 +216,9 @@ struct YouScreen: View {
             Spacer(minLength: 8)
             if let value {
                 Text(value)
-                    .font(WellieTheme.font(14, weight: .regular))
+                    .font(EatsomeFormat.isFigure(value)
+                        ? WellieTheme.figure(14, weight: .regular)
+                        : WellieTheme.font(14, weight: .regular))
                     .foregroundStyle(WellieTheme.muted)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)

@@ -6,6 +6,16 @@ struct EatsomeApp: App {
     @State private var store: EatsomeStore
 
     init() {
+        #if DEBUG
+        // A device-side escape hatch for exercising onboarding without
+        // uninstalling the app and losing its local meal/photo cache. Editing
+        // the preferences plist from a Mac is insufficient because cfprefsd
+        // may still serve its in-memory value to the next process.
+        if ProcessInfo.processInfo.environment["EATSOME_RESET_ONBOARDING"] == "1" {
+            UserDefaults.standard.removeObject(forKey: "eatsome.profile.v1")
+        }
+        #endif
+
         // Two lanes, and the store holds the account rather than the other way
         // round: a write is appended locally and *then* mirrored, so the thing
         // that appends is the thing that knows where to send it.
@@ -13,7 +23,8 @@ struct EatsomeApp: App {
         _account = State(initialValue: account)
         _store = State(initialValue: EatsomeStore(account: account))
 
-        // The identity is Sora, bundled, in five cuts. If any of them ever falls
+        // The identity is General Sans and Space Grotesk, bundled, eight cuts
+        // between them. If any of them ever falls
         // out of the target's resources, `UIFont(name:)` returns nil and SwiftUI
         // quietly renders the system face instead — no crash, no warning, and
         // every size and weight in `WellieTheme` still tuned for a typeface that
@@ -23,7 +34,7 @@ struct EatsomeApp: App {
         // production, where a fallback face beats a crash.
         assert(
             WellieTheme.fontsAreInstalled,
-            "Sora is missing from the bundle — check UIAppFonts in project.yml, re-run scripts/build-fonts.py, and re-run scripts/bootstrap.sh"
+            "A bundled font is missing — check UIAppFonts in project.yml, re-run scripts/build-fonts.py, and re-run scripts/bootstrap.sh"
         )
     }
 

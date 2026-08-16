@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { IngestEventsRequest } from "../../src/contracts";
+import { type IngestEventsRequest, MEAL_SCHEMA_VERSION } from "../../src/contracts";
 import type { Env } from "../env";
 import { ensureMediaObject, mealFrom, mediaKey, mediaPrefix, projectMealMedia } from "./media";
 
@@ -17,7 +17,7 @@ const composition = {
 function swiftMeal(id: string, photoHash: string | null) {
   return {
     id,
-    schemaVersion: 1,
+    schemaVersion: MEAL_SCHEMA_VERSION,
     eatenAt: 1_754_300_000_000,
     dishes: [
       {
@@ -41,7 +41,7 @@ function swiftMeal(id: string, photoHash: string | null) {
               caffeine: "model",
             },
             alternatives: [],
-            sizes: [],
+            forks: [],
           },
         ],
       },
@@ -260,6 +260,22 @@ describe("projecting meals into media references", () => {
     ).rejects.toMatchObject({ status: 400 });
     // And the picture is still there, because nothing was written.
     expect(fake.media.has(`acct:one:${photoHash}`)).toBe(true);
+  });
+
+  it("projects a version-one meal without interpreting its retired sizes", () => {
+    const legacy = swiftMeal(mealId, photoHash) as never as {
+      schemaVersion: number;
+      dishes: [{ items: [{ forks?: unknown[]; sizes?: unknown[] }] }];
+    };
+    legacy.schemaVersion = 1;
+    delete legacy.dishes[0].items[0].forks;
+    legacy.dishes[0].items[0].sizes = [{ retired: true }];
+
+    expect(mealFrom(event("meal_logged", legacy))).toEqual({
+      id: mealId,
+      schemaVersion: 1,
+      photoHash,
+    });
   });
 
   it("names the field that is wrong", () => {

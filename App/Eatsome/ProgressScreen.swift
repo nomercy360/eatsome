@@ -91,7 +91,7 @@ struct ProgressScreen: View {
                     Text("Today")
                 }
                 .font(WellieTheme.font(14, weight: .semibold))
-                .foregroundStyle(WellieTheme.accent)
+                .foregroundStyle(WellieTheme.muted)
             }
             .buttonStyle(.plain)
             .disabled(backToToday == nil)
@@ -123,11 +123,11 @@ struct ProgressScreen: View {
                 } label: {
                     Text(option.title)
                         .font(WellieTheme.font(13, weight: option == window ? .bold : .semibold))
-                        .foregroundStyle(option == window ? WellieTheme.onAccent : WellieTheme.muted)
+                        .foregroundStyle(option == window ? WellieTheme.onInk : WellieTheme.muted)
                         .padding(.horizontal, 18)
                         .padding(.vertical, 10)
                         .background(
-                            option == window ? WellieTheme.accent : WellieTheme.well,
+                            option == window ? WellieTheme.inkSurface : WellieTheme.well,
                             in: RoundedRectangle(cornerRadius: WellieTheme.chipRadius, style: .continuous)
                         )
                         .overlay {
@@ -148,7 +148,7 @@ struct ProgressScreen: View {
             }
             if let nextLocked {
                 Text("opens\nday \(nextLocked.rawValue)")
-                    .font(WellieTheme.font(11.5, weight: .regular))
+                    .font(WellieTheme.figure(11.5, weight: .regular))
                     .foregroundStyle(WellieTheme.muted)
                     .lineSpacing(1.5)
                     .fixedSize()
@@ -251,21 +251,24 @@ private struct TrendCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
+            ZStack(alignment: .topLeading) {
                 Text(title)
-                    .font(WellieTheme.font(13, weight: .regular))
-                    .foregroundStyle(WellieTheme.muted)
-                Spacer(minLength: 8)
+                    .font(WellieTheme.font(12.5, weight: .semibold))
+                    .foregroundStyle(WellieTheme.ink)
+                    .lineLimit(1)
+                    .padding(.trailing, 132)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 HStack(alignment: .firstTextBaseline, spacing: 0) {
                     Text(average.map(EatsomeFormat.whole) ?? "—")
-                        .font(WellieTheme.font(15, weight: .bold))
+                        .font(WellieTheme.figure(19, weight: .heavy))
                         .foregroundStyle(WellieTheme.ink)
                     Text(" avg\(averageSuffix ?? "")")
-                        .font(WellieTheme.font(12, weight: .semibold))
+                        .font(WellieTheme.font(11.5, weight: .semibold))
                         .foregroundStyle(WellieTheme.muted)
                 }
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
+                .frame(maxWidth: .infinity, alignment: .trailing)
             }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(spokenHeader)
@@ -337,4 +340,3 @@ private struct TrendCard: View {
         return parts.joined(separator: ", ")
     }
 }
-

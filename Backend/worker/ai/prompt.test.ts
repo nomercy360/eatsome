@@ -5,13 +5,13 @@ import { MEAL_PROMPT_VERSION, MEAL_RECOGNITION_SYSTEM_PROMPT } from "./prompt";
 import { MEAL_REVISION_SYSTEM_PROMPT } from "./revision.generated";
 import { recognitionSpec } from "./spec";
 
-const promptFile = join(import.meta.dirname, "../../../prompts/meal-v27.md");
+const promptFile = join(import.meta.dirname, "../../../prompts/meal-v28.md");
 const revisionFile = join(import.meta.dirname, "../../../prompts/revision-v6.md");
 
 describe("meal recognition prompt", () => {
   it("matches its source, and has only one place to say which version it is", () => {
     expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toBe(readFileSync(promptFile, "utf8").trimEnd());
-    expect(MEAL_PROMPT_VERSION).toBe("meal-v27-2026-08-15");
+    expect(MEAL_PROMPT_VERSION).toBe("meal-v28-2026-08-16");
 
     // It used to be a wrangler var *as well* as the generated constant, and
     // the recognition cache keys on it — so a deploy that bumped one and not
@@ -65,6 +65,23 @@ describe("meal recognition prompt", () => {
     expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain(
       "Never stop after grounding the first branded dish",
     );
+  });
+
+  it("asks for open choices as priced forks, and for what decided the default", () => {
+    // v28. `sizes` could say Regular/Footlong and nothing else; on the same
+    // inputs the model put the drink in an opaque cup (Coke/Diet Coke/Sprite,
+    // Δ220 kcal) and the milk in a latte in this shape (`eval/forks-poc.md`).
+    // `chosen_from` is the gate: prompted not to fork on a settled input, the
+    // model still offered sizes on "grande oat milk latte" three runs in four;
+    // asked to say what decided the default, it was right 16 of 16.
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("Open choices — `forks`:");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("Exactly one option per fork is `chosen`");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain(
+      "Only an `assumed` fork will be put to the person",
+    );
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("in the market's own language");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).toContain("Empty is the normal case");
+    expect(MEAL_RECOGNITION_SYSTEM_PROMPT).not.toContain("`sizes`");
   });
 
   it("insists on one food per label", () => {

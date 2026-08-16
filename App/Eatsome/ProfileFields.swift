@@ -74,8 +74,10 @@ struct ChoiceRows<Option: ChoiceOption>: View {
                         Spacer(minLength: 8)
                         if selection == option {
                             Image(systemName: "checkmark")
-                                .font(.system(size: 14, weight: .bold))
-                                .foregroundStyle(WellieTheme.accent)
+                                .font(.system(size: 9, weight: .heavy))
+                                .foregroundStyle(WellieTheme.onAccent)
+                                .frame(width: 18, height: 18)
+                                .background(WellieTheme.accent, in: Circle())
                         }
                     }
                     .padding(.vertical, 14)
@@ -110,7 +112,7 @@ struct NumberRow: View {
                 .foregroundStyle(WellieTheme.ink)
             Spacer(minLength: 8)
             Text(value.map { "\($0.formatted(.number.precision(.fractionLength(decimals)))) \(unit)" } ?? "—")
-                .font(WellieTheme.font(14, weight: .regular))
+                .font(WellieTheme.figure(14, weight: .regular))
                 .foregroundStyle(WellieTheme.muted)
                 .monospacedDigit()
             Stepper(
@@ -199,7 +201,9 @@ struct ProfileWheel: View {
         VStack(spacing: 0) {
             Picker(title, selection: $position) {
                 ForEach(options, id: \.self) { option in
-                    Text(text(option)).tag(option)
+                    Text(text(option))
+                        .font(WellieTheme.figure(17, weight: .regular))
+                        .tag(option)
                 }
             }
             .pickerStyle(.wheel)

@@ -59,7 +59,8 @@ struct FixInWords: View {
 
             VStack(alignment: .leading, spacing: 8) {
                 Text(title)
-                    .font(WellieTheme.font(22, weight: .bold))
+                    .font(WellieTheme.font(26, weight: .heavy))
+                    .tracking(-0.5)
                     .foregroundStyle(WellieTheme.ink)
                 WellieProse(subtitle, size: 15)
             }
@@ -71,8 +72,8 @@ struct FixInWords: View {
                 .foregroundStyle(WellieTheme.ink)
                 .focused($typing)
                 .lineLimit(2...6)
-                .padding(14)
-                .wellieSurface(WellieTheme.well, border: typing ? WellieTheme.accent : WellieTheme.hairline, lineWidth: 1.5)
+                .padding(18)
+                .wellieSurface(WellieTheme.surface, border: typing ? WellieTheme.ink : WellieTheme.hairline, lineWidth: 1.5)
                 .padding(.horizontal, WellieTheme.screenInset)
                 .padding(.top, 18)
                 .disabled(isWorking)

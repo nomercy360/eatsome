@@ -22,7 +22,10 @@ struct MealRevisionTests {
                         label: "chicken", grams: 150, per100g: composition,
                         alternatives: [FoodAlternative(label: "turkey", per100g: composition, grams: 210)],
                         brand: "Nando's",
-                        sizes: [FoodSize(label: "half", grams: 300, per100g: composition)]
+                        forks: [FoodFork(axis: "size", chosenFrom: .assumed, options: [
+                            FoodForkOption(label: "quarter", grams: 150, per100g: composition, chosen: true),
+                            FoodForkOption(label: "half", grams: 300, per100g: composition),
+                        ])]
                     ),
                     MealItem(label: "rice", grams: 200, per100g: composition),
                 ]),
@@ -46,10 +49,10 @@ struct MealRevisionTests {
         #expect(row.per100g == Self.fried)
         #expect(row.preparation == [.deepFried])
         #expect(row.provenance == .user)
-        // The rename retires the shortlist and the old product's sizes; the
+        // The rename retires the shortlist and the old food's forks; the
         // brand is the same chain.
         #expect(row.alternatives.isEmpty)
-        #expect(row.sizes.isEmpty)
+        #expect(row.forks.isEmpty)
         #expect(row.brand == "Nando's")
         #expect(corrected.wasCorrected)
         // The untouched rows are exactly as they were.
@@ -58,13 +61,13 @@ struct MealRevisionTests {
         #expect(revision.summary == "1 changed")
     }
 
-    @Test("A weight-only change keeps the shortlist and the sizes")
+    @Test("A weight-only change keeps the shortlist and the forks")
     func weightOnly() throws {
         let revision = MealRevision(revise: [.init(index: 1, label: "chicken", grams: 220, per100g: Self.composition)])
         let row = try #require(revision.applied(to: Self.meal()).items.first)
         #expect(row.grams == 220)
         #expect(row.alternatives.count == 1)
-        #expect(row.sizes.count == 1)
+        #expect(row.forks.count == 1)
         #expect(row.provenance == .user)
     }
 

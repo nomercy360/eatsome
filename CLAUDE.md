@@ -107,6 +107,23 @@ is named `eatsome.co`.
   briefly asked for label and composition only, and any correction that added a
   row with rivals failed to decode.
 
+- **An open choice is a fork: priced options, one of them chosen, and a word
+  for what chose it.** `MealItem.forks` carries what the input left undecided
+  on a row — which size, which milk, which drink was in the cup — as two to
+  six whole-row answers (`label`, `grams`, `per100g`), exactly one `chosen`
+  and equal to the row, and `chosenFrom: stated | seen | assumed`. It
+  replaced `sizes`, which could say Regular/Footlong and nothing else; on the
+  same inputs the model put Coke/Diet Coke/Sprite (Δ220 kcal) and the milk in
+  a latte in this shape (`Backend/eval/forks-poc.md`). `axis` is free text
+  and only ever rendered. The app asks about a fork only when it is `assumed`
+  **and** its spread is at least `max(100 kcal, 20 % of the row)`
+  (`MealItem.openForks`); a `stated` or `seen` fork is kept as chips and
+  never a question — told not to fork on a settled input the model could
+  not comply, told to say what settled it, it was right 16 of 16. The model
+  never writes the question; the app templates it from `axis`. Answering
+  one fork retires the row's others: they were priced against the row as it
+  stood.
+
 - **A rename that cannot re-price does not happen in the UI.** The pick sheet
   offers only the model's own `alternatives`, and each one arrives priced.
   Anything else is a correction in words, where the Worker re-prices what it
@@ -151,12 +168,11 @@ is named `eatsome.co`.
   alcohol × 7` against `kcal` is the self-check — in the prompt, exported from
   `contracts.ts`, on `Nutrients.atwaterDelta`, tested on both sides.
 
-- **`schemaVersion` is on every meal event and it is `1`.** `MealEntry`
-  writes it and refuses anything else (`SchemaError.unsupportedVersion`); such
-  a line is corrupt, not "from a newer build". There is no older version to
-  read — the only installs are test accounts — and there is no legacy decode
-  anywhere in Core. Unknown enum values throw rather than rounding to a
-  plausible case.
+- **`schemaVersion` is on every meal event; new writes are `2`.** Version one
+  stored `sizes`; its chosen grams and composition remain readable while that
+  retired picker metadata is ignored. Version two stores `forks`. Any other
+  version is refused (`SchemaError.unsupportedVersion`) rather than guessed.
+  Unknown enum values still throw rather than rounding to a plausible case.
 
 - **`dishes` is the only stored form.** `MealEntry.items`, `grams` and
   `nutrients` are computed. Two representations of one thing is how they come
@@ -181,10 +197,15 @@ is named `eatsome.co`.
 - **A food has one name, and the model wrote it.** A chip, a sentence and a
   history row all say `label`.
 
-- **The identity is Sora, and it ships in the bundle** as five *static* cuts —
-  iOS registers a variable font at its default instance only, so a bundled
-  variable file renders the whole app at 400 while every lookup still succeeds.
-  `scripts/build-fonts.py` cuts them; `EatsomeApp.init` asserts they are there.
+- **Two faces, split by what the text is: General Sans for words, Space
+  Grotesk for figures.** `WellieTheme.font` and `WellieTheme.figure`; a call
+  site says which, because it knows whether it is printing `1,456` or `Fried
+  rice`. Both ship in the bundle as *static* cuts — iOS registers a variable
+  font at its default instance only, so a bundled variable file renders the
+  whole app at 400 while every lookup still succeeds. `scripts/build-fonts.py`
+  fetches them; `EatsomeApp.init` asserts they are there. General Sans is under
+  Fontshare's free EULA (apps yes, redistribution no) — it lives in this repo
+  and nowhere else.
 
 - **The app follows the phone, and every colour is a pair.** Every token in
   `WellieTheme` is an `adaptive(light:dark:)` pair resolved by

@@ -47,6 +47,7 @@ struct MealDetailScreen: View {
     }
 
     private var isSaved: Bool { if case .saved = mode { return true } else { return false } }
+    private var hasPhoto: Bool { PhotoStore.shared.image(for: meal.photoHash) != nil }
     private var singleDish: MealDish? { meal.dishes.count == 1 ? meal.dishes.first : nil }
     private var singleItem: MealItem? { singleDish.flatMap { $0.items.count == 1 ? $0.items.first : nil } }
     /// Frame 2: a menu item with a decision pending, before saving.
@@ -56,11 +57,19 @@ struct MealDetailScreen: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            navRow
-            ScrollView {
-                VStack(spacing: 0) {
-                    card.padding(.top, 22)
+        // The photograph scrolls with the page. It is the background of the
+        // scroll *content*, not of the screen: a fixed backdrop under a moving
+        // card read as the card sliding over a poster, and the plate is part
+        // of the record, not wallpaper. The scroll view runs to the top edge
+        // so the photo can too, and the nav row floats over it.
+        GeometryReader { geometry in
+        let topInset = geometry.safeAreaInsets.top
+        ZStack(alignment: .top) {
+            VStack(spacing: 0) {
+                ScrollView {
+                    VStack(spacing: 0) {
+                    if !hasPhoto { plainHeading.padding(.top, 30 + navRowHeight + topInset) }
+                    card.padding(.top, hasPhoto ? 186 + navRowHeight + topInset : 22)
                     if pendingPick, let dish = singleDish, let item = singleItem {
                         InlinePick(dish: dish, item: item) { picked in
                             commit(MealDetailModel.replacing(picked, in: meal))
@@ -80,11 +89,19 @@ struct MealDetailScreen: View {
                         addPhotoRow { onAddPhoto(meal) }.padding(.top, 12)
                     }
                     Color.clear.frame(height: 24)
+                    }
+                    .padding(.horizontal, WellieTheme.screenInset)
+                    .frame(maxWidth: .infinity)
+                    .background(alignment: .top) {
+                        if hasPhoto { photoBackdrop(width: geometry.size.width) }
+                    }
                 }
-                .padding(.horizontal, WellieTheme.screenInset)
+                .scrollIndicators(.hidden)
+                .ignoresSafeArea(edges: .top)
+                footer.background(WellieTheme.background)
             }
-            .scrollIndicators(.hidden)
-            footer.background(WellieTheme.background)
+            navRow.padding(.top, topInset).ignoresSafeArea(edges: .top)
+        }
         }
         .background(WellieTheme.background)
         .sheet(item: $changingPick) { dish in
@@ -141,50 +158,97 @@ struct MealDetailScreen: View {
                     Text("Today")
                 }
                 .font(WellieTheme.font(14, weight: .semibold))
-                .foregroundStyle(WellieTheme.accent)
+                .foregroundStyle(WellieTheme.ink)
+                .padding(.horizontal, hasPhoto ? 14 : 0)
+                .padding(.vertical, hasPhoto ? 9 : 0)
+                .background {
+                    if hasPhoto { Capsule().fill(.ultraThinMaterial) }
+                }
+                .overlay {
+                    if hasPhoto { Capsule().strokeBorder(WellieTheme.glassStroke, lineWidth: 1) }
+                }
             }
             .buttonStyle(.plain)
             .disabled(onBack == nil)
             .accessibilityLabel("Back to Today")
             Spacer()
             Text(navSubtitle)
-                .font(WellieTheme.font(14, weight: .regular))
-                .foregroundStyle(WellieTheme.muted)
+                .font(WellieTheme.figure(14, weight: .regular))
+                .foregroundStyle(hasPhoto ? WellieTheme.body : WellieTheme.muted)
+                .padding(.horizontal, hasPhoto ? 14 : 0)
+                .padding(.vertical, hasPhoto ? 9 : 0)
+                .background {
+                    if hasPhoto { Capsule().fill(.ultraThinMaterial) }
+                }
+                .overlay {
+                    if hasPhoto { Capsule().strokeBorder(WellieTheme.glassStroke, lineWidth: 1) }
+                }
         }
-        .padding(.horizontal, 26)
-        .padding(.top, 14)
+        .padding(.horizontal, hasPhoto ? 20 : 26)
+        .padding(.top, 12)
     }
 
     // MARK: The card
 
     private var card: some View {
         VStack(alignment: .leading, spacing: 0) {
-            photograph
-            VStack(alignment: .leading, spacing: 0) {
+            if hasPhoto {
                 title
-                Text(subtitle)
+                Text(summarySubtitle)
                     .font(WellieTheme.font(13, weight: .regular))
-                    .foregroundStyle(WellieTheme.muted)
-                    .padding(.top, 8)
-                figures
-                    .padding(.top, 18)
-                    .overlay(alignment: .top) { Rectangle().fill(WellieTheme.hairline).frame(height: 1) }
-                    .padding(.top, 22)
-                provenance
-                    .padding(.top, 14)
-                    .overlay(alignment: .top) { Rectangle().fill(WellieTheme.hairline).frame(height: 1) }
-                    .padding(.top, 18)
+                    .foregroundStyle(WellieTheme.body)
+                    .padding(.top, 5)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 22)
+            figures.padding(.top, hasPhoto ? 18 : 0)
+        }
+        .padding(22)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            if hasPhoto {
+                RoundedRectangle(cornerRadius: WellieTheme.heroRadius, style: .continuous)
+                    .fill(.ultraThinMaterial)
+                RoundedRectangle(cornerRadius: WellieTheme.heroRadius, style: .continuous)
+                    .fill(WellieTheme.surface.opacity(0.78))
+            } else {
+                RoundedRectangle(cornerRadius: WellieTheme.controlRadius, style: .continuous)
+                    .fill(WellieTheme.surface)
+            }
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: hasPhoto ? WellieTheme.heroRadius : WellieTheme.controlRadius, style: .continuous)
+                .strokeBorder(hasPhoto ? WellieTheme.glassStroke : WellieTheme.hairline, lineWidth: 1)
+        }
+    }
+
+    private var plainHeading: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            title
+            Text(summarySubtitle)
+                .font(WellieTheme.font(13))
+                .foregroundStyle(WellieTheme.muted)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        // Clipped before the surface is drawn, so the photograph's top corners
-        // are the card's corners. `wellieSurface` paints its background inside
-        // the same shape and strokes its border over the top, so neither is
-        // eaten by the clip.
-        .clipShape(RoundedRectangle(cornerRadius: WellieTheme.controlRadius, style: .continuous))
-        .wellieSurface(radius: WellieTheme.controlRadius)
+        .padding(.horizontal, 4)
+    }
+
+    /// The height the floating nav row occupies over the photograph, which the
+    /// scroll content pads for so nothing starts underneath it.
+    private let navRowHeight: CGFloat = 60
+
+    @ViewBuilder
+    private func photoBackdrop(width: CGFloat) -> some View {
+        if let image = PhotoStore.shared.image(for: meal.photoHash) {
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFill()
+                .frame(width: width, height: 400)
+                .clipped()
+                .overlay(alignment: .bottom) {
+                    LinearGradient(colors: [.clear, WellieTheme.background], startPoint: .top, endPoint: .bottom)
+                        .frame(height: 80)
+                }
+                .accessibilityHidden(true)
+        }
     }
 
     /// The plate, at the top of its own card.
@@ -199,20 +263,6 @@ struct MealDetailScreen: View {
     /// is an empty slot inviting a person to wonder what is missing. The
     /// composer draws the fork-and-knife stand-in because there a picture is
     /// still expected; here it is not.
-    @ViewBuilder
-    private var photograph: some View {
-        if let image = PhotoStore.shared.image(for: meal.photoHash) {
-            Image(uiImage: image)
-                .resizable()
-                .scaledToFill()
-                .frame(height: 190)
-                .frame(maxWidth: .infinity)
-                .clipped()
-                .accessibilityElement()
-                .accessibilityLabel("Photograph of this meal")
-        }
-    }
-
     /// The title is the dish sentence. On a one-item meal with rivals it is
     /// also the way in to *which one?* — "tap a word to change it" — and the
     /// whole title is the tap target rather than each word, because a title
@@ -226,10 +276,10 @@ struct MealDetailScreen: View {
             .lineSpacing(4)
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
-        if let dish = singleDish, let item = singleItem, !item.alternatives.isEmpty || item.sizes.count > 1, !pendingPick {
+        if let dish = singleDish, let item = singleItem, MealDetailModel.hasPick(item), !pendingPick {
             Button { changingPick = dish } label: { text.contentShape(Rectangle()) }
                 .buttonStyle(.plain)
-                .accessibilityHint("Change what this is or what size it was")
+                .accessibilityHint("Change what this is or which one it was")
         } else {
             text
         }
@@ -242,32 +292,76 @@ struct MealDetailScreen: View {
             // vessel, so the count is of servings.
             return "\(dish.count) servings · \(EatsomeFormat.whole(MealDetailModel.perServingKcal(dish))) kcal each"
         }
-        if let item = singleItem, !item.alternatives.isEmpty || item.sizes.count > 1 {
+        if let item = singleItem, MealDetailModel.hasPick(item) {
             return "Tap a word to change it"
         }
         return meal.eaten == .whole ? "As logged" : "\(meal.eaten.chipName) of it"
     }
 
-    private var figures: some View {
-        let list = MealFigure.figures(meal.nutrients)
-        return HStack(alignment: .top, spacing: 6) {
-            ForEach(list) { figure in
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(figure.name)
-                        .font(WellieTheme.font(12, weight: .regular))
-                        .foregroundStyle(WellieTheme.muted)
-                    Text(figure.text)
-                        .font(WellieTheme.font(18, weight: .bold))
-                        // A displayed zero keeps its column and stops competing.
-                        .foregroundStyle(figure.isZero ? WellieTheme.muted : WellieTheme.ink)
-                }
-                .lineLimit(1)
-                .minimumScaleFactor(0.65)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel(figure.spoken)
-            }
+    private var summarySubtitle: String {
+        if meal.wasCorrected {
+            return "\(meal.eaten.chipName) of it · corrected by you"
         }
+        let source = meal.source == .text ? "as you wrote it" : "Estimated"
+        return "\(subtitle) · \(source)"
+    }
+
+    private var figures: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                // The halo is a soft ellipse behind the figure, not clipped to
+                // the figure's box — a glow with an edge is a green rectangle.
+                // Same construction as Today's, at the size of a 34 pt number.
+                Text(EatsomeFormat.whole(meal.nutrients.kcal))
+                    .font(WellieTheme.figure(34, weight: .heavy))
+                    .tracking(-1)
+                    .foregroundStyle(WellieTheme.ink)
+                    .frame(height: 40)
+                    .background {
+                        RadialGradient(
+                            colors: [WellieTheme.accent.opacity(0.5), WellieTheme.accent.opacity(0)],
+                            center: .center,
+                            startRadius: 0,
+                            endRadius: 70
+                        )
+                        .frame(width: 200, height: 200)
+                        .scaleEffect(x: 0.7, y: 0.5)
+                        .offset(y: 4)
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
+                    }
+                Text("kcal")
+                    .font(WellieTheme.font(13, weight: .semibold))
+                    .foregroundStyle(WellieTheme.muted)
+                Spacer()
+                Text("Salt \(meal.nutrients.saltGrams.formatted(.number.precision(.fractionLength(0...1)))) g")
+                    .font(WellieTheme.figure(12))
+                    .foregroundStyle(WellieTheme.muted)
+            }
+            WellieRowDivider().padding(.top, 16)
+            HStack(spacing: 0) {
+                macro(.protein, "Protein", meal.nutrients.protein)
+                macro(.carbs, "Carbs", meal.nutrients.carbohydrate)
+                macro(.fat, "Fat", meal.nutrients.fat)
+            }
+            .padding(.top, 16)
+        }
+    }
+
+    private func macro(_ kind: NutrientKind, _ name: String, _ value: Double) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                NutrientIcon(kind: kind, size: 14)
+                Text(name)
+                    .font(WellieTheme.font(11, weight: .semibold))
+                    .foregroundStyle(WellieTheme.body)
+            }
+            Text("\(EatsomeFormat.whole(value)) g")
+                .font(WellieTheme.figure(17, weight: .heavy))
+                .foregroundStyle(WellieTheme.ink)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
     }
 
     private var provenance: some View {
@@ -277,7 +371,7 @@ struct MealDetailScreen: View {
                 .foregroundStyle(WellieTheme.muted)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 8)
-            if !pendingPick, let dish = singleDish, let item = singleItem, item.sizes.count > 1 || !item.alternatives.isEmpty {
+            if !pendingPick, let dish = singleDish, let item = singleItem, MealDetailModel.hasPick(item) {
                 Button("Change") { changingPick = dish }
                     .font(WellieTheme.font(12.5, weight: .semibold))
                     .foregroundStyle(WellieTheme.accent)
@@ -515,38 +609,31 @@ struct MealDetailScreen: View {
 /// The pickers inline on the detail, before a decision is made. Same chips as
 /// the sheet; the difference is that here they commit on tap, because there is
 /// no "Use this" — the card above is the preview.
+///
+/// One question: the widest open fork (`MealDetailModel.askedFork`), or the
+/// rivals when no fork is open. Answering commits and resolves the row; the
+/// sheet behind Change offers the rest.
 private struct InlinePick: View {
     let dish: MealDish
     let item: MealItem
     let onPick: (MealDish) -> Void
 
-    @State private var size: FoodSize?
+    @State private var pick: MealDetailModel.ForkPick?
     @State private var alternative: FoodAlternative?
-
-    init(dish: MealDish, item: MealItem, onPick: @escaping (MealDish) -> Void) {
-        self.dish = dish
-        self.item = item
-        self.onPick = onPick
-        // The size that is already priced is shown selected: the card above
-        // is a preview of it, and a row of chips with none chosen would say
-        // the figures came from nowhere.
-        _size = State(initialValue: MealDetailModel.chosenSize(of: item, count: dish.count))
-    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            if item.sizes.count > 1 {
-                SizeChips(sizes: item.sizes, selection: $size)
-            }
-            if !item.alternatives.isEmpty {
+            if let fork = MealDetailModel.askedFork(item) {
+                ForkChips(fork: fork, selection: $pick)
+            } else if !item.alternatives.isEmpty {
                 WhichOneChips(current: item.label, alternatives: item.alternatives, selection: $alternative)
             }
         }
-        .onChange(of: size) { _, _ in commit() }
+        .onChange(of: pick) { _, _ in commit() }
         .onChange(of: alternative) { _, _ in commit() }
     }
 
     private func commit() {
-        onPick(MealDetailModel.applying(count: dish.count, size: size, alternative: alternative, to: dish))
+        onPick(MealDetailModel.applying(count: dish.count, pick: pick, alternative: alternative, to: dish))
     }
 }

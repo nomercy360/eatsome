@@ -218,7 +218,7 @@ describe("gemini response schema", () => {
       "per_100g",
       "preparation",
       "brand",
-      "sizes",
+      "forks",
       "alternatives",
     ]);
     expect(fields.label.nullable).toBeUndefined();
@@ -260,16 +260,26 @@ describe("gemini response schema", () => {
     );
   });
 
-  it("asks which menu a branded row came off, and in what sizes", () => {
+  it("asks which menu a branded row came off, and which choices were left open", () => {
     // Both are what a correction screen needs before it can decide what to
     // offer: chips and a stepper for something a menu lists, a weight for
     // anything else. A field Gemini is not told to emit is a field it drops.
     const { fields } = ingredientOf(schema);
     expect(fields.brand.nullable).toBe(true);
-    const size = fields.sizes.items as { required: string[] };
-    expect(size.required).toEqual(["label", "grams", "per_100g", "basis"]);
-    // Six, because Yoshinoya sells a gyudon in six.
-    expect(fields.sizes.maxItems).toBe(6);
+    const fork = fields.forks.items as {
+      required: string[];
+      properties: Record<string, Record<string, unknown>>;
+    };
+    expect(fork.required).toEqual(["axis", "chosen_from", "options"]);
+    // The gate the app asks on. Without it the model offered sizes on "grande
+    // oat milk latte" in three runs of four; with it, it said `stated`.
+    expect(fork.properties.chosen_from.enum).toEqual(["stated", "seen", "assumed"]);
+    const option = fork.properties.options.items as { required: string[] };
+    expect(option.required).toEqual(["label", "grams", "per_100g", "basis", "chosen"]);
+    // Gemini 400s when both this array and its options carry maxItems, and
+    // accepts either alone; the inner bound lives in the prompt and in Zod.
+    expect(fields.forks.maxItems).toBe(3);
+    expect(fork.properties.options.maxItems).toBeUndefined();
   });
 
   it("asks for a weight on every ingredient", () => {

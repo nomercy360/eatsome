@@ -1,5 +1,9 @@
-import type { IngestEventsRequest, MealEventData } from "../../src/contracts";
-import { mealDeleteDataSchema, mealEventDataSchema } from "../../src/contracts";
+import type { IngestEventsRequest, MealMediaProjection } from "../../src/contracts";
+import {
+  legacyMealMediaProjectionSchema,
+  mealDeleteDataSchema,
+  mealEventDataSchema,
+} from "../../src/contracts";
 import type { Env } from "../env";
 import { HttpError } from "../lib/http-error";
 
@@ -207,8 +211,10 @@ type LoggedEvent = IngestEventsRequest["events"][number];
  * A skipped meal is exactly as wrong as a rejected one and says nothing, so it
  * is rejected, with the failing paths in the message.
  */
-export function mealFrom(event: LoggedEvent): MealEventData {
-  const meal = mealEventDataSchema.safeParse(event.payload.data);
+export function mealFrom(event: LoggedEvent): MealMediaProjection {
+  const schema =
+    event.payload.data.schemaVersion === 1 ? legacyMealMediaProjectionSchema : mealEventDataSchema;
+  const meal = schema.safeParse(event.payload.data);
   if (meal.success) return meal.data;
   const detail = meal.error.issues
     .slice(0, 5)

@@ -58,6 +58,7 @@ struct RecentPhotosStrip: View {
     @Environment(\.scenePhase) private var scenePhase
 
     @Binding var pickerItem: PhotosPickerItem?
+    let onCamera: () -> Void
     let onPick: (Data) -> Void
 
     @State private var status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
@@ -71,14 +72,18 @@ struct RecentPhotosStrip: View {
     }
 
     private var isAllowed: Bool { status == .authorized || status == .limited }
-    static let tile: CGFloat = 78
+    static let tile: CGFloat = 96
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            WellieMeta("Recent photos", size: 11.5)
+            WellieMeta("Recent photos", size: 11)
                 .padding(.horizontal, WellieTheme.screenInset)
             ScrollView(.horizontal) {
-                HStack(spacing: 10) {
+                HStack(spacing: 8) {
+                    Button(action: onCamera) { CameraTile() }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Camera")
+
                     PhotosPicker(selection: $pickerItem, matching: .images) { GalleryTile() }
                         .buttonStyle(.plain)
                         .accessibilityLabel("Choose from all photos")
@@ -135,13 +140,27 @@ struct RecentPhotosStrip: View {
             VStack(spacing: 8) {
                 Image(systemName: "ellipsis")
                     .font(.system(size: 15, weight: .bold))
-                    .foregroundStyle(WellieTheme.accent)
+                    .foregroundStyle(WellieTheme.ink)
                 Text("All photos")
                     .font(WellieTheme.font(11.5, weight: .semibold))
                     .foregroundStyle(WellieTheme.body)
             }
             .frame(width: RecentPhotosStrip.tile, height: RecentPhotosStrip.tile)
             .wellieSurface(radius: WellieTheme.photoRadius)
+        }
+    }
+
+    private struct CameraTile: View {
+        var body: some View {
+            VStack(spacing: 8) {
+                Image(systemName: "camera")
+                    .font(.system(size: 20, weight: .semibold))
+                Text("Camera")
+                    .font(WellieTheme.font(12.5, weight: .semibold))
+            }
+            .foregroundStyle(WellieTheme.onInk)
+            .frame(width: RecentPhotosStrip.tile, height: RecentPhotosStrip.tile)
+            .background(WellieTheme.inkSurface, in: RoundedRectangle(cornerRadius: WellieTheme.photoRadius, style: .continuous))
         }
     }
 

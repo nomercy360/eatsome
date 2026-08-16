@@ -158,26 +158,68 @@ const alternativeShape = {
 export const alternativeSchema = z.strictObject(alternativeShape);
 
 /**
- * One of the sizes a chain sells a menu item in, priced in full.
+ * A fork: a choice the input left open that moves one row's figures — which
+ * size, which milk, which drink is in the cup — as a set of complete priced
+ * answers for the same food, one of them being what the row already assumes.
  *
- * A size is not a multiplier: a 6-inch and a Footlong are two products with
- * their own published figures, so choosing one *replaces* the row's weight and
- * composition the way choosing an alternative replaces its name.
+ * Generic on purpose. It replaced `sizes`, which could say Regular/Footlong
+ * and nothing else; measured on 14 inputs (`eval/forks-poc.md`) the model
+ * put Coke/Diet Coke/Sprite (Δ220 kcal) and whole/oat/non-fat milk (Δ91) in
+ * the same shape, priced each option in full, and marked the row's own answer
+ * `chosen` 81 times out of 81. An option is not a multiplier: a 6-inch and a
+ * Footlong are two products with their own figures, so choosing one
+ * *replaces* the row's weight and composition the way choosing an alternative
+ * replaces its name.
  */
-const foodSizeShape = {
-  /** The chain's own word for it: "Footlong", "L", "並盛", "Grande". */
+export const forkEvidence = ["stated", "seen", "assumed"] as const;
+
+const forkOptionShape = {
+  /** In the words the person would use, in the market's language: "Footlong",
+   *  "並盛", "Grande", "oat milk", "Coke Zero". */
   label: z.string().min(1).max(60),
   grams: z.number().min(0).max(20_000),
   per_100g: compositionSchema,
+  /** True on the one option the row's own grams and per_100g already assume. */
+  chosen: z.boolean(),
 };
 
-/** `basis` says whether the chain printed this size's figures or whether they
- *  are arithmetic on another size. Subway publishes the Regular and everyone
- *  doubles it, which makes a Footlong the size most likely to be wrong. The
+/** `basis` says whether somebody printed this option's figures or whether they
+ *  are arithmetic on another one. Subway publishes the Regular and everyone
+ *  doubles it, which makes a Footlong the option most likely to be wrong. The
  *  stored form drops it: it is a fact about the answer, not about the plate. */
-const foodSizeSchema = z.strictObject({
-  ...foodSizeShape,
+const forkOptionSchema = z.strictObject({
+  ...forkOptionShape,
   basis: z.enum(["published", "derived"]),
+});
+
+const forkShape = {
+  /** One or two lowercase words: "size", "milk", "drink". Rendered, never
+   *  branched on — an enum here would make a milk question wait for a release. */
+  axis: z.string().min(1).max(30),
+  /**
+   * What decided the chosen option. `stated`: the person's words name it.
+   * `seen`: the photograph shows it. `assumed`: nothing did, and the model took
+   * the usual one. Only an `assumed` fork is a question for the person; the
+   * other two are kept as priced options for the pick sheet. Asked to keep the
+   * fork out of the answer when the input had settled it, the model could not
+   * (3 of 4 runs of "grande oat milk latte" still offered sizes); asked to say
+   * which it was, it was right 16 of 16.
+   */
+  chosen_from: z.enum(forkEvidence),
+};
+
+/** Exactly one option is chosen. Required of the stored form, which the app
+ *  writes; the model's answer is *settled* into it by `settleForks` rather
+ *  than refused, because a fork it left without a default (seen once in five
+ *  on a cappuccino's milk) is not a reason to lose the meal. Two to six
+ *  options: one is not a choice, and Yoshinoya sells a gyudon in six — 小盛
+ *  through 超特盛. */
+const oneChosen = (options: Array<{ chosen: boolean }>) =>
+  options.filter((option) => option.chosen).length === 1;
+
+const forkSchema = z.strictObject({
+  ...forkShape,
+  options: z.array(forkOptionSchema).min(2).max(6),
 });
 
 export const mealRecognitionItemSchema = z.strictObject({
@@ -209,10 +251,11 @@ export const mealRecognitionItemSchema = z.strictObject({
    * you did not eat 217 g of Big Mac, you ate one.
    */
   brand: z.string().max(120).nullable(),
-  /** Every size the chain sells this item in, priced. Empty when it comes one
-   *  way only, and empty for everything with no brand. Six, because Yoshinoya
-   *  sells a gyudon in six — 小盛 through 超特盛. */
-  sizes: z.array(foodSizeSchema).max(6),
+  /** The choices the input left open on this row, each a set of priced
+   *  answers. Empty is the normal case: nothing on a home plate or a canteen
+   *  tray, nothing on food that comes one way. Three, most consequential
+   *  first. */
+  forks: z.array(forkSchema).max(3),
 });
 
 /**
@@ -336,13 +379,61 @@ export function mealRecognitionJsonSchema(): Record<string, unknown> {
 }
 
 /** The panel normalised to what the container holds — arithmetic on a printed
- *  figure rather than an estimate of anything, and the only thing the server
- *  changes about a model answer. */
+ *  figure rather than an estimate of anything — and every fork settled on one
+ *  chosen option. The two things the server changes about a model answer. */
 export function normalizePanels(recognition: MealRecognition): MealRecognition {
   return {
     ...recognition,
-    dishes: recognition.dishes.map((dish) => ({ ...dish, panel: panelPerContainer(dish.panel) })),
+    dishes: recognition.dishes.map((dish) => ({
+      ...dish,
+      panel: panelPerContainer(dish.panel),
+      ingredients: dish.ingredients.map((item) => ({ ...item, forks: settleForks(item) })),
+    })),
   };
+}
+
+/** How far an option's whole-row energy may sit from the row's own before it
+ *  cannot be the row's answer: the Atwater tolerance, for the same reason. */
+const FORK_MATCH_TOLERANCE = ATWATER_TOLERANCE;
+
+/**
+ * Every fork on a row with exactly one chosen option: the one the row's own
+ * figures assume.
+ *
+ * The model marks it 81 times in 81 on branded food and then, once in five,
+ * hands back a cappuccino's milk with nothing chosen. A fork with no default is
+ * a set of chips none of which is lit, which says the figures came from
+ * nowhere; a fork with two is the model disagreeing with itself. Either is
+ * settled by arithmetic on what is already there: the option whose whole-row
+ * energy is nearest the row's own is the answer, and it is confirmed only if
+ * it is within tolerance. A fork none of whose options describes this row is
+ * dropped — its numbers were priced for something else, and offering them
+ * would be the rename-cannot-re-price failure.
+ */
+export function settleForks(item: {
+  grams: number;
+  per_100g: Composition;
+  forks: MealRecognition["dishes"][number]["ingredients"][number]["forks"];
+}): MealRecognition["dishes"][number]["ingredients"][number]["forks"] {
+  const rowKcal = (item.grams * item.per_100g.kcal) / 100;
+  return item.forks.flatMap((fork) => {
+    if (oneChosen(fork.options)) return [fork];
+    const distance = (option: (typeof fork.options)[number]) =>
+      Math.abs((option.grams * option.per_100g.kcal) / 100 - rowKcal);
+    const nearest = fork.options.reduce((best, option) =>
+      distance(option) < distance(best) ? option : best,
+    );
+    // Within tolerance of the row, or of nothing at all — a zero-energy row
+    // has no distance to be within, so the nearest is taken as read.
+    const fits = rowKcal <= 0 || distance(nearest) / rowKcal <= FORK_MATCH_TOLERANCE;
+    if (!fits) return [];
+    return [
+      {
+        ...fork,
+        options: fork.options.map((option) => ({ ...option, chosen: option === nearest })),
+      },
+    ];
+  });
 }
 
 /**
@@ -537,7 +628,19 @@ export const mealItemSchema = z.strictObject({
   preparation: z.array(z.enum(preparationMethods)).max(4),
   alternatives: z.array(z.strictObject({ id: uuidSchema, ...alternativeShape })).max(3),
   brand: z.string().max(120).nullable().optional(),
-  sizes: z.array(z.strictObject({ id: uuidSchema, ...foodSizeShape })).max(6),
+  forks: z
+    .array(
+      z.strictObject({
+        id: uuidSchema,
+        ...forkShape,
+        options: z
+          .array(z.strictObject({ id: uuidSchema, ...forkOptionShape }))
+          .min(2)
+          .max(6)
+          .refine(oneChosen, { message: "exactly one option must be chosen" }),
+      }),
+    )
+    .max(3),
 });
 
 /** `NutritionPanel` as stored: already scaled to the dish, so no `basis` and no
@@ -569,10 +672,9 @@ const storedMealDishSchema = z.strictObject({
  * The shape this event was written in.
  *
  * A reader that does not know a version must refuse loudly rather than guess.
- * One, because the rewrite has no reader for anything older and no install with
- * anything older in it: this is the first and only version this schema has had.
+ * Version one stored the retired `sizes` picker; version two stores `forks`.
  */
-export const MEAL_SCHEMA_VERSION = 1;
+export const MEAL_SCHEMA_VERSION = 2;
 
 /**
  * `MealEntry`, exactly.
@@ -600,6 +702,24 @@ export const mealEventDataSchema = z.strictObject({
 });
 
 export type MealEventData = z.infer<typeof mealEventDataSchema>;
+
+/**
+ * The only projection the Worker needs from historical version-one meals.
+ *
+ * Their nutrition remains opaque event data. The Worker only needs the meal id
+ * and photograph hash to keep media alive, so retired fields such as `sizes`
+ * are intentionally neither named nor converted here. `z.object` strips those
+ * unknown fields after validating the metadata the projection actually uses.
+ */
+export const legacyMealMediaProjectionSchema = z.object({
+  id: uuidSchema,
+  schemaVersion: z.literal(1),
+  photoHash: sha256Schema.nullable().optional(),
+});
+
+export type MealMediaProjection = Pick<MealEventData, "id" | "photoHash"> & {
+  schemaVersion: 1 | typeof MEAL_SCHEMA_VERSION;
+};
 
 export const mealDeleteDataSchema = z.strictObject({ mealID: uuidSchema });
 

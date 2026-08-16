@@ -1,7 +1,7 @@
 import EatsomeCore
 import SwiftUI
 
-/// Screen `13b·1`. Today, and the app's home.
+/// Screen `11`. Today, and the app's home.
 ///
 /// The page is the day itself: what the date is, what the day has come to, and
 /// what happened in it. Three objects, in that order, and nothing else.
@@ -36,16 +36,17 @@ struct TodayScreen: View {
             List {
                 if let message = store.loadError {
                     LoadWarning(message: message)
-                        .padding(.bottom, 10)
+                        .padding(.bottom, 12)
                         .todayRow()
                 }
 
                 EatenCard(total: store.nutrients(), targets: store.dailyTargets)
-                    .padding(.bottom, 10)
+                    .padding(.bottom, 20)
                     .todayRow()
 
                 WellieMeta("The day")
-                    .padding(.bottom, 2)
+                    .padding(.horizontal, 4)
+                    .padding(.bottom, 10)
                     .todayRow()
 
                 timeline
@@ -55,7 +56,7 @@ struct TodayScreen: View {
                     .todayRow()
             }
             .listStyle(.plain)
-            .listRowSpacing(4)
+            .listRowSpacing(0)
             // A `List` pads every row to 44 points unless told otherwise, which
             // turns the one-line section label into a band with a gap either
             // side of it that no padding here can close.
@@ -76,19 +77,20 @@ struct TodayScreen: View {
         let logged = store.daysLogged()
         return HStack(alignment: .firstTextBaseline, spacing: 10) {
             Text(EatsomeFormat.longDay(Date()))
-                .font(WellieTheme.font(22, weight: .bold))
+                .font(WellieTheme.font(22, weight: .heavy))
+                .tracking(-0.5)
                 .foregroundStyle(WellieTheme.ink)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
             Spacer(minLength: 6)
             Text("\(logged) / \(EatsomeStore.loggingWindow) days")
-                .font(WellieTheme.font(12.5, weight: .regular))
+                .font(WellieTheme.figure(12, weight: .regular))
                 .foregroundStyle(WellieTheme.muted)
                 .lineLimit(1)
         }
         .padding(.horizontal, WellieTheme.screenInset)
-        .padding(.top, 4)
-        .padding(.bottom, 12)
+        .padding(.top, 10)
+        .padding(.bottom, 16)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
             "\(EatsomeFormat.longDay(Date())). \(logged) of the last \(EatsomeStore.loggingWindow) days logged."
@@ -101,24 +103,36 @@ struct TodayScreen: View {
     private var timeline: some View {
         let meals = store.today()
         if meals.isEmpty {
+            // A dashed outline and no fill: the mock draws the empty timeline
+            // as the *place* a card will go, not as a card that happens to
+            // have nothing in it. A filled card here read as a fourth object
+            // on a screen that is supposed to have three.
             VStack(spacing: 6) {
                 Text("Nothing recorded yet today.")
-                    .font(WellieTheme.font(15, weight: .semibold))
-                    .foregroundStyle(WellieTheme.body)
-                Text("Meals will appear here.")
+                    .font(WellieTheme.font(16, weight: .bold))
+                    .foregroundStyle(WellieTheme.ink)
+                Text("Photograph a plate or write a sentence — meals will appear here.")
                     .font(WellieTheme.font(13.5, weight: .regular))
                     .foregroundStyle(WellieTheme.muted)
+                    .lineSpacing(3)
+                    .multilineTextAlignment(.center)
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 26)
+            .padding(.vertical, 38)
+            .padding(.horizontal, 24)
+            .overlay {
+                RoundedRectangle(cornerRadius: WellieTheme.cardRadius, style: .continuous)
+                    .strokeBorder(WellieTheme.outline, style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
+            }
             .todayRow()
         } else {
-            ForEach(meals) { meal in
+            ForEach(Array(meals.enumerated()), id: \.element.id) { index, meal in
                 Button { opened = meal } label: {
-                    MealDayRow(meal: meal)
+                    MealDayRow(meal: meal, compact: false)
                 }
                 .buttonStyle(.plain)
                 .todayRow()
+                .listRowBackground(MealGroupBackground(index: index, count: meals.count))
                 // Swipe rather than a button on the row: removing a meal is
                 // rare and destructive, and a control that lives in the row is
                 // one thumb-width from the tap that opens it.
@@ -250,37 +264,62 @@ private struct EatenCard: View {
     let total: Nutrients
     let targets: DailyTargets?
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    @State private var filled = false
-
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            energyLine
-            if targets != nil { energyBar.padding(.top, 9) }
-            macros.padding(.top, 14)
+            energy
+            ForEach(Array(figures.enumerated()), id: \.element.name) { index, macro in
+                Rectangle()
+                    .fill(WellieTheme.hairline)
+                    .frame(height: 1)
+                macroRow(macro)
+            }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 13)
+        .padding(.horizontal, 20)
+        .padding(.top, 10)
+        .padding(.bottom, 2)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .wellieSurface()
-        .onAppear { withAnimation(WellieMotion.fill(reduceMotion)) { filled = true } }
+        .wellieSurface(radius: WellieTheme.controlRadius)
     }
 
-    private var energyLine: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            WellieMeta("Eaten")
-            Spacer(minLength: 8)
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text(EatsomeFormat.whole(total.kcal))
-                    .font(WellieTheme.font(23, weight: .heavy))
-                    .foregroundStyle(WellieTheme.ink)
-                Text(targets.map { "/ \(EatsomeFormat.whole($0.kcal)) kcal" } ?? "kcal")
-                    .font(WellieTheme.font(12, weight: .semibold))
-                    .foregroundStyle(WellieTheme.muted)
+    /// Nothing eaten yet. The card is the same card; the figures on it go
+    /// quiet, because a bright zero under a lime glow is the screen saying
+    /// something is alive when nothing has happened.
+    private var isEmpty: Bool { total.kcal.rounded() <= 0 }
+
+    private var energy: some View {
+        VStack(spacing: 2) {
+            Text(EatsomeFormat.whole(total.kcal))
+                .font(WellieTheme.figure(42, weight: .bold))
+                .tracking(-1.5)
+                .foregroundStyle(isEmpty ? WellieTheme.faint : WellieTheme.ink)
+                .frame(height: 50)
+
+            Text(targets.map { "of \(EatsomeFormat.whole($0.kcal)) kcal" } ?? "kcal")
+                .font(WellieTheme.figure(12.5, weight: .semibold))
+                .foregroundStyle(WellieTheme.muted)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 2)
+        .padding(.bottom, 18)
+        // The mock's halo: a 200 × 110 ellipse fading to nothing by two thirds
+        // of its radius, sitting behind the figure *and* the line under it,
+        // starting a little above the number. It is not clipped to anything —
+        // a glow with an edge is a rectangle that happens to be green.
+        .background(alignment: .top) {
+            if !isEmpty {
+                RadialGradient(
+                    colors: [WellieTheme.accent.opacity(0.5), WellieTheme.accent.opacity(0)],
+                    center: .center,
+                    startRadius: 0,
+                    endRadius: 68
+                )
+                .frame(width: 200, height: 200)
+                .scaleEffect(y: 0.55)
+                .frame(width: 200, height: 110)
+                .offset(y: -6)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
             }
-            .lineLimit(1)
-            .minimumScaleFactor(0.6)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(spokenEnergy)
@@ -292,96 +331,56 @@ private struct EatenCard: View {
         return "Eaten, \(eaten) of \(EatsomeFormat.whole(targets.kcal)) kilocalories"
     }
 
-    /// The track is worth `max(target, eaten)`, so a day that goes past its
-    /// reference is drawn going past it — a bar pinned at 100% makes 3,000 kcal
-    /// and 1,800 kcal look like the same day. When it overshoots, a two-point
-    /// gap marks where the reference was; under it, that mark sits exactly
-    /// under the end of the fill and is invisible, which is correct.
-    @ViewBuilder
-    private var energyBar: some View {
-        if let targets {
-            let scale = max(targets.kcal, total.kcal, 1)
-            GeometryReader { geometry in
-                let width = geometry.size.width
-                ZStack(alignment: .leading) {
-                    Capsule().fill(WellieTheme.raised)
-                    Capsule()
-                        .fill(WellieTheme.accent)
-                        .frame(width: max(0, width * (filled ? total.kcal : 0) / scale))
-                    if total.kcal > targets.kcal {
-                        Capsule()
-                            .fill(WellieTheme.surface)
-                            .frame(width: 2)
-                            .offset(x: width * targets.kcal / scale - 1)
-                    }
-                }
-            }
-            .frame(height: 5)
-            .accessibilityHidden(true)
-        }
-    }
-
-    @ViewBuilder
-    private var macros: some View {
-        if dynamicTypeSize.isAccessibilitySize {
-            VStack(alignment: .leading, spacing: 10) {
-                ForEach(figures, id: \.name) { figure($0, stacked: true) }
-            }
-        } else {
-            HStack(alignment: .top, spacing: 14) {
-                ForEach(figures, id: \.name) { figure($0, stacked: false) }
-            }
-        }
-    }
-
     private var figures: [MacroFigure] {
         [
-            MacroFigure(name: "Protein", value: total.protein, goal: targets?.protein),
-            MacroFigure(name: "Carbs", value: total.carbohydrate, goal: targets?.carbohydrate),
-            MacroFigure(name: "Fat", value: total.fat, goal: targets?.fat),
+            MacroFigure(kind: .protein, name: "Protein", value: total.protein, goal: targets?.protein),
+            MacroFigure(kind: .carbs, name: "Carbs", value: total.carbohydrate, goal: targets?.carbohydrate),
+            MacroFigure(kind: .fat, name: "Fat", value: total.fat, goal: targets?.fat),
         ]
     }
 
-    private func figure(_ macro: MacroFigure, stacked: Bool) -> some View {
-        let amount = HStack(alignment: .firstTextBaseline, spacing: 4) {
-            Text(EatsomeFormat.whole(macro.value))
-                .font(WellieTheme.font(14, weight: .bold))
-                .foregroundStyle(WellieTheme.ink)
-            Text(macro.denominator)
-                .font(WellieTheme.font(10.5, weight: .semibold))
-                .foregroundStyle(WellieTheme.muted)
-        }
-        .lineLimit(1)
-        .minimumScaleFactor(0.7)
-
-        let label = Text(macro.name)
-            .font(WellieTheme.font(10.5, weight: .semibold))
-            .foregroundStyle(WellieTheme.muted)
-            .lineLimit(1)
-
-        return Group {
-            if stacked {
-                HStack(spacing: 8) { label; Spacer(minLength: 8); amount }
-            } else {
-                VStack(alignment: .leading, spacing: 3) { label; amount }
+    private func macroRow(_ macro: MacroFigure) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            HStack(spacing: 12) {
+                NutrientIcon(kind: macro.kind, size: 16)
+                    .saturation(isEmpty ? 0 : 1)
+                    .opacity(isEmpty ? 0.45 : 1)
+                    .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] }
+                Text(macro.name)
+                    .font(WellieTheme.font(13.5, weight: .semibold))
+                    .foregroundStyle(isEmpty ? WellieTheme.muted : WellieTheme.ink)
+            }
+            Spacer(minLength: 8)
+            Text(macro.amount)
+                .font(WellieTheme.figure(13.5, weight: .bold))
+                .foregroundStyle(isEmpty ? WellieTheme.muted : WellieTheme.ink)
+            if let denominator = macro.denominator {
+                Text(denominator)
+                    .font(WellieTheme.figure(12.5, weight: .regular))
+                    .foregroundStyle(WellieTheme.muted)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 12)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(macro.spoken)
     }
 }
 
 private struct MacroFigure {
+    let kind: NutrientKind
     let name: String
     let value: Double
     /// Nil until the body details exist, because a figure with no reference is
     /// still worth printing and an invented reference is not.
     let goal: Double?
 
-    /// `/ 400 g`, or just the unit when there is nothing to compare against.
-    var denominator: String {
-        goal.map { "/ \(EatsomeFormat.whole($0)) g" } ?? "g"
+    /// `95 g`. The unit rides with the figure rather than trailing the
+    /// denominator, so a row with no reference still says what it is.
+    var amount: String { "\(EatsomeFormat.whole(value)) g" }
+
+    /// `/ 400 g`, or nothing when there is nothing to compare against.
+    var denominator: String? {
+        goal.map { "/ \(EatsomeFormat.whole($0)) g" }
     }
 
     /// Read out as a sentence rather than as the glyphs it is printed with:
@@ -413,8 +412,9 @@ private struct MacroFigure {
 /// The clock stays in the second line rather than in a column of its own. That
 /// column was a quarter of the width, and it was paying for an ordering cue the
 /// sequence already gives.
-private struct MealDayRow: View {
+struct MealDayRow: View {
     let meal: MealEntry
+    var compact = false
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
@@ -445,13 +445,9 @@ private struct MealDayRow: View {
                 }
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 16)
+        .padding(.vertical, compact ? 10 : 13)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            WellieTheme.surface,
-            in: RoundedRectangle(cornerRadius: WellieTheme.rowRadius, style: .continuous)
-        )
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
     }
@@ -459,11 +455,11 @@ private struct MealDayRow: View {
     private var lines: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(title)
-                .font(WellieTheme.font(14.5, weight: .semibold))
+                .font(WellieTheme.font(14, weight: .bold))
                 .foregroundStyle(WellieTheme.ink)
                 .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
             Text(subtitle)
-                .font(WellieTheme.font(12, weight: .regular))
+                .font(WellieTheme.figure(11.5, weight: .regular))
                 .foregroundStyle(WellieTheme.muted)
                 .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
                 .minimumScaleFactor(0.85)
@@ -475,14 +471,51 @@ private struct MealDayRow: View {
     @ViewBuilder
     private var trailing: some View {
         if !value.isEmpty {
-            Text(value)
-                .font(WellieTheme.font(13, weight: .bold))
-                .foregroundStyle(WellieTheme.body)
-                .lineLimit(1)
+            let parts = value.split(separator: " ")
+            HStack(alignment: .firstTextBaseline, spacing: 3) {
+                Text(parts.first.map(String.init) ?? value)
+                    .font(WellieTheme.figure(13, weight: .bold))
+                    .foregroundStyle(WellieTheme.ink)
+                if parts.count > 1 {
+                    Text("kcal")
+                        .font(WellieTheme.font(11, weight: .regular))
+                        .foregroundStyle(WellieTheme.muted)
+                }
+            }
+            .lineLimit(1)
         }
     }
 
     private var thumb: some View {
-        MealPhoto(hash: meal.photoHash, side: 36, radius: WellieTheme.thumbRadius)
+        MealPhoto(hash: meal.photoHash, side: compact ? 34 : 38, radius: compact ? 11 : 12)
+    }
+}
+
+private struct MealGroupBackground: View {
+    let index: Int
+    let count: Int
+
+    private var shape: UnevenRoundedRectangle {
+        UnevenRoundedRectangle(
+            topLeadingRadius: index == 0 ? WellieTheme.cardRadius : 0,
+            bottomLeadingRadius: index == count - 1 ? WellieTheme.cardRadius : 0,
+            bottomTrailingRadius: index == count - 1 ? WellieTheme.cardRadius : 0,
+            topTrailingRadius: index == 0 ? WellieTheme.cardRadius : 0,
+            style: .continuous
+        )
+    }
+
+    var body: some View {
+        shape
+            .fill(WellieTheme.surface)
+            .overlay { shape.strokeBorder(WellieTheme.hairline, lineWidth: 1) }
+            // The line between rows, drawn on the background rather than by
+            // the row, so the row stays one tappable object and the last one
+            // does not carry a line into the card's own edge.
+            .overlay(alignment: .bottom) {
+                if index < count - 1 {
+                    WellieRowDivider().padding(.horizontal, 16)
+                }
+            }
     }
 }

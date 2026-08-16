@@ -34,11 +34,14 @@
 	<string>Show your latest photos in the meal logger so you can attach one quickly.</string>
 	<key>UIAppFonts</key>
 	<array>
-		<string>Sora-Regular.ttf</string>
-		<string>Sora-Medium.ttf</string>
-		<string>Sora-SemiBold.ttf</string>
-		<string>Sora-Bold.ttf</string>
-		<string>Sora-ExtraBold.ttf</string>
+		<string>GeneralSans-Regular.otf</string>
+		<string>GeneralSans-Medium.otf</string>
+		<string>GeneralSans-Semibold.otf</string>
+		<string>GeneralSans-Bold.otf</string>
+		<string>SpaceGrotesk-Regular.otf</string>
+		<string>SpaceGrotesk-Medium.otf</string>
+		<string>SpaceGrotesk-Bold.otf</string>
+		<string>SpaceGrotesk-SemiBold.ttf</string>
 	</array>
 	<key>UILaunchScreen</key>
 	<dict/>

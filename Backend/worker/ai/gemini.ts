@@ -1,4 +1,4 @@
-import { panelBases, preparationMethods } from "../../src/contracts";
+import { forkEvidence, panelBases, preparationMethods } from "../../src/contracts";
 import type { Env } from "../env";
 import { HttpError } from "../lib/http-error";
 import { hasImage, type ModelAnswer, type ModelCall, type ProviderInput } from "./types";
@@ -7,7 +7,7 @@ const BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 
 /**
  * The composition block, in Gemini's dialect, once — used by every ingredient,
- * alternative and size here and by the revision schema in `revision.ts`, so an
+ * alternative and fork option here and by the revision schema in `revision.ts`, so an
  * eighth figure added to the Zod contract has exactly one other place to be
  * added and the drift test in `gemini.test.ts` says when it was not.
  */
@@ -175,7 +175,7 @@ export function geminiResponseSchema(): Record<string, unknown> {
                   "per_100g",
                   "preparation",
                   "brand",
-                  "sizes",
+                  "forks",
                   "alternatives",
                 ],
                 required: [
@@ -184,7 +184,7 @@ export function geminiResponseSchema(): Record<string, unknown> {
                   "per_100g",
                   "preparation",
                   "brand",
-                  "sizes",
+                  "forks",
                   "alternatives",
                 ],
                 properties: {
@@ -210,28 +210,63 @@ export function geminiResponseSchema(): Record<string, unknown> {
                     description:
                       "The chain or manufacturer whose named menu item this row IS: 'Subway', 'McDonald's', 'Yoshinoya'. Null for anything cooked, served loose, or added on top of a menu item.",
                   },
-                  sizes: {
+                  forks: {
                     type: "ARRAY",
                     description:
-                      "Every size the chain sells this item in, each priced in full for that size. Empty when it comes one way only, and empty when there is no brand. A size is a different product, never a multiplier.",
-                    maxItems: 6,
+                      "Choices the input leaves open that move this row's figures materially — size, milk, which drink, dressing, sugar. Each is a set of complete priced answers for the SAME food, one of them being what the row already assumes. Empty is the normal case: nothing on home cooking or a canteen tray, nothing on food that comes one way, nothing whose options differ by little. At most three, most consequential first.",
+                    maxItems: 3,
                     items: {
                       type: "OBJECT",
-                      propertyOrdering: ["label", "grams", "per_100g", "basis"],
-                      required: ["label", "grams", "per_100g", "basis"],
+                      propertyOrdering: ["axis", "chosen_from", "options"],
+                      required: ["axis", "chosen_from", "options"],
                       properties: {
-                        label: {
+                        axis: {
                           type: "STRING",
                           description:
-                            "The chain's own word for it, in the market's language: 'Footlong', 'L', '並盛', 'Grande'.",
+                            "One or two lowercase words naming the choice: 'size', 'milk', 'drink', 'dressing', 'sugar'.",
                         },
-                        grams: { type: "NUMBER", description: "Edible weight of that whole size." },
-                        per_100g: composition,
-                        basis: {
+                        chosen_from: {
                           type: "STRING",
-                          enum: ["published", "derived"],
+                          enum: [...forkEvidence],
                           description:
-                            "`published` when the chain prints figures for this size; `derived` when they are arithmetic on another size, as a Subway Footlong is twice a Regular.",
+                            "How the chosen option was decided: `stated` when the person's words name it, `seen` when the photograph shows it (a size printed on the cup, a 6-inch wrapper), `assumed` when nothing in the input decides it and you picked the usual one.",
+                        },
+                        // No min/maxItems on this array: Gemini rejects the
+                        // request when both it and the enclosing `forks`
+                        // array carry maxItems, and accepts either alone.
+                        // Two to six is stated in the prompt and enforced by
+                        // the Zod contract.
+                        options: {
+                          type: "ARRAY",
+                          items: {
+                            type: "OBJECT",
+                            propertyOrdering: ["label", "grams", "per_100g", "basis", "chosen"],
+                            required: ["label", "grams", "per_100g", "basis", "chosen"],
+                            properties: {
+                              label: {
+                                type: "STRING",
+                                description:
+                                  "The option in the words the person would use, in the market's own language: 'Footlong', 'L', '並盛', 'Grande', 'oat milk', 'Coke Zero'. One option per label.",
+                              },
+                              grams: {
+                                type: "NUMBER",
+                                description:
+                                  "Edible weight of the whole row if this option is right.",
+                              },
+                              per_100g: composition,
+                              basis: {
+                                type: "STRING",
+                                enum: ["published", "derived"],
+                                description:
+                                  "`published` when someone prints figures for exactly this option; `derived` when they are arithmetic on another one, as a Subway Footlong is twice a Regular.",
+                              },
+                              chosen: {
+                                type: "BOOLEAN",
+                                description:
+                                  "True on exactly one option per fork: the one the row's own grams and per_100g already assume.",
+                              },
+                            },
+                          },
                         },
                       },
                     },

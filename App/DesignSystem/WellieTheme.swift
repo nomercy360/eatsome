@@ -1,42 +1,34 @@
 import SwiftUI
 import UIKit
 
-/// Tokens sampled from the approved redesign — `App Redesign Final`, turn
-/// `13`: *eatsome — the whole flow in one place*.
+/// Tokens sampled from the approved `Rework Directions` design.
 ///
-/// The app follows the phone. Every token below is a **pair**, and the one the
-/// screen draws is whichever `userInterfaceStyle` is in force when it resolves.
-/// That is a reversal of the previous rule — "dark, and only dark" — and the
-/// reason it reversed is that "dark only" was never a design position, it was a
-/// statement that only one half had been drawn. Both halves are drawn now, so
-/// the app has no business overriding a system-wide preference a person set
-/// once for every app on the device.
+/// The renewed direction is a warm, bright food ledger. The light values are
+/// the authored palette; the dark values remain deliberately paired so the app
+/// continues to respect the reader's system appearance rather than flashing an
+/// unconsidered white sheet at night.
 ///
 /// The two halves are the same design, not two designs:
 ///
-/// - **Type.** Sora, 400–800, and it is the only face, in both schemes. The
-///   mono-means-metadata rule is still gone: `WellieMeta` says *this is data
-///   about the thing* with uppercasing and tracking rather than a second
-///   typeface. One face is what lets a 23 pt figure and an 11 pt caption on the
-///   same card read as one object.
-/// - **Colour.** A page, two surfaces above it, and one periwinkle accent spent
-///   on exactly three things: the primary button, a live value, and the current
-///   selection. Olive survives as `protein`. Dark is a near-black page with
-///   light on it; light is a warm off-white page with near-black on it — warm
-///   rather than pure white, because a 100% white page beside a white card
-///   leaves the card with nothing to be.
+/// - **Type.** General Sans for words, Space Grotesk for figures, in both
+///   schemes — see `font` and `figure`. The mono-means-metadata rule is still
+///   gone: `WellieMeta` says *this is data about the thing* with uppercasing
+///   and tracking rather than a third typeface. The figure face is not a
+///   metadata face either: it is what a number is set in wherever it appears,
+///   a 42 pt total and a 12 pt fraction alike, so the two read as one family.
+/// - **Colour.** A warm page, two surfaces above it, black navigation and one
+///   fresh-lime accent spent on primary actions, current selections, and the
+///   glow behind the live energy value. Dark is a near-black page with light
+///   ink; light is warm off-white with near-black ink. The lime does not invert,
+///   so the interaction language stays stable when the phone changes scheme.
 /// - **Contrast is checked per scheme, against that scheme's page.** `muted`
-///   carries real words on every screen ("102 / 345–498 g", "Usually five to
-///   eight seconds") so it clears 4.5:1 in both: `#737e92` is 4.75:1 on the dark
-///   page, `#666e7e` is 4.54:1 on the light one. The accent darkens in light
-///   mode for the same reason — the mock's `#8a97f7` takes white at 2.7:1 and
-///   cannot carry a button label, where `#5462d2` takes it at 5.2:1 and is not
-///   a different colour so much as the same one lit from the other side.
+///   carries real words on every screen, so it clears 4.5:1 in both. Lime is
+///   always paired with near-black `onAccent`; it is never used for body copy.
 /// - **Shape.** Big radii, 14–26, shared by both schemes. These are the mock's
 ///   own numbers.
-/// - **Surfaces.** `surface` on `background`, separated by a 1 pt `hairline`,
-///   and still no shadows in either scheme. `wellieSurface` is that shape and
-///   the only thing that draws it.
+/// - **Surfaces.** `surface` on `background`, separated by a 1 pt `hairline`.
+///   Cards remain flat; the only glow belongs to a primary action or live
+///   energy figure. `wellieSurface` is the shared card vocabulary.
 /// - **Photos.** Full-bleed and squared to `photoRadius` inside a card. The
 ///   meal detail screen runs one to the top edge under a gradient built from
 ///   `background`, so the gradient inverts with the page and the card still has
@@ -56,11 +48,11 @@ enum WellieTheme {
     // then it is silently the wrong colour rather than a build error.
 
     /// The page. Warm off-white rather than white, so a white card is a card.
-    static let background = adaptive(light: 0xF3F1EC, dark: 0x0B0D12)
+    static let background = adaptive(light: 0xFAFAF8, dark: 0x0B0D12)
     /// A card on the page. Everything with a border is this.
     static let surface = adaptive(light: 0xFFFFFF, dark: 0x13161E)
     /// Inputs, wells, and anything inset *inside* a card.
-    static let well = adaptive(light: 0xF6F4EF, dark: 0x10131A)
+    static let well = adaptive(light: 0xF3F1EB, dark: 0x10131A)
     /// A raised fill: an unfilled meter, a secondary control, a bar in a chart
     /// that is not being pointed at.
     static let raised = adaptive(light: 0xE7E4DC, dark: 0x232834)
@@ -68,7 +60,7 @@ enum WellieTheme {
     /// Text.
     static let ink = adaptive(light: 0x151820, dark: 0xEEF1F7)
     /// Running prose — one step down from `ink`, still comfortably readable.
-    static let body = adaptive(light: 0x474D5A, dark: 0xB4BDCC)
+    static let body = adaptive(light: 0x5B616D, dark: 0xB4BDCC)
     /// Labels, captions, secondary values, every meta line.
     ///
     /// The floor is 4.5:1 **on that scheme's page**, and both values here were
@@ -76,25 +68,20 @@ enum WellieTheme {
     /// 4.75:1 on `#0b0d12`, `#666e7e` is 4.54:1 on `#f3f1ec`. The dark value is
     /// three steps lighter than the mock's `#6c7689`, which measures 4.26:1 and
     /// is under the floor for text this size.
-    static let muted = adaptive(light: 0x666E7E, dark: 0x737E92)
+    static let muted = adaptive(light: 0x666C77, dark: 0x737E92)
     /// Chevrons, empty meter segments, the dim half of a fraction — **decoration
     /// and non-text marks only**: 1.5:1 on the light page, 1.6:1 on the dark
     /// one. The rule the old theme wrote down survives verbatim: if a thing has
     /// words in it, it does not get this colour. The exception is the trailing
     /// half of a large fraction, where the *figure* is the content, the
     /// denominator is scale, and it sits adjacent to its own bright numerator.
-    static let faint = adaptive(light: 0xC7C9CF, dark: 0x3A4152)
+    static let faint = adaptive(light: 0x858B96, dark: 0x3A4152)
 
-    /// The one accent. Periwinkle, and the mock spends it on the primary
-    /// button, the current selection, and a value that is alive right now.
-    ///
-    /// The light value is darker because `onAccent` inverts with it: the mock's
-    /// `#8a97f7` under white text is 2.7:1, which no button label may be drawn
-    /// at. `#5462d2` takes white at 5.2:1 and reads as the same periwinkle.
-    static let accent = adaptive(light: 0x5462D2, dark: 0x8A97F7)
-    /// Foreground on `accent`. The page colour on dark (7.3:1), white on light
-    /// (5.2:1) — in both cases the thing the accent is *not*.
-    static let onAccent = adaptive(light: 0xFFFFFF, dark: 0x0B0D12)
+    /// The one live colour: fresh lime, used for primary actions, a selected
+    /// day, and the soft light behind the current energy total.
+    static let accent = adaptive(light: 0xC6E82C, dark: 0xC6E82C)
+    /// Lime always carries near-black ink.
+    static let onAccent = adaptive(light: 0x151820, dark: 0x151820)
 
     /// The fill of an option a row is *currently set to*, among ones you could
     /// still tap: a surface washed toward the accent, under a 1 pt accent
@@ -107,7 +94,7 @@ enum WellieTheme {
     /// A pair rather than one alpha over `surface`: the mock's `#171b28` is a
     /// low accent wash on a dark card, and the same alpha on a white card is
     /// very nearly invisible, so the light half is drawn stronger.
-    static let selectedFill = adaptiveColor(light: accent.opacity(0.10), dark: color(0x171B28))
+    static let selectedFill = adaptiveColor(light: accent.opacity(0.30), dark: color(0x263016))
 
     /// Protein, and the only nutrient with a colour of its own.
     ///
@@ -119,14 +106,20 @@ enum WellieTheme {
     /// The light value is darkened to 4.5:1 because it is text in places, not
     /// only a bar — it was the ring and the duration on a workout row until
     /// those rows were cut, and it is still the figure on Progress.
-    static let protein = adaptive(light: 0x68742A, dark: 0xA3B04A)
+    static let protein = adaptive(light: 0x6D7900, dark: 0xC6D92B)
     /// A protein bar on a day that did not reach the goal.
-    static let proteinDim = adaptive(light: 0xE5E8D2, dark: 0x2E331F)
+    static let proteinDim = adaptive(light: 0xEFF6C6, dark: 0x2E331F)
 
     /// The one contrasting block, for anything that has to invert against the
     /// page. Swaps ends with the scheme.
     static let inkSurface = adaptive(light: 0x151820, dark: 0xE7EDF5)
     static let onInk = adaptive(light: 0xFFFFFF, dark: 0x0B0D12)
+
+    /// The navigation capsule is an object, not an inverted page surface. It
+    /// stays black in either appearance so the four plain marks retain one
+    /// stable meaning and the lime action keeps the same contrast.
+    static let navigationSurface = color(0x151820)
+    static let onNavigation = color(0xFFFFFF)
 
     static let attention = adaptive(light: 0x8F6212, dark: 0xE0A257)
     static let attentionSurface = adaptive(light: 0xF8EBD5, dark: 0x2A2113)
@@ -134,9 +127,9 @@ enum WellieTheme {
 
     /// The line that does the work a shadow used to. One point, not a half: on
     /// a dark page a 0.5 pt line at 12% simply is not there.
-    static let hairline = adaptive(light: 0xE6E2DA, dark: 0x1E2330)
+    static let hairline = adaptive(light: 0xECEAE4, dark: 0x1E2330)
     /// A slightly stronger line, for a control that has an edge and no fill.
-    static let outline = adaptive(light: 0xD6D1C7, dark: 0x2A3040)
+    static let outline = adaptive(light: 0xDDDAD2, dark: 0x2A3040)
 
     // MARK: - Glass
     //
@@ -202,9 +195,20 @@ enum WellieTheme {
 
     // MARK: - Type
 
-    static let familyName = "Sora"
+    /// Two faces, and the split is by what the text *is*, not where it sits.
+    ///
+    /// General Sans carries words — a title, a label, a sentence, a button.
+    /// Space Grotesk carries figures — an energy total, a weight, a time, a
+    /// count, a fraction — anything a reader scans for the number rather than
+    /// reads. The mock draws the rule as "leaf text dense with digits gets the
+    /// figure face"; here a call site says which it is, because a Swift view
+    /// knows whether it is printing `1,456` or `Fried rice` and does not need
+    /// to count characters to find out. A sentence that happens to contain a
+    /// number stays in the text face.
+    static let textFamily = "GeneralSans"
+    static let figureFamily = "SpaceGrotesk"
 
-    /// Sora at a weight, scaling with the reader's text size.
+    /// General Sans at a weight, scaling with the reader's text size.
     ///
     /// `Font.custom(_:size:relativeTo:)` is what makes a bundled face obey
     /// Dynamic Type: the size is the value at the Large default and iOS scales
@@ -217,7 +221,15 @@ enum WellieTheme {
         guard fontsAreInstalled else {
             return .system(size: size, weight: weight, design: .default)
         }
-        return .custom(postScriptName(for: weight), size: size, relativeTo: textStyle(for: size))
+        return .custom(textName(for: weight), size: size, relativeTo: textStyle(for: size))
+    }
+
+    /// Space Grotesk at a weight, for a figure.
+    static func figure(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
+        guard fontsAreInstalled else {
+            return .system(size: size, weight: weight, design: .rounded)
+        }
+        return .custom(figureName(for: weight), size: size, relativeTo: textStyle(for: size))
     }
 
     /// Meta: a timestamp, a count, a section label, a provenance line.
@@ -251,17 +263,29 @@ enum WellieTheme {
         }
     }
 
-    /// Five cuts, one per weight the mock uses. Unlike the three-weight face
-    /// this replaced, nothing here rounds: 600 is a real 600 and 800 is a real
-    /// 800, which is what the `64 pt / 800` day counter needs to not look like
-    /// a bold heading that grew.
-    private static func postScriptName(for weight: Font.Weight) -> String {
+    /// General Sans is cut to 700 and stops there. The mock writes 800 on a
+    /// date and an energy total and the browser rounds it down to the same
+    /// Bold, so `.heavy` here is not a lie about the file — it is the same
+    /// rounding, made explicit.
+    private static func textName(for weight: Font.Weight) -> String {
         switch weight {
-        case .heavy, .black: "\(familyName)-ExtraBold"
-        case .bold: "\(familyName)-Bold"
-        case .semibold: "\(familyName)-SemiBold"
-        case .medium: "\(familyName)-Medium"
-        default: "\(familyName)-Regular"
+        case .heavy, .black, .bold: "\(textFamily)-Bold"
+        case .semibold: "\(textFamily)-Semibold"
+        case .medium: "\(textFamily)-Medium"
+        default: "\(textFamily)-Regular"
+        }
+    }
+
+    /// Space Grotesk ships Regular, Medium and Bold as statics; the 600 is
+    /// pinned from the variable file by `scripts/build-fonts.py`, because a
+    /// figure inside a sentence — `17:44 · 13 g protein` — is drawn at 600 and
+    /// at 700 it shouts over the words beside it.
+    private static func figureName(for weight: Font.Weight) -> String {
+        switch weight {
+        case .heavy, .black, .bold: "\(figureFamily)-Bold"
+        case .semibold: "\(figureFamily)-SemiBold"
+        case .medium: "\(figureFamily)-Medium"
+        default: "\(figureFamily)-Regular"
         }
     }
 
@@ -269,8 +293,9 @@ enum WellieTheme {
     /// asserted at launch, so a dropped resource fails a build rather than a
     /// design review.
     static var fontsAreInstalled: Bool {
-        ["Regular", "Medium", "SemiBold", "Bold", "ExtraBold"]
-            .allSatisfy { UIFont(name: "\(familyName)-\($0)", size: 12) != nil }
+        let text = ["Regular", "Medium", "Semibold", "Bold"].map { "\(textFamily)-\($0)" }
+        let figures = ["Regular", "Medium", "SemiBold", "Bold"].map { "\(figureFamily)-\($0)" }
+        return (text + figures).allSatisfy { UIFont(name: $0, size: 12) != nil }
     }
 
     // MARK: - Resolving
@@ -452,6 +477,12 @@ struct WelliePrimaryButtonStyle: ButtonStyle {
                 (enabled ? WellieTheme.accent : WellieTheme.raised)
                     .opacity(configuration.isPressed ? 0.82 : 1),
                 in: RoundedRectangle(cornerRadius: WellieTheme.controlRadius, style: .continuous)
+            )
+            .shadow(
+                color: enabled ? WellieTheme.accent.opacity(configuration.isPressed ? 0.20 : 0.34) : .clear,
+                radius: configuration.isPressed ? 12 : 22,
+                x: 0,
+                y: 3
             )
             .scaleEffect(configuration.isPressed ? 0.985 : 1)
             .animation(.easeOut(duration: 0.12), value: configuration.isPressed)

@@ -15,17 +15,17 @@ struct MealRecognitionTests {
     {"protein":0.5,"fat":0,"carbohydrate":3.6,"kcal":43,"sodium_mg":4,"alcohol":3.9,"caffeine_mg":0}
     """
     static let ramen = """
-    {"name":"ramen","count":1,"panel":null,"ingredients":[{"label":"tonkotsu ramen","grams":450,"per_100g":\(composition),"preparation":["boiled"],"brand":null,"sizes":[],"alternatives":[{"label":"shoyu ramen","grams":430,"per_100g":\(composition)}]}]}
+    {"name":"ramen","count":1,"panel":null,"ingredients":[{"label":"tonkotsu ramen","grams":450,"per_100g":\(composition),"preparation":["boiled"],"brand":null,"forks":[],"alternatives":[{"label":"shoyu ramen","grams":430,"per_100g":\(composition)}]}]}
     """
     static let beer = """
-    {"name":"lager","count":2,"panel":{"protein":0.5,"calories":43,"fat":0,"carbohydrate":3.6,"salt":null,"sodium":4,"alcohol":3.9,"caffeine":null,"basis":"per_100ml","net_ml":700,"net_g":null},"ingredients":[{"label":"lager","grams":700,"per_100g":\(lager),"preparation":[],"brand":"Asahi","sizes":[{"label":"350 ml can","grams":350,"per_100g":\(lager),"basis":"published"}],"alternatives":[]}]}
+    {"name":"lager","count":2,"panel":{"protein":0.5,"calories":43,"fat":0,"carbohydrate":3.6,"salt":null,"sodium":4,"alcohol":3.9,"caffeine":null,"basis":"per_100ml","net_ml":700,"net_g":null},"ingredients":[{"label":"lager","grams":700,"per_100g":\(lager),"preparation":[],"brand":"Asahi","forks":[{"axis":"size","chosen_from":"assumed","options":[{"label":"350 ml can","grams":700,"per_100g":\(lager),"basis":"published","chosen":true},{"label":"500 ml can","grams":1000,"per_100g":\(lager),"basis":"published","chosen":false}]}],"alternatives":[]}]}
     """
 
     static func decode(_ json: String) throws -> MealRecognition {
         try JSONDecoder().decode(MealRecognition.self, from: Data(json.utf8))
     }
 
-    @Test("A Worker answer becomes dishes, items, weighed rivals and sizes, all stamped model")
+    @Test("A Worker answer becomes dishes, items, weighed rivals and forks, all stamped model")
     func fullAnswerBecomesMeal() throws {
         let recognition = try Self.decode(#"{"dishes":[\#(Self.ramen),\#(Self.beer)]}"#)
         #expect(!recognition.isEmpty)
@@ -48,7 +48,11 @@ struct MealRecognitionTests {
         #expect(beer.count == 2)
         let lager = try #require(beer.items.first)
         #expect(lager.brand == "Asahi")
-        #expect(lager.sizes.map(\.grams) == [350])
+        let fork = try #require(lager.forks.first)
+        #expect(fork.axis == "size")
+        #expect(fork.chosenFrom == .assumed)
+        #expect(fork.chosen?.label == "350 ml can")
+        #expect(fork.options.map(\.grams) == [700, 1000])
         // The item's own arithmetic: 700 g × 43 kcal / 100 g.
         #expect(abs(lager.nutrients.kcal - 301) < 0.01)
         #expect(abs(lager.nutrients.alcohol - 27.3) < 0.01)

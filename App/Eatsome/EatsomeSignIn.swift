@@ -26,42 +26,58 @@ struct SignInGate: View {
     @State private var busy = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 20) {
-                Text("Eat well\nwithout the\nbookkeeping.")
-                    .font(WellieTheme.font(41, weight: .black))
-                    .tracking(-1.5)
-                    .foregroundStyle(WellieTheme.ink)
-                    .fixedSize(horizontal: false, vertical: true)
+        ZStack(alignment: .top) {
+            // The one atmospheric gesture in the entrance: the action lime is
+            // already present before there is an action to tap, as light rather
+            // than as a second control.
+            RadialGradient(
+                colors: [WellieTheme.accent.opacity(0.42), WellieTheme.accent.opacity(0)],
+                center: .center,
+                startRadius: 0,
+                endRadius: 112
+            )
+            .frame(width: 320, height: 220)
+            .offset(y: 86)
+            .blur(radius: 4)
+            .accessibilityHidden(true)
 
-                WellieProse("Photograph it or say what it was. We work out the numbers.", size: 16)
-
-                if let failure {
-                    Text(failure)
-                        .font(WellieTheme.font(13, weight: .medium))
-                        .foregroundStyle(WellieTheme.danger)
+            VStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: 20) {
+                    Text("Eat well\nwithout the\nbookkeeping.")
+                        .font(WellieTheme.font(41, weight: .black))
+                        .tracking(-1.5)
+                        .foregroundStyle(WellieTheme.ink)
                         .fixedSize(horizontal: false, vertical: true)
+
+                    WellieProse("Photograph it or say what it was. We work out the numbers.", size: 16)
+
+                    if let failure {
+                        Text(failure)
+                            .font(WellieTheme.font(13, weight: .medium))
+                            .foregroundStyle(WellieTheme.danger)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
+                .padding(.top, 108)
+
+                Spacer(minLength: 60)
+
+                SignInWithAppleButton(.continue) { request in
+                    signIn.prepare(request)
+                } onCompletion: { result in
+                    Task { await finish(result) }
+                }
+                .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
+                .frame(height: 52)
+                .clipShape(RoundedRectangle(cornerRadius: WellieTheme.controlRadius, style: .continuous))
+                .disabled(busy)
+
+                Text("No feed, no followers. Your food stays yours.")
+                    .font(WellieTheme.font(11.5, weight: .regular))
+                    .foregroundStyle(WellieTheme.muted)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 14)
             }
-            .padding(.top, 108)
-
-            Spacer(minLength: 60)
-
-            SignInWithAppleButton(.continue) { request in
-                signIn.prepare(request)
-            } onCompletion: { result in
-                Task { await finish(result) }
-            }
-            .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
-            .frame(height: 52)
-            .clipShape(RoundedRectangle(cornerRadius: WellieTheme.controlRadius, style: .continuous))
-            .disabled(busy)
-
-            Text("No feed, no followers. Your food stays yours.")
-                .font(WellieTheme.font(11.5, weight: .regular))
-                .foregroundStyle(WellieTheme.muted)
-                .frame(maxWidth: .infinity)
-                .padding(.top, 14)
         }
         .padding(.horizontal, WellieTheme.screenInset)
         .padding(.bottom, 16)

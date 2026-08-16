@@ -102,10 +102,10 @@ struct NutrientsTests {
     /// replaced two servings with one serving's worth of the rival — and
     /// nothing on screen said so.
     ///
-    /// `sizes` is the deliberate exception in the same function: a published
-    /// size is one serving of the chain's product and is multiplied by the
-    /// count where it is used, so scaling it here as well would square it.
-    @Test("Rivals scale with the count; published sizes do not")
+    /// A fork's options are whole-row answers too, and scale for the same
+    /// reason. (The `sizes` they replaced were per serving and multiplied
+    /// where applied, so scaling those here as well would have squared it.)
+    @Test("Rivals and fork options scale with the count")
     func shortlistFollowsTheCount() {
         let composition = Nutrients(protein: 12, fat: 8, carbohydrate: 24, kcal: 220)
         let dish = MealDish(
@@ -120,9 +120,11 @@ struct NutrientsTests {
                         FoodAlternative(label: "roast beef", per100g: composition, grams: 240)
                     ],
                     brand: "Subway",
-                    sizes: [
-                        FoodSize(label: "6-inch", grams: 229, per100g: composition),
-                        FoodSize(label: "Footlong", grams: 458, per100g: composition)
+                    forks: [
+                        FoodFork(axis: "size", chosenFrom: .assumed, options: [
+                            FoodForkOption(label: "6-inch", grams: 229, per100g: composition, chosen: true),
+                            FoodForkOption(label: "Footlong", grams: 458, per100g: composition)
+                        ])
                     ]
                 )
             ]
@@ -132,8 +134,8 @@ struct NutrientsTests {
         let item = try? #require(two.items.first)
         #expect(item?.grams == 458)
         #expect(item?.alternatives.first?.grams == 480)
-        // Published sizes are untouched: still one serving each.
-        #expect(item?.sizes.map(\.grams) == [229, 458])
+        // Options are whole-row answers at the current count.
+        #expect(item?.forks.first?.options.map(\.grams) == [458, 916])
 
         // And it round-trips, so the stepper is reversible.
         let back = two.scaled(toCount: 1)

@@ -131,8 +131,16 @@ final class EatsomeStore {
         let pulled = await account.pull()
         if !pulled.isEmpty {
             do {
-                let added = try await log.append(lines: pulled)
-                if !added.isEmpty { try await reload(log) }
+                let result = try await log.appendReadable(lines: pulled)
+                if !result.added.isEmpty { try await reload(log) }
+                if result.rejected.isEmpty {
+                    loadError = nil
+                } else {
+                    // Said in the terms the reader can act on — how many meals
+                    // are not on this phone — rather than the codec's case name.
+                    let n = result.rejected.count
+                    loadError = "\(n) \(n == 1 ? "record" : "records") from your account could not be read on this build and \(n == 1 ? "was" : "were") skipped."
+                }
             } catch {
                 loadError = "Could not save history from your account: \(error.localizedDescription)"
             }

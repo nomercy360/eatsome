@@ -104,23 +104,47 @@ public actor EventLog {
     /// line that cannot even name itself is refused rather than appended.
     @discardableResult
     public func append(lines: [RawJSON]) throws -> [LoggedEvent] {
-        guard !lines.isEmpty else { return [] }
+        let result = try appendReadable(lines: lines)
+        if let first = result.rejected.first { throw first.error }
+        return result.added
+    }
+
+    /// What `appendReadable` did with a batch: the events it wrote, and the
+    /// lines it would not.
+    public struct AppendResult: Sendable {
+        public var added: [LoggedEvent] = []
+        public var rejected: [(line: RawJSON, error: any Error)] = []
+    }
+
+    /// Append every line that reads, and hand back the ones that do not.
+    ///
+    /// The mirror pulls a page and moves its cursor before the page is
+    /// appended, so a batch that throws on its third line used to lose the
+    /// whole batch — the good lines with the bad one, and none of them ever
+    /// pulled again. One corrupt line in an account's history is a fact to
+    /// report, not a reason to stop reading the rest of it.
+    public func appendReadable(lines: [RawJSON]) throws -> AppendResult {
+        var result = AppendResult()
+        guard !lines.isEmpty else { return result }
         var known = Set(try load().events.map(\.id))
         var out = Data()
-        var added: [LoggedEvent] = []
         for line in lines {
-            let event = try codec.event(from: line)
+            let event: LoggedEvent
+            do { event = try codec.event(from: line) } catch {
+                result.rejected.append((line, error))
+                continue
+            }
             guard known.insert(event.id).inserted else { continue }
             out.append(line.bytes)
             out.append(UInt8(ascii: "\n"))
-            added.append(event)
+            result.added.append(event)
         }
-        guard !added.isEmpty else { return [] }
+        guard !result.added.isEmpty else { return result }
         let handle = try openForAppending()
         try handle.seekToEnd()
         try handle.write(contentsOf: out)
         try handle.synchronize()
-        return added
+        return result
     }
 
     public func projection() throws -> Projection {

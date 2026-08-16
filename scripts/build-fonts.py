@@ -1,84 +1,108 @@
 #!/usr/bin/env python3
-"""Cut the bundled Sora statics out of the upstream variable font.
+"""Fetch the two bundled typefaces into App/Resources/Fonts.
 
-The identity is Sora, and it ships in the bundle. What ships is *not* the
-upstream `Sora[wght].ttf`: iOS registers a variable font at its default
-instance only, and there is no supported way to ask `UIFont(name:)` for another
-one. A bundled variable file therefore renders every weight in the app at 400
-while every lookup still succeeds — the same silent-and-wrong failure shape as
-a missing resource, with nothing to catch it.
+The identity is General Sans for words and Space Grotesk for figures, and both
+ship in the bundle. What ships is *static* cuts, one file per weight: iOS
+registers a variable font at its default instance only, and there is no
+supported way to ask `UIFont(name:)` for another one. A bundled variable file
+therefore renders every weight in the app at 400 while every lookup still
+succeeds — the same silent-and-wrong failure shape as a missing resource, with
+nothing to catch it.
 
-So the five weights the design actually uses are pinned here into five static
-files, each with its own PostScript name, and `WellieTheme.fontsAreInstalled`
-checks for all five at launch.
+General Sans is distributed as statics already (Fontshare, ITF's free-font
+EULA — apps are a permitted medium; redistribution is not, which is why this
+script fetches rather than the repository vendoring a copy from elsewhere).
+Space Grotesk's release ships Regular/Medium/Bold statics and a variable file;
+the 600 the design uses for a figure inside a sentence is pinned from the
+variable here. Both licences are written beside the files.
 
     pip install fonttools
     python3 scripts/build-fonts.py
 
-Fetches the variable original from google/fonts and writes into
-App/Resources/Fonts. The licence is fetched with it — OFL requires it ship
-alongside.
+`WellieTheme.fontsAreInstalled` checks every PostScript name below at launch.
 """
 
+import io
 import os
-import sys
+import zipfile
 import urllib.request
 
 from fontTools.ttLib import TTFont
 from fontTools.varLib import instancer
 
-SOURCE = "https://github.com/google/fonts/raw/main/ofl/sora/Sora%5Bwght%5D.ttf"
-LICENCE = "https://raw.githubusercontent.com/google/fonts/main/ofl/sora/OFL.txt"
+GENERAL_SANS = "https://api.fontshare.com/v2/fonts/download/general-sans"
+SPACE_GROTESK = (
+    "https://github.com/floriankarsten/space-grotesk/releases/download/2.0.0/"
+    "SpaceGrotesk-2.0.0.zip"
+)
 DESTINATION = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
     "App", "Resources", "Fonts",
 )
 
-# The weights `WellieTheme.postScriptName(for:)` maps onto. 500 and 800 are not
-# named instances in the upstream STAT table, which is why the name records are
-# written by hand below rather than by `updateFontNames`.
-CUTS = [(400, "Regular"), (500, "Medium"), (600, "SemiBold"), (700, "Bold"), (800, "ExtraBold")]
-
-WINDOWS, MACINTOSH = (3, 1, 0x409), (1, 0, 0)
+# What `WellieTheme` asks for by PostScript name.
+GENERAL_SANS_CUTS = ["Regular", "Medium", "Semibold", "Bold"]
+SPACE_GROTESK_CUTS = ["Regular", "Medium", "Bold"]
+SPACE_GROTESK_PINNED = [(600, "SemiBold")]
 
 
-def main() -> int:
+def fetch(url):
+    print(f"fetching {url}")
+    with urllib.request.urlopen(url) as response:
+        return zipfile.ZipFile(io.BytesIO(response.read()))
+
+
+def member(archive, suffix):
+    matches = [n for n in archive.namelist() if n.endswith(suffix) and "__MACOSX" not in n]
+    if len(matches) != 1:
+        raise SystemExit(f"expected one {suffix} in the archive, found {matches}")
+    return matches[0]
+
+
+def write(name, data):
+    path = os.path.join(DESTINATION, name)
+    with open(path, "wb") as f:
+        f.write(data)
+    print(f"wrote {os.path.relpath(path)}")
+
+
+def pin(variable, weight, style, family):
+    """Cut one static instance with its own PostScript name."""
+    font = instancer.instantiateVariableFont(variable, {"wght": weight}, inplace=False)
+    compact = family.replace(" ", "")
+    for record in font["name"].names:
+        if record.nameID == 1:
+            record.string = family
+        elif record.nameID == 2:
+            record.string = style
+        elif record.nameID == 4:
+            record.string = f"{family} {style}"
+        elif record.nameID == 6:
+            record.string = f"{compact}-{style}"
+        elif record.nameID in (16, 17):
+            record.string = family if record.nameID == 16 else style
+    font["OS/2"].usWeightClass = weight
+    out = io.BytesIO()
+    font.save(out)
+    return out.getvalue()
+
+
+def main():
     os.makedirs(DESTINATION, exist_ok=True)
-    variable, _ = urllib.request.urlretrieve(SOURCE)
-    urllib.request.urlretrieve(LICENCE, os.path.join(DESTINATION, "Sora-OFL.txt"))
 
-    for weight, style in CUTS:
-        font = TTFont(variable)
-        instancer.instantiateVariableFont(font, {"wght": weight}, inplace=True)
+    gs = fetch(GENERAL_SANS)
+    for cut in GENERAL_SANS_CUTS:
+        write(f"GeneralSans-{cut}.otf", gs.read(member(gs, f"OTF/GeneralSans-{cut}.otf")))
+    write("GeneralSans-FFL.txt", gs.read(member(gs, "License/FFL.txt")))
 
-        postscript = f"Sora-{style}"
-        names = font["name"]
-        for identifier, value in (
-            (1, "Sora"), (2, style), (3, f"1.000;{postscript}"),
-            (4, f"Sora {style}"), (6, postscript), (16, "Sora"), (17, style),
-        ):
-            names.setName(value, identifier, *WINDOWS)
-            names.setName(value, identifier, *MACINTOSH)
-
-        font["OS/2"].usWeightClass = weight
-        # Every cut is an upright regular face of its own weight. Leaving the
-        # bold bit set on the 700 and 800 files invites the system to synthesise
-        # a second bold on top of the one that is already drawn.
-        font["OS/2"].fsSelection = (font["OS/2"].fsSelection & ~(1 << 5)) | (1 << 6)
-        font["head"].macStyle &= ~1
-
-        # Both describe the variable original, and neither survives pinning as
-        # anything but a wrong answer about a font that no longer varies.
-        for table in ("STAT", "DSIG"):
-            if table in font:
-                del font[table]
-
-        path = os.path.join(DESTINATION, f"{postscript}.ttf")
-        font.save(path)
-        print(f"{postscript}.ttf  {os.path.getsize(path):,} bytes")
-
-    return 0
+    sg = fetch(SPACE_GROTESK)
+    for cut in SPACE_GROTESK_CUTS:
+        write(f"SpaceGrotesk-{cut}.otf", sg.read(member(sg, f"otf/SpaceGrotesk-{cut}.otf")))
+    variable = TTFont(io.BytesIO(sg.read(member(sg, "ttf/SpaceGrotesk[wght].ttf"))))
+    for weight, style in SPACE_GROTESK_PINNED:
+        write(f"SpaceGrotesk-{style}.ttf", pin(variable, weight, style, "Space Grotesk"))
+    write("SpaceGrotesk-OFL.txt", sg.read(member(sg, "OFL.txt")))
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()

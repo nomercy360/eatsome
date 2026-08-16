@@ -1,0 +1,12 @@
+{
+  "images" : [
+    {
+      "filename" : "nutrient-fat.svg",
+      "idiom" : "universal"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}

@@ -76,12 +76,12 @@ struct MealNoteRow: View {
 struct QuoteMark: View {
     var body: some View {
         Circle()
-            .fill(WellieTheme.raised)
+            .fill(WellieTheme.accent.opacity(0.35))
             .frame(width: 30, height: 30)
             .overlay {
                 Text("”")
                     .font(WellieTheme.font(18, weight: .bold))
-                    .foregroundStyle(WellieTheme.accent)
+                    .foregroundStyle(WellieTheme.onAccent)
                     .offset(y: 3)
             }
             .accessibilityHidden(true)
@@ -113,10 +113,17 @@ struct MealNoteEditor: View {
                     dismiss()
                 }
                 .font(WellieTheme.font(14, weight: .bold))
-                .foregroundStyle(WellieTheme.accent)
+                .foregroundStyle(WellieTheme.ink)
             }
             .padding(.horizontal, 26)
             .padding(.top, 14)
+
+            Text("A note for yourself")
+                .font(WellieTheme.font(25, weight: .heavy))
+                .tracking(-0.6)
+                .foregroundStyle(WellieTheme.ink)
+                .padding(.horizontal, 24)
+                .padding(.top, 26)
 
             VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .top, spacing: 14) {
@@ -134,7 +141,7 @@ struct MealNoteEditor: View {
                         .foregroundStyle(WellieTheme.muted)
                     Spacer()
                     Text("\(text.count)")
-                        .font(WellieTheme.font(12.5, weight: .regular))
+                        .font(WellieTheme.figure(12.5, weight: .regular))
                         .foregroundStyle(WellieTheme.muted)
                         .monospacedDigit()
                 }
@@ -146,7 +153,7 @@ struct MealNoteEditor: View {
             .padding(.vertical, 16)
             .wellieSurface(border: WellieTheme.accent, lineWidth: 1.5)
             .padding(.horizontal, WellieTheme.screenInset)
-            .padding(.top, 22)
+            .padding(.top, 16)
 
             Spacer(minLength: 0)
         }

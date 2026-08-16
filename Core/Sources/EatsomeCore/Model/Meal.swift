@@ -76,8 +76,10 @@ public struct MealItem: Codable, Sendable, Hashable, Identifiable {
     /// The chain whose product this is, when it is one. Its presence is what
     /// makes a row a menu item rather than a food.
     public var brand: String?
-    /// The sizes that brand publishes for this product, each priced.
-    public var sizes: [FoodSize]
+    /// The choices the input left open on this row — which size, which milk,
+    /// which drink was in the cup — each a set of priced answers for this same
+    /// food. Empty is the normal case. See `FoodFork`.
+    public var forks: [FoodFork]
 
     public init(
         id: UUID = UUIDv7.generate(),
@@ -88,7 +90,7 @@ public struct MealItem: Codable, Sendable, Hashable, Identifiable {
         provenance: NutrientProvenance = .model,
         alternatives: [FoodAlternative] = [],
         brand: String? = nil,
-        sizes: [FoodSize] = []
+        forks: [FoodFork] = []
     ) {
         self.id = id
         self.label = label
@@ -98,7 +100,7 @@ public struct MealItem: Codable, Sendable, Hashable, Identifiable {
         self.provenance = provenance
         self.alternatives = alternatives
         self.brand = brand
-        self.sizes = sizes
+        self.forks = forks
     }
 
     /// `per_100g` on the wire and on disk, matching the recognition contract.
@@ -106,8 +108,43 @@ public struct MealItem: Codable, Sendable, Hashable, Identifiable {
     /// differs from the shape it arrived in, which is a mismatch nothing would
     /// catch until a round trip lost a figure.
     private enum CodingKeys: String, CodingKey {
-        case id, label, preparation, grams, provenance, alternatives, brand, sizes
+        case id, label, preparation, grams, provenance, alternatives, brand, forks
         case per100g = "per_100g"
+    }
+
+    /// Version-one meals stored `sizes` instead of `forks`. The meal's chosen
+    /// figures already live in `grams` and `per_100g`, so the retired picker
+    /// metadata is deliberately ignored rather than guessed into a fork whose
+    /// `chosen_from` was never recorded. New and transitional records that do
+    /// contain forks still decode them normally.
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        label = try c.decode(String.self, forKey: .label)
+        preparation = try c.decode([PreparationMethod].self, forKey: .preparation)
+        grams = try c.decode(Double.self, forKey: .grams)
+        per100g = try c.decode(Nutrients.self, forKey: .per100g)
+        provenance = try c.decode(NutrientProvenance.self, forKey: .provenance)
+        alternatives = try c.decode([FoodAlternative].self, forKey: .alternatives)
+        brand = try c.decodeIfPresent(String.self, forKey: .brand)
+        forks = try c.decodeIfPresent([FoodFork].self, forKey: .forks) ?? []
+    }
+
+    /// The forks worth putting to the person, most consequential first.
+    ///
+    /// A fork is a question only when nothing in the input decided its default
+    /// (`chosenFrom == .assumed`) **and** the answer would move the row by
+    /// enough to be worth a tap: at least `FoodFork.askFloorKcal`, and at least
+    /// `FoodFork.askShare` of the row's own energy. Measured (`Backend/eval/
+    /// forks-poc.md`) that keeps a gyudon's size (Δ350–540 kcal), a Subway
+    /// (Δ350), fries (Δ250), the drink in an opaque cup (Δ135–220) and a
+    /// latte's size (Δ141–243), and drops the milk in a cappuccino (Δ18–63) —
+    /// half the drink, and not worth interrupting anyone over in a day.
+    public var openForks: [FoodFork] {
+        let rowKcal = nutrients.kcal
+        return forks
+            .filter { $0.isOpen(rowKcal: rowKcal) }
+            .sorted { $0.kcalSpread > $1.kcalSpread }
     }
 
     /// Whether this row is something somebody's menu lists — the question a
@@ -154,22 +191,130 @@ public struct FoodAlternative: Codable, Sendable, Hashable, Identifiable {
     }
 }
 
-/// One size a chain publishes for a product, with the weight that size is.
-public struct FoodSize: Codable, Sendable, Hashable, Identifiable {
+/// A choice the input left open on one row, as a set of priced answers.
+///
+/// Which size, which milk, which drink is in the cup, dressing or none: each
+/// option is a complete answer for the *same* food — its own weight for the
+/// whole row and its own composition — and exactly one of them is `chosen`,
+/// the one the row's own figures already assume. Choosing another *replaces*
+/// the row's weight and composition the way choosing an alternative replaces
+/// its name: an option is a different product, never a multiplier.
+///
+/// This replaced `sizes`, which could say Regular/Footlong and nothing else.
+/// Asked the same 14 inputs, the model put Coke/Diet Coke/Sprite (Δ220 kcal)
+/// and whole/oat/non-fat milk in this shape, priced each option in full, and
+/// marked the row's own answer `chosen` 81 times out of 81. `axis` is free
+/// text and only ever rendered — an enum here would make a milk question wait
+/// for a release.
+public struct FoodFork: Codable, Sendable, Hashable, Identifiable {
+    /// A fork below this many kilocalories of spread is never asked.
+    public static let askFloorKcal: Double = 100
+    /// Nor one whose spread is below this share of the row's own energy.
+    public static let askShare: Double = 0.2
+
     public let id: UUID
+    /// One or two lowercase words: "size", "milk", "drink".
+    public var axis: String
+    /// What decided the chosen option — see `ForkEvidence`.
+    public var chosenFrom: ForkEvidence
+    public var options: [FoodForkOption]
+
+    public init(
+        id: UUID = UUIDv7.generate(),
+        axis: String,
+        chosenFrom: ForkEvidence,
+        options: [FoodForkOption]
+    ) {
+        self.id = id
+        self.axis = axis
+        self.chosenFrom = chosenFrom
+        self.options = options
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, axis, options
+        case chosenFrom = "chosen_from"
+    }
+
+    /// The option the row's own figures assume.
+    public var chosen: FoodForkOption? { options.first { $0.chosen } }
+
+    /// How far apart the options are, in kilocalories for the whole row.
+    public var kcalSpread: Double {
+        let kcals = options.map { $0.per100g.forGrams($0.grams).kcal }
+        guard let low = kcals.min(), let high = kcals.max() else { return 0 }
+        return high - low
+    }
+
+    /// Whether this fork is a question for the person, given the row's energy.
+    /// Only an assumed default is a question; a stated or seen one is kept as
+    /// priced options for anyone who opens the pick sheet, and nothing more.
+    public func isOpen(rowKcal: Double) -> Bool {
+        chosenFrom == .assumed
+            && kcalSpread >= max(Self.askFloorKcal, Self.askShare * rowKcal)
+    }
+
+    /// The fork with `option` chosen and the choice recorded as the person's.
+    /// A fork the person answered is no longer a question, whatever it was
+    /// before, so `chosenFrom` becomes `.stated`.
+    public func choosing(_ option: FoodForkOption) -> FoodFork {
+        var copy = self
+        copy.chosenFrom = .stated
+        copy.options = options.map {
+            var next = $0
+            next.chosen = $0.id == option.id
+            return next
+        }
+        return copy
+    }
+}
+
+/// What decided a fork's default.
+///
+/// The model was asked to leave a fork out when the input had settled it, and
+/// could not: "grande oat milk latte" still came back with a size fork three
+/// runs in four. Asked instead to *say* what decided the default, it was
+/// right sixteen times in sixteen — a stated footlong, a size legible on the
+/// cup, a drink in an opaque cup. So the app gates on this, and never on the
+/// fork's presence.
+public enum ForkEvidence: String, Codable, Sendable, Hashable {
+    /// The person's words name it.
+    case stated
+    /// The photograph shows it.
+    case seen
+    /// Nothing did; the model took the usual one.
+    case assumed
+}
+
+/// One answer to a fork, priced in full for the whole row.
+public struct FoodForkOption: Codable, Sendable, Hashable, Identifiable {
+    public let id: UUID
+    /// In the words the person would use, in the market's language:
+    /// "Footlong", "並盛", "Grande", "oat milk", "Coke Zero".
     public var label: String
+    /// Edible weight of the whole row if this option is right — absolute,
+    /// across every serving present, exactly as `MealItem.grams` is.
     public var grams: Double
     public var per100g: Nutrients
+    /// True on the one option the row's own figures assume.
+    public var chosen: Bool
 
-    public init(id: UUID = UUIDv7.generate(), label: String, grams: Double, per100g: Nutrients) {
+    public init(
+        id: UUID = UUIDv7.generate(),
+        label: String,
+        grams: Double,
+        per100g: Nutrients,
+        chosen: Bool = false
+    ) {
         self.id = id
         self.label = label
         self.grams = grams
         self.per100g = per100g
+        self.chosen = chosen
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, label, grams
+        case id, label, grams, chosen
         case per100g = "per_100g"
     }
 }
@@ -329,14 +474,20 @@ public struct MealDish: Codable, Sendable, Hashable, Identifiable {
                 alternative.grams *= factor
                 return alternative
             }
-            // `sizes` deliberately does not scale, and the symmetry is a trap.
-            // A `FoodSize.grams` is a published fact about one serving of the
-            // chain's product, not about this plate, and `applying(size:)`
-            // multiplies it by the count where it is used. Scaling it here too
-            // would square the count — which is precisely the `count × size ×
-            // portion` product that made one bowl of ramen worth 126 g of
-            // protein, and precisely why a size is a different product rather
-            // than a multiplier.
+            // A fork's options are whole-row answers, exactly as a rival is,
+            // and scale for the same reason: an option that cannot be applied
+            // at the current count is the rename-cannot-re-price failure. (The
+            // `sizes` this replaced were per serving and multiplied where
+            // applied; scaling them here as well squared the count.)
+            item.forks = item.forks.map {
+                var fork = $0
+                fork.options = fork.options.map {
+                    var option = $0
+                    option.grams *= factor
+                    return option
+                }
+                return fork
+            }
             return item
         }
         if var panel = copy.panel {
@@ -358,12 +509,11 @@ public struct MealDish: Codable, Sendable, Hashable, Identifiable {
 /// `nutrients` are computed, because two representations of one thing is how
 /// they come to disagree.
 public struct MealEntry: Codable, Sendable, Hashable, Identifiable {
-    /// The shape every meal event is written in. A reader that meets another
-    /// number refuses rather than guesses — the previous log had no version,
-    /// guessed, and showed 62 kcal for a sandwich instead of an error anyone
-    /// could see. There is no older version to read: the only installs are
-    /// test accounts, so 1 is the first and only value this has ever had.
-    public static let schemaVersion = 1
+    /// The shape every new meal event is written in. Version one used `sizes`;
+    /// version two uses `forks`. The version-one decoder keeps the meal's
+    /// chosen figures and drops that obsolete picker metadata rather than
+    /// inventing facts it did not store.
+    public static let schemaVersion = 2
 
     public enum SchemaError: Error, Sendable, Equatable {
         case unsupportedVersion(Int)
@@ -430,7 +580,7 @@ public struct MealEntry: Codable, Sendable, Hashable, Identifiable {
     public init(from decoder: any Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let version = try c.decode(Int.self, forKey: .schemaVersion)
-        guard version == Self.schemaVersion else {
+        guard version == 1 || version == Self.schemaVersion else {
             throw SchemaError.unsupportedVersion(version)
         }
         id = try c.decode(UUID.self, forKey: .id)

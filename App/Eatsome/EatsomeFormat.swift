@@ -13,6 +13,22 @@ enum EatsomeFormat {
         return "\(weekday) \(calendar.component(.day, from: day)) \(month)"
     }
 
+    /// Whether a line is a figure — set in `WellieTheme.figure` — or words.
+    ///
+    /// For the few call sites that render one slot with either: a settings
+    /// row whose value is `72 kg` on one screen and `Not set` on another.
+    /// The rule is the design's own: digits (and the punctuation figures are
+    /// made of) are at least 30% of the non-space characters, or the whole
+    /// thing is twelve characters or fewer and has a digit in it. A sentence
+    /// that happens to contain a number stays in the text face. Where a call
+    /// site knows statically which it prints, it should say so and not ask.
+    static func isFigure(_ text: String) -> Bool {
+        let solid = text.filter { !$0.isWhitespace }
+        guard solid.contains(where: \.isNumber) else { return false }
+        let figureLike = solid.filter { $0.isNumber || ".,:/".contains($0) }.count
+        return Double(figureLike) / Double(max(1, solid.count)) >= 0.3 || text.count <= 12
+    }
+
     /// The clock, in the reader's own 12- or 24-hour convention.
     static let clock: DateFormatter = {
         let formatter = DateFormatter()

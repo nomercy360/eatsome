@@ -105,27 +105,58 @@ struct EventLogTests {
     /// is refused rather than guessed at. That is a corrupt line, not a newer
     /// one: newer kinds are retained, but a known kind whose body this build
     /// cannot vouch for stops reconciliation until someone looks.
-    @Test("Every meal carries schemaVersion 1, and another version does not decode")
+    @Test("New meals carry schemaVersion 2; version 1 remains readable")
     func schemaVersionIsWrittenAndChecked() async throws {
         let url = temporaryURL()
         let log = try EventLog(url: url)
         try await log.append(meal(at: 1_754_899_100_000).asEvent())
         let line = try #require(String(data: Data(contentsOf: url), encoding: .utf8))
-        #expect(line.contains(#""schemaVersion":1"#))
+        #expect(line.contains(#""schemaVersion":2"#))
 
-        let bumped = line.replacingOccurrences(of: #""schemaVersion":1"#, with: #""schemaVersion":2"#)
-        try Data(bumped.utf8).append(to: url)
+        let legacy = line.replacingOccurrences(of: #""schemaVersion":2"#, with: #""schemaVersion":1"#)
+        try Data(legacy.utf8).append(to: url)
+        let unsupported = line.replacingOccurrences(of: #""schemaVersion":2"#, with: #""schemaVersion":3"#)
+        try Data(unsupported.utf8).append(to: url)
         // Key order is the encoder's business, so strip the key wherever it sits.
-        let unversioned = line.contains(#""schemaVersion":1,"#)
-            ? line.replacingOccurrences(of: #""schemaVersion":1,"#, with: "")
-            : line.replacingOccurrences(of: #","schemaVersion":1"#, with: "")
+        let unversioned = line.contains(#""schemaVersion":2,"#)
+            ? line.replacingOccurrences(of: #""schemaVersion":2,"#, with: "")
+            : line.replacingOccurrences(of: #","schemaVersion":2"#, with: "")
         #expect(!unversioned.contains("schemaVersion"))
         try Data(unversioned.utf8).append(to: url)
 
         let loaded = try await log.load()
-        #expect(loaded.understood.count == 1)
+        #expect(loaded.understood.count == 2)
         #expect(loaded.corrupt.count == 2)
         #expect(loaded.fromNewerBuild == 0)
+    }
+
+    @Test("Version-one sizes are ignored and missing forks become empty")
+    func legacySizesDecodeWithoutInventingForks() throws {
+        let event = meal(at: 1_754_899_100_000).asEvent()
+        let codec = EventCodec()
+        let current = try codec.line(for: event).text
+        let versionOne = current.replacingOccurrences(
+            of: #""schemaVersion":2"#,
+            with: #""schemaVersion":1"#
+        )
+        let legacy = versionOne.replacingOccurrences(
+            of: #""forks":[]"#,
+            with: #""sizes":[{"retired":true}]"#
+        )
+        #expect(legacy.contains(#""sizes""#))
+        #expect(!legacy.contains(#""forks""#))
+
+        let decoded = try codec.event(from: try RawJSON(validating: legacy))
+        guard case .mealLogged(let restored) = decoded.payload else {
+            Issue.record("Expected a restored meal")
+            return
+        }
+        guard case .mealLogged(let original) = event.payload else {
+            Issue.record("Expected the fixture to be a meal")
+            return
+        }
+        #expect(restored.items.allSatisfy { $0.forks.isEmpty })
+        #expect(restored.nutrients == original.nutrients)
     }
 
     @Test("An unknown preparation or provenance is refused, not rounded to a plausible one")

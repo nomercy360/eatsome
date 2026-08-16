@@ -74,7 +74,7 @@ struct LogComposer: View {
                     onAddPhoto: { _ in showingCamera = true }
                 )
             case .failed(let message, let reason):
-                FailedState(reason: reason) {
+                FailedState(message: message, reason: reason) {
                     Task { await reread(message) }
                 } onCancel: {
                     Task { await cancel(message) }
@@ -149,17 +149,30 @@ struct LogComposer: View {
                             .padding(.top, 20)
                     }
 
+                    Text(photo == nil ? "What did you eat?" : "Anything the photo can't show")
+                        .font(WellieTheme.font(25, weight: .heavy))
+                        .tracking(-0.5)
+                        .foregroundStyle(WellieTheme.ink)
+                        .padding(.horizontal, 24)
+                        .padding(.top, photo == nil ? 28 : 20)
+
                     words
                         .padding(.horizontal, WellieTheme.screenInset)
-                        .padding(.top, photo == nil ? 22 : 16)
+                        .padding(.top, 16)
 
-                    cameraRow
-                        .padding(.horizontal, WellieTheme.screenInset)
-                        .padding(.top, 12)
+                    Text("Write it, photograph it, or both.")
+                        .font(WellieTheme.font(12.5))
+                        .foregroundStyle(WellieTheme.muted)
+                        .padding(.horizontal, 26)
+                        .padding(.top, 10)
 
                     if photo == nil {
-                        RecentPhotosStrip(pickerItem: $pickerItem) { photo = $0 }
-                            .padding(.top, 22)
+                        RecentPhotosStrip(
+                            pickerItem: $pickerItem,
+                            onCamera: { showingCamera = true },
+                            onPick: { photo = $0 }
+                        )
+                        .padding(.top, 24)
                     }
 
                     whenRow
@@ -206,36 +219,17 @@ struct LogComposer: View {
     /// account of the meal, and it can only decide that because it is told
     /// which it received.
     private var words: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            WellieMeta(photo == nil ? "What did you eat?" : "Anything the photo can't show", size: 11.5)
-                .padding(.horizontal, 4)
-            TextField(
-                photo == nil ? "Two eggs on sourdough, flat white" : "Fried in butter, two eggs in the batter",
-                text: $said,
-                axis: .vertical
-            )
-            .font(WellieTheme.font(16.5, weight: .medium))
-            .foregroundStyle(WellieTheme.ink)
-            .lineLimit(2...6)
-            .padding(14)
-            .wellieSurface(WellieTheme.well)
-        }
-    }
-
-    private var cameraRow: some View {
-        Button { showingCamera = true } label: {
-            HStack(spacing: 12) {
-                Image(systemName: "camera.fill")
-                    .font(.system(size: 15, weight: .semibold))
-                Text(photo == nil ? "Take a photo" : "Retake the photo")
-                    .font(WellieTheme.font(15, weight: .bold))
-            }
-            .foregroundStyle(WellieTheme.body)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 15)
-            .wellieSurface(radius: WellieTheme.controlRadius)
-        }
-        .buttonStyle(.plain)
+        TextField(
+            photo == nil ? "Two eggs on sourdough, flat white" : "Fried in butter, two eggs in the batter",
+            text: $said,
+            axis: .vertical
+        )
+        .font(WellieTheme.font(17, weight: .regular))
+        .foregroundStyle(WellieTheme.ink)
+        .lineLimit(3...6)
+        .padding(20)
+        .frame(minHeight: 116, alignment: .top)
+        .wellieSurface()
     }
 
     /// Backdating, as a plain date picker rather than a sentence the model
@@ -252,9 +246,7 @@ struct LogComposer: View {
                 .labelsHidden()
                 .datePickerStyle(.compact)
         }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 12)
-        .wellieSurface()
+        .padding(.horizontal, 6)
     }
 
     private var canSend: Bool {
@@ -268,6 +260,10 @@ struct LogComposer: View {
             }
             .buttonStyle(WelliePrimaryButtonStyle(enabled: canSend))
             .disabled(!canSend)
+            Text("activates once there’s a photo or words")
+                .font(WellieTheme.font(10.5))
+                .foregroundStyle(WellieTheme.muted)
+                .padding(.top, 6)
             if let error = account.error {
                 Text(error)
                     .font(WellieTheme.font(12.5, weight: .medium))
@@ -407,78 +403,223 @@ private struct ReadingState: View {
     let onCancel: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var pulsing = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Button("Cancel", action: onCancel)
-                    .font(WellieTheme.font(14.5, weight: .semibold))
-                    .foregroundStyle(WellieTheme.muted)
-                Spacer()
-            }
-            .padding(.horizontal, WellieTheme.screenInset)
-            .padding(.top, 16)
+        ZStack(alignment: .top) {
+            if photoHash != nil { ReadingPhotoBackdrop(hash: photoHash) }
 
-            Spacer(minLength: 0)
+            VStack(spacing: 0) {
+                HStack {
+                    Button(action: onCancel) {
+                        Label("Cancel", systemImage: "xmark")
+                            .font(WellieTheme.font(14, weight: .bold))
+                            .foregroundStyle(WellieTheme.ink)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 9)
+                            .background(.ultraThinMaterial, in: Capsule())
+                            .overlay { Capsule().strokeBorder(WellieTheme.glassStroke, lineWidth: 1) }
+                    }
+                    .buttonStyle(.plain)
+                    Spacer()
+                }
+                .padding(.horizontal, WellieTheme.screenInset)
+                .padding(.top, 12)
 
-            VStack(spacing: 20) {
-                if photoHash != nil {
-                    MealPhoto(hash: photoHash, side: 140, radius: WellieTheme.heroRadius)
+                if photoHash == nil, let said, !said.isEmpty {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("“")
+                            .font(WellieTheme.font(34, weight: .heavy))
+                            .foregroundStyle(WellieTheme.accent)
+                        Text(said)
+                            .font(WellieTheme.font(27, weight: .heavy))
+                            .tracking(-0.7)
+                            .foregroundStyle(WellieTheme.ink)
+                            .lineSpacing(4)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 28)
+                    .padding(.top, 104)
                 }
-                ProgressView()
-                    .tint(WellieTheme.accent)
-                    .scaleEffect(1.2)
-                VStack(spacing: 6) {
-                    Text("Reading your plate")
-                        .font(WellieTheme.font(19, weight: .bold))
-                        .foregroundStyle(WellieTheme.ink)
-                    Text("Usually five to eight seconds")
-                        .font(WellieTheme.font(13.5, weight: .regular))
-                        .foregroundStyle(WellieTheme.muted)
-                }
-                if let said, !said.isEmpty {
+
+                ReadingSkeleton(
+                    title: photoHash == nil ? "Reading your meal" : "Reading your plate",
+                    overPhoto: photoHash != nil
+                )
+                    .scaleEffect(pulsing ? 0.985 : 1)
+                    .opacity(pulsing ? 0.84 : 1)
+                    .padding(.horizontal, WellieTheme.screenInset)
+                    .padding(.top, photoHash == nil ? 50 : 186)
+
+                if photoHash != nil, let said, !said.isEmpty {
                     Text("“\(said)”")
-                        .font(WellieTheme.font(14, weight: .regular))
-                        .foregroundStyle(WellieTheme.body)
+                        .font(WellieTheme.font(13))
+                        .foregroundStyle(WellieTheme.muted)
                         .multilineTextAlignment(.center)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.horizontal, 30)
+                        .padding(.horizontal, 36)
+                        .padding(.top, 22)
                 }
-            }
-            .accessibilityElement(children: .combine)
 
-            Spacer(minLength: 0)
-            Spacer(minLength: 0)
+                Spacer(minLength: 20)
+
+                Button("Cancel this reading", action: onCancel)
+                    .font(WellieTheme.font(15, weight: .bold))
+                    .foregroundStyle(WellieTheme.body)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .wellieSurface(radius: WellieTheme.controlRadius, border: WellieTheme.outline)
+                    .buttonStyle(.plain)
+                    .padding(.horizontal, WellieTheme.screenInset)
+                    .padding(.bottom, 16)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onAppear {
+            guard !reduceMotion else { return }
+            withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) { pulsing = true }
+        }
+    }
+}
+
+private struct ReadingPhotoBackdrop: View {
+    let hash: String?
+
+    var body: some View {
+        GeometryReader { geometry in
+            Group {
+                if let image = PhotoStore.shared.image(for: hash) {
+                    Image(uiImage: image).resizable().scaledToFill()
+                } else {
+                    WellieTheme.raised
+                }
+            }
+            .frame(width: geometry.size.width, height: 400)
+            .clipped()
+            .overlay(alignment: .bottom) {
+                LinearGradient(
+                    colors: [.clear, WellieTheme.background],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(height: 80)
+            }
+        }
+        .ignoresSafeArea(edges: .top)
+        .accessibilityHidden(true)
+    }
+}
+
+private struct ReadingSkeleton: View {
+    let title: String
+    let overPhoto: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(title)
+                .font(WellieTheme.font(24, weight: .heavy))
+                .tracking(-0.5)
+                .foregroundStyle(WellieTheme.ink)
+            Text("Usually five to eight seconds")
+                .font(WellieTheme.font(13.5))
+                .foregroundStyle(WellieTheme.body)
+                .padding(.top, 6)
+            WellieRowDivider().padding(.top, 20)
+            HStack(spacing: 10) {
+                Capsule().fill(WellieTheme.raised).frame(height: 14)
+                Capsule().fill(WellieTheme.raised).frame(width: 86, height: 14)
+            }
+            .padding(.top, 16)
+            HStack(spacing: 10) {
+                ForEach(0..<3, id: \.self) { _ in Capsule().fill(WellieTheme.raised).frame(height: 14) }
+            }
+            .padding(.top, 12)
+        }
+        .padding(.horizontal, 22)
+        .padding(.vertical, 26)
+        .background {
+            if overPhoto {
+                RoundedRectangle(cornerRadius: WellieTheme.heroRadius, style: .continuous)
+                    .fill(.ultraThinMaterial)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: WellieTheme.heroRadius, style: .continuous)
+                            .fill(WellieTheme.glassFill)
+                    }
+                    .overlay {
+                        RoundedRectangle(cornerRadius: WellieTheme.heroRadius, style: .continuous)
+                            .strokeBorder(WellieTheme.glassStroke, lineWidth: 1)
+                    }
+            } else {
+                RoundedRectangle(cornerRadius: WellieTheme.heroRadius, style: .continuous)
+                    .fill(WellieTheme.surface)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: WellieTheme.heroRadius, style: .continuous)
+                            .strokeBorder(WellieTheme.outline, lineWidth: 1)
+                    }
+            }
+        }
+        .accessibilityElement(children: .combine)
     }
 }
 
 /// A reading that did not work. The words are still written down, so the offer
 /// is to try again rather than to type it out a second time.
 private struct FailedState: View {
+    let message: LogMessage
     let reason: String
     let onRetry: () -> Void
     let onCancel: () -> Void
 
     var body: some View {
-        VStack(spacing: 0) {
-            Spacer(minLength: 0)
-            VStack(spacing: 14) {
-                Image(systemName: "exclamationmark.circle")
-                    .font(.system(size: 32, weight: .semibold))
-                    .foregroundStyle(WellieTheme.attention)
-                Text("That reading didn't work")
-                    .font(WellieTheme.font(19, weight: .bold))
-                    .foregroundStyle(WellieTheme.ink)
+        ZStack(alignment: .top) {
+            if message.photoHash != nil { ReadingPhotoBackdrop(hash: message.photoHash) }
+            VStack(spacing: 0) {
+            HStack {
+                Button(action: onCancel) {
+                    Label("Cancel", systemImage: "xmark")
+                        .font(WellieTheme.font(14, weight: .bold))
+                        .foregroundStyle(WellieTheme.ink)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 9)
+                        .wellieSurface(radius: WellieTheme.rowRadius)
+                }
+                .buttonStyle(.plain)
+                Spacer()
+            }
+            .padding(.horizontal, WellieTheme.screenInset)
+            .padding(.top, 12)
+
+            Spacer(minLength: message.photoHash == nil ? 80 : 186)
+
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 12) {
+                    Image(systemName: "exclamationmark")
+                        .font(.system(size: 15, weight: .heavy))
+                        .foregroundStyle(WellieTheme.attention)
+                        .frame(width: 30, height: 30)
+                        .background(WellieTheme.attentionSurface, in: Circle())
+                    Text("That reading didn't work")
+                        .font(WellieTheme.font(22, weight: .heavy))
+                        .foregroundStyle(WellieTheme.ink)
+                }
                 Text(reason)
-                    .font(WellieTheme.font(13.5, weight: .regular))
+                    .font(WellieTheme.font(13.5))
+                    .foregroundStyle(WellieTheme.body)
+                    .lineSpacing(3)
+            }
+            .padding(22)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: WellieTheme.heroRadius, style: .continuous))
+            .background(WellieTheme.surface.opacity(0.82), in: RoundedRectangle(cornerRadius: WellieTheme.heroRadius, style: .continuous))
+            .overlay { RoundedRectangle(cornerRadius: WellieTheme.heroRadius, style: .continuous).strokeBorder(WellieTheme.glassStroke, lineWidth: 1) }
+            .padding(.horizontal, WellieTheme.screenInset)
+
+            if let said = message.said, !said.isEmpty {
+                Text("“\(said)”")
+                    .font(WellieTheme.font(13))
                     .foregroundStyle(WellieTheme.muted)
                     .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 36)
+                    .padding(.top, 22)
             }
-            .padding(.horizontal, 30)
-            Spacer(minLength: 0)
 
             VStack(spacing: 8) {
                 Button("Try again", action: onRetry)
@@ -488,6 +629,7 @@ private struct FailedState: View {
             }
             .padding(.horizontal, WellieTheme.screenInset)
             .padding(.bottom, 16)
+        }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

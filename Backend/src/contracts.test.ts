@@ -19,6 +19,7 @@ import {
   panelPerContainer,
   recognitionRequestSchema,
   refinementRequestSchema,
+  settleForks,
 } from "./contracts";
 
 const composition = {
@@ -55,10 +56,10 @@ const lager = {
  *    default keys — it names a figure, not a unit.
  *  - **No nil fields.** Swift omits an optional that is nil rather than writing
  *    null, so `brand`, `note`, `share` and the rest are simply absent here.
- *  - **`sizes` and `alternatives` present but with no `basis`.** The stored
- *    `FoodSize` has no `basis`: that is a fact about the model's answer, and it
- *    is dropped on the way into storage. The stored alternative and size both
- *    carry an `id`, which the wire forms do not.
+ *  - **`forks` and `alternatives` present but with no `basis`.** The stored
+ *    `FoodForkOption` has no `basis`: that is a fact about the model's answer,
+ *    and it is dropped on the way into storage. The stored alternative, fork
+ *    and option all carry an `id`, which the wire forms do not.
  *
  * If this drifts from Swift, `projectMealMedia` throws and sync 400s — which is
  * the point. The failure it replaced was silent: no `meal_media` row, and the
@@ -67,7 +68,7 @@ const lager = {
 function swiftMeal(overrides: Record<string, unknown> = {}) {
   return {
     id: "0198F222-AADB-7E00-8000-000000000021",
-    schemaVersion: 1,
+    schemaVersion: MEAL_SCHEMA_VERSION,
     eatenAt: 1_754_300_000_000,
     dishes: [
       {
@@ -101,18 +102,27 @@ function swiftMeal(overrides: Record<string, unknown> = {}) {
               },
             ],
             brand: "Subway",
-            sizes: [
+            forks: [
               {
-                id: "0198F222-AADB-7E00-8000-000000000025",
-                label: "15cm Regular",
-                grams: 200,
-                per_100g: composition,
-              },
-              {
-                id: "0198F222-AADB-7E00-8000-000000000026",
-                label: "30cm Footlong",
-                grams: 400,
-                per_100g: composition,
+                id: "0198F222-AADB-7E00-8000-000000000027",
+                axis: "size",
+                chosen_from: "assumed",
+                options: [
+                  {
+                    id: "0198F222-AADB-7E00-8000-000000000025",
+                    label: "15cm Regular",
+                    grams: 200,
+                    per_100g: composition,
+                    chosen: false,
+                  },
+                  {
+                    id: "0198F222-AADB-7E00-8000-000000000026",
+                    label: "30cm Footlong",
+                    grams: 400,
+                    per_100g: composition,
+                    chosen: true,
+                  },
+                ],
               },
             ],
           },
@@ -131,7 +141,7 @@ describe("the stored meal is the Swift type, mirrored", () => {
     expect(parsed.schemaVersion).toBe(MEAL_SCHEMA_VERSION);
     expect(parsed.dishes[0]?.share).toBe("part");
     expect(parsed.dishes[0]?.panel?.kcal).toBe(480);
-    expect(parsed.dishes[0]?.items[0]?.sizes).toHaveLength(2);
+    expect(parsed.dishes[0]?.items[0]?.forks[0]?.options).toHaveLength(2);
     expect(parsed.dishes[0]?.items[0]?.alternatives[0]?.grams).toBe(420);
   });
 
@@ -159,12 +169,13 @@ describe("the stored meal is the Swift type, mirrored", () => {
     expect(parsed.nutritionOverride?.sodium_mg).toBe(900);
   });
 
-  it("refuses a meal with no schema version, and one from another version", () => {
+  it("refuses a current meal with no schema version, and one from another version", () => {
     // The failure this exists to prevent is a reader guessing. An unversioned
     // meal decoded as whatever the current shape happens to be is how a
     // sandwich came out at 62 kcal instead of as an error somebody could see.
     const { schemaVersion: _omitted, ...unversioned } = swiftMeal();
     expect(mealEventDataSchema.safeParse(unversioned).success).toBe(false);
+    expect(mealEventDataSchema.safeParse(swiftMeal({ schemaVersion: 1 })).success).toBe(false);
     expect(mealEventDataSchema.safeParse(swiftMeal({ schemaVersion: 21 })).success).toBe(false);
     expect(mealEventDataSchema.safeParse(swiftMeal({ schemaVersion: "1" })).success).toBe(false);
   });
@@ -222,7 +233,7 @@ describe("meal recognition contract", () => {
               per_100g: composition,
               preparation: [],
               brand: null,
-              sizes: [],
+              forks: [],
               alternatives: [{ label: "beef mince", grams: 140, per_100g: composition }],
             },
           ],
@@ -241,10 +252,88 @@ describe("meal recognition contract", () => {
     expect(JSON.stringify(jsonSchema)).toContain("sodium_mg");
   });
 
-  it("carries a menu item's brand and the sizes its chain sells", () => {
-    // The two axes a chain's product is corrected on. Weight is the control for
-    // a bowl of rice and a meaningless one for a Big Mac — nobody ate 217 g of
-    // Big Mac — so a branded row is corrected by item, size or count instead.
+  it("settles a fork with no chosen option, or two, on the one that is the row", () => {
+    // The chosen option is the row's own answer restated; without exactly one
+    // the app could not tell which chip is lit, and a fork with two "current"
+    // answers is the model disagreeing with itself. Seen once in five on a
+    // cappuccino's milk. Settled by arithmetic rather than refused, because a
+    // sloppy fork is not a reason to lose the meal.
+    const fork = (chosen: boolean[]) => ({
+      dishes: [
+        {
+          name: "latte",
+          count: 1,
+          panel: null,
+          ingredients: [
+            {
+              grams: 354,
+              label: "caffè latte",
+              per_100g: composition,
+              preparation: [],
+              brand: "Starbucks",
+              alternatives: [],
+              forks: [
+                {
+                  axis: "size",
+                  chosen_from: "assumed",
+                  options: chosen.map((flag, index) => ({
+                    label: ["Tall", "Grande"][index],
+                    grams: 354 + index * 100,
+                    per_100g: composition,
+                    basis: "published",
+                    chosen: flag,
+                  })),
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    const chosenLabels = (chosen: boolean[]) =>
+      normalizePanels(mealRecognitionSchema.parse(fork(chosen)))
+        .dishes[0]?.ingredients[0]?.forks[0]?.options.filter((option) => option.chosen)
+        .map((option) => option.label);
+    // The row is 354 g: Tall.
+    expect(chosenLabels([true, false])).toEqual(["Tall"]);
+    expect(chosenLabels([false, false])).toEqual(["Tall"]);
+    expect(chosenLabels([true, true])).toEqual(["Tall"]);
+    // The stored form is the app's writing, and it is held to exactly one.
+    const stored = swiftMeal();
+    const item = (
+      stored.dishes as Array<{
+        items: Array<{ forks: Array<{ options: Array<{ chosen: boolean }> }> }>;
+      }>
+    )[0]?.items[0];
+    for (const option of item?.forks[0]?.options ?? []) option.chosen = false;
+    expect(mealEventDataSchema.safeParse(stored).success).toBe(false);
+  });
+
+  it("drops a fork none of whose options describes the row", () => {
+    // Priced for something else — a milk fork whose every option is a Grande
+    // when the row is a Tall — offering it would swap in numbers that look
+    // chosen and are not.
+    const settled = settleForks({
+      grams: 354,
+      per_100g: composition,
+      forks: [
+        {
+          axis: "milk",
+          chosen_from: "assumed",
+          options: [
+            { label: "whole", grams: 700, per_100g: composition, basis: "derived", chosen: false },
+            { label: "oat", grams: 720, per_100g: composition, basis: "derived", chosen: false },
+          ],
+        },
+      ],
+    });
+    expect(settled).toEqual([]);
+  });
+
+  it("carries a menu item's brand and the forks the input left open", () => {
+    // The axes a chain's product is corrected on. Weight is the control for a
+    // bowl of rice and a meaningless one for a Big Mac — nobody ate 217 g of
+    // Big Mac — so a branded row is corrected by item, option or count instead.
     const parsed = mealRecognitionSchema.parse({
       dishes: [
         {
@@ -258,11 +347,30 @@ describe("meal recognition contract", () => {
               per_100g: composition,
               preparation: [],
               brand: "Subway",
-              sizes: [
-                { label: "15cm Regular", grams: 229, per_100g: composition, basis: "published" },
-                // A Footlong is nowhere printed: Subway publishes the Regular
-                // and everyone doubles it, which is why the basis is stored.
-                { label: "30cm Footlong", grams: 458, per_100g: composition, basis: "derived" },
+              forks: [
+                {
+                  axis: "size",
+                  chosen_from: "assumed",
+                  options: [
+                    {
+                      label: "15cm Regular",
+                      grams: 229,
+                      per_100g: composition,
+                      basis: "published",
+                      chosen: true,
+                    },
+                    // A Footlong is nowhere printed: Subway publishes the
+                    // Regular and everyone doubles it, which is why the basis
+                    // comes back.
+                    {
+                      label: "30cm Footlong",
+                      grams: 458,
+                      per_100g: composition,
+                      basis: "derived",
+                      chosen: false,
+                    },
+                  ],
+                },
               ],
               alternatives: [{ label: "Spicy Italian", grams: 224, per_100g: composition }],
             },
@@ -273,7 +381,8 @@ describe("meal recognition contract", () => {
 
     const item = parsed.dishes[0]?.ingredients[0];
     expect(item?.brand).toBe("Subway");
-    expect(item?.sizes.map((size) => size.basis)).toEqual(["published", "derived"]);
+    expect(item?.forks[0]?.options.map((option) => option.basis)).toEqual(["published", "derived"]);
+    expect(item?.forks[0]?.chosen_from).toBe("assumed");
     // A rival carries its own weight, so a swap does not price a tuna sub at
     // whatever the turkey sub happened to weigh.
     expect(item?.alternatives[0]?.grams).toBe(224);
@@ -296,7 +405,7 @@ describe("meal recognition contract", () => {
                 per_100g: composition,
                 preparation: [],
                 brand: null,
-                sizes: [],
+                forks: [],
                 alternatives: [],
               },
             ],
@@ -323,7 +432,7 @@ describe("meal recognition contract", () => {
                 grams: 500,
                 preparation: [],
                 brand: null,
-                sizes: [],
+                forks: [],
                 alternatives: [],
               },
             ],
@@ -359,7 +468,7 @@ describe("meal recognition contract", () => {
               per_100g: composition,
               preparation: [],
               brand: null,
-              sizes: [],
+              forks: [],
               alternatives: [],
             },
             {
@@ -368,7 +477,7 @@ describe("meal recognition contract", () => {
               per_100g: { ...composition, kcal: 400 },
               preparation: [],
               brand: null,
-              sizes: [],
+              forks: [],
               alternatives: [],
             },
           ],
@@ -420,7 +529,7 @@ describe("meal recognition contract", () => {
               per_100g: composition,
               preparation: [],
               brand: null,
-              sizes: [],
+              forks: [],
               alternatives: [],
             },
           ],

@@ -33,22 +33,29 @@ targets:
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UILaunchScreen: {}
-        # The identity is Sora, so it ships with the app rather than being asked
-        # for at runtime — a font fetched over the network is a first launch
-        # that renders in the wrong typeface on a bad connection. OFL/SIL, and
-        # the licence ships beside it as Sora-OFL.txt.
+        # The identity is General Sans for words and Space Grotesk for figures,
+        # and both ship with the app rather than being asked for at runtime — a
+        # font fetched over the network is a first launch that renders in the
+        # wrong typeface on a bad connection. General Sans is Indian Type
+        # Foundry's, under the Fontshare free-font EULA (apps are a permitted
+        # medium, redistribution is not, so the files stay in this repository
+        # and go nowhere else); Space Grotesk is OFL. Both licences ship beside
+        # the files in App/Resources/Fonts.
         #
-        # Five static cuts rather than the upstream `Sora[wght].ttf`: iOS
-        # registers a variable font at its default instance only, so a bundled
-        # variable file would render every weight in the app at 400 while
+        # Static cuts rather than the upstream variable files: iOS registers a
+        # variable font at its default instance only, so a bundled variable
+        # file would render every weight in the app at 400 while
         # `UIFont(name:)` still answered — the silent kind of wrong. They are
-        # generated from the variable original with `scripts/build-fonts.py`.
+        # fetched by `scripts/build-fonts.py`.
         UIAppFonts:
-          - Sora-Regular.ttf
-          - Sora-Medium.ttf
-          - Sora-SemiBold.ttf
-          - Sora-Bold.ttf
-          - Sora-ExtraBold.ttf
+          - GeneralSans-Regular.otf
+          - GeneralSans-Medium.otf
+          - GeneralSans-Semibold.otf
+          - GeneralSans-Bold.otf
+          - SpaceGrotesk-Regular.otf
+          - SpaceGrotesk-Medium.otf
+          - SpaceGrotesk-Bold.otf
+          - SpaceGrotesk-SemiBold.ttf
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         NSCameraUsageDescription: >-

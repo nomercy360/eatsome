@@ -97,7 +97,7 @@ public struct RecognizedIngredient: Decodable, Sendable, Hashable {
     /// The chain whose menu item this row *is*. Null for everything cooked,
     /// served loose, or added on top of one.
     public var brand: String?
-    public var sizes: [RecognizedSize]
+    public var forks: [RecognizedFork]
 
     public var stored: MealItem {
         MealItem(
@@ -108,7 +108,7 @@ public struct RecognizedIngredient: Decodable, Sendable, Hashable {
             provenance: .model,
             alternatives: alternatives.map(\.stored),
             brand: brand?.isEmpty == true ? nil : brand,
-            sizes: sizes.map(\.stored)
+            forks: forks.map(\.stored)
         )
     }
 }
@@ -132,19 +132,33 @@ public struct RecognizedAlternative: Decodable, Sendable, Hashable {
     }
 }
 
-/// One size a chain sells an item in, priced in full.
+/// A choice the input left open, as the model reports it: an axis, what
+/// decided the default, and two to six priced options — see `FoodFork`.
+public struct RecognizedFork: Decodable, Sendable, Hashable {
+    public var axis: String
+    public var chosen_from: ForkEvidence
+    public var options: [RecognizedForkOption]
+
+    public var stored: FoodFork {
+        FoodFork(axis: axis, chosenFrom: chosen_from, options: options.map(\.stored))
+    }
+}
+
+/// One option, priced in full for the whole row.
 ///
-/// `basis` says whether the chain printed this size's figures or whether they
-/// are arithmetic on another size — a Footlong is usually double a Regular and
-/// nobody prints it, which makes it the size most likely to be wrong.
-public struct RecognizedSize: Decodable, Sendable, Hashable {
+/// `basis` says whether somebody printed this option's figures or whether they
+/// are arithmetic on another one — a Footlong is usually double a Regular and
+/// nobody prints it, which makes it the option most likely to be wrong. It is
+/// a fact about the answer rather than the plate and is not stored.
+public struct RecognizedForkOption: Decodable, Sendable, Hashable {
     public var label: String
     public var grams: Double
     public var per_100g: Nutrients
     public var basis: String
+    public var chosen: Bool
 
-    public var stored: FoodSize {
-        FoodSize(label: label, grams: grams, per100g: per_100g)
+    public var stored: FoodForkOption {
+        FoodForkOption(label: label, grams: grams, per100g: per_100g, chosen: chosen)
     }
 }
 
