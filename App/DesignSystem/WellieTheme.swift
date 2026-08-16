@@ -402,6 +402,18 @@ struct WellieAvatar: View {
     }
 }
 
+extension View {
+    /// Guarantee the minimum touch target without changing what is drawn.
+    ///
+    /// The HIG minimum is about the finger, not the glyph, so the frame grows
+    /// and the artwork does not — and `contentShape` is what makes the grown
+    /// frame actually receive the tap rather than just occupy space.
+    func wellieHitTarget(_ side: CGFloat = 44) -> some View {
+        frame(minWidth: side, minHeight: side)
+            .contentShape(Rectangle())
+    }
+}
+
 /// Motion, or its absence.
 ///
 /// One place to ask, so a screen cannot honour Reduce Motion in its transition

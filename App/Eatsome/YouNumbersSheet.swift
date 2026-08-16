@@ -64,36 +64,33 @@ struct NumbersSheet: View {
     // MARK: Goal
 
     private func goal(_ profile: Binding<NutritionProfile>) -> some View {
-        choices(profile.goal)
+        ChoiceRows(selection: profile.goal)
     }
 
     // MARK: Body
 
     private func body(_ profile: Binding<NutritionProfile>) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            card {
-                pickerRow("Reference equation") {
-                    Picker("Reference equation", selection: profile.referenceSex) {
-                        Text("Not set").tag(NutritionProfile.ReferenceSex?.none)
-                        ForEach(NutritionProfile.ReferenceSex.allCases, id: \.self) {
-                            Text($0.displayName).tag(Optional($0))
-                        }
-                    }
-                }
+            ProfileCard {
+                NumberRow(title: "Age", unit: "years", value: profile.ageYears.doubleBinding,
+                          range: 19...120, step: 1, decimals: 0)
                 WellieRowDivider()
-                numberRow("Age", unit: "years", value: profile.ageYears.doubleBinding, range: 19...120, step: 1, decimals: 0)
+                NumberRow(title: "Height", unit: "cm", value: profile.heightCentimeters,
+                          range: 120...230, step: 1, decimals: 0)
                 WellieRowDivider()
-                numberRow("Height", unit: "cm", value: profile.heightCentimeters, range: 120...230, step: 1, decimals: 0)
-                WellieRowDivider()
-                numberRow("Weight", unit: "kg", value: profile.weightKilograms, range: 35...350, step: 0.5, decimals: 1)
+                NumberRow(title: "Weight", unit: "kg", value: profile.weightKilograms,
+                          range: 35...350, step: 0.5, decimals: 1)
             }
-            WellieCaption("The adult 2023 reference equations are sex-specific. This asks which published equation to use; it is not a claim about you.")
-                .padding(.horizontal, 6)
 
             healthRow(profile)
 
-            choices(profile.activityLevel)
-                .padding(.top, 8)
+            WellieMeta("Reference equation", size: 11.5).padding(.horizontal, 6).padding(.top, 8)
+            ChoiceRows(selection: profile.referenceSex)
+            WellieCaption("The adult 2023 reference equations are sex-specific. This asks which published equation to use; it is not a claim about you.")
+                .padding(.horizontal, 6)
+
+            WellieMeta("Activity", size: 11.5).padding(.horizontal, 6).padding(.top, 8)
+            ChoiceRows(selection: profile.activityLevel)
         }
     }
 
@@ -188,127 +185,9 @@ struct NumbersSheet: View {
 
     // MARK: Rows
 
-    /// A card of choices: one row per case, a name, a line of detail, and a
-    /// tick on the one in force.
-    ///
-    /// Goal and activity were the same list written twice, differing only in
-    /// which cases they enumerated and which field they set — and the copies
-    /// had already begun to disagree, because only one of them told VoiceOver
-    /// which row was selected. One function, and the fact that both enums
-    /// answer `displayName` and `detail` is what `ChoiceOption` states.
-    private func choices<Option: ChoiceOption>(_ selection: Binding<Option?>) -> some View {
-        card {
-            ForEach(Array(Option.allCases.enumerated()), id: \.element) { index, option in
-                if index > 0 { WellieRowDivider() }
-                Button {
-                    selection.wrappedValue = option
-                } label: {
-                    HStack(spacing: 12) {
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(option.displayName)
-                                .font(WellieTheme.font(15, weight: .semibold))
-                                .foregroundStyle(WellieTheme.ink)
-                            Text(option.detail)
-                                .font(WellieTheme.font(12.5, weight: .regular))
-                                .foregroundStyle(WellieTheme.muted)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        Spacer(minLength: 8)
-                        if selection.wrappedValue == option {
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 14, weight: .bold))
-                                .foregroundStyle(WellieTheme.accent)
-                        }
-                    }
-                    .padding(.vertical, 14)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityAddTraits(selection.wrappedValue == option ? [.isSelected] : [])
-            }
-        }
-    }
 
-    private func card<Content: View>(@ViewBuilder content: () -> Content) -> some View {
-        VStack(spacing: 0) { content() }
-            .padding(.horizontal, 18)
-            .wellieSurface()
-    }
 
-    private func pickerRow<Content: View>(_ title: String, @ViewBuilder picker: () -> Content) -> some View {
-        HStack {
-            Text(title)
-                .font(WellieTheme.font(15, weight: .semibold))
-                .foregroundStyle(WellieTheme.ink)
-            Spacer()
-            picker()
-                .labelsHidden()
-                .tint(WellieTheme.accent)
-        }
-        .padding(.vertical, 8)
-    }
 
-    /// A figure with a stepper. `nil` is drawn as "—" and the first tap of the
-    /// stepper starts from the bottom of the plausible range rather than from
-    /// zero, so an age never passes through 1.
-    private func numberRow(
-        _ title: String,
-        unit: String,
-        value: Binding<Double?>,
-        range: ClosedRange<Double>,
-        step: Double,
-        decimals: Int
-    ) -> some View {
-        HStack(spacing: 10) {
-            Text(title)
-                .font(WellieTheme.font(15, weight: .semibold))
-                .foregroundStyle(WellieTheme.ink)
-            Spacer(minLength: 8)
-            Text(value.wrappedValue.map { "\($0.formatted(.number.precision(.fractionLength(decimals)))) \(unit)" } ?? "—")
-                .font(WellieTheme.font(14, weight: .regular))
-                .foregroundStyle(WellieTheme.muted)
-                .monospacedDigit()
-            Stepper(
-                title,
-                onIncrement: { value.wrappedValue = min(range.upperBound, (value.wrappedValue ?? range.lowerBound - step) + step) },
-                onDecrement: { value.wrappedValue = max(range.lowerBound, (value.wrappedValue ?? range.lowerBound + step) - step) }
-            )
-            .labelsHidden()
-            .tint(WellieTheme.accent)
-            if value.wrappedValue != nil {
-                Button {
-                    value.wrappedValue = nil
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 15))
-                        .foregroundStyle(WellieTheme.faint)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Clear \(title)")
-            }
-        }
-        .padding(.vertical, 10)
-    }
 }
 
-/// A profile field that is a choice from a fixed list, drawn as one.
-///
-/// Declared here rather than in Core because it describes how a row is drawn,
-/// not what a profile is: `detail` is a sentence for a person reading a sheet,
-/// and nothing computes with it.
-protocol ChoiceOption: Hashable, CaseIterable {
-    var displayName: String { get }
-    var detail: String { get }
-}
 
-extension NutritionProfile.Goal: ChoiceOption {}
-extension NutritionProfile.ActivityLevel: ChoiceOption {}
-
-private extension Binding where Value == Int? {
-    var doubleBinding: Binding<Double?> {
-        Binding<Double?>(
-            get: { wrappedValue.map(Double.init) },
-            set: { wrappedValue = $0.map { Int($0.rounded()) } }
-        )
-    }
-}

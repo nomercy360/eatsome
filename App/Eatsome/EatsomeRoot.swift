@@ -19,6 +19,14 @@ struct EatsomeRoot: View {
     @Environment(\.scenePhase) private var scenePhase
 
     @State private var opened = false
+    /// Decided at launch and after a sign-in, and then left alone.
+    ///
+    /// Not a live read of `store.dailyTargets`: that flips the instant the last
+    /// question is answered, which would tear the reference screen away before
+    /// it could be read, and it would drop somebody back into onboarding for
+    /// clearing a field in You. Deciding it at the two moments the profile can
+    /// arrive from somewhere else is what makes it a gate rather than a mode.
+    @State private var needsOnboarding = false
 
     var body: some View {
         Group {
@@ -26,17 +34,25 @@ struct EatsomeRoot: View {
                 ProgressView()
                     .tint(WellieTheme.accent)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if account.isSignedIn {
-                EatsomeShell()
-            } else {
+            } else if !account.isSignedIn {
                 SignInGate()
                     .transition(.opacity)
+            } else if needsOnboarding {
+                Onboarding { needsOnboarding = false }
+                    .transition(.opacity)
+            } else {
+                EatsomeShell()
             }
         }
         .wellieScreen()
         .task {
             account.bootstrap()
             await store.bootstrap()
+            // Completeness of the profile is the flag; there is no separate
+            // `hasOnboarded` boolean that could disagree with it. A profile
+            // that arrives complete — restored on this phone, or edited on
+            // another — means there is nothing left to ask.
+            needsOnboarding = store.dailyTargets == nil
             opened = true
             await store.synchronize()
         }
@@ -47,6 +63,7 @@ struct EatsomeRoot: View {
         // hashes in those records.
         .onChange(of: account.isSignedIn) { was, now in
             guard !was, now else { return }
+            needsOnboarding = store.dailyTargets == nil
             Task { await store.synchronize() }
         }
         // And coming back to the app, because the other phone was logging while

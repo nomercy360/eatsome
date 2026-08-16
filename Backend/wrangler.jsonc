@@ -49,7 +49,7 @@
     {
       "binding": "DB",
       "database_name": "eatsome",
-      "database_id": "4d917567-d6a1-4e35-ad87-28f408010e5f",
+      "database_id": "c9128364-2ffa-4ab4-b42d-a03fa9d8cf53",
       "migrations_dir": "migrations"
     }
   ]

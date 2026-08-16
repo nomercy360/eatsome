@@ -310,7 +310,14 @@ struct LogComposer: View {
 
     private func reread(_ message: LogMessage) async {
         stage = .reading(message)
-        await read(message, bytes: PhotoStore.shared.data(for: message.photoHash))
+        // The composer's own bytes win over the stored ones. A photograph
+        // attached at the confirmation step is not on the message — the
+        // message was written before it existed — so reading only by
+        // `message.photoHash` would retry the picture-less version of a send
+        // the person had just added a picture to.
+        let bytes = photo.flatMap(ModelInputImage.render)
+            ?? PhotoStore.shared.data(for: message.photoHash)
+        await read(message, bytes: bytes)
     }
 
     /// Re-read the same words with a photograph now attached. This is what the

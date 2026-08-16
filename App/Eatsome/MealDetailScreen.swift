@@ -159,24 +159,58 @@ struct MealDetailScreen: View {
 
     private var card: some View {
         VStack(alignment: .leading, spacing: 0) {
-            title
-            Text(subtitle)
-                .font(WellieTheme.font(13, weight: .regular))
-                .foregroundStyle(WellieTheme.muted)
-                .padding(.top, 8)
-            figures
-                .padding(.top, 18)
-                .overlay(alignment: .top) { Rectangle().fill(WellieTheme.hairline).frame(height: 1) }
-                .padding(.top, 22)
-            provenance
-                .padding(.top, 14)
-                .overlay(alignment: .top) { Rectangle().fill(WellieTheme.hairline).frame(height: 1) }
-                .padding(.top, 18)
+            photograph
+            VStack(alignment: .leading, spacing: 0) {
+                title
+                Text(subtitle)
+                    .font(WellieTheme.font(13, weight: .regular))
+                    .foregroundStyle(WellieTheme.muted)
+                    .padding(.top, 8)
+                figures
+                    .padding(.top, 18)
+                    .overlay(alignment: .top) { Rectangle().fill(WellieTheme.hairline).frame(height: 1) }
+                    .padding(.top, 22)
+                provenance
+                    .padding(.top, 14)
+                    .overlay(alignment: .top) { Rectangle().fill(WellieTheme.hairline).frame(height: 1) }
+                    .padding(.top, 18)
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 22)
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 22)
         .frame(maxWidth: .infinity, alignment: .leading)
+        // Clipped before the surface is drawn, so the photograph's top corners
+        // are the card's corners. `wellieSurface` paints its background inside
+        // the same shape and strokes its border over the top, so neither is
+        // eaten by the clip.
+        .clipShape(RoundedRectangle(cornerRadius: WellieTheme.controlRadius, style: .continuous))
         .wellieSurface(radius: WellieTheme.controlRadius)
+    }
+
+    /// The plate, at the top of its own card.
+    ///
+    /// The full stored JPEG rather than a thumbnail: this is 190 points tall
+    /// and the width of the screen, where the 36 pt version on Today would be
+    /// visibly soft. `PhotoStore` caches the decode, so the cost is paid once
+    /// and not on every redraw of a screen whose chips move the figures.
+    ///
+    /// Absent means absent — no frame, no placeholder glyph. A meal typed in
+    /// has no photograph and never will, and a grey square standing in for one
+    /// is an empty slot inviting a person to wonder what is missing. The
+    /// composer draws the fork-and-knife stand-in because there a picture is
+    /// still expected; here it is not.
+    @ViewBuilder
+    private var photograph: some View {
+        if let image = PhotoStore.shared.image(for: meal.photoHash) {
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFill()
+                .frame(height: 190)
+                .frame(maxWidth: .infinity)
+                .clipped()
+                .accessibilityElement()
+                .accessibilityLabel("Photograph of this meal")
+        }
     }
 
     /// The title is the dish sentence. On a one-item meal with rivals it is
